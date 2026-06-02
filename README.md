@@ -2,7 +2,29 @@
 
 TAU Deepness Lab Workshop - Evaluate **RetryGuard** (you implement from the paper) on a **TopFull** Kubernetes microservice stack (Online Boutique).
 
-**Before VMs:** [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md). **Steps:** workplan canvas + [SETUP-GUIDE.md](SETUP-GUIDE.md).
+**Before VMs:** [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md). **Steps:** [WORKPLAN.md](WORKPLAN.md) (or interactive canvas in Cursor) + [SETUP-GUIDE.md](SETUP-GUIDE.md).
+
+## Viewing the workplan
+
+Clone this repository, then use either format below.
+
+### Markdown (any editor or GitHub)
+
+Open [WORKPLAN.md](WORKPLAN.md) in the repo root. It has the same phases, steps, and tables as the canvas (Why / How / Done when per step). Readable on GitHub without installing anything.
+
+### Interactive canvas (Cursor IDE)
+
+1. Install [Cursor](https://cursor.com) (free tier is enough).
+2. Clone and open the project folder:
+   ```bash
+   git clone https://github.com/Sagi154/topfull-retryguard-workshop.git
+   cd topfull-retryguard-workshop
+   ```
+   In Cursor: **File ? Open Folder** ? select `topfull-retryguard-workshop`.
+3. Open `canvases/topfull-retryguard-workplan.canvas.tsx` from the file explorer.
+4. Cursor renders it as a **Canvas** beside the editor: collapsible phases, checklists, VM tables, and experiment matrix.
+
+Use the canvas for day-to-day progress; use [WORKPLAN.md](WORKPLAN.md) when sharing links or working outside Cursor. Keep both in sync if you edit the workplan (update the canvas source and re-export or edit `WORKPLAN.md` to match).
 
 ## Stack
 
@@ -22,7 +44,8 @@ TAU Deepness Lab Workshop - Evaluate **RetryGuard** (you implement from the pape
 | TopFull paper | https://dl.acm.org/doi/abs/10.1145/3651890.3672253 |
 | TopFull repo | https://github.com/kaist-ina/TopFull/tree/main |
 | RetryGuard paper | `RetryGuard.pdf` (in this folder) |
-| Workplan canvas | `canvases/topfull-retryguard-workplan.canvas.tsx` in Cursor (Why / How / Done when per step) |
+| **Workplan (markdown)** | [WORKPLAN.md](WORKPLAN.md) - phases, Why / How / Done when (view on GitHub or any editor) |
+| **Workplan (canvas)** | [canvases/topfull-retryguard-workplan.canvas.tsx](canvases/topfull-retryguard-workplan.canvas.tsx) - same content, interactive in Cursor (see [Viewing the workplan](#viewing-the-workplan)) |
 | Detailed setup guide | [SETUP-GUIDE.md](SETUP-GUIDE.md) (full commands, Azure examples, troubleshooting) |
 
 ## Architecture
