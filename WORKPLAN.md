@@ -16,7 +16,7 @@ TAU Deepness Lab Workshop — Retries for Cloud Microservices
 
 | Role | Count | Min specs | Purpose |
 |------|-------|-----------|---------|
-| Master Node | 1 | 8+ vCPU, 16 GB RAM | K8s control plane, TopFull proxy, RL, metrics |
+| Master Node | 1 | 8+ vCPU, 16 GB RAM | K8s control plane, Istio control plane, TopFull proxy, RL, metrics |
 | Worker Nodes | 2–5 | 8+ vCPU, 16 GB RAM | Online Boutique pods, cAdvisor |
 | Load Generator | 1 | 8+ vCPU, 16 GB RAM | Locust traffic only |
 
@@ -85,7 +85,7 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 2. You do not need RetryGuard source code from the lab.
 3. Read RetryGuard Sec. 4 (controller) and Sec. 6.2 (~20% threshold, ~30s interval).
 
-**Done when:** Mentor checklist done and retry integration point agreed (proxy, Istio, or app config).
+**Done when:** Mentor checklist done and Istio integration approach approved (RetryGuard toggles Istio VirtualService retry policies per service, matching the paper's Sec. 4 design).
 
 ---
 
@@ -133,8 +133,9 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 2. Allow TCP 6443 on master (Kubernetes API).
 3. Allow TCP 30440 on master (Online Boutique NodePort).
 4. Allow TCP 8090 on master (TopFull Go proxy).
-5. Allow all traffic between VMs inside the same subnet (pod network + node communication).
-6. Azure: edit Network Security Group inbound rules. AWS: edit Security Group.
+5. Allow TCP 15010, 15012, 15014, 15017 on master (Istio control plane).
+6. Allow all traffic between VMs inside the same subnet (pod network + node communication).
+7. Azure: edit Network Security Group inbound rules. AWS: edit Security Group.
 
 **Done when:** From master you can ping worker private IPs; from loadgen you can ping master private IP.
 
@@ -273,6 +274,24 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 ---
 
+#### 2h. Install Istio service mesh
+
+**Why:** RetryGuard controls retries by toggling Istio VirtualService retry policies per service, matching the paper's architecture (Sec. 4). Istio injects Envoy sidecar proxies into each pod, giving mesh-level retry control over inter-service gRPC calls.
+
+**How:**
+
+1. On master: download `istioctl` (use Istio 1.17.x for K8s 1.26 compatibility).
+2. `curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.17.8 sh -`
+3. Add `istio-1.17.8/bin` to PATH.
+4. `istioctl install --set profile=minimal -y` (minimal profile avoids unnecessary components).
+5. Label the namespace for automatic sidecar injection: `kubectl label namespace default istio-injection=enabled`
+6. Verify: `kubectl get pods -n istio-system` — `istiod` should be Running.
+7. Confirm Istio does not conflict with Calico: `kubectl get pods --all-namespaces` — no CrashLoopBackOff.
+
+**Done when:** `istiod` is Running in `istio-system`; sidecar injection is enabled on the default namespace.
+
+---
+
 ### Phase 3 — Install Dependencies (Day 3–4)
 
 #### 3a. Install Python dependencies on master
@@ -380,17 +399,19 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 ---
 
-#### 4e. Deploy Online Boutique and metrics-server
+#### 4e. Deploy Online Boutique and metrics-server (with Istio sidecars)
 
-**Why:** This is the microservice app you will overload and measure.
+**Why:** This is the microservice app you will overload and measure. With Istio injection enabled, each pod gets an Envoy sidecar that handles inter-service retries.
 
 **How:**
 
-1. On master: `kubectl apply -f TopFull_master/online_boutique_scripts/deployments/online_boutique_original_custom.yaml`
-2. `kubectl apply -f TopFull_master/online_boutique_scripts/deployments/metric-server-latest.yaml`
-3. Wait for pods: `kubectl get pods` (may take minutes to pull images).
+1. Confirm sidecar injection is enabled: `kubectl get namespace default --show-labels` (should show `istio-injection=enabled`).
+2. On master: `kubectl apply -f TopFull_master/online_boutique_scripts/deployments/online_boutique_original_custom.yaml`
+3. `kubectl apply -f TopFull_master/online_boutique_scripts/deployments/metric-server-latest.yaml`
+4. Wait for pods: `kubectl get pods` (may take minutes to pull images). Each pod should show 2/2 containers (app + Envoy sidecar).
+5. If pods show 1/1 instead of 2/2: delete and re-apply the deployment, or manually inject with `istioctl kube-inject -f <yaml> | kubectl apply -f -`.
 
-**Done when:** Boutique-related pods are Running or completing startup.
+**Done when:** Boutique pods are Running with 2/2 containers (Envoy sidecar injected).
 
 ---
 
@@ -427,7 +448,7 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 #### 5a. Terminal 1 (master): Start Go proxy
 
-**Why:** All user traffic enters through the TopFull rate-limiting proxy on port 8090.
+**Why:** All user traffic enters through the TopFull rate-limiting proxy on port 8090. With Istio installed, inter-service traffic flows through Envoy sidecars, but the Go proxy still serves as the edge entry point.
 
 **How:**
 
@@ -435,8 +456,9 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 2. `cd TopFull_master/online_boutique_scripts/src/proxy`
 3. `go run proxy_online_boutique.go`
 4. Leave this terminal open. Fix errors about config path before continuing.
+5. Verify traffic reaches the app through Istio: `curl http://MASTER_IP:30440` should still return 200 with Envoy sidecars active.
 
-**Done when:** Proxy listens on 8090 without crashing.
+**Done when:** Proxy listens on 8090 without crashing; traffic flows through Go proxy → Istio sidecars → services.
 
 ---
 
@@ -505,45 +527,49 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 #### 6a. Implement RetryGuard controller (Algorithm 1)
 
-**Why:** RetryGuard turns retries off during prolonged overload to prevent retry storms.
+**Why:** RetryGuard turns retries off during prolonged overload to prevent retry storms. The controller monitors overload metrics and toggles Istio VirtualService retry policies per service.
 
 **How:**
 
-1. Poll rejection rate (or latency) per service from Prometheus/metrics or TopFull logs.
-2. If rejection > ~20% for N consecutive ~30s intervals: disable retries.
-3. If below threshold for N intervals: re-enable retries.
-4. See RetryGuard paper Algorithm 1 and Sec. 4.3.2.
+1. Write a Python script that polls per-API rejection rate (or latency) from TopFull’s built-in collectors (`metric_collector.py` / `overload_detection.py` logs). Map each API to its primary downstream service (e.g. `getproduct` → productcatalog, `getcart` → cart).
+2. If rejection > ~20% for N consecutive ~30s intervals: patch VirtualService to set `retries.attempts: 0` for the overloaded service.
+3. If below threshold for N intervals: patch VirtualService to restore `retries.attempts: 3` (or original value).
+4. Use the Kubernetes Python client (`kubernetes.client.CustomObjectsApi`) to patch VirtualService CRDs.
+5. See RetryGuard paper Algorithm 1 and Sec. 4.3.2.
 
-**Done when:** You have a script that can flip retry policy based on metrics.
+**Done when:** You have a script that can flip Istio VirtualService retry policies per service based on metrics.
 
 ---
 
-#### 6b. Choose where retries are controlled
+#### 6b. Create Istio VirtualService resources for each microservice
 
-**Why:** Retries must be toggled in the actual request path, not only in metrics.
+**Why:** RetryGuard toggles retries at the Istio mesh level (matching the paper's Sec. 4 architecture). Each service needs a VirtualService with a retry policy that the controller can patch.
 
 **How:**
 
-1. Option A: extend TopFull Go proxy to skip retries when RetryGuard says OFF.
-2. Option B: Istio VirtualService retry policy (if you add Istio).
-3. Option C: modify Online Boutique client retry settings.
-4. Confirm preferred option with mentors (see [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md)).
+1. Create VirtualService YAML for each Online Boutique service (frontend, productcatalog, cart, recommendation, etc.).
+2. Set default retry policy: `retries: { attempts: 3, retryOn: "5xx,reset,connect-failure" }`.
+3. Apply: `kubectl apply -f virtualservices/`
+4. Verify: `kubectl get virtualservices` — one per microservice.
+5. Test manual toggle: `kubectl patch virtualservice <svc> --type merge -p '{"spec":{"http":[{"retries":{"attempts":0}}]}}'` — confirm retries stop.
+6. Revert the manual toggle after testing.
 
-**Done when:** You know exactly which config/file changes when RetryGuard disables retries.
+**Done when:** VirtualService resources exist for each microservice with configurable retry policies; manual patch toggle works.
 
 ---
 
 #### 6c. Deploy RetryGuard alongside TopFull
 
-**Why:** RetryGuard runs in parallel with TopFull during the second experiment.
+**Why:** RetryGuard runs in parallel with TopFull during the second experiment. It watches overload metrics and patches Istio VirtualService retry policies in real time.
 
 **How:**
 
-1. Run RetryGuard as a process on master or as a Kubernetes pod.
-2. Ensure it reads the same metrics source you validated.
+1. Run RetryGuard as a process on master (same venv as other TopFull scripts).
+2. Ensure it has `kubectl` access (uses `~/.kube/config`) and reads the same metrics source you validated.
 3. Start proxy + `deploy_rl` + RetryGuard before load.
+4. Tail RetryGuard logs to confirm it detects overload and patches VirtualService resources (log should show service name, old attempts, new attempts).
 
-**Done when:** RetryGuard is running and logs when it enables/disables retries.
+**Done when:** RetryGuard is running, patching VirtualService retry policies, and logging when it enables/disables retries per service.
 
 ---
 
@@ -583,8 +609,8 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 **How:**
 
-1. Describe environment: VM sizes, K8s 1.26, TopFull + Online Boutique.
-2. Explain RetryGuard integration point (what mentors agreed in Phase 0c).
+1. Describe environment: VM sizes, K8s 1.26, Istio service mesh, TopFull + Online Boutique.
+2. Explain RetryGuard integration: Istio VirtualService retry policy toggling per service (matching paper Sec. 4).
 3. Present Phase 5 baseline vs Phase 6 RetryGuard metrics with graphs/tables.
 4. Match report format mentors requested in [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md).
 

@@ -114,7 +114,7 @@ Before **Phase 6**, you should already have:
 |--------------|--------|
 | Paper read | Algorithm 1; Sec. 4.3 (rejections, delays, retry volume) |
 | Baseline experiment done | Phase 5 complete - TopFull + load + `metric_collector` working |
-| Metrics source | How you read rejection rate (TopFull logs, Prometheus, etc.) |
+| Metrics source | Per-API rejection rates from TopFull's built-in collectors (`metric_collector.py`, `overload_detection.py`) |
 | Integration design | How "retries OFF" is enforced in your stack |
 | Python on master | Same venv as TopFull scripts |
 
