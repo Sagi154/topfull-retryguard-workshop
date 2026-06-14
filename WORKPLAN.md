@@ -8,7 +8,7 @@ TAU Deepness Lab Workshop — Retries for Cloud Microservices
 
 | Cloud VMs | Timeline | Phases | Est. cloud cost |
 |-----------|----------|--------|-----------------|
-| 4–7 | ~8 days | 7 (0–7) | $5–15/day |
+| 3 | ~8 days | 7 (0–7) | $3–9/day |
 
 ---
 
@@ -17,7 +17,7 @@ TAU Deepness Lab Workshop — Retries for Cloud Microservices
 | Role | Count | Min specs | Purpose |
 |------|-------|-----------|---------|
 | Master Node | 1 | 8+ vCPU, 16 GB RAM | K8s control plane, Istio control plane, TopFull proxy, RL, metrics |
-| Worker Nodes | 2–5 | 8+ vCPU, 16 GB RAM | Online Boutique pods, cAdvisor |
+| Worker Nodes | 1 | 8+ vCPU, 16 GB RAM | Online Boutique pods, cAdvisor |
 | Load Generator | 1 | 8+ vCPU, 16 GB RAM | Locust traffic only |
 
 ---
@@ -52,8 +52,8 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 **How:**
 
 1. Ask mentors if the lab provides Azure/AWS/GCP credits or a shared subscription ([MENTOR-COORDINATION.md](MENTOR-COORDINATION.md)).
-2. If self-funded: create a cloud account. Azure matches the TopFull paper; AWS/GCP also work.
-3. Plan ~$5–15/day while 4 VMs run. Deallocate/stop VMs when you are not working.
+2. **GCP with student credits (~$300) was discussed in the mentor meeting as the preferred option — confirm with Alon / Chanok before provisioning.** AWS/GCP/Azure all work technically; Azure matches the TopFull paper environment.
+3. Plan ~$5–15/day while 3 VMs run. Deallocate/stop VMs when you are not working. Start minimal; request extra budget only with justification.
 
 **Done when:** You can log into a cloud portal and create a virtual machine.
 
@@ -105,21 +105,21 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 ### Phase 1 — Provision Cloud VMs (Day 1–2)
 
-#### 1a. Create 4–7 Ubuntu 20.04 VMs
+#### 1a. Create 3 Ubuntu 20.04 VMs
 
 **Why:** Kubernetes needs a dedicated master (control plane + TopFull), workers (app pods), and a separate load generator.
 
 **How:**
 
 1. Create 1 VM named e.g. `topfull-master` (master role).
-2. Create 2–5 VMs named e.g. `topfull-worker-1..N` (run microservice pods). Paper used 5 workers; 2 is OK to start.
+2. Create 1 VM named e.g. `topfull-worker-1` (runs microservice pods).
 3. Create 1 VM named e.g. `topfull-loadgen` (runs Locust only).
 4. Image: Ubuntu Server 20.04 LTS (not 22.04). Size: at least 8 vCPU and 16 GB RAM each.
 5. Azure example: Resource group + VNet, then Create VM > Standard_D8ds_v5, SSH key auth, same subnet.
 6. AWS example: VPC + subnet, EC2 m5.2xlarge, Ubuntu 20.04 AMI, same security group.
 7. Put all VMs in the same region and virtual network so private IPs can talk.
 
-**Done when:** You have 4+ running VMs, all Ubuntu 20.04, tagged by role (master / worker / loadgen).
+**Done when:** You have 3 running VMs, all Ubuntu 20.04, tagged by role (master / worker / loadgen).
 
 ---
 
@@ -379,8 +379,7 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 **How:**
 
 1. Open `resource_collector.py` around line 456.
-2. Count how many worker nodes you joined.
-3. Adjust the exec command count to match (default in repo expects 5 workers).
+2. Set the exec command count to **1** (1 worker node; default in repo expects 5 workers).
 
 **Done when:** `resource_collector` matches your actual worker count.
 
@@ -516,10 +515,11 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 **How:**
 
 1. Check `TopFull_master/online_boutique_scripts/src/logs/` for CSV output.
-2. Copy logs to a folder named e.g. `baseline_topfull_no_retryguard`.
+2. Copy logs to a folder named e.g. `baseline_topfull_no_retryguard_<scenario>_run<N>`.
 3. Note experiment duration, load settings, and date.
+4. Run each scenario **multiple times** — Locust is non-deterministic. A single run is not sufficient. Save each run in its own folder and plan to compare using averages/medians across runs.
 
-**Done when:** You have saved CSVs labeled as the TopFull baseline (default retries).
+**Done when:** You have saved CSVs for each scenario, each with multiple baseline runs labeled consistently.
 
 ---
 
@@ -581,9 +581,10 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 1. Repeat Phase 5 exactly: same Locust scripts, same duration, same replica counts.
 2. Only difference: RetryGuard active.
-3. Collect metrics to a new folder e.g. `run_topfull_retryguard`.
+3. Run each scenario **multiple times** (Locust generates randomized user behavior — a single run is not sufficient). Compare results using averages/medians across runs to ensure observed differences are due to RetryGuard, not random variation in traffic patterns.
+4. Collect metrics to a new folder e.g. `run_topfull_retryguard_<scenario>_run<N>`.
 
-**Done when:** You have two result sets: baseline vs RetryGuard.
+**Done when:** You have two result sets per scenario (baseline vs RetryGuard), each with multiple runs saved.
 
 ---
 
@@ -618,29 +619,43 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 ---
 
-## Experiment matrix (two runs only)
+## Experiment matrix
 
-| Run | Overload control | Retries | When |
-|-----|------------------|---------|------|
-| Baseline | TopFull | Default (retries on) | Phase 5 |
-| Primary | TopFull | RetryGuard | Phase 6 |
+Each scenario is run with two retry conditions (baseline and RetryGuard), and each condition is run **multiple times** to account for Locust's non-deterministic traffic generation. Results are compared using averages/medians across runs.
+
+| Scenario | Retry condition | Load shape | Primary questions answered | Phase |
+|----------|-----------------|------------|---------------------------|-------|
+| Normal Operation | Baseline / RetryGuard | Flat RPS within capacity | Sanity check — RetryGuard must be non-intrusive | 5 / 6 |
+| Sustained Overload (core) | Baseline / RetryGuard | Ramp to ρ > 1, hold for minutes | System-level gains, topology beneficiaries, chain propagation, controller interaction | 5 / 6 |
+| Targeted Bottleneck | Baseline / RetryGuard | Full call-chain load + one constrained service | Topology beneficiaries, chain propagation, controller interaction | 6 |
+| Topology Position Comparison | Baseline / RetryGuard | 3× Targeted Bottleneck at gateway-adjacent / hub / leaf | Topology position sensitivity, topology beneficiaries, chain propagation | 6 |
+| Re-enable Interval Tuning | RetryGuard only (vary interval) | Sustained Overload × {10s, 20s, 30s, 60s} | Interval parameter sensitivity, combined equilibrium | 6 |
+| Attack Traffic *(extension)* | Baseline / RetryGuard | Malicious burst-DDoS pattern | Adversarial resilience | 6 (if time permits) |
 
 ---
 
 ## Key metrics to collect
 
-### Performance
+### System & API performance (Layer 1 — TopFull `metric_collector.py` → CSVs in `logs/`)
 
 | Metric | Description |
 |--------|-------------|
 | **Goodput (rps)** | Successful responses within latency SLO |
 | **P99 Latency (ms)** | End-to-end 99th percentile |
-| **Rejection Rate (%)** | Failed requests |
+| **Rejection Rate (%)** | Failed requests — the signal RetryGuard reads to decide whether to suppress retries |
 
-### Cost / efficiency
+### Cost / efficiency (Layer 2 — cAdvisor via `resource_collector.py`)
 
 | Metric | Description |
 |--------|-------------|
 | **Retries per request** | Retry storm size during overload |
 | **CPU + Memory** | Pod resource usage |
-| **Pod replica count** | Over-scaling from retries |
+| **Pod replica count** | Over-scaling from retries (`num_instances.csv`) |
+
+### Controller logic & state (Layer 3 — RetryGuard script logs)
+
+| Metric | Description |
+|--------|-------------|
+| **Per-service retry toggle events** | Which services had retries disabled, and when — ties controller decisions to the topology beneficiaries question |
+| **Time-to-recovery** | Duration between retry suppression and re-enablement — shows the cool-down cycle in practice |
+| **TopFull overload state cross-reference** | Which APIs were flagged as overloaded by `overload_detection.py` at what priority — cross-reference with RetryGuard toggle timing |

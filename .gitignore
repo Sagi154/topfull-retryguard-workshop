@@ -3,3 +3,4 @@ Thumbs.db
 *.tmp
 *~
 canvases/node_modules/
+/temp

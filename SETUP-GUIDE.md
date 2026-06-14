@@ -19,7 +19,7 @@ This document explains **what each workplan step means**, **what to do concretel
 **What to do:**
 1. Ask your mentors if the lab provides Azure/AWS/GCP credits or a shared subscription (see [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md)).
 2. If you pay yourself: create an account on [Azure](https://azure.microsoft.com), [AWS](https://aws.amazon.com), or [GCP](https://cloud.google.com).
-3. Budget roughly **$5-15/day** while VMs run (4 VMs, ~$1-3/hr depending on size). **Stop/deallocate VMs when not working.**
+3. Budget roughly **$3-9/day** while VMs run (3 VMs, ~$1-3/hr depending on size). **Stop/deallocate VMs when not working.**
 
 **Done when:** You can log into the cloud portal and create a virtual machine.
 
@@ -57,7 +57,7 @@ Read these (don't run yet):
 1. Complete [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md) (credits, cloud provider, integration point, report format).
 2. Read RetryGuard Section 4 (controller) and Section 6.2 (~20% rejection threshold, 30s polling interval).
 
-**Done when:** Mentor checklist is done and you know the retry integration point (TopFull proxy, Istio, or app config).
+**Done when:** Mentor checklist is done. Integration point is confirmed: RetryGuard toggles Istio VirtualService retry policies per service on the master node (matches paper Sec. 4). No proxy-level or app-level toggle needed.
 
 ---
 
@@ -77,7 +77,7 @@ Save to default location (`C:\Users\YOU\.ssh\id_ed25519`). When creating VMs, pa
 
 ## Phase 1 - Provision cloud VMs
 
-### 1a. Create 4-7 Ubuntu 20.04 VMs
+### 1a. Create 3 Ubuntu 20.04 VMs
 
 **What this is:** A small Kubernetes cluster needs separate machines (or VMs) for control plane, workers, and load generation.
 
@@ -86,10 +86,10 @@ Save to default location (`C:\Users\YOU\.ssh\id_ed25519`). When creating VMs, pa
 | VM name (example) | Role | Runs |
 |-------------------|------|------|
 | `topfull-master` | Master | `kubeadm` control plane, TopFull proxy, `deploy_rl.py`, `metric_collector.py` |
-| `topfull-worker-1` (+ optional 2-4 more) | Worker | Online Boutique pods, cAdvisor |
+| `topfull-worker-1` | Worker | Online Boutique pods, cAdvisor |
 | `topfull-loadgen` | Load generator | Locust scripts only |
 
-The paper used **5 workers**; for a first test **2 workers** is OK.
+The paper used **5 workers**; this setup uses **1 worker**.
 
 **Specs per VM:** at least **8 vCPUs, 16 GB RAM**, **Ubuntu 20.04 LTS** (not 22.04 - TopFull README targets 20.04).
 
@@ -107,7 +107,7 @@ The paper used **5 workers**; for a first test **2 workers** is OK.
 **Example: AWS**
 - Same idea: one VPC, one subnet, EC2 instances `m5.2xlarge`, Ubuntu 20.04 AMI, same security group.
 
-**Done when:** You have 4+ running VMs, all Ubuntu 20.04, all in the same network.
+**Done when:** You have 3 running VMs, all Ubuntu 20.04, all in the same network.
 
 ---
 
@@ -275,6 +275,33 @@ kubectl get po -A -o wide
 
 ---
 
+### 2h. Install Istio service mesh (master only)
+
+**Why:** RetryGuard controls retries by toggling Istio VirtualService retry policies per service — the decided integration point (matches paper Sec. 4). Istio injects Envoy sidecar proxies into each pod, giving mesh-level retry control over inter-service calls.
+
+```bash
+# Download Istio 1.17.8 (compatible with K8s 1.26)
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.17.8 sh -
+echo 'export PATH=$PATH:$HOME/istio-1.17.8/bin' >> ~/.bashrc
+source ~/.bashrc
+
+# Install minimal profile (avoids unnecessary components)
+istioctl install --set profile=minimal -y
+
+# Enable automatic sidecar injection in the default namespace
+kubectl label namespace default istio-injection=enabled
+
+# Verify
+kubectl get pods -n istio-system   # istiod should be Running
+kubectl get ns default --show-labels  # should show istio-injection=enabled
+```
+
+If Istio conflicts with Calico: `kubectl get pods --all-namespaces` — no CrashLoopBackOff.
+
+**Done when:** `istiod` is Running in `istio-system`; default namespace has `istio-injection=enabled`.
+
+---
+
 ## Phase 3 - Dependencies
 
 ### 3a. Python on master
@@ -351,6 +378,9 @@ See README checklist: hardcode path to `global_config.json` in four Python/Go fi
 
 **On master:**
 ```bash
+# Confirm sidecar injection is active before deploying
+kubectl get namespace default --show-labels   # must show istio-injection=enabled
+
 cd ~/TopFull
 kubectl apply -f TopFull_master/online_boutique_scripts/deployments/online_boutique_original_custom.yaml
 kubectl apply -f TopFull_master/online_boutique_scripts/deployments/metric-server-latest.yaml
@@ -360,7 +390,7 @@ python instance_scaling.py
 kubectl get pods
 ```
 
-**Done when:** Boutique pods are `Running`.
+**Done when:** All Boutique pods show `2/2` containers (app + Envoy sidecar injected by Istio). If pods show `1/1`, the sidecar was not injected — delete the deployment and re-apply, or manually inject: `istioctl kube-inject -f <yaml> | kubectl apply -f -`.
 
 ---
 
@@ -392,10 +422,11 @@ curl -I http://MASTER_IP:30440
 
 ## Phase 6 - RetryGuard
 
-1. Implement controller (Algorithm 1): poll rejection rate every ~30s; if above ~20% for N consecutive intervals, disable retries; re-enable when below threshold for N intervals.
-2. Integrate at the integration point mentors agreed on ([MENTOR-COORDINATION.md](MENTOR-COORDINATION.md): proxy, Istio, or app config).
-3. Run the **same** Locust scenario as Phase 5 with RetryGuard enabled.
-4. Save results as **retryguard run** (separate folder from baseline).
+1. Implement controller (Algorithm 1): poll per-service rejection rate every ~30s from TopFull's `metric_collector.py` / `overload_detection.py` logs; if above ~20% for N consecutive intervals, disable retries; re-enable when below threshold for N intervals.
+2. Integration point (decided — matches paper Sec. 4): RetryGuard runs as a Python process on the master node. It toggles retries per service by patching Istio VirtualService resources via `kubernetes.client.CustomObjectsApi`. Disabling = `retries.attempts: 0`; re-enabling = `retries.attempts: 3`.
+3. Before running the experiment, create a VirtualService resource for each Online Boutique microservice with the default retry policy (`attempts: 3, retryOn: "5xx,reset,connect-failure"`). Verify manual toggle works: `kubectl patch virtualservice <svc> --type merge -p '{"spec":{"http":[{"retries":{"attempts":0}}]}}'`.
+4. Run the **same** Locust scenario as Phase 5 with RetryGuard enabled. Run each scenario **multiple times** (Locust is non-deterministic); compare using averages/medians across runs.
+5. Save results as **retryguard run** (separate folder from baseline, e.g. `run_topfull_retryguard`).
 
 ---
 
