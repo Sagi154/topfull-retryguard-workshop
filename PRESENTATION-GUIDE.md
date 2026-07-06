@@ -84,6 +84,8 @@ This applies everywhere — not just to the TopFull and RetryGuard background sl
 - RetryGuard runs on the master node: it monitors overload signals from TopFull's collectors and dynamically enables or disables retries per service by updating Istio VirtualService configurations.
 - Online Boutique is the test application — a representative microservice call chain, not the subject of the study itself.
 
+> **Visual:** Show `Online-Boutique-architecture.png` here to give the audience a concrete picture of the service call graph — Frontend, Checkout, leaf services (Email, Payment), and the Redis cache. Keep it as a supporting illustration for the bullet points above; the text must stand on its own.
+
 ### 5. How We Test (2–3 slides — core of the deck)
 
 **Baseline experiment:**
@@ -166,6 +168,8 @@ The scenarios follow directly from the open questions above — each scenario is
   2. **Hub / sub-tree root** (e.g., Checkout): downstream from Frontend but itself fans out to call Cart, Shipping, Currency, ProductCatalog, Email, and Payment. Overloading Checkout creates retry amplification in both directions — Frontend retries Checkout (upward) and Checkout retries its six downstream callers simultaneously (downward). The hub case is expected to show the most severe retry amplification because suppressing retries at Checkout simultaneously relieves pressure across all its downstream callers.
   3. **Deep leaf** (e.g., Email or Payment): a leaf service with no downstream dependencies of its own, reachable only through an intermediate service (Checkout). Frontend cannot call it directly. TopFull's top-down signal here is most attenuated — the bottleneck is invisible at the entry until Checkout itself starts degrading.
 - Answers: topology position sensitivity, topology beneficiaries, chain propagation.
+
+> **Visual:** Show `Online-Boutique-architecture.png` again here to anchor the three positions visually — annotate or highlight the relevant services (e.g., circle ProductCatalog for position 1, Checkout for position 2, Email/Payment for position 3). The diagram makes the structural argument concrete without needing additional explanation.
 
 **Scenario: Re-enable Interval Tuning**
 
