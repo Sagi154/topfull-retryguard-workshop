@@ -10,7 +10,7 @@ Paste this prompt into NotebookLM after uploading the source documents listed be
 2. `TopFull.pdf` — the overload-control system (SIGCOMM 2024) we run RetryGuard on top of
 3. `TAU-workshop -26 retryGuard.pptx` — existing workshop slide deck (use for style and formatting reference only)
 4. `WORKPLAN.md` — full phase-by-phase project plan (Phases 0–7, ~8 days, VM architecture, experiment matrix)
-5. `PRESENTATION-GUIDE.md` — **the authoritative slide flow** (9-section structure the deck must follow, including section order)
+5. `PRESENTATION-GUIDE.md` — **the authoritative slide flow** (10-section structure the deck must follow, including section order)
 6. `PRESENTATION-ACTION-ITEMS.md` — slide checklist, mentor expectations, team tasks
 7. `SETUP-GUIDE.md` — detailed step-by-step setup instructions for the full stack
 8. TopFull GitHub repo README: https://github.com/kaist-ina/TopFull/tree/main
@@ -54,19 +54,14 @@ at the visual, the slide is missing its explanation.
 
 ### Project summary
 
-- **Our project:** Self-implement RetryGuard (Algorithm 1 from the RetryGuard paper) and evaluate
-  its impact on a Kubernetes microservice system running TopFull overload control.
+- **Our project:** Self-implement RetryGuard from the RetryGuard paper and evaluate its impact on a
+  Kubernetes microservice system running TopFull overload control, on Ron Nezer's existing lab environment.
 - **TopFull** (SIGCOMM 2024, KAIST): Top-down, API-wise overload control at the entry point. Uses
   an RL-based rate controller (Sim2Real transfer learning) that adjusts admission rates every
   1 second based on end-to-end goodput and percentile latencies. Solves the starvation problem
   where shared downstream microservices cause some API requests to be partially processed then
   rejected, wasting resources.
-- **RetryGuard** (TAU Deepness Lab, 2025): A productive-retry controller (Algorithm 1) that monitors
-  rejection rate per service. If rejections exceed ~20% for N consecutive ~30-second measurement
-  intervals → disable retries (Consecutive_high ≥ Interval). Once below threshold for N consecutive
-  intervals → re-enable (Consecutive_low ≥ Interval). Distributed — each service manages retries
-  independently. Non-intrusive during normal operation. Validated on AWS Lambda/DynamoDB and Istio
-  Kubernetes Bookinfo.
+- **RetryGuard** (TAU Deepness Lab, 2025): Each microservice has a controller that watches its own health signal (typically HTTP rejection rate from the local Istio/Envoy sidecar). If rejections stay above ~20% for several consecutive ~30-second windows → disable retries for that service only (patch Istio VirtualService). Once below threshold for the same number of windows → re-enable. Distributed — each service decides independently; no central coordinator. Quiet under normal load. Validated on AWS Lambda/DynamoDB and Istio Kubernetes Bookinfo. Do NOT lead slides with pseudocode or "Algorithm 1" — describe behavior in plain language.
 - **Integration method:** RetryGuard runs on the master node as a Python script, reads rejection
   signals from Istio/Envoy sidecar metrics (HTTP error rates per service), and patches Istio
   VirtualService retry policies per microservice via the Kubernetes Python client. Matches
@@ -74,12 +69,12 @@ at the visual, the slide is missing its explanation.
 - **Test application:** Online Boutique (Google's demo microservice app, 11 microservices including
   Frontend, Checkout, Cart, Productcatalog, Shipping, Currency, Email, Payment, Recommendation, Ad,
   Redis cache). A representative call chain, not the subject of study itself.
-- **Infrastructure:** 4–7 cloud VMs (Ubuntu 20.04), Kubernetes 1.26, Istio service mesh, Calico CNI,
-  cAdvisor, Locust load generator. Cloud provider: GCP with ~$300 student credits.
+- **Infrastructure:** **Ron Nezer's existing lab environment** — a pre-provisioned Kubernetes cluster with TopFull + Online Boutique already set up (Kubernetes 1.26, Istio service mesh, Locust load generator). We are not provisioning new cloud VMs from scratch.
 
 ### Section order (follow PRESENTATION-GUIDE.md exactly)
 
-The 9 sections must appear in this order:
+The 10 sections must appear in this order:
+0. Opening — project name and participants only
 1. Goal and hypothesis
 2. What is TopFull?
 3. What is RetryGuard?
@@ -100,23 +95,33 @@ The deck should have approximately 20–25 content slides. For each slide, produ
 3. Speaker notes (what to say or what a reader should understand)
 4. Source reference (which uploaded document and section the content comes from)
 
-Do NOT use phase numbers (Phase 5, Phase 6, etc.) anywhere on slides. Use descriptive titles:
-"The Baseline", "The Experiment", "The Setup", etc. Phase numbers are internal planning references.
+Do NOT use phase numbers (Phase 5, Phase 6, etc.) anywhere on slides. Use **TopFull only** and
+**TopFull + RetryGuard** — not "The Baseline" / "The Experiment" unless those labels are paired
+with the explicit names above. Phase numbers are internal planning references.
+
+---
+
+### Slide 0 — Opening (1 slide)
+
+- **Project name:** RetryGuard on TopFull — TAU Communication Networks Workshop
+- **Participants:** Yoav Binyamin Naaman, Sagi Eisenberg, Ido Zacharia
+- Nothing else on this slide — no plan summary, roles, timeline, hypothesis, or bullets.
+- Source: PRESENTATION-GUIDE.md §0, PRESENTATION-ACTION-ITEMS.md §0.
 
 ---
 
 ### Slide 1 — Goal and Hypothesis (1 slide)
 
-- One slide: measure RetryGuard (self-implemented from Algorithm 1) on TopFull + Online Boutique
+- One slide: measure RetryGuard (self-implemented from the paper) on TopFull + Online Boutique
   under overload — where it helps, where it doesn't, and what trade-offs emerge.
 - **Hypothesis:** dynamic retry control reduces retry storms and protects goodput vs. default retries.
   Present this as the motivating idea (align with RetryGuard paper Table 1 style metrics — retries
   per request, resource billing, rejection rate). This is not a disclaimer.
 - Note: system-wide gain may be small while **specific microservices** show large improvement.
   Plan to surface both.
-- Deliverables: (1) working K8s + TopFull + RetryGuard setup, (2) baseline vs. RetryGuard experiment
-  data across all scenarios, (3) evaluation report with time-series charts comparing performance,
-  resource, and cost metrics.
+- Deliverables: (1) working TopFull + RetryGuard setup on Ron Nezer's environment,
+  (2) TopFull only vs TopFull + RetryGuard experiment data across all scenarios,
+  (3) evaluation report with time-series charts comparing performance, resource, and cost metrics.
 - Source: PRESENTATION-GUIDE.md §1, PRESENTATION-ACTION-ITEMS.md §1.
 
 ---
@@ -166,18 +171,17 @@ Load factor ρ > 1 causes rejection rate to rise sharply (shown analytically in 
 each retry multiplies the load further. Result: self-inflicted Denial-of-Wallet (DoW) — inflated
 costs, over-scaling, and degraded performance.
 
-**How RetryGuard works (main content):**
-- A productive-retry controller (Algorithm 1 in the paper) monitors rejection rate per service.
-- If rejection rate exceeds Threshold (~20%) for `Interval` consecutive measurement periods
-  (Consecutive_high ≥ Interval, ~30s each) → disable retries for that service.
-- If rejection rate stays below Threshold for `Interval` consecutive periods
-  (Consecutive_low ≥ Interval) → re-enable retries.
-- Distributed — each service manages retries independently via its own local metrics.
-  No central orchestrator required.
-- Non-intrusive under normal operation (ρ < 1) — the transition from stable to overloaded is
-  analytically sharp (Fig. 7 in paper), so false positives are negligible.
-- Istio integration: a designated pod periodically samples Istio/Envoy sidecar HTTP error rates
-  and patches Istio VirtualService retry configs via Kubernetes API. No per-request overhead.
+**How RetryGuard works (main content — plain language, no Algorithm 1 or pseudocode):**
+- Each microservice has a small controller that watches its own health signal — typically HTTP
+  rejection rate (503/429) from the local Istio/Envoy sidecar.
+- **When things go bad:** if rejections stay above ~20% for several consecutive ~30-second windows,
+  the controller turns off retries for that service only (patches Istio VirtualService).
+- **When things recover:** once rejections stay below the threshold for the same number of windows,
+  retries are turned back on.
+- **Distributed by design:** every service decides independently; no central coordinator.
+- **Quiet under normal load:** if rejection rates stay low, the controller never changes anything.
+- Istio integration: controller reads sidecar HTTP error rates and patches VirtualService retry
+  configs via Kubernetes API. No per-request overhead.
 
 **Key results (TAU Deepness Lab, 2025) — compact, supporting context only:**
 - AWS: retries per request from 2.09 → 0.05 (98% reduction); billing from 1029% → 100%.
@@ -185,26 +189,24 @@ costs, over-scaling, and degraded performance.
 - Rejection rate maintained or slightly improved (not sacrificed for cost savings).
 - Up to 65% reduction in resource consumption, >90% improvement in latency.
 - Also mitigates DDoS amplification — brief burst attacks cannot sustain retry storms.
-- Source: RetryGuard.pdf (Algorithm 1, Sec. 4, Sec. 6.2, Table 1), PRESENTATION-GUIDE.md §3.
+- Source: RetryGuard.pdf (Sec. 4, Sec. 6.2, Table 1), PRESENTATION-GUIDE.md §3.
 
 ---
 
 ### Slide 6 — Stack & Topology (1 slide)
 
-- Simple diagram: Locust (load-gen VM) → Go proxy / rate limiter (master) → Istio/Envoy sidecars
-  → Online Boutique microservices (worker VMs).
-- RetryGuard runs on the master node alongside TopFull's RL controller: monitors rejection signals
-  from Istio/Envoy sidecar metrics and dynamically enables or disables retries per service by
-  patching Istio VirtualService configurations.
+- **Environment:** We will run on **Ron Nezer's existing lab environment** — a pre-provisioned
+  Kubernetes cluster with the TopFull + Online Boutique stack already set up, rather than
+  provisioning new cloud VMs from scratch.
+- Simple diagram: Locust → TopFull Go proxy + RL (master) → Istio/Envoy sidecars → Online Boutique
+  pods on workers.
+- RetryGuard runs on the master node: reads per-service rejection rates from Istio/Envoy sidecar
+  metrics and dynamically enables or disables retries by updating Istio VirtualService
+  configurations.
 - Online Boutique is the test application — a representative microservice call chain (Frontend →
   Checkout → Cart, Shipping, Currency, ProductCatalog, Email, Payment; Frontend also calls
   Recommendation, Ad). Not the subject of study itself.
-- VM roles: Master (8+ vCPU, 16GB — K8s control plane, Istio control plane, TopFull, RetryGuard),
-  Workers 2–N (pods, cAdvisor), Load-gen (Locust only).
-- Cloud provider: GCP with ~$300 student credits. Start minimal (3 nodes), scale only if needed.
-  Deallocate when idle.
-- Source: WORKPLAN.md (VM architecture table), PRESENTATION-GUIDE.md §4,
-  PRESENTATION-ACTION-ITEMS.md §3–4.
+- Source: PRESENTATION-GUIDE.md §4, PRESENTATION-ACTION-ITEMS.md §3.
 
 ---
 
@@ -212,27 +214,27 @@ costs, over-scaling, and degraded performance.
 
 **Important slide language note:** Do not use phase numbers. Use descriptive titles only.
 
-**The Baseline (1 slide):**
-- TopFull running, retries ON (Istio default), RetryGuard OFF.
+**TopFull only (1 slide):**
+- TopFull overload control active; Istio default retries on; RetryGuard **off**.
 - Fixed workload scenario, duration, and replica counts — identical for every run.
-- Save all CSVs and logs to a named baseline artifact directory.
+- Save all CSVs and logs as the TopFull-only reference run.
 
-**The Experiment (1 slide):**
-- Identical setup to baseline — same load, same topology, same replica counts.
-- Only change: RetryGuard ON.
-- Controller parameters from RetryGuard paper Sec. 6.2: ~20% rejection threshold,
-  ~30-second measurement interval (Interval parameter in Algorithm 1).
+**TopFull + RetryGuard (1 slide):**
+- **Identical** load, topology, and duration to TopFull only.
+- Only addition: RetryGuard **on** alongside TopFull.
+- Controller settings from RetryGuard paper Sec. 6.2: ~20% rejection threshold,
+  ~30-second measurement interval.
 - RetryGuard implemented as Python script on master node using Kubernetes Python client
   to patch Istio VirtualService CRDs.
 
 **Repeated Runs (1 slide):**
 - Locust generates randomized user behavior (non-deterministic) — a single run per scenario is
   insufficient to isolate RetryGuard's effect from random traffic variation.
-- Each scenario (baseline and RetryGuard) run multiple times with the same configuration.
+- Each scenario (**TopFull only** and **TopFull + RetryGuard**) run multiple times with the same
+  configuration.
 - Results compared using averages/medians across runs.
-- Same inputs, different retry behavior, multiple runs → isolates RetryGuard's effect from noise.
-- Source: PRESENTATION-GUIDE.md §5, WORKPLAN.md Phases 5–6,
-  PRESENTATION-ACTION-ITEMS.md §5.
+- Same inputs, two experiment arms, multiple runs → isolates RetryGuard's effect from noise.
+- Source: PRESENTATION-GUIDE.md §5, PRESENTATION-ACTION-ITEMS.md §4.
 
 ---
 
@@ -279,17 +281,17 @@ That gap is exactly what this project investigates.
   throughput point — more goodput at the same capacity — or does the increased admission re-trigger
   overload and undo the gains?
 
-- **Topology position sensitivity** — Does the structural position of the bottleneck service in the
-  call chain change RetryGuard's relative contribution? Three positions matter:
-  (1) Gateway-adjacent / shallow sub-tree (e.g., Recommendation or ProductCatalog): called directly
-  by Frontend, few downstream dependencies. TopFull sees this bottleneck most directly at entry.
-  (2) Hub / sub-tree root (e.g., Checkout): downstream from Frontend but fans out to call Cart,
-  Shipping, Currency, ProductCatalog, Email, and Payment. Overloading Checkout creates bidirectional
-  retry amplification — Frontend retries Checkout (upward) and Checkout retries its six downstream
-  callers simultaneously (downward). The hub case is expected to show the most severe amplification.
-  (3) Deep leaf (e.g., Email or Payment): no downstream dependencies of its own, reachable only
-  through Checkout. TopFull's top-down signal here is most attenuated — the bottleneck is invisible
-  at the entry until Checkout itself starts degrading.
+- **Topology position sensitivity** — Does the structural position of the bottleneck service change
+  RetryGuard's relative contribution? Compare two positions that differ in **how directly TopFull's
+  entry control reaches them** — not in raw chain depth:
+  (1) **Gateway-adjacent, directly controlled** (e.g., ProductCatalog): called directly from Frontend
+  on many entry APIs; TopFull maps and throttles this bottleneck most directly at entry.
+  (2) **Indirect, single-path** (e.g., Payment): reachable only through Checkout on one API path, so
+  TopFull's top-down signal is mediated by Checkout and most attenuated. RetryGuard operates
+  per-service regardless of position, but the gap between TopFull's entry control and RetryGuard's
+  local action may differ by how directly the bottleneck is exposed to that entry control.
+  Note: Online Boutique is a shallow topology, so this contrasts the *directness* of control
+  (direct vs Checkout-mediated), not literal chain depth.
 
 - **Interval parameter sensitivity** — Is RetryGuard's 30-second re-enable interval optimal when
   TopFull is co-running? This interval was validated in the original paper (Sec. 6.2) without a
@@ -297,15 +299,17 @@ That gap is exactly what this project investigates.
   so the recovery dynamics after overload may be faster or more oscillatory than in the original
   RetryGuard experiments. Does the optimal interval shift in this context?
 
-- **Adversarial resilience** — Under malicious traffic, does hostile load trick the controller into
-  misfiring — suppressing retries when it shouldn't — or does RetryGuard successfully blunt retry
-  amplification from attack traffic?
-
-Source: PRESENTATION-GUIDE.md §6, PRESENTATION-ACTION-ITEMS.md §6.
+Source: PRESENTATION-GUIDE.md §6, PRESENTATION-ACTION-ITEMS.md §5.
 
 ---
 
-### Slides 13–19 — Load Scenarios (one slide per scenario, plus one intro slide)
+### Slides 13–18 — Load Scenarios (one slide per scenario, plus one intro slide)
+
+**Each scenario MUST be its own dedicated, separately numbered slide.** Do NOT combine two or more
+scenarios onto a single slide, and do NOT merge a scenario with the intro slide. There are exactly
+6 slides in this section — 1 intro slide followed by 5 scenario slides — and each must carry its own
+slide number and title (Slide 13 through Slide 18, as numbered below). Reproduce the slide numbers
+in the output.
 
 **Each scenario must be described in prose first** — what is happening in the system, not just a
 traffic shape label. State clearly which open question(s) that scenario is designed to answer.
@@ -314,7 +318,7 @@ Traffic graphs/timelines may support the description but must not replace it.
 All scenarios use TopFull's built-in synthetic workload generator (Locust + TopFull scripts from
 the paper), not ad-hoc traffic.
 
-**Intro slide (1 slide):**
+**Slide 13 — Scenarios Intro (1 slide):**
 - Explain that the scenarios are derived directly from the open questions above, not chosen
   independently. Each scenario is an operationalization of one or more specific questions.
 - State the shared infrastructure: all scenarios use TopFull's synthetic workload generator.
@@ -322,27 +326,42 @@ the paper), not ad-hoc traffic.
   rates read locally at each service) — a separate measurement point from TopFull's entry-proxy
   collectors. Cross-reference both data streams when interpreting results.
 
-**Scenario: Normal Operation (1 slide)**
+**Slide 14 — Scenario 1: Normal Operation (1 slide)**
 - Traffic: flat, manageable RPS, well within service capacity — no overload.
 - What it tests: does RetryGuard stay entirely non-intrusive when things are healthy? The controller
   should detect rejection rates below the ~20% threshold and leave Istio configurations untouched.
 - Answers: the "system-level gains" question from the non-overload side — a necessary sanity check
   before the core experiment.
 
-**Scenario: Sustained Overload — the core experiment (1 slide)**
-- Traffic: a load increase that pushes ρ > 1 and holds it there for several minutes — long enough
-  for RetryGuard's detection window (~30s consecutive intervals above the rejection threshold) to
-  trigger and suppress retries.
-- What it tests: TopFull controls admission at the entry. Once admitted, Istio's default retry policy
-  fires internally, after TopFull has already admitted the request — invisible to TopFull's rate
-  limiter. Does RetryGuard suppress this internal retry amplification, and does that produce
-  measurable improvement in goodput or resource usage on top of TopFull alone?
+**Slide 15 — Scenario 2: Sustained Overload — the core experiment (1 slide)**
+- **Setup:** Start from Normal Operation traffic, then step Locust RPS up until ρ > 1 and **hold
+  for 5–10 minutes** — long enough for RetryGuard's ~30s measurement windows to fire repeatedly.
+- **What happens in the system:** TopFull throttles entry; admitted requests may still fail
+  downstream (503/429); Istio retries internally — invisible to TopFull's rate limiter — creating
+  a retry storm where one user request generates multiple backend attempts.
+- **Why duration matters — why 5–10 minutes, not 1–2:** the hold must cover RetryGuard's full
+  reaction *cycle*, not just its trigger. (1) Triggering alone costs ~1–2 minutes, since rejections
+  must stay above ~20% for several consecutive ~30s windows — a short test mostly measures detection
+  latency, not effect, and often the load drops before the windows confirm. (2) The effect only
+  appears *after* suppression: load drops, TopFull's 1s RL loop reacts to improved signals, and the
+  system re-settles. (3) 5–10 minutes lets the disable → recover → re-enable cycle fire repeatedly,
+  proving stable rather than one-off behavior. (4) It matches RetryGuard's real target — prolonged
+  miscoordination, not brief spikes that default backoff, jitter, and retry budgets already absorb.
+- **What it tests:** TopFull only vs TopFull + RetryGuard — does RetryGuard detect high rejection
+  rates and shut off internal retries, improving goodput or resource usage?
 - Answers: system-level gains, topology beneficiaries, chain propagation, controller interaction.
 
-**Scenario: Targeted Bottleneck (1 slide)**
+**Slide 16 — Scenario 3: Targeted Bottleneck (1 slide)**
 - Traffic: load that exercises the full call chain, while one specific downstream service (e.g.,
   Checkout or a mid-chain service) is constrained — reduced replica count or CPU limit — so it
   reaches ρ > 1 even under TopFull's throttled entry rate.
+- **How this differs from Sustained Overload (beyond targeting one service):** Sustained Overload
+  saturates the whole system by flooding the entry (global ρ > 1), giving an aggregate effect that
+  is hard to attribute. Here the overall load need not exceed total capacity — the stress is
+  *engineered at one node*. This exposes a gap global overload cannot: relieving one deep service
+  forces TopFull to throttle entire entry APIs that route through it (blunt and indirect), while
+  RetryGuard acts surgically at the exact hot spot — and a single known bottleneck gives clean
+  attribution and lets us watch whether relief propagates upward.
 - What it tests: TopFull detects the overloaded service and throttles APIs routing through it at
   the entry. But after TopFull admits a request, the constrained service may still reject it, and
   its immediate upstream caller (via Istio) retries it — invisible to TopFull. RetryGuard, operating
@@ -353,44 +372,44 @@ the paper), not ad-hoc traffic.
   Product service with fast HPA, Sec. 6.2 of the RetryGuard paper).
 - Answers: topology beneficiaries, chain propagation, controller interaction.
 
-**Scenario: Topology Position Comparison (1 slide)**
-- Traffic: three separate Targeted Bottleneck runs — same load, same methodology — varying only
-  *where* in the Online Boutique call chain the constrained service sits.
-  (1) Gateway-adjacent / shallow sub-tree (e.g., Recommendation or ProductCatalog): called directly
-  by Frontend, with few or no downstream dependencies. TopFull's entry-level routing sees this
-  bottleneck most directly.
-  (2) Hub / sub-tree root (e.g., Checkout): downstream from Frontend but fans out to Cart, Shipping,
-  Currency, ProductCatalog, Email, and Payment. Overloading Checkout creates bidirectional retry
-  amplification (the widest fan-out case in Online Boutique). Suppressing retries at Checkout
-  simultaneously relieves pressure across all its downstream callers.
-  (3) Deep leaf (e.g., Email or Payment): no downstream dependencies, reachable only through
-  Checkout. TopFull's top-down signal is most attenuated here.
+**Slide 17 — Scenario 4: Topology Position Comparison (1 slide)**
+- **Setup:** Two Targeted Bottleneck runs — same Locust load and constraint method — differing
+  only in **which service** is constrained.
+- **Why separate from Targeted Bottleneck (why not combine):** Targeted Bottleneck establishes
+  *that* per-service suppression helps (varying RetryGuard on/off); this scenario holds that constant
+  and varies only the bottleneck's **position**. Changing one variable at a time keeps the position
+  effect attributable — combining them would entangle "does RetryGuard help" with "does position
+  matter."
+- **Run A — Gateway-adjacent, directly controlled (e.g., ProductCatalog):** Frontend calls it
+  directly on many product-browse paths; TopFull maps overload to entry APIs quickly; Istio retries
+  from Frontend still invisible to TopFull after admission.
+- **Run B — Indirect, Checkout-mediated (e.g., Payment):** reachable only via Checkout on a single
+  path (Frontend → Checkout → Payment); TopFull's entry signal is mediated by Checkout and won't
+  throttle the right APIs until Checkout itself fails; Istio retries stack at Checkout→Payment.
+- **What it tests:** Does RetryGuard's per-service suppression matter more when TopFull's entry
+  signal is strong and direct (Run A) vs indirect and attenuated (Run B)? Do savings propagate
+  differently up the chain?
+- **Scope note:** Online Boutique is a shallow topology, so this contrasts the *directness* of
+  TopFull's control and fan-in (one mediated path vs many direct entry APIs), not literal chain
+  depth — state this as a limitation in the report.
 - Answers: topology position sensitivity, topology beneficiaries, chain propagation.
 
-**Scenario: Re-enable Interval Tuning (1 slide)**
-- Traffic: the Sustained Overload scenario run multiple times, holding all other parameters constant
-  and varying only RetryGuard's re-enable interval (e.g., 10s, 20s, 30s [paper default], 60s).
-- What it tests: RetryGuard's Algorithm 1 requires the rejection rate to stay below the threshold
-  for `Interval` consecutive measurement periods before re-enabling retries. Too short: risks
-  premature re-enabling before the bottleneck has cleared, potentially re-triggering overload.
-  Too long: keeps retries suppressed after the bottleneck clears, slowing throughput recovery.
-  The paper's 30s default was validated without a co-running top-down controller; with TopFull's
-  RL adjusting admission rates every 1 second, recovery dynamics may be faster or more oscillatory.
-  Does the optimal interval shift in this context?
+**Slide 18 — Scenario 5: Re-enable Interval Tuning (1 slide)**
+- **Setup:** Repeat Sustained Overload multiple times; keep load, replicas, and threshold fixed;
+  vary only RetryGuard's **re-enable interval** (10s, 20s, 30s [paper default], 60s).
+- **What happens:** After RetryGuard disables retries, overload eases; TopFull's RL may admit more
+  traffic. Too-short re-enable restarts internal retries before recovery; too-long delays goodput
+  recovery. Paper tuned 30s without a co-running top-down controller; TopFull adjusts admission
+  every ~1 second.
+- **What it tests:** Which re-enable interval gives the best combined goodput and stability when
+  TopFull and RetryGuard run together?
 - Answers: interval parameter sensitivity, combined equilibrium.
 
-**Scenario: Attack Traffic — extension, given time (1 slide)**
-- Traffic: malicious burst-DDoS pattern simulating an attacker exploiting retry amplification.
-- What it tests: does hostile traffic trip the controller at the wrong time, or does RetryGuard
-  correctly suppress retry storms caused by the attack without disrupting healthy services?
-- Answers: adversarial resilience.
-- Mark clearly on the slide that this is a time-permitting extension.
-
-Source: PRESENTATION-GUIDE.md §7, PRESENTATION-ACTION-ITEMS.md §7.
+Source: PRESENTATION-GUIDE.md §7, PRESENTATION-ACTION-ITEMS.md §6.
 
 ---
 
-### Slides 20–21 — Metrics (1–2 slides)
+### Slides 19–20 — Metrics (1–2 slides)
 
 Three layers of measurement, each answering a different part of the question.
 
@@ -417,37 +436,36 @@ Three layers of measurement, each answering a different part of the question.
   overloaded and at what priority, so RetryGuard decisions can be cross-referenced with TopFull's
   state.
 
-All collected data will be synthesized into comparative time-series charts — baseline run vs.
-RetryGuard run, side by side across the same metrics.
+All collected data will be synthesized into comparative time-series charts — **TopFull only** vs
+**TopFull + RetryGuard**, side by side across the same metrics.
 
-Source: PRESENTATION-GUIDE.md §8, WORKPLAN.md (key metrics tables),
-PRESENTATION-ACTION-ITEMS.md §8.
+Source: PRESENTATION-GUIDE.md §8, PRESENTATION-ACTION-ITEMS.md §7.
 
 ---
 
-### Slide 22 — Timeline & Milestones (1 slide)
+### Slide 21 — Timeline & Milestones (1 slide)
 
 A clean, sequential view of what happens and when. No phase numbers. No blocker callouts.
 Dependencies are implied by the order. If a mentor asks about blockers, address them verbally.
 
 | What                                                  | When     |
 | ----------------------------------------------------- | -------- |
-| Infrastructure setup — VMs, K8s, Istio, app running   | Week 1–2 |
-| Baseline experiment — TopFull running, default retries | Week 2–3 |
-| RetryGuard implementation and Istio integration       | Week 3   |
-| RetryGuard experiment                                 | Week 3–4 |
-| Evaluation, comparison, and final report              | Week 4   |
+| Infrastructure setup — Ron Nezer's environment, Istio, app running | Week 1–2 |
+| Baseline experiment — TopFull only                              | Week 2–3 |
+| RetryGuard implementation and Istio integration                 | Week 3   |
+| Experiment — TopFull + RetryGuard                               | Week 3–4 |
+| Evaluation, comparison, and final report                        | Week 4   |
 
-Source: WORKPLAN.md (all phases), PRESENTATION-ACTION-ITEMS.md §9.
+Source: PRESENTATION-GUIDE.md §9, PRESENTATION-ACTION-ITEMS.md §8.
 
 ---
 
-### Slide 23 (optional) — Summary / Deliverables
+### Slide 22 (optional) — Summary / Deliverables
 
 - Recap: what we're building, what we're testing, what we'll deliver.
 - Deliverables list:
-  (1) Working K8s + Istio + TopFull + RetryGuard experimental setup.
-  (2) Baseline vs. RetryGuard data across all load scenarios.
+  (1) Working TopFull + RetryGuard setup on Ron Nezer's environment.
+  (2) TopFull only vs TopFull + RetryGuard data across all load scenarios.
   (3) Evaluation report with time-series charts comparing goodput, latency, retries/request,
       resource usage, and autoscaler behavior.
 - Open questions for mentors (if any remain after the presentation).
@@ -461,8 +479,10 @@ Source: WORKPLAN.md (all phases), PRESENTATION-ACTION-ITEMS.md §9.
   Do NOT add content from your own training knowledge that is not present in those documents.
   If a claim cannot be traced to a specific uploaded document and section, omit it.
 - Do NOT add slides, sections, or subsections that are not explicitly requested in this prompt.
-  The slide structure above is complete — do not insert introduction slides, agenda slides,
-  "background" sections, "future work" sections, or any other additions of your own.
+  The slide structure above is complete — do not insert agenda slides, extra introduction content
+  on the opening slide, "background" sections, "future work" sections, or any other additions
+  of your own. The opening slide (Slide 0) must contain **only** the project name and participant
+  names — nothing else.
 - Do NOT add results, benchmarks, or quantitative claims beyond those stated in this prompt
   or present in the uploaded papers. We have no experimental results yet.
 - Do NOT reframe or soften the experimental hypotheses or open questions. Use the exact framing

@@ -10,7 +10,7 @@ TAU Deepness Lab Workshop - Evaluate **RetryGuard** (you implement from the pape
 |------|----------|
 | [Guides and Info/](Guides%20and%20Info/) | Setup, workplan, SSH playbook, presentation notes |
 | [TopFull/](TopFull/) | Upstream TopFull clone (read locally; still clone on VMs) |
-| [context/](context/) | Papers and decks (`RetryGuard.pdf`, `TopFull.pdf`, Ö) |
+| [context/](context/) | Papers and decks (`RetryGuard.pdf`, `TopFull.pdf`, ù) |
 | [canvases/](canvases/) | Interactive workplan canvas |
 
 ## Viewing the workplan
@@ -30,17 +30,17 @@ Open [Guides and Info/WORKPLAN.md](Guides%20and%20Info/WORKPLAN.md). Same phases
    cd topfull-retryguard-workshop
    ```
    In Cursor: **File ? Open Folder** ? select `topfull-retryguard-workshop`.
-3. Open the canvas from **Cursorís managed canvases folder** (required for preview):
-   - **Windows:** `%USERPROFILE%\.cursor\projects\c-Users-sagi1-Projects-Workshop\canvases\topfull-retryguard-workplan.canvas.tsx`
+3. Open the canvas from **Cursorùs managed canvases folder** (required for preview):
+   - **Windows:** `%USERPROFILE%\.cursor\projects\c-Users-idoza-topfull-retryguard-workshop\canvases\topfull-retryguard-workplan.canvas.tsx`
    - **macOS/Linux:** `~/.cursor/projects/<workspace-id>/canvases/topfull-retryguard-workplan.canvas.tsx`
 
    Use **File ? Open File** and paste that path.
 
-   The copy at `canvases/topfull-retryguard-workplan.canvas.tsx` in this repo is for **git** (same content). Cursorís Canvas compiler only runs on the file under `.cursor/projects/.../canvases/`. Opening only the repo copy shows errors (`Cannot find module 'cursor/canvas'`) and **no Canvas preview** ó that is expected.
+   The copy at `canvases/topfull-retryguard-workplan.canvas.tsx` in this repo is for **git** (same content). Cursorùs Canvas compiler only runs on the file under `.cursor/projects/.../canvases/`. Opening only the repo copy shows errors (`Cannot find module 'cursor/canvas'`) and **no Canvas preview** ù that is expected.
 
 4. Cursor renders a **Canvas** panel (beside chat or split editor): collapsible phases, checklists, VM tables, and experiment matrix.
 
-**Red squiggles on the repo copy?** Run once: `cd canvases && npm install` (React types for the editor). Or ignore them and use the managed path above.
+**Red squiggles on the repo copy?** From the repo root (PowerShell): `cd canvases; npm.cmd install` ó or `cmd /c "cd canvases && npm install"` if script execution is restricted. Or ignore squiggles and use the managed path above.
 
 **Still no Canvas?** Command Palette (`Ctrl+Shift+P`) ? search **Canvas**. Update Cursor if needed.
 

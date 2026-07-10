@@ -35,31 +35,37 @@ function PhaseSteps({ guides }: { guides: readonly StepGuide[] }) {
   }));
 
   return (
-    <Stack gap={24}>
+    <Stack gap={12}>
       <TodoList todos={todos} />
       <Text tone="secondary" size="small">
-        Expand each step below. Before Phase 1: Guides and Info/PREREQUISITES.md
-        and MENTOR-COORDINATION.md. Commands: Guides and Info/SETUP-GUIDE.md.
+        Open one step at a time below. Before Phase 1: PREREQUISITES.md and
+        MENTOR-COORDINATION.md. Commands: SETUP-GUIDE.md.
       </Text>
       {guides.map((g) => (
-        <Stack key={g.id} gap={8}>
-          <H3>{g.title}</H3>
-          <Text>
-            <Text weight="semibold" as="span">
-              Why:{" "}
-            </Text>
-            {g.why}
-          </Text>
-          <Text weight="semibold">How:</Text>
-          {g.how.map((line, i) => (
-            <Text key={i} size="small">
-              {i + 1}. {line}
-            </Text>
-          ))}
-          <Callout tone="success" title="Done when">
-            {g.doneWhen}
-          </Callout>
-        </Stack>
+        <Card key={g.id} collapsible defaultOpen={false}>
+          <CardHeader trailing={<Pill tone="neutral" size="sm">{g.id}</Pill>}>
+            {g.title}
+          </CardHeader>
+          <CardBody>
+            <Stack gap={8}>
+              <Text>
+                <Text weight="semibold" as="span">
+                  Why:{" "}
+                </Text>
+                {g.why}
+              </Text>
+              <Text weight="semibold">How:</Text>
+              {g.how.map((line, i) => (
+                <Text key={i} size="small">
+                  {i + 1}. {line}
+                </Text>
+              ))}
+              <Callout tone="success" title="Done when">
+                {g.doneWhen}
+              </Callout>
+            </Stack>
+          </CardBody>
+        </Card>
       ))}
     </Stack>
   );
@@ -90,14 +96,14 @@ const phases: {
       },
       {
         id: "0b",
-        title: "Read TopFull on your PC and key files",
+        title: "Clone TopFull repo on your PC and read key files",
         status: "pending",
         why: "You need to understand paths and run order before paying for VMs.",
         how: [
-          "Open TopFull/ in this workshop repo (already cloned). Still clone on master/loadgen VMs in Phase 1d.",
+          "Run: git clone https://github.com/kaist-ina/TopFull.git",
           "Open global_config.json (all IPs and paths you will edit later).",
           "Skim deploy_rl.py, proxy_online_boutique.go, and online_boutique_original_custom.yaml.",
-          "Read context/RetryGuard.pdf Sec. 4 and 6.2.",
+          "Read RetryGuard.pdf Sec. 4 and 6.2 in the Workshop folder.",
           "Note experiment order: proxy first, then deploy_rl, then load, then metric_collector.",
         ],
         doneWhen: "You know where configuration lives and what runs on the master vs loadgen.",
@@ -108,7 +114,7 @@ const phases: {
         status: "pending",
         why: "You implement RetryGuard from the paper. Mentors confirm credits, provider, and where retries are toggled.",
         how: [
-          "Complete Guides and Info/MENTOR-COORDINATION.md (checklist + message template).",
+          "Complete MENTOR-COORDINATION.md in the Workshop folder (checklist + message template).",
           "You do not need RetryGuard source code from the lab.",
           "Read RetryGuard Sec. 4 (controller) and Sec. 6.2 (~20% threshold, ~30s interval).",
         ],
@@ -621,7 +627,7 @@ const experimentTones: Array<"info" | "success"> = ["info", "success"];
 
 export default function WorkplanCanvas() {
   return (
-    <Stack gap={28} style={{ padding: 28, maxWidth: 920 }}>
+    <Stack gap={20} style={{ padding: 24, maxWidth: 880 }}>
       <Stack gap={4}>
         <H1>Project 1: TopFull + RetryGuard on Cloud VMs</H1>
         <Text tone="secondary">
@@ -630,32 +636,20 @@ export default function WorkplanCanvas() {
       </Stack>
 
       <Callout tone="info" title="How to use this workplan">
-        Before Phase 1: complete Guides and Info/PREREQUISITES.md and
-        MENTOR-COORDINATION.md. Each phase below has Why, How, and Done when. For
-        Azure steps, full commands, and troubleshooting, use SETUP-GUIDE.md. Out
-        of scope: DAGOR, DiffTry, extra overload baselines unless mentors say
-        otherwise.
+        Before Phase 1: PREREQUISITES.md and MENTOR-COORDINATION.md. Expand a
+        phase, then one step at a time. Full commands: SETUP-GUIDE.md.
       </Callout>
 
-      <Grid columns={4} gap={12}>
+      <Grid columns={2} gap={12}>
         <Stat value="4-7" label="Cloud VMs" />
         <Stat value="~8 days" label="Timeline" />
         <Stat value="7 phases" label="Workplan" />
         <Stat value="$5-15/day" label="Est. cloud cost" />
       </Grid>
 
-      <H2>VM Architecture</H2>
-      <Table headers={["Role", "Count", "Min Specs", "Purpose"]} rows={vmSpec} striped />
-
-      <H2>Configuration Reference</H2>
-      <Table headers={["File (line)", "What to Change", "Notes"]} rows={configFiles} striped />
-
-      <Divider />
-
       <H2>Phase-by-Phase Workplan</H2>
-      <Text tone="secondary">
-        Expand each phase card. Scroll within the card for full instructions per
-        step.
+      <Text tone="secondary" size="small">
+        Scroll this panel. Open one phase, then one step inside it.
       </Text>
 
       {phases.map((phase, i) => (
@@ -670,6 +664,12 @@ export default function WorkplanCanvas() {
       ))}
 
       <Divider />
+
+      <H2>VM Architecture</H2>
+      <Table headers={["Role", "Count", "Min Specs", "Purpose"]} rows={vmSpec} striped />
+
+      <H2>Configuration Reference</H2>
+      <Table headers={["File (line)", "What to Change", "Notes"]} rows={configFiles} striped />
 
       <H2>Experiment Matrix (two runs only)</H2>
       <Table

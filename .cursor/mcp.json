@@ -1,0 +1,15 @@
+﻿{
+    "mcpServers":  {
+                       "gcloud":  {
+                                      "args":  [
+                                                   "-y",
+                                                   "@google-cloud/gcloud-mcp"
+                                               ],
+                                      "env":  {
+                                                  "PATH":  "C:\\Users\\idoza\\AppData\\Local\\Google\\Cloud SDK\\google-cloud-sdk\\bin;C:\\Users\\idoza\\AppData\\Local\\Google\\Cloud SDK\\google-cloud-sdk\\bin;c:\\Users\\idoza\\AppData\\Local\\Programs\\cursor\\resources\\app\\node_modules\\@vscode\\ripgrep\\bin;C:\\Users\\idoza\\AppData\\Local\\Programs\\Python\\Python311;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Users\\idoza\\AppData\\Local\\Programs\\Python\\Python310\\Scripts;C:\\Users\\idoza\\AppData\\Local\\Programs\\Python\\Python310;C:\\Users\\idoza\\AppData\\Local\\Programs\\Python\\Python311\\Scripts;C:\\Program Files\\CMake\\bin;C:\\Program Files\\Git\\cmd;C:\\Program Files\\nodejs\\;C:\\Users\\idoza\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\;C:\\Users\\idoza\\AppData\\Local\\Programs\\Python\\Python312\\;C:\\Users\\idoza\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Program Files\\JetBrains\\IntelliJ IDEA 2023.3.4\\bin;C:\\Users\\idoza\\AppData\\Local\\Programs\\Microsoft VS Code\\bin;C:\\Users\\idoza\\AppData\\Local\\Programs\\Python\\Python310;C:\\Users\\idoza\\AppData\\Local\\Programs\\Python\\Python310\\Scripts;C:\\Users\\idoza\\AppData\\Local\\Programs\\Python\\Python311\\Scripts;C:\\Users\\idoza\\AppData\\Local\\Programs\\Python\\Python311;C:\\Users\\idoza\\AppData\\Local\\atom\\bin;C:\\Users\\idoza\\AppData\\Local\\JetBrains\\Toolbox\\scripts;C:\\msys64\\usr\\bin;C:\\Users\\idoza\\AppData\\Roaming\\npm;C:\\Users\\idoza\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Users\\idoza\\AppData\\Local\\GitHubDesktop\\bin;C:\\Users\\idoza\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin;C:\\Users\\idoza\\AppData\\Local\\Programs\\Ollama",
+                                                  "CLOUDSDK_CORE_PROJECT":  "networks-workshop"
+                                              },
+                                      "command":  "npx"
+                                  }
+                   }
+}

@@ -26,6 +26,14 @@ This applies everywhere — not just to the TopFull and RetryGuard background sl
 
 ## Slide flow
 
+### 0. Opening (1 slide)
+
+**Project name:** RetryGuard on TopFull — TAU Communication Networks Workshop
+
+**Participants:** Yoav Binyamin Naaman, Sagi Eisenberg, Ido Zacharia
+
+Nothing else on this slide — no plan summary, roles, or timeline.
+
 ### 1. Goal and hypothesis
 
 - One slide: measure **RetryGuard** (self-implemented from the paper, integrated via Istio service mesh) on **TopFull** + **Online Boutique** under overload — where it helps, where it doesn't, and what trade-offs emerge.
@@ -56,17 +64,17 @@ This applies everywhere — not just to the TopFull and RetryGuard background sl
 
 ### 3. What is RetryGuard? (1–2 slides)
 
-**Primary focus — explain what it is and how it works.** These slides should give the audience a real understanding of the algorithm and its design logic before any numbers are mentioned. Key results are supporting context at the end, not the centerpiece.
+**Primary focus — explain what it is and how it works.** These slides should give the audience a real understanding of the mechanism and its design logic before any numbers are mentioned. Key results are supporting context at the end, not the centerpiece. Do **not** lead with pseudocode or "Algorithm 1" — describe the behavior in plain language.
 
 **The problem it solves:** Default retry mechanisms (exponential backoff, jitter, retry budgets) are designed for instantaneous failures. During prolonged miscoordination — when services scale at different rates — retries become counterproductive. They create *retry storms*: a snowball effect of failed retries that wastes resources, inflates costs (self-inflicted Denial-of-Wallet), and degrades performance.
 
 **How it works (this is the main content of the slide):**
 
-- A productive-retry controller (Algorithm 1) monitors rejection rate (or latency/retry volume) per service.
-- If rejections exceed a threshold (~20%) for N consecutive intervals (~30s): disable retries for that service.
-- If below threshold for N intervals: re-enable retries.
-- Distributed — each service manages retries independently, no central orchestrator needed.
-- Non-intrusive under normal conditions — only activates during prolonged miscoordination.
+- Each microservice has a small controller that watches its own health signal — typically HTTP rejection rate (503/429), optionally latency or retry volume — read from the local Istio/Envoy sidecar.
+- **When things go bad:** if rejections stay above ~20% for several consecutive measurement windows (~30 seconds each), the controller turns off retries for that service only (patches the Istio VirtualService so new requests are not retried).
+- **When things recover:** once rejections stay below the threshold for the same number of consecutive windows, retries are turned back on.
+- **Distributed by design:** every service decides independently; there is no central coordinator.
+- **Quiet under normal load:** if rejection rates stay low, the controller never changes anything — retries behave as configured by default.
 
 **Key results (TAU Deepness Lab, 2025) — brief, supporting context only:**
 
@@ -76,38 +84,38 @@ This applies everywhere — not just to the TopFull and RetryGuard background sl
 - Up to 65% reduction in resource consumption, 90% improvement in latency.
 - Also mitigates DDoS amplification — prevents attackers from exploiting retry storms to multiply short bursts into prolonged damage.
 
-> **Slide design note:** Do not let benchmark numbers dominate the visual layout. The mechanism explanation (problem → algorithm logic → distributed design) must occupy the bulk of the slide space. Results belong in a compact footnote or a secondary bullet block — they validate the algorithm, they do not define it.
+> **Slide design note:** Do not let benchmark numbers dominate the visual layout. The mechanism explanation (problem → how it works → distributed design) must occupy the bulk of the slide space. Results belong in a compact footnote or a secondary bullet block — they validate the approach, they do not define it.
 
 ### 4. Stack & Topology (1 slide)
 
-- Simple diagram: Locust → Go proxy → Istio/Envoy sidecars → microservice application (Online Boutique).
-- RetryGuard runs on the master node: it monitors overload signals from TopFull's collectors and dynamically enables or disables retries per service by updating Istio VirtualService configurations.
+- **Environment:** We will run on **Ron Nezer's existing lab environment** — a pre-provisioned Kubernetes cluster with the TopFull + Online Boutique stack already set up, rather than provisioning new cloud VMs from scratch. This removes setup risk and keeps the project focused on RetryGuard integration and measurement.
+- Simple diagram: Locust → TopFull Go proxy + RL (master) → Istio/Envoy sidecars → Online Boutique pods on workers.
+- RetryGuard runs on the master node: it reads per-service rejection rates from Istio/Envoy sidecar metrics and dynamically enables or disables retries by updating Istio VirtualService configurations.
 - Online Boutique is the test application — a representative microservice call chain, not the subject of the study itself.
-
-> **Visual:** Show `Online-Boutique-architecture.png` here to give the audience a concrete picture of the service call graph — Frontend, Checkout, leaf services (Email, Payment), and the Redis cache. Keep it as a supporting illustration for the bullet points above; the text must stand on its own.
 
 ### 5. How We Test (2–3 slides — core of the deck)
 
-**Baseline experiment:**
+**Baseline — TopFull only:**
 
-- TopFull running, retries ON (default), RetryGuard OFF.
+- TopFull overload control active; Istio default retries on; RetryGuard **off**.
 - Fixed workload scenario, duration, and replica counts — same for every run.
+- Save logs/CSVs as the TopFull-only reference run.
 
-**RetryGuard experiment:**
+**Experiment — TopFull + RetryGuard:**
 
-- Identical setup, only change: RetryGuard ON.
-- Controller params from paper Sec. 6.2 (~20% threshold, ~30s interval).
+- **Identical** load, topology, and duration; only addition: RetryGuard **on** alongside TopFull.
+- Controller settings from paper Sec. 6.2 (~20% rejection threshold, ~30s measurement interval).
 
 **Repeated runs:**
 
 - Locust generates randomized user behavior (non-deterministic) — a single run per scenario is not enough.
-- Each scenario (baseline and RetryGuard) will be run multiple times with the same configuration.
+- Each scenario (**TopFull only** and **TopFull + RetryGuard**) will be run multiple times with the same configuration.
 - Results compared using averages/medians across runs to account for load generator variability.
 - This ensures observed differences are due to RetryGuard, not random variation in traffic patterns.
 
 **Comparison:**
 
-- Same inputs, different retry behavior, multiple runs — isolates RetryGuard's effect from noise.
+- Same inputs, two experiment arms (**TopFull only** vs **TopFull + RetryGuard**), multiple runs — isolates RetryGuard's effect from noise.
 
 ### 6. What We Want to Find Out (2–3 slides — the intellectual core)
 
@@ -125,13 +133,11 @@ The central question: does adding RetryGuard on top of TopFull actually make thi
 
 - **Chain propagation** — If RetryGuard activates on a single downstream service, do those resource savings propagate upward through the rest of the execution path? Or is the effect local?
 
-- **Adversarial resilience** — Under malicious traffic, does hostile load trick the controller into misfiring — suppressing retries when it shouldn't — or does RetryGuard successfully blunt retry amplification from attack traffic?
-
 - **Controller interaction** — TopFull's RL controller and RetryGuard are both feedback loops running simultaneously on overlapping signals. TopFull adjusts entry admission rates; RetryGuard toggles per-service retry policies. Do they cooperate — RetryGuard suppressing internal amplification while TopFull manages entry load — or does one loop's correction interfere with the other's? This is unique to the combination of these two systems and has not been studied.
 
 - **Combined equilibrium** — When RetryGuard suppresses internal retries at a bottleneck, the bottleneck's load drops, which improves the goodput and latency signals that TopFull's RL observes. TopFull may respond by increasing its admission rate. Does this feedback loop find a better stable throughput point — more goodput at the same capacity — or does the increased admission re-trigger overload and undo the gains?
 
-- **Topology position sensitivity** — Does the structural position of the bottleneck service in the call chain change RetryGuard's relative contribution? Three positions matter: a gateway-adjacent service with a shallow sub-tree (TopFull sees it most directly at entry), a hub service like Checkout that fans out to many downstream callers (TopFull sees it indirectly; overload here triggers bidirectional retry amplification — upstream callers retry the hub while the hub retries all its downstream dependencies simultaneously), and a true leaf (TopFull's top-down signal is most attenuated). RetryGuard operates per-service regardless of position. The hub case is expected to be the most severe — suppressing retries at the hub relieves pressure across its entire downstream fan-out in one action — but this has not been tested alongside a top-down controller like TopFull.
+- **Topology position sensitivity** — Does the structural position of the bottleneck service change RetryGuard's relative contribution? We compare two positions that differ in **how directly TopFull's entry control reaches them** — not in raw chain depth: a **gateway-adjacent, directly-controlled** service (e.g., ProductCatalog — called directly from Frontend on many entry APIs; TopFull maps and throttles this bottleneck most directly at entry) vs an **indirect, single-path** service (e.g., Payment — reachable only through Checkout on one API path, so TopFull's top-down signal is mediated by Checkout and most attenuated). RetryGuard operates per-service regardless of position, but the gap between TopFull's entry control and RetryGuard's local action may differ by how directly the bottleneck is exposed to that entry control. Note: Online Boutique is a shallow topology, so this contrasts the *directness* of control (direct vs Checkout-mediated), not literal chain depth. This has not been tested alongside a top-down controller like TopFull.
 
 - **Interval parameter sensitivity** — Is RetryGuard's 30-second re-enable interval optimal when TopFull is co-running? This interval was validated in the original paper (Sec. 6.2) without a simultaneous top-down overload controller. TopFull's RL makes rate-control decisions every 1 second, so the recovery dynamics after overload may be faster or more oscillatory than in the original RetryGuard experiments. Does the optimal interval shift in this context? A shorter interval could allow faster retry recovery once TopFull has stabilized admission; a longer one provides more conservative suppression but delays throughput recovery. There is no established answer for this combination.
 
@@ -143,46 +149,48 @@ The scenarios follow directly from the open questions above — each scenario is
 
 **Intro slide:** Explain that the scenarios are derived from the open questions above, not chosen independently. State the shared infrastructure: all scenarios use TopFull's synthetic workload generator (Locust + TopFull scripts), not ad-hoc traffic. This slide sets up the logic before the individual scenario slides.
 
-**Scenario: Normal Operation**
+**Scenario 1: Normal Operation**
 
 - Traffic: flat, manageable RPS, well within service capacity — no overload.
 - What it tests: does RetryGuard stay entirely non-intrusive when things are healthy? The controller should detect rejection rates below the threshold and leave Istio configurations untouched.
 - Answers: the "system-level gains" question from the non-overload side — a necessary sanity check before the core experiment.
 
-**Scenario: Sustained Overload (the core experiment)**
+**Scenario 2: Sustained Overload (the core experiment)**
 
-- Traffic: a load increase that pushes ρ > 1 and holds it there for several minutes — long enough for RetryGuard's detection window (~30s consecutive intervals above the rejection threshold) to trigger and suppress retries. This is the exact miscoordination condition the RetryGuard paper was designed for, and the condition that matters: RetryGuard only acts during *prolonged* overload. A brief spike does not activate it.
-- What it tests: TopFull controls admission at the entry; Istio's default retry policy fires retries internally, after TopFull has already admitted the request. These internal retries are invisible to TopFull's rate limiter and amplify load on downstream services beyond what TopFull can throttle. Does RetryGuard suppress this internal retry amplification, and does that produce measurable improvement in goodput or resource usage on top of TopFull alone?
-- Answers: system-level gains, topology beneficiaries, chain propagation, and controller interaction.
+- **Setup:** Start from Normal Operation traffic, then step Locust RPS up until offered load exceeds capacity (ρ > 1) and **hold that level for at least 5–10 minutes** — long enough for RetryGuard's ~30s measurement windows to fire repeatedly.
+- **What happens in the system:** TopFull throttles how many new requests enter at the Go proxy. Requests that *do* get through may still fail downstream (503/429). Istio then retries those failed calls internally — retries TopFull never counted when admitting traffic. Under sustained overload this creates a retry storm: the same user request generates multiple backend attempts, keeping services overloaded even after TopFull has cut entry rate.
+- **Why duration matters — why 5–10 minutes and not 1–2:** The hold time must cover RetryGuard's full reaction *cycle*, not just its trigger.
+  1. **Triggering alone costs ~1–2 minutes.** RetryGuard fires only after rejections stay above ~20% for several consecutive ~30s windows, so disabling retries even once already takes roughly 90–120 seconds. A 1–2 minute test mostly measures whether the detector *barely* manages to fire — and often it won't, because load drops before the windows confirm. That measures detection latency, not effect.
+  2. **The effect needs time to appear.** The interesting behavior happens *after* suppression: bottleneck load drops, TopFull's 1-second RL loop reacts to the improved goodput/latency signals, and the system re-settles. A short run ends before any goodput recovery is observable.
+  3. **The cycle must repeat.** Holding 5–10 minutes lets the disable → recover → (possibly re-enable) cycle fire repeatedly, so we observe stable, reproducible behavior rather than a single lucky event.
+  4. **It matches the real failure mode.** RetryGuard is built for *prolonged miscoordination*, not brief spikes — a 1–2 minute spike is exactly the transient that default backoff, jitter, and retry budgets already absorb, so testing on it would understate RetryGuard and sit outside its design envelope.
+- **What it tests:** With TopFull-only vs TopFull+RetryGuard under the same sustained overload, does RetryGuard detect the high rejection rates and shut off internal retries, reducing load and improving goodput or resource usage?
+- **Answers:** system-level gains, topology beneficiaries, chain propagation, and controller interaction.
 
-**Scenario: Targeted Bottleneck**
+**Scenario 3: Targeted Bottleneck**
 
 - Traffic: load that exercises the full call chain, while one specific downstream service (e.g., Checkout or a mid-chain service in Online Boutique) is constrained — reduced replica count or CPU limit — so it reaches ρ > 1 even under TopFull's throttled entry rate.
+- **How this differs from Sustained Overload (beyond targeting one service):** Sustained Overload saturates the *whole system* by flooding the entry (global ρ > 1), so the effect is aggregate and hard to attribute to any single service. Here the overall offered load need not exceed total capacity — the stress is *engineered at one node* by constraining it. This difference is what makes the scenario worthwhile: it exposes a gap global overload cannot. To relieve one deep service, TopFull's only lever is to throttle the entire entry APIs that route through it — blunt and indirect, punishing healthy requests on those APIs — whereas RetryGuard acts surgically at the exact hot spot. And with a single known bottleneck we get *clean attribution*: we can measure how fast load drops at that one service and whether the relief *propagates upward*, neither of which is separable when everything is saturated at once.
 - What it tests: TopFull detects the overloaded service and throttles the APIs that route through it at the entry. But after TopFull admits a request, the constrained service may still reject it, and its immediate upstream caller (via Istio) retries it. These internal retries are not counted by TopFull's proxy. RetryGuard, operating per-service with Istio metrics, sees the rejection rate directly at the bottleneck and suppresses those internal retries. Does this per-service suppression reduce load at the bottleneck faster and more directly than TopFull's top-down throttling? Does the benefit propagate upward through the call chain?
 - Answers: topology beneficiaries, chain propagation, controller interaction. This is the scenario most directly analogous to the RetryGuard Bookinfo case study (Reviews service with slow HPA vs. Product service with fast HPA).
 
-**Scenario: Topology Position Comparison**
+**Scenario 4: Topology Position Comparison**
 
-- Traffic: three separate Targeted Bottleneck runs — same load, same methodology — varying only *where* in the Online Boutique call chain the constrained service sits. In all three runs, Istio retries from each constrained service's upstream caller(s) are internal and invisible to TopFull. The comparison tests whether RetryGuard's per-service suppression value scales with fan-out width and topology depth.
-  1. **Gateway-adjacent / shallow sub-tree** (e.g., Recommendation or ProductCatalog): called directly by Frontend, with few or no downstream dependencies of its own. TopFull's entry-level API routing sees this bottleneck most directly.
-  2. **Hub / sub-tree root** (e.g., Checkout): downstream from Frontend but itself fans out to call Cart, Shipping, Currency, ProductCatalog, Email, and Payment. Overloading Checkout creates retry amplification in both directions — Frontend retries Checkout (upward) and Checkout retries its six downstream callers simultaneously (downward). The hub case is expected to show the most severe retry amplification because suppressing retries at Checkout simultaneously relieves pressure across all its downstream callers.
-  3. **Deep leaf** (e.g., Email or Payment): a leaf service with no downstream dependencies of its own, reachable only through an intermediate service (Checkout). Frontend cannot call it directly. TopFull's top-down signal here is most attenuated — the bottleneck is invisible at the entry until Checkout itself starts degrading.
-- Answers: topology position sensitivity, topology beneficiaries, chain propagation.
+- **Setup:** Two Targeted Bottleneck runs — same Locust load and same constraint method (reduced replicas or CPU limit on one service) — differing only in **which service** is constrained.
+- **Why this is separate from Targeted Bottleneck (why not combine them):** Targeted Bottleneck first establishes *that* per-service suppression helps at a single bottleneck — it varies **RetryGuard on/off**. This scenario holds that result constant and varies only one new thing — the **structural position** of the bottleneck. Keeping them separate enforces changing one variable at a time: combining them would entangle "does RetryGuard help" with "does position matter," making either effect impossible to attribute. Targeted Bottleneck is the foundation; this is the controlled A/B built on top of it.
+- **Run A — Gateway-adjacent, directly controlled (e.g., ProductCatalog):** Frontend calls this service directly on many product-browse paths. When ProductCatalog is overloaded, TopFull can map the problem to specific entry APIs quickly and throttle them. Istio retries from Frontend to ProductCatalog are still invisible to TopFull's proxy after admission.
+- **Run B — Indirect, Checkout-mediated (e.g., Payment):** Reachable only via Checkout on a single path (Frontend → Checkout → Payment). When Payment is overloaded, TopFull's entry signal is mediated by Checkout — it may not throttle the right entry APIs until Checkout itself starts failing. Istio retries stack at Checkout→Payment.
+- **What it tests:** Does RetryGuard's per-service retry suppression matter more when TopFull's entry signal is strong and direct (Run A) vs indirect and attenuated (Run B)? Do savings at the bottleneck propagate differently up the chain?
+- **Scope note:** Online Boutique is a shallow topology, so Run A vs Run B contrasts how *directly* TopFull controls the bottleneck (direct vs Checkout-mediated), not literal chain depth — a limitation worth stating in the report. The distinguishing variables are indirection and fan-in (one mediated path vs many direct entry APIs).
+- **Answers:** topology position sensitivity, topology beneficiaries, chain propagation.
 
-> **Visual:** Show `Online-Boutique-architecture.png` again here to anchor the three positions visually — annotate or highlight the relevant services (e.g., circle ProductCatalog for position 1, Checkout for position 2, Email/Payment for position 3). The diagram makes the structural argument concrete without needing additional explanation.
+**Scenario 5: Re-enable Interval Tuning**
 
-**Scenario: Re-enable Interval Tuning**
-
-- Traffic: the Sustained Overload scenario run multiple times, holding all other parameters constant and varying only RetryGuard's re-enable interval (e.g., 10s, 20s, 30s \[paper default\], 60s).
-- What it tests: RetryGuard's algorithm requires the rejection rate to stay below the threshold for `Interval` consecutive measurement periods before re-enabling retries. Too short: risks premature re-enabling before the bottleneck has cleared, potentially re-triggering overload. Too long: keeps retries suppressed after the bottleneck clears, slowing throughput recovery. The paper's 30s default was validated without a co-running top-down controller; with TopFull's RL adjusting admission rates every 1 second, the recovery dynamics may be faster or more oscillatory. Does the optimal interval shift in this context?
-- Answers: interval parameter sensitivity, combined equilibrium.
-
-**Scenario: Attack Traffic (extension, given time)**
-
-- Traffic: malicious burst-DDoS pattern simulating an attacker exploiting retry amplification.
-- What it tests: does hostile traffic trip the controller at the wrong time, or does RetryGuard correctly suppress retry storms caused by the attack without disrupting healthy services?
-- Answers: adversarial resilience.
-- Mark clearly on the slide that this is a time-permitting extension.
+- **Setup:** Repeat the Sustained Overload scenario multiple times. Keep load, replica counts, and RetryGuard threshold fixed; change only the **re-enable interval** — how long rejections must stay below ~20% before retries turn back on (e.g., 10s, 20s, 30s \[paper default\], 60s).
+- **What happens in the system:** After RetryGuard disables retries, overload eases. TopFull's RL may then admit more traffic because goodput/latency signals improve. If RetryGuard re-enables retries **too soon**, internal retries restart before the bottleneck has truly cleared and overload returns. If it waits **too long**, the system stays retry-free after recovery and goodput stays artificially low.
+- **Why this matters with TopFull:** The paper tuned the 30s default without a co-running top-down controller. TopFull adjusts admission every ~1 second, so recovery may be faster or more oscillatory than in the original RetryGuard experiments — the best interval may differ.
+- **What it tests:** Which re-enable interval gives the best combined goodput and stability when TopFull and RetryGuard run together?
+- **Answers:** interval parameter sensitivity, combined equilibrium.
 
 > **Slide design note:** Each scenario should be described in prose first — what is happening in the system, not just a traffic pattern label. A traffic shape graph or timeline can support the description, but the slide must make sense without it. Across all scenarios, use TopFull's built-in collectors (`metric_collector.py`, `overload_detection.py`, `resource_collector.py`) for system-level and API-level metrics. RetryGuard's per-service decisions are driven by Istio/Envoy sidecar metrics — HTTP error rates read locally at each service — which are a separate measurement point from TopFull's entry-proxy collectors. Cross-reference both data streams when interpreting results.
 
@@ -194,7 +202,7 @@ Three layers of measurement, each answering a different part of the question.
 
 - Goodput and latency per API (`getcart`, `getproduct`, `postcheckout`, etc.) — the primary outcome metrics.
 - Rejection rate per API — the signal RetryGuard's controller reads to decide whether to suppress retries.
-- **Retries per request** — the most direct measure of whether RetryGuard is doing its job. This is the number to watch when comparing baseline vs. experiment.
+- **Retries per request** — the most direct measure of whether RetryGuard is doing its job. This is the number to watch when comparing **TopFull only** vs **TopFull + RetryGuard**.
 
 **Layer 2 — Infrastructure resource usage** (cAdvisor via `resource_collector.py`):
 
@@ -207,7 +215,7 @@ Three layers of measurement, each answering a different part of the question.
 - Time-to-recovery: how long between retry suppression and re-enablement — shows the cool-down cycle in practice.
 - Business priority context from TopFull's `overload_detection.py` — which APIs were flagged as overloaded and at what priority, so RetryGuard decisions can be cross-referenced with TopFull's state.
 
-All collected data will be synthesized into comparative time-series charts for the final evaluation report — baseline run vs. RetryGuard run, side by side across the same metrics.
+All collected data will be synthesized into comparative time-series charts for the final evaluation report — **TopFull only** vs **TopFull + RetryGuard**, side by side across the same metrics.
 
 ### 9. Timeline & Milestones (1 slide)
 
@@ -215,10 +223,10 @@ A clean, sequential view of what happens and when. No phase numbers — those ar
 
 | What                                                 | When     |
 | ---------------------------------------------------- | -------- |
-| Infrastructure setup — VMs, K8s, Istio, app running  | Week 1–2 |
-| Baseline experiment — TopFull running, default retries | Week 2–3 |
+| Infrastructure setup — Ron Nezer's environment, Istio, app running | Week 1–2 |
+| Baseline experiment — TopFull only                     | Week 2–3 |
 | RetryGuard implementation and Istio integration      | Week 3   |
-| RetryGuard experiment                                | Week 3–4 |
+| Experiment — TopFull + RetryGuard                      | Week 3–4 |
 | Evaluation, comparison, and final report             | Week 4   |
 
 
