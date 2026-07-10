@@ -2,7 +2,7 @@
 
 Ask your mentors these **before** you create cloud VMs (Phase 1). One short meeting or message thread is enough.
 
-Related: [PREREQUISITES.md](PREREQUISITES.md) | [SETUP-GUIDE.md](SETUP-GUIDE.md) Phase 0 | [WORKPLAN.md](WORKPLAN.md) | [PRESENTATION-ACTION-ITEMS.md](PRESENTATION-ACTION-ITEMS.md) | workplan canvas (`canvases/topfull-retryguard-workplan.canvas.tsx`)
+Related: [PREREQUISITES.md](PREREQUISITES.md) | [SETUP-GUIDE.md](SETUP-GUIDE.md) Phase 0 | [WORKPLAN.md](WORKPLAN.md) | [PRESENTATION-ACTION-ITEMS.md](PRESENTATION-ACTION-ITEMS.md) | workplan canvas (`../canvases/topfull-retryguard-workplan.canvas.tsx`)
 
 ---
 
@@ -65,7 +65,7 @@ Source: WhatsApp voice notes in `Workshop recordings/` (see `meeting_transcript.
 
 ## Notes
 
-**RetryGuard code:** You implement Algorithm 1 from `RetryGuard.pdf` — mentors do not need to give you source. The integration point is **Istio VirtualService retry policies** (controller patches `retries.attempts` per service via Kubernetes API, matching paper Sec. 4).
+**RetryGuard code:** You implement Algorithm 1 from `../context/RetryGuard.pdf` — mentors do not need to give you source. The integration point is **Istio VirtualService retry policies** (controller patches `retries.attempts` per service via Kubernetes API, matching paper Sec. 4).
 
 **Baseline vs experiment:** Confirm both runs use the same Locust scenario; only retry policy changes (Phase 5 baseline -> Phase 6 RetryGuard).
 

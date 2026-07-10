@@ -1,6 +1,6 @@
 # Setup Guide: TopFull + RetryGuard (step-by-step)
 
-This document explains **what each workplan step means**, **what to do concretely**, and **how you know it worked**. Use it together with the workplan canvas (`canvases/topfull-retryguard-workplan.canvas.tsx`).
+This document explains **what each workplan step means**, **what to do concretely**, and **how you know it worked**. Use it together with the workplan canvas (`../canvases/topfull-retryguard-workplan.canvas.tsx`).
 
 **Before Phase 1:** complete [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md).
 
@@ -25,25 +25,21 @@ This document explains **what each workplan step means**, **what to do concretel
 
 ---
 
-### 0b. Clone TopFull and read key files (on your PC)
+### 0b. Read TopFull and key files (on your PC)
 
 **What this is:** Understand the repo before spending money on VMs.
 
-**What to do:**
-```bash
-git clone https://github.com/kaist-ina/TopFull.git
-cd TopFull
-```
+**What to do:** Open `../TopFull` in this workshop repo (already cloned). Still `git clone` TopFull on the master and loadgen **VMs** later (Phase 1d).
 
 Read these (don't run yet):
 | File | Why |
 |------|-----|
-| `README.md` | Official K8s setup order |
-| `TopFull_master/online_boutique_scripts/src/global_config.json` | All IPs and paths you will edit |
-| `TopFull_master/online_boutique_scripts/src/deploy_rl.py` | TopFull RL controller |
-| `TopFull_master/online_boutique_scripts/src/proxy/proxy_online_boutique.go` | Entry proxy |
-| `TopFull_master/online_boutique_scripts/deployments/online_boutique_original_custom.yaml` | App deployment |
-| `RetryGuard.pdf` (Workshop folder) | Sec. 4 (controller), Sec. 6.2 (~20% threshold, 30s interval) |
+| `../TopFull/README.md` | Official K8s setup order |
+| `../TopFull/TopFull_master/online_boutique_scripts/src/global_config.json` | All IPs and paths you will edit |
+| `../TopFull/TopFull_master/online_boutique_scripts/src/deploy_rl.py` | TopFull RL controller |
+| `../TopFull/TopFull_master/online_boutique_scripts/src/proxy/proxy_online_boutique.go` | Entry proxy |
+| `../TopFull/TopFull_master/online_boutique_scripts/deployments/online_boutique_original_custom.yaml` | App deployment |
+| `../context/RetryGuard.pdf` | Sec. 4 (controller), Sec. 6.2 (~20% threshold, 30s interval) |
 
 **Done when:** You know where config lives and that experiments run in a fixed order (proxy -> deploy_rl -> load -> metric_collector).
 

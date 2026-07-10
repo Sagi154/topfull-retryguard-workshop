@@ -2,7 +2,16 @@
 
 TAU Deepness Lab Workshop - Evaluate **RetryGuard** (you implement from the paper) on a **TopFull** Kubernetes microservice stack (Online Boutique).
 
-**Before VMs:** [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md). **Steps:** [WORKPLAN.md](WORKPLAN.md) (or interactive canvas in Cursor) + [SETUP-GUIDE.md](SETUP-GUIDE.md).
+**Before VMs:** [PREREQUISITES](Guides%20and%20Info/PREREQUISITES.md) and [MENTOR-COORDINATION](Guides%20and%20Info/MENTOR-COORDINATION.md). **Steps:** [WORKPLAN](Guides%20and%20Info/WORKPLAN.md) (or interactive canvas in Cursor) + [SETUP-GUIDE](Guides%20and%20Info/SETUP-GUIDE.md). **SSH to GCP VMs:** [CONNECT-VMS](Guides%20and%20Info/CONNECT-VMS.md).
+
+## Repo layout
+
+| Path | Contents |
+|------|----------|
+| [Guides and Info/](Guides%20and%20Info/) | Setup, workplan, SSH playbook, presentation notes |
+| [TopFull/](TopFull/) | Upstream TopFull clone (read locally; still clone on VMs) |
+| [context/](context/) | Papers and decks (`RetryGuard.pdf`, `TopFull.pdf`, …) |
+| [canvases/](canvases/) | Interactive workplan canvas |
 
 ## Viewing the workplan
 
@@ -10,7 +19,7 @@ Clone this repository, then use either format below.
 
 ### Markdown (any editor or GitHub)
 
-Open [WORKPLAN.md](WORKPLAN.md) in the repo root. It has the same phases, steps, and tables as the canvas (Why / How / Done when per step). Readable on GitHub without installing anything.
+Open [Guides and Info/WORKPLAN.md](Guides%20and%20Info/WORKPLAN.md). Same phases as the canvas (Why / How / Done when). Readable on GitHub without installing anything.
 
 ### Interactive canvas (Cursor IDE)
 
@@ -35,7 +44,7 @@ Open [WORKPLAN.md](WORKPLAN.md) in the repo root. It has the same phases, steps,
 
 **Still no Canvas?** Command Palette (`Ctrl+Shift+P`) ? search **Canvas**. Update Cursor if needed.
 
-Use the canvas for day-to-day progress; use [WORKPLAN.md](WORKPLAN.md) when sharing links or working outside Cursor. After editing, sync the managed file and the repo copy under `canvases/` before committing.
+Use the canvas for day-to-day progress; use [WORKPLAN.md](Guides%20and%20Info/WORKPLAN.md) when sharing links or working outside Cursor. After editing, sync the managed file and the repo copy under `canvases/` before committing.
 
 ## Stack
 
@@ -50,14 +59,16 @@ Use the canvas for day-to-day progress; use [WORKPLAN.md](WORKPLAN.md) when shar
 
 | Resource | Link |
 |----------|------|
-| **Prerequisites** | [PREREQUISITES.md](PREREQUISITES.md) - read before Phase 1 |
-| **Mentor coordination** | [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md) - ask before provisioning VMs |
+| **Prerequisites** | [PREREQUISITES.md](Guides%20and%20Info/PREREQUISITES.md) - read before Phase 1 |
+| **Mentor coordination** | [MENTOR-COORDINATION.md](Guides%20and%20Info/MENTOR-COORDINATION.md) - ask before provisioning VMs |
 | TopFull paper | https://dl.acm.org/doi/abs/10.1145/3651890.3672253 |
-| TopFull repo | https://github.com/kaist-ina/TopFull/tree/main |
-| RetryGuard paper | `RetryGuard.pdf` (in this folder) |
-| **Workplan (markdown)** | [WORKPLAN.md](WORKPLAN.md) - phases, Why / How / Done when (view on GitHub or any editor) |
-| **Workplan (canvas)** | [canvases/topfull-retryguard-workplan.canvas.tsx](canvases/topfull-retryguard-workplan.canvas.tsx) - same content, interactive in Cursor (see [Viewing the workplan](#viewing-the-workplan)) |
-| Detailed setup guide | [SETUP-GUIDE.md](SETUP-GUIDE.md) (full commands, Azure examples, troubleshooting) |
+| TopFull (local clone) | [TopFull/](TopFull/) |
+| TopFull upstream | https://github.com/kaist-ina/TopFull/tree/main |
+| RetryGuard paper | [context/RetryGuard.pdf](context/RetryGuard.pdf) |
+| **Workplan (markdown)** | [WORKPLAN.md](Guides%20and%20Info/WORKPLAN.md) |
+| **Workplan (canvas)** | [canvases/topfull-retryguard-workplan.canvas.tsx](canvases/topfull-retryguard-workplan.canvas.tsx) |
+| Detailed setup guide | [SETUP-GUIDE.md](Guides%20and%20Info/SETUP-GUIDE.md) |
+| SSH playbook | [CONNECT-VMS.md](Guides%20and%20Info/CONNECT-VMS.md) |
 
 ## Architecture
 

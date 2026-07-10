@@ -4,7 +4,7 @@ TAU Deepness Lab Workshop — Retries for Cloud Microservices
 
 > **How to use this workplan:** Before Phase 1, complete [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md). Each phase below has **Why**, **How**, and **Done when**. For Azure steps, full commands, and troubleshooting, use [SETUP-GUIDE.md](SETUP-GUIDE.md). Out of scope: DAGOR, DiffTry, extra overload baselines unless mentors say otherwise.
 >
-> **Interactive version:** [canvases/topfull-retryguard-workplan.canvas.tsx](canvases/topfull-retryguard-workplan.canvas.tsx) in Cursor (see [README — Viewing the workplan](README.md#viewing-the-workplan)).
+> **Interactive version:** [../canvases/topfull-retryguard-workplan.canvas.tsx](../canvases/topfull-retryguard-workplan.canvas.tsx) in Cursor (see [README — Viewing the workplan](../README.md#viewing-the-workplan)).
 
 | Cloud VMs | Timeline | Phases | Est. cloud cost |
 |-----------|----------|--------|-----------------|
@@ -59,16 +59,16 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 ---
 
-#### 0b. Clone TopFull repo on your PC and read key files
+#### 0b. Read TopFull on your PC and key files
 
 **Why:** You need to understand paths and run order before paying for VMs.
 
 **How:**
 
-1. Run: `git clone https://github.com/kaist-ina/TopFull.git`
+1. Open `../TopFull` in this workshop repo (already cloned). Still clone TopFull on master/loadgen VMs in Phase 1d.
 2. Open `global_config.json` (all IPs and paths you will edit later).
 3. Skim `deploy_rl.py`, `proxy_online_boutique.go`, and `online_boutique_original_custom.yaml`.
-4. Read `RetryGuard.pdf` Sec. 4 and 6.2 in the Workshop folder.
+4. Read `../context/RetryGuard.pdf` Sec. 4 and 6.2.
 5. Note experiment order: proxy first, then `deploy_rl`, then load, then `metric_collector`.
 
 **Done when:** You know where configuration lives and what runs on the master vs loadgen.
@@ -81,7 +81,7 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 **How:**
 
-1. Complete [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md) in the Workshop folder (checklist + message template).
+1. Complete [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md) (checklist + message template).
 2. You do not need RetryGuard source code from the lab.
 3. Read RetryGuard Sec. 4 (controller) and Sec. 6.2 (~20% threshold, ~30s interval).
 

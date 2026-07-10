@@ -38,9 +38,8 @@ function PhaseSteps({ guides }: { guides: readonly StepGuide[] }) {
     <Stack gap={24}>
       <TodoList todos={todos} />
       <Text tone="secondary" size="small">
-        Expand each step below. Before Phase 1: PREREQUISITES.md and
-        MENTOR-COORDINATION.md. Commands and troubleshooting: SETUP-GUIDE.md
-        (Workshop folder).
+        Expand each step below. Before Phase 1: Guides and Info/PREREQUISITES.md
+        and MENTOR-COORDINATION.md. Commands: Guides and Info/SETUP-GUIDE.md.
       </Text>
       {guides.map((g) => (
         <Stack key={g.id} gap={8}>
@@ -91,14 +90,14 @@ const phases: {
       },
       {
         id: "0b",
-        title: "Clone TopFull repo on your PC and read key files",
+        title: "Read TopFull on your PC and key files",
         status: "pending",
         why: "You need to understand paths and run order before paying for VMs.",
         how: [
-          "Run: git clone https://github.com/kaist-ina/TopFull.git",
+          "Open TopFull/ in this workshop repo (already cloned). Still clone on master/loadgen VMs in Phase 1d.",
           "Open global_config.json (all IPs and paths you will edit later).",
           "Skim deploy_rl.py, proxy_online_boutique.go, and online_boutique_original_custom.yaml.",
-          "Read RetryGuard.pdf Sec. 4 and 6.2 in the Workshop folder.",
+          "Read context/RetryGuard.pdf Sec. 4 and 6.2.",
           "Note experiment order: proxy first, then deploy_rl, then load, then metric_collector.",
         ],
         doneWhen: "You know where configuration lives and what runs on the master vs loadgen.",
@@ -109,7 +108,7 @@ const phases: {
         status: "pending",
         why: "You implement RetryGuard from the paper. Mentors confirm credits, provider, and where retries are toggled.",
         how: [
-          "Complete MENTOR-COORDINATION.md in the Workshop folder (checklist + message template).",
+          "Complete Guides and Info/MENTOR-COORDINATION.md (checklist + message template).",
           "You do not need RetryGuard source code from the lab.",
           "Read RetryGuard Sec. 4 (controller) and Sec. 6.2 (~20% threshold, ~30s interval).",
         ],
@@ -631,8 +630,8 @@ export default function WorkplanCanvas() {
       </Stack>
 
       <Callout tone="info" title="How to use this workplan">
-        Before Phase 1: complete PREREQUISITES.md and MENTOR-COORDINATION.md in
-        the Workshop folder. Each phase below has Why, How, and Done when. For
+        Before Phase 1: complete Guides and Info/PREREQUISITES.md and
+        MENTOR-COORDINATION.md. Each phase below has Why, How, and Done when. For
         Azure steps, full commands, and troubleshooting, use SETUP-GUIDE.md. Out
         of scope: DAGOR, DiffTry, extra overload baselines unless mentors say
         otherwise.

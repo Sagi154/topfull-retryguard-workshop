@@ -2,7 +2,7 @@
 
 From mentor meeting **2026-06-04**. Use this when building the slide deck that explains **how you will test RetryGuard** on the TopFull + Online Boutique stack (not a live demo).
 
-Related: [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md) | [WORKPLAN.md](WORKPLAN.md) Phases 5–7 | `Workshop recordings/meeting_transcript.md`
+Related: [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md) | [WORKPLAN.md](WORKPLAN.md) Phases 5–7 | `temp/Workshop recordings/meeting_transcript.md`
 
 ---
 

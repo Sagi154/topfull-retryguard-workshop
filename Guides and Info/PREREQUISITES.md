@@ -3,13 +3,13 @@
 Complete this checklist **before** provisioning cloud VMs (Phase 1).  
 **Stack:** TopFull (overload control) + **RetryGuard** (you implement from the paper) on Kubernetes.
 
-Related docs: [README.md](README.md) | [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md) | [SETUP-GUIDE.md](SETUP-GUIDE.md) | workplan canvas (`canvases/topfull-retryguard-workplan.canvas.tsx`)
+Related docs: [../README.md](../README.md) | [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md) | [SETUP-GUIDE.md](SETUP-GUIDE.md) | workplan canvas (`../canvases/topfull-retryguard-workplan.canvas.tsx`)
 
 ---
 
 ## Quick "am I ready?" checklist
 
-- [ ] TopFull repo cloned and architecture understood
+- [ ] TopFull repo present at `../TopFull` and architecture understood
 - [ ] `global_config.json` and experiment run order understood
 - [ ] RetryGuard paper: Algorithm 1 + K8s evaluation settings read
 - [ ] Mentors: see [MENTOR-COORDINATION.md](MENTOR-COORDINATION.md)
@@ -24,25 +24,23 @@ When all are checked, start **Phase 0** in the workplan canvas, then **Phase 1**
 
 | Prerequisite | Why |
 |--------------|-----|
-| **Git** | Clone TopFull |
+| **Git** | Workshop repo + TopFull on VMs |
 | **SSH client** | Built into Windows 10/11 (`ssh`, `ssh-keygen`) |
 | **Text editor / IDE** | Edit configs (e.g. Cursor) |
 | **WSL2** (optional) | Not required; cluster runs on Linux VMs. Handy for `git` and reading code locally |
 
-### Clone and read (do not run on cloud yet)
+### Read locally (do not run on cloud yet)
 
-```powershell
-git clone https://github.com/kaist-ina/TopFull.git
-```
+TopFull is already at repo root: `../TopFull`. Papers are in `../context/`.
 
 | File | What you learn |
 |------|----------------|
-| `TopFull/README.md` | Official Kubernetes install order |
-| `TopFull_master/online_boutique_scripts/src/global_config.json` | Every IP and path you will change |
-| `TopFull_master/online_boutique_scripts/src/deploy_rl.py` | TopFull RL controller entry point |
-| `TopFull_master/online_boutique_scripts/src/proxy/proxy_online_boutique.go` | Entry proxy / rate limiting |
-| `TopFull_master/online_boutique_scripts/deployments/online_boutique_original_custom.yaml` | What gets deployed to Kubernetes |
-| `RetryGuard.pdf` (Workshop folder) | Sec. 4 (controller), Sec. 6.2 (K8s experiment: threshold, interval) |
+| `../TopFull/README.md` | Official Kubernetes install order |
+| `../TopFull/TopFull_master/online_boutique_scripts/src/global_config.json` | Every IP and path you will change |
+| `../TopFull/TopFull_master/online_boutique_scripts/src/deploy_rl.py` | TopFull RL controller entry point |
+| `../TopFull/TopFull_master/online_boutique_scripts/src/proxy/proxy_online_boutique.go` | Entry proxy / rate limiting |
+| `../TopFull/TopFull_master/online_boutique_scripts/deployments/online_boutique_original_custom.yaml` | What gets deployed to Kubernetes |
+| `../context/RetryGuard.pdf` | Sec. 4 (controller), Sec. 6.2 (K8s experiment: threshold, interval) |
 
 **Done when:** You can explain: *loadgen -> master proxy -> Online Boutique pods -> TopFull adjusts rates -> metrics in `logs/`*, and where RetryGuard will sit (toggle retries when rejection stays high).
 
@@ -130,7 +128,7 @@ Before **Phase 6**, you should already have:
 ## 8. Recommended order before Phase 1
 
 ```
-1. Read RetryGuard.pdf + skim TopFull repo (global_config, deploy_rl, proxy, deployment YAML)
+1. Read `../context/RetryGuard.pdf` + skim `../TopFull` (global_config, deploy_rl, proxy, deployment YAML)
 2. Coordinate with mentors ([MENTOR-COORDINATION.md](MENTOR-COORDINATION.md))
 3. Generate SSH key
 4. Skim SETUP-GUIDE.md Phases 0-2

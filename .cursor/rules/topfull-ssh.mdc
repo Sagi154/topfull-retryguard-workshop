@@ -1,0 +1,36 @@
+---
+description: SSH into TopFull GCP VMs via Host aliases (master/worker/load)
+alwaysApply: true
+---
+
+# TopFull VM SSH
+
+Use OpenSSH Host aliases only — never hardcode public IPs in commands.
+
+| Host | Role |
+|------|------|
+| `topfull-master` | K8s control plane, TopFull proxy/RL/metrics |
+| `topfull-worker-1` | Online Boutique pods |
+| `topfull-load` | Locust load generator |
+
+Project: `networks-workshop` · Zone: `us-central1-a`
+
+## How to run remote commands
+
+```powershell
+ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master "hostname; whoami"
+```
+
+Prefer non-interactive one-liners. Use `tmux` on the remote for long-running processes.
+
+## Setup / broken SSH / IP refresh
+
+Follow [Guides and Info/CONNECT-VMS.md](Guides%20and%20Info/CONNECT-VMS.md). Do the work with the Shell tool; discover `User`/`HostName`/`IdentityFile` on this machine — do not copy another teammate’s values.
+
+## Hard rules
+
+- `User` is a Linux account (usually Windows username), never an email.
+- Ephemeral IPs change after stop/start — refresh `HostName` in `~/.ssh/config`.
+- Timeout usually means VM `TERMINATED` or stale IP, not a missing firewall rule.
+- Do not commit private keys or overwrite unrelated `Host` blocks in `~/.ssh/config`.
+- Interactive `gcloud auth login` / passphrase prompts need the human.
