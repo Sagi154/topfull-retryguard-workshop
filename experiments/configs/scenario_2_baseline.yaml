@@ -1,0 +1,69 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 2 — Sustained Overload  |  Condition: BASELINE (no RetryGuard)
+#
+# The CORE experiment. Ramp Locust until offered load exceeds cluster capacity
+# (ρ > 1) and hold for 5–10 minutes. With Istio retries on (default), failed
+# requests are retried internally — invisible to TopFull's entry-rate limiter.
+# This creates a retry storm: one user request → multiple backend attempts →
+# cluster stays saturated even after TopFull cuts the entry rate.
+#
+# What to look for:
+#   - Rejection rates stay elevated despite TopFull throttling
+#   - Retries-per-request > 0 (visible in Istio/Envoy sidecar metrics)
+#   - Goodput plateaus or drops
+#   - CPU stays high on constrained services
+#
+# Run duration: 10 minutes minimum. The retry storm must be visible across
+# multiple consecutive 30-second windows for a fair RetryGuard comparison.
+# ─────────────────────────────────────────────────────────────────────────────
+
+scenario_id: 2
+scenario_name: sustained_overload
+condition: baseline
+run_number: 1
+description: >
+  Ramp to ρ > 1, hold 10 minutes. TopFull active, Istio default retries on,
+  RetryGuard OFF. Captures the retry storm as the unmanaged baseline.
+
+# ── Timing ──────────────────────────────────────────────────────────────────
+duration_seconds: 600          # 10 minutes
+
+# ── Load ────────────────────────────────────────────────────────────────────
+# Full load — the default create.sh values already produce overload on our
+# 1-worker setup. Increase if rejection rates don't exceed 20% after ~2 min.
+locust:
+  user_counts:
+    getproduct:   100
+    postcheckout: 20
+    getcart:      100
+    postcart:     100
+    emptycart:    300
+  spawn_rate: 90
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+
+# ── Topology constraints ─────────────────────────────────────────────────────
+scale_constraints: []          # no manipulation — global overload scenario
+
+# ── RetryGuard ───────────────────────────────────────────────────────────────
+retryguard:
+  enabled: false
+  rejection_threshold: 0.20
+  window_duration_seconds: 30
+  disable_windows: 2
+  re_enable_windows: 3
+  retry_attempts_on: 3
+  retry_attempts_off: 0
+
+# ── Output ───────────────────────────────────────────────────────────────────
+log_folder: baseline_topfull_no_retryguard_sustained_overload_run1
+
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py

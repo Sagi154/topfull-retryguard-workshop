@@ -1,0 +1,63 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 4B — Topology Position: Checkout-Mediated  |  BASELINE
+#
+# Constrained service: paymentservice
+# Position: Indirect / Checkout-mediated.
+# Path: Frontend → Checkout → Payment  (payment is only reachable via checkout)
+# TopFull's overload signal at the entry proxy is attenuated — it sees stress
+# on the postcheckout entry API but must infer payment is the root cause.
+# Istio retries stack specifically at the Checkout → Payment link.
+#
+# Comparison point (vs 4A): RetryGuard is expected to provide GREATER relative
+# benefit here because TopFull's indirect signal is weaker, leaving more room
+# for per-service retry suppression to matter.
+# ─────────────────────────────────────────────────────────────────────────────
+
+scenario_id: 4
+scenario_name: topology_position_B
+condition: baseline
+run_number: 1
+description: >
+  paymentservice constrained (Checkout-mediated, indirect position).
+  TopFull active, RetryGuard OFF. TopFull signal is attenuated through Checkout.
+
+duration_seconds: 600
+
+locust:
+  user_counts:
+    getproduct:   100
+    postcheckout: 20
+    getcart:      100
+    postcart:     100
+    emptycart:    300
+  spawn_rate: 90
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+
+scale_constraints:
+  - deployment: paymentservice
+    namespace: default
+    method: cpu_limit
+    cpu_limit: "100m"
+    container: server
+
+retryguard:
+  enabled: false
+  rejection_threshold: 0.20
+  window_duration_seconds: 30
+  disable_windows: 2
+  re_enable_windows: 3
+  retry_attempts_on: 3
+  retry_attempts_off: 0
+
+log_folder: baseline_topfull_no_retryguard_topology_position_B_run1
+
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py

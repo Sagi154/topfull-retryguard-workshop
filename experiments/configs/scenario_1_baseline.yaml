@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 1 — Normal Operation  |  Condition: BASELINE (no RetryGuard)
+#
+# Goal: Sanity check. Flat load well within capacity. Nothing should be
+# throttled by TopFull and RetryGuard (when on) must make zero VirtualService
+# patches. Comparison between baseline and retryguard must be statistically
+# identical — any divergence signals a threshold calibration problem.
+#
+# Run this BEFORE any overload scenarios.
+# ─────────────────────────────────────────────────────────────────────────────
+
+scenario_id: 1
+scenario_name: normal_operation
+condition: baseline            # baseline = RetryGuard OFF
+run_number: 1                  # increment for each repeat (aim for 3 runs)
+description: >
+  Flat RPS well within cluster capacity. TopFull active, retries on (default),
+  RetryGuard NOT running. Establishes the healthy-system reference point.
+
+# ── Timing ──────────────────────────────────────────────────────────────────
+duration_seconds: 300          # 5 minutes is sufficient for a sanity check
+
+# ── Load ────────────────────────────────────────────────────────────────────
+# NOTE: user_counts are NOT yet applied to the create scripts (hardcoded there).
+# These values document the intent; they will drive the scripts once the
+# create scripts are updated to read env-var overrides.
+locust:
+  user_counts:
+    getproduct:   50           # ~half the default — keep well below capacity
+    postcheckout: 10
+    getcart:      50
+    postcart:     50
+    emptycart:    150
+  spawn_rate: 45               # RATE / 2
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+
+# ── Topology constraints ─────────────────────────────────────────────────────
+# None — full replica counts, no CPU limits. Baseline cluster state.
+scale_constraints: []
+
+# ── RetryGuard ───────────────────────────────────────────────────────────────
+retryguard:
+  enabled: false               # OFF for the baseline condition
+
+  # Parameters below are stored for reference; not used when enabled=false.
+  rejection_threshold: 0.20    # >20% rejection rate triggers disable counter
+  window_duration_seconds: 30  # one observation window = 30 s
+  disable_windows: 2           # 2 consecutive windows above threshold → disable
+  re_enable_windows: 3         # 3 consecutive windows below threshold → re-enable
+  retry_attempts_on: 3         # Istio VirtualService retries.attempts when enabled
+  retry_attempts_off: 0        # Istio VirtualService retries.attempts when disabled
+
+# ── Output ───────────────────────────────────────────────────────────────────
+log_folder: baseline_topfull_no_retryguard_normal_op_run1
+
+# ── Infrastructure ───────────────────────────────────────────────────────────
+# Matches infra/vm-ips.env. Override here if your setup differs.
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py

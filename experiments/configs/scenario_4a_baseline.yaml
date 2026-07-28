@@ -1,0 +1,63 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 4A — Topology Position: Gateway-Adjacent  |  BASELINE
+#
+# Constrained service: productcatalogservice
+# Position: Gateway-adjacent. Frontend calls ProductCatalog directly
+# on many product-browse paths (getproduct). TopFull maps this bottleneck
+# most directly to an entry API — it's the easiest signal for TopFull to see.
+#
+# Comparison point (vs 4B): does RetryGuard add meaningful value on top of
+# TopFull when TopFull already has a clean, direct signal to act on?
+#
+# Call path: Frontend → ProductCatalog  (also via Checkout → ProductCatalog)
+# Primary affected API: getproduct
+# ─────────────────────────────────────────────────────────────────────────────
+
+scenario_id: 4
+scenario_name: topology_position_A
+condition: baseline
+run_number: 1
+description: >
+  productcatalogservice constrained (gateway-adjacent position).
+  TopFull active, RetryGuard OFF. TopFull has a direct entry-API signal.
+
+duration_seconds: 600
+
+locust:
+  user_counts:
+    getproduct:   100
+    postcheckout: 20
+    getcart:      100
+    postcart:     100
+    emptycart:    300
+  spawn_rate: 90
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+
+scale_constraints:
+  - deployment: productcatalogservice
+    namespace: default
+    method: cpu_limit
+    cpu_limit: "100m"
+    container: server
+
+retryguard:
+  enabled: false
+  rejection_threshold: 0.20
+  window_duration_seconds: 30
+  disable_windows: 2
+  re_enable_windows: 3
+  retry_attempts_on: 3
+  retry_attempts_off: 0
+
+log_folder: baseline_topfull_no_retryguard_topology_position_A_run1
+
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py

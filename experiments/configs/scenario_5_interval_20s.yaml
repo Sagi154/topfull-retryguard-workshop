@@ -1,0 +1,49 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 5 — Re-enable Interval Tuning  |  Interval: 20s (below paper default)
+# re_enable_windows: 2  →  2 × 30s = 60s effective wait
+# ─────────────────────────────────────────────────────────────────────────────
+
+scenario_id: 5
+scenario_name: interval_tuning
+condition: retryguard
+run_number: 1
+description: >
+  Sustained overload. RetryGuard on, re-enable interval = 20s.
+  Below the paper default (30s). Faster recovery than 30s; less oscillation
+  risk than 10s. Tests whether TopFull's 1s RL loop allows earlier re-enable.
+
+duration_seconds: 600
+
+locust:
+  user_counts:
+    getproduct:   100
+    postcheckout: 20
+    getcart:      100
+    postcart:     100
+    emptycart:    300
+  spawn_rate: 90
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+
+scale_constraints: []
+
+retryguard:
+  enabled: true
+  rejection_threshold: 0.20
+  window_duration_seconds: 30
+  disable_windows: 2
+  re_enable_windows: 2         # ← 2 windows × 30s = 60s effective
+  retry_attempts_on: 3
+  retry_attempts_off: 0
+
+log_folder: run_topfull_retryguard_interval_20s_run1
+
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py

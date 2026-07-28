@@ -1,0 +1,81 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 3 — Targeted Bottleneck  |  Condition: BASELINE (no RetryGuard)
+#
+# A specific service (checkoutservice) is constrained BEFORE load starts.
+# Overall offered load is moderate — only the constrained service hits ρ > 1.
+# This isolates the retry storm to a known node in the call chain:
+#   Frontend → Checkout → Cart, Shipping, Currency, ProductCatalog, Email, Payment
+#
+# Constraint method: cpu_limit
+#   Applying a CPU cap is the right approach when the service already runs at
+#   1 replica (scaling to 1 is a no-op). 100m CPU is very restrictive for
+#   checkoutservice and will cause visible latency/rejection spikes.
+#
+#   To restore: the runner removes the cpu limit after the run.
+#
+# Alternative (if you have >1 replica): change method to "replicas" and set
+#   replicas: 1  (runner auto-detects and restores original count).
+#
+# What to look for:
+#   - Rejection rate spikes specifically at postcheckout endpoint
+#   - TopFull throttles postcheckout entry API (blunt/indirect response)
+#   - Retry storm amplifies load at checkoutservice specifically
+#   - Upstream callers (frontend) also show latency increase
+# ─────────────────────────────────────────────────────────────────────────────
+
+scenario_id: 3
+scenario_name: targeted_bottleneck
+condition: baseline
+run_number: 1
+description: >
+  Moderate full-chain load with checkoutservice CPU-constrained.
+  TopFull active, RetryGuard OFF. Captures per-service retry amplification
+  at a known bottleneck.
+
+duration_seconds: 600
+
+locust:
+  user_counts:
+    getproduct:   100
+    postcheckout: 20
+    getcart:      100
+    postcart:     100
+    emptycart:    300
+  spawn_rate: 90
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+
+# ── Topology constraint ───────────────────────────────────────────────────────
+scale_constraints:
+  - deployment: checkoutservice
+    namespace: default
+    method: cpu_limit
+    cpu_limit: "100m"          # very tight CPU cap — forces local overload
+    container: server          # container name inside the checkoutservice pod
+
+  # Alternative: if checkoutservice currently has >1 replica, use:
+  # - deployment: checkoutservice
+  #   namespace: default
+  #   method: replicas
+  #   replicas: 1              # runner auto-detects original and restores it
+
+retryguard:
+  enabled: false
+  rejection_threshold: 0.20
+  window_duration_seconds: 30
+  disable_windows: 2
+  re_enable_windows: 3
+  retry_attempts_on: 3
+  retry_attempts_off: 0
+
+log_folder: baseline_topfull_no_retryguard_targeted_bottleneck_run1
+
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py

@@ -1,10 +1,3 @@
----
-name: Next Phases Plan
-overview: "Execute Phases 2–7 on the existing GCP VMs while keeping the work aligned with the NotebookLM presentation narrative: open questions → five load scenarios → TopFull-only vs TopFull+RetryGuard → three metric layers → report."
-todos: []
-isProject: false
----
-
 # Next Phases Plan (aligned with presentation prompt)
 
 ## Framing (presentation vs lab reality)
