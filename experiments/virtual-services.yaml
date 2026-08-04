@@ -1,0 +1,163 @@
+# Istio VirtualServices for Online Boutique — default retry policy (attempts: 3).
+# RetryGuard patches retries.attempts at runtime (see experiments/retryguard.py).
+# Apply: kubectl apply -f experiments/virtual-services.yaml
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: adservice
+  namespace: default
+spec:
+  hosts:
+    - adservice
+  http:
+    - retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+      route:
+        - destination:
+            host: adservice
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: cartservice
+  namespace: default
+spec:
+  hosts:
+    - cartservice
+  http:
+    - retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+      route:
+        - destination:
+            host: cartservice
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: checkoutservice
+  namespace: default
+spec:
+  hosts:
+    - checkoutservice
+  http:
+    - retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+      route:
+        - destination:
+            host: checkoutservice
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: currencyservice
+  namespace: default
+spec:
+  hosts:
+    - currencyservice
+  http:
+    - retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+      route:
+        - destination:
+            host: currencyservice
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: emailservice
+  namespace: default
+spec:
+  hosts:
+    - emailservice
+  http:
+    - retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+      route:
+        - destination:
+            host: emailservice
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: frontend
+  namespace: default
+spec:
+  hosts:
+    - frontend
+  http:
+    - retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+      route:
+        - destination:
+            host: frontend
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: paymentservice
+  namespace: default
+spec:
+  hosts:
+    - paymentservice
+  http:
+    - retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+      route:
+        - destination:
+            host: paymentservice
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: productcatalogservice
+  namespace: default
+spec:
+  hosts:
+    - productcatalogservice
+  http:
+    - retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+      route:
+        - destination:
+            host: productcatalogservice
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: recommendationservice
+  namespace: default
+spec:
+  hosts:
+    - recommendationservice
+  http:
+    - retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+      route:
+        - destination:
+            host: recommendationservice
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: shippingservice
+  namespace: default
+spec:
+  hosts:
+    - shippingservice
+  http:
+    - retries:
+        attempts: 3
+        retryOn: "5xx,reset,connect-failure"
+      route:
+        - destination:
+            host: shippingservice

@@ -388,16 +388,28 @@ def start_locust(cfg: dict):
     lc = cfg.get("locust", {})
     scripts = lc.get("scripts", ["online_boutique_create.sh", "online_boutique_create2.sh"])
 
-    # NOTE: locust_user_counts from config are not yet wired into the create scripts.
-    # The scripts currently use hardcoded values (GETPRODUCT=100, GETCART=100, etc.).
-    # This will be implemented when the create scripts are updated to read env vars.
-    # Tracked in: TODO — update online_boutique_create.sh to accept env var overrides.
+    # Env var mapping: YAML key → shell variable name in create scripts
+    ENV_MAP = {
+        "getproduct":   "GETPRODUCT",
+        "postcheckout": "POSTCHECKOUT",
+        "getcart":      "GETCART",
+        "postcart":     "POSTCART",
+        "emptycart":    "CART",      # create scripts use CART, not EMPTYCART
+    }
+
     user_counts = lc.get("user_counts", {})
-    if user_counts:
-        step(f"[TODO] User counts from config (not yet applied to scripts):")
-        for k, v in user_counts.items():
-            print(f"         {k}: {v}")
-        step("  Scripts will run with their current hardcoded values.")
+    exports = []
+    for yaml_key, shell_var in ENV_MAP.items():
+        if yaml_key in user_counts:
+            exports.append(f"export {shell_var}={user_counts[yaml_key]}")
+    if "spawn_rate" in lc:
+        exports.append(f"export RATE={lc['spawn_rate']}")
+    env_prefix = "; ".join(exports) + "; " if exports else ""
+
+    if exports:
+        step("Applying user counts from config:")
+        for e in exports:
+            print(f"         {e}")
 
     # Kill any stale Locust processes
     ssh(loadgen, "tmux kill-server 2>/dev/null; pkill -9 -f locust 2>/dev/null; sleep 1; true",
@@ -408,7 +420,7 @@ def start_locust(cfg: dict):
     launch_script = (
         f"#!/bin/bash\n"
         f"cd {loadgen_path}\n"
-        f"{launch_cmd}\n"
+        f"{env_prefix}{launch_cmd}\n"
     )
     write_remote_script(loadgen, "/tmp/rg_locust_launch.sh", launch_script)
     ssh(loadgen, "tmux new-session -d -s loadgen /tmp/rg_locust_launch.sh")

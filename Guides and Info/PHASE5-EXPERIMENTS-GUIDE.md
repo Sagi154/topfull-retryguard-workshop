@@ -199,12 +199,12 @@ description: "..."
 duration_seconds: 600
 
 locust:
-  user_counts:               # TODO: not yet wired into create scripts (see §6)
+  user_counts:               # applied via env vars by run_scenario.py → create scripts
     getproduct:   100
     postcheckout: 20
     getcart:      100
     postcart:     100
-    emptycart:    300
+    emptycart:    300          # maps to CART in create scripts (session workers)
   spawn_rate: 90
   scripts:
     - online_boutique_create.sh
@@ -254,126 +254,49 @@ If you later increase replica counts (e.g. on a bigger worker node), switch to `
 
 ## 6. What Is Left To Do
 
-### 6a. Wire Locust user counts into the create scripts (PENDING)
+### 6a. Wire Locust user counts into the create scripts (DONE)
 
-**Status:** The `locust.user_counts` field in every config is currently **documentation only**. The runner prints a warning but uses the create scripts' hardcoded values.
+**Status:** Complete. `locust.user_counts` and `spawn_rate` from each YAML config are now applied at runtime.
 
-**What needs to change:**
+**What was done:**
 
-*On the loadgen VM* — edit both scripts to use env-var-with-default syntax:
+1. **`run_scenario.py` `start_locust()`** — builds an `export VAR=N` prefix from the config and prepends it to the Locust launch script. YAML key `emptycart` maps to shell variable `CART` (kept as-is; create scripts use `CART` for the cart-session workers).
 
-```bash
-# Before (hardcoded):
-GETPRODUCT=100
-POSTCHECKOUT=20
-GETCART=100
-POSTCART=100
-CART=300
-RATE=90
+2. **Loadgen create scripts** — both scripts on `topfull-load` now use env-var-with-default syntax:
+   ```
+   /home/idozacharia/TopFull/TopFull_loadgen/online_boutique_create.sh
+   /home/idozacharia/TopFull/TopFull_loadgen/online_boutique_create2.sh
+   ```
+   Example: `GETPRODUCT=${GETPRODUCT:-100}` (create2.sh keeps its own lower fallback defaults; when the runner exports values, both scripts inherit the same overrides).
 
-# After (reads env var, falls back to default):
-GETPRODUCT=${GETPRODUCT:-100}
-POSTCHECKOUT=${POSTCHECKOUT:-20}
-GETCART=${GETCART:-100}
-POSTCART=${POSTCART:-100}
-CART=${CART:-300}
-RATE=${RATE:-90}
-```
+3. **Verified** — with exports set, Scenario 1 values apply (`GETPRODUCT=50`, `CART=150`, `RATE=45`); without exports, script defaults apply. Files remain LF-only.
 
-Files to edit on the loadgen:
-```
-/home/idozacharia/TopFull/TopFull_loadgen/online_boutique_create.sh
-/home/idozacharia/TopFull/TopFull_loadgen/online_boutique_create2.sh
-```
+### 6b. Implement RetryGuard controller (DONE)
 
-*In `run_scenario.py`* — replace the TODO block in `start_locust()` with env var injection:
+**Status:** Complete. Script: [`experiments/retryguard.py`](../experiments/retryguard.py) → master `/home/idozacharia/experiments/retryguard.py`.
 
-```python
-# Build export prefix from config
-env_map = {
-    "getproduct":   "GETPRODUCT",
-    "postcheckout": "POSTCHECKOUT",
-    "getcart":      "GETCART",
-    "postcart":     "POSTCART",
-    "emptycart":    "CART",       # create.sh uses CART for the cart-session workers
-}
-exports = [f"export {shell_var}={user_counts[k]}"
-           for k, shell_var in env_map.items() if k in user_counts]
-if "spawn_rate" in lc:
-    exports.append(f"export RATE={lc['spawn_rate']}")
-env_prefix = "; ".join(exports) + "; " if exports else ""
+Full implementation docs (Algorithm 1 mapping, metrics, endpoint map, VS patches, logs, paper deviations): **[RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md)**.
 
-# Prepend to the launch command in the launch script
-launch_script = (
-    f"#!/bin/bash\n"
-    f"cd {loadgen_path}\n"
-    f"{env_prefix}{launch_cmd}\n"
-)
-```
+### 6c. Create Istio VirtualService resources (DONE)
 
-**Note:** The `CART` variable in the create scripts controls the user count for the `getcart`/`emptycart`/`postcart` combined session (session3) — not a single endpoint. Verify the exact mapping when making this change.
+**Status:** Complete. Manifest: [`experiments/virtual-services.yaml`](../experiments/virtual-services.yaml). Applied on the cluster (`kubectl apply -f …`); 10 VirtualServices in `default` with `retries.attempts: 3` and `retryOn: "5xx,reset,connect-failure"`.
 
-**Important:** When editing the create scripts on the VM, strip CRLF first. The scripts previously had Windows line ending issues. Write with LF only (use `sed -i "s/\r//"` on the VM, or use Python to write the file in binary mode).
-
-### 6b. Implement RetryGuard controller (PENDING — Phase 6)
-
-`retryguard.py` does not exist yet. It must be placed at the path specified in `infra.retryguard_script` on the master before any RetryGuard condition can run.
-
-The script must:
-- Accept `--params /tmp/retryguard_params.json` (the runner uploads this JSON before starting)
-- Poll per-service rejection rates (from Istio/Envoy sidecar metrics or from `metric_collector.py` output)
-- Apply Algorithm 1 from the RetryGuard paper (Sec. 4): count consecutive windows above/below threshold; patch Istio VirtualService via `kubernetes.client.CustomObjectsApi`
-- Log every toggle event with timestamp, service name, and old→new retry count
-
-Parameters passed via JSON (all configurable from the YAML):
-```json
-{
-  "rejection_threshold": 0.20,
-  "window_duration_seconds": 30,
-  "disable_windows": 2,
-  "re_enable_windows": 3,
-  "retry_attempts_on": 3,
-  "retry_attempts_off": 0
-}
-```
-
-### 6c. Create Istio VirtualService resources (PENDING — Phase 6)
-
-Before any RetryGuard condition run, each Online Boutique service needs an Istio VirtualService resource with a default retry policy. RetryGuard patches these at runtime.
+Services covered: `adservice`, `cartservice`, `checkoutservice`, `currencyservice`, `emailservice`, `frontend`, `paymentservice`, `productcatalogservice`, `recommendationservice`, `shippingservice` (excludes `kubernetes` and `redis-cart`).
 
 ```bash
-# Verify VirtualServices exist before running any RetryGuard condition
+# Re-verify
 kubectl get virtualservices -n default
 ```
 
-If they don't exist, create them (one per microservice) with:
-```yaml
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: <service-name>
-  namespace: default
-spec:
-  hosts:
-    - <service-name>
-  http:
-    - retries:
-        attempts: 3
-        retryOn: "5xx,reset,connect-failure"
-      route:
-        - destination:
-            host: <service-name>
-```
+RetryGuard patches `cartservice`, `checkoutservice`, and `productcatalogservice` at runtime (see [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md)).
 
-### 6d. Validate metric_collector startup timing (KNOWN ISSUE)
+### 6d. Validate metric_collector startup timing (DONE)
 
-`metric_collector.py` crashes with `KeyError: 'getcart'` if it starts before any Locust traffic is flowing — the proxy has no metrics for endpoints with zero requests. The runner starts `metric_collector` before Locust and relies on Locust connecting fast enough.
+**Status:** Fixed on master. `record_online_boutique()` in `metric_collector.py` wraps each 1-second collection window in `try/except (KeyError, IndexError, ValueError)` and prints `[metric_collector] waiting for traffic: …` instead of crashing when Locust has not yet published endpoint metrics.
 
-**Mitigation options:**
-1. Move `metric_collector` start to after Locust is verified running (reorder in `start_master_stack` / `start_locust`)
-2. Add a retry loop inside `metric_collector.py` itself (wrap the `metric[api]` lookup in a try/except and sleep)
+Verified: with Locust not running, `timeout 6 python3 -u metric_collector.py` prints the waiting message repeatedly and does **not** emit a traceback.
 
-The runner currently starts `metric_collector` during `start_master_stack()` and Locust shortly after. If Locust takes longer than expected to connect workers, `metric_collector` may crash before traffic appears.
+Local one-shot patcher (already applied on master): [`experiments/patch_metric_collector.py`](../experiments/patch_metric_collector.py).
 
 ---
 
@@ -410,6 +333,9 @@ These issues were encountered and fixed during Phase 4 setup. Do not revert them
 - `resource_collector.py` — `getcAdvisorIP()` dynamically fetches cAdvisor pod IPs via `kubectl get pods -n cadvisor` instead of a hardcoded 5-node list
 - `locust_online_boutique.py` — event listeners updated from deprecated `events.request_success` / `events.request_failure` to `events.request` (Locust 2.x API)
 - `online_boutique_create.sh` / `online_boutique_create2.sh` — CRLF line endings stripped; locust binary path changed from bare `locust` to full venv path `/home/idozacharia/TopFull/venv/bin/locust`
+- `online_boutique_create.sh` / `online_boutique_create2.sh` — user-count / RATE vars use `${VAR:-default}` so `run_scenario.py` can inject per-scenario counts via exported env vars (§6a)
+- `metric_collector.py` — per-window collection wrapped in try/except so missing Locust keys no longer crash the process before traffic appears (§6d)
+- Istio VirtualServices for all Online Boutique microservices — default `retries.attempts: 3` via [`experiments/virtual-services.yaml`](../experiments/virtual-services.yaml) (§6c)
 - Python packages pinned to Ray 2.0.0-compatible versions (protobuf, cloudpickle, numpy, pydantic, googleapis-common-protos) — do not upgrade these
 
 ### SSH from Windows
