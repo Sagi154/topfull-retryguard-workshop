@@ -4,8 +4,9 @@
 # Sustained overload (same as Scenario 2). RetryGuard ALWAYS ON.
 # Only the re_enable_windows parameter changes across the four S5 configs.
 #
-# re_enable_windows: 1  →  1 × 30s = 10s effective wait
-# (RetryGuard re-enables retries after just 1 window below threshold)
+# re_enable_windows: 1  →  1 × 30s = 30s effective wait
+# (RetryGuard re-enables retries after just 1 window below threshold.
+#  Folder label "10s" is historical; see PHASE5-EXPERIMENTS-GUIDE.md §2 table.)
 #
 # Risk: re-enables too fast. Retries restart before bottleneck is truly clear.
 # Likely outcome: oscillation — disable/re-enable cycles repeat rapidly.
@@ -41,7 +42,7 @@ retryguard:
   rejection_threshold: 0.20
   window_duration_seconds: 30
   disable_windows: 2
-  re_enable_windows: 1         # ← THE VARIABLE: 1 window × 30s = 10s effective
+  re_enable_windows: 1         # ← THE VARIABLE: 1 window × 30s = 30s effective
   retry_attempts_on: 3
   retry_attempts_off: 0
 

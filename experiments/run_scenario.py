@@ -217,10 +217,20 @@ def apply_constraints(cfg: dict) -> list:
         elif method == "cpu_limit":
             cpu_limit = c["cpu_limit"]
             container = c.get("container", "server")
+            # Capture full original resources so restore is exact (requests must
+            # also drop: K8s requires request <= limit, and Boutique defaults
+            # request 200m–500m which exceeds a 100m limit).
+            r = ssh(master,
+                    f"kubectl get deployment {dep} -n {ns} "
+                    f"-o jsonpath='{{.spec.template.spec.containers[0].resources}}'")
+            original_resources = r.stdout.strip() or "{}"
             step(f"Applying CPU limit {cpu_limit} to {dep}/{container} ({ns})")
             patch = json.dumps({
                 "spec": {"template": {"spec": {"containers": [
-                    {"name": container, "resources": {"limits": {"cpu": cpu_limit}}}
+                    {"name": container, "resources": {
+                        "limits": {"cpu": cpu_limit},
+                        "requests": {"cpu": cpu_limit},
+                    }}
                 ]}}}
             })
             ssh(master, f"kubectl patch deployment {dep} -n {ns} -p '{patch}'")
@@ -229,6 +239,7 @@ def apply_constraints(cfg: dict) -> list:
                 "deployment": dep,
                 "namespace": ns,
                 "container": container,
+                "original_resources": original_resources,
             })
 
         else:
@@ -258,15 +269,29 @@ def restore_constraints(cfg: dict, restore_records: list):
 
         elif rec["method"] == "cpu_limit":
             container = rec["container"]
-            step(f"Removing CPU limit from {dep}/{container} ({ns})")
-            # JSON Patch to remove the cpu limit key
-            patch = json.dumps([
-                {"op": "remove",
-                 "path": "/spec/template/spec/containers/0/resources/limits/cpu"}
-            ])
-            ssh(master,
-                f"kubectl patch deployment {dep} -n {ns} --type=json -p '{patch}'",
-                check=False)
+            step(f"Restoring CPU resources on {dep}/{container} ({ns})")
+            # Restore the full original resources blob (limits + requests).
+            try:
+                orig = json.loads(rec.get("original_resources") or "{}")
+            except json.JSONDecodeError:
+                orig = {}
+            if orig:
+                patch = json.dumps({
+                    "spec": {"template": {"spec": {"containers": [
+                        {"name": container, "resources": orig}
+                    ]}}}
+                })
+                ssh(master, f"kubectl patch deployment {dep} -n {ns} -p '{patch}'",
+                    check=False)
+            else:
+                # Fallback: remove cpu limit only (legacy restore records)
+                patch = json.dumps([
+                    {"op": "remove",
+                     "path": "/spec/template/spec/containers/0/resources/limits/cpu"}
+                ])
+                ssh(master,
+                    f"kubectl patch deployment {dep} -n {ns} --type=json -p '{patch}'",
+                    check=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -279,14 +304,15 @@ def start_master_stack(cfg: dict):
     src = cfg["infra"]["topfull_src_path"]
     venv = cfg["infra"]["venv_activate"]
 
-    # Kill any stale processes first
+    # Kill any stale processes first.
+    # Bracket trick in -f patterns avoids pkill matching this ssh/bash -c line itself.
     step("Killing stale processes...")
     ssh(master,
-        "pkill -9 -f proxy_online_boutique 2>/dev/null; "
-        "pkill -9 -f deploy_rl.py 2>/dev/null; "
-        "pkill -9 -f metric_collector.py 2>/dev/null; "
-        "pkill -9 -f ray 2>/dev/null; "
-        "pkill -9 tmux 2>/dev/null; "
+        "pkill -9 -f '[p]roxy_online_boutique' 2>/dev/null; "
+        "pkill -9 -f '[d]eploy_rl.py' 2>/dev/null; "
+        "pkill -9 -f '[m]etric_collector.py' 2>/dev/null; "
+        "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
+        "tmux kill-server 2>/dev/null; "
         "sleep 2; true",
         check=False)
 
@@ -323,8 +349,8 @@ def start_master_stack(cfg: dict):
     step("Started: deploy_rl.py (tmux session: toprl)")
     wait_with_progress(20, "Ray + RL checkpoint load")
 
-    # Verify deploy_rl is running
-    r = ssh(master, "pgrep -la deploy_rl.py 2>/dev/null || true")
+    # Verify deploy_rl is running (-f matches full cmdline; process name is python3)
+    r = ssh(master, "pgrep -fa deploy_rl.py 2>/dev/null || true")
     if "deploy_rl" not in r.stdout:
         print("[ERROR] deploy_rl.py did not start. Check tmux session 'toprl' on master.")
         sys.exit(1)
@@ -412,7 +438,7 @@ def start_locust(cfg: dict):
             print(f"         {e}")
 
     # Kill any stale Locust processes
-    ssh(loadgen, "tmux kill-server 2>/dev/null; pkill -9 -f locust 2>/dev/null; sleep 1; true",
+    ssh(loadgen, "tmux kill-server 2>/dev/null; pkill -9 -f '[l]ocust' 2>/dev/null; sleep 1; true",
         check=False)
 
     # Write and execute a launch script on the loadgen
@@ -440,7 +466,7 @@ def stop_locust(cfg: dict):
     loadgen = cfg["infra"]["loadgen_ssh_host"]
     step("Stopping Locust...")
     ssh(loadgen,
-        "tmux kill-server 2>/dev/null; pkill -9 -f locust 2>/dev/null; true",
+        "tmux kill-server 2>/dev/null; pkill -9 -f '[l]ocust' 2>/dev/null; true",
         check=False)
 
 
@@ -451,16 +477,54 @@ def stop_locust(cfg: dict):
 def stop_master_stack(cfg: dict):
     master = cfg["infra"]["master_ssh_host"]
     step("Stopping master processes (metric_collector, deploy_rl, proxy, RetryGuard, Ray)...")
+    # Bracket trick avoids pkill matching this ssh/bash -c line itself.
     ssh(master,
-        "pkill -f metric_collector.py 2>/dev/null; "
-        "pkill -f deploy_rl.py 2>/dev/null; "
-        "pkill -f proxy_online_boutique 2>/dev/null; "
-        "pkill -f retryguard.py 2>/dev/null; "
+        "pkill -f '[m]etric_collector.py' 2>/dev/null; "
+        "pkill -f '[d]eploy_rl.py' 2>/dev/null; "
+        "pkill -f '[p]roxy_online_boutique' 2>/dev/null; "
+        "pkill -f '[r]etryguard.py' 2>/dev/null; "
         "sleep 2; "
-        "pkill -9 -f ray 2>/dev/null; "
-        "pkill -9 tmux 2>/dev/null; "
+        "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
+        "tmux kill-server 2>/dev/null; "
         "true",
         check=False)
+
+
+def restore_virtualservice_retries(cfg: dict):
+    """
+    Re-apply default retries.attempts after a RetryGuard run.
+
+    RetryGuard disables retries by *omitting* the retries block (Istio rejects
+    attempts:0). If the controller is killed while retries are OFF, the mesh
+    would otherwise stay without retries for subsequent experiments.
+    """
+    if not cfg.get("retryguard", {}).get("enabled", False):
+        return
+
+    banner("Restoring VirtualService retries")
+    master = cfg["infra"]["master_ssh_host"]
+    attempts = int(cfg["retryguard"].get("retry_attempts_on", 3))
+    services = [
+        "adservice", "cartservice", "checkoutservice", "currencyservice",
+        "emailservice", "frontend", "paymentservice", "productcatalogservice",
+        "recommendationservice", "shippingservice",
+    ]
+    for svc in services:
+        patch = json.dumps({
+            "spec": {
+                "http": [{
+                    "retries": {
+                        "attempts": attempts,
+                        "retryOn": "5xx,reset,connect-failure",
+                    },
+                    "route": [{"destination": {"host": svc}}],
+                }]
+            }
+        })
+        ssh(master,
+            f"kubectl patch virtualservice {svc} -n default -p '{patch}'",
+            check=False)
+    step(f"Restored retries.attempts={attempts} on {len(services)} VirtualServices")
 
 
 # --------------------------------------------------------------------------- #
@@ -581,6 +645,8 @@ def run(config_path: str):
 
         if restore_records:
             restore_constraints(cfg, restore_records)
+
+        restore_virtualservice_retries(cfg)
 
         banner("Done")
         print(f"  Scenario : {scenario}  |  Condition: {condition}  |  Run: {run_n}")

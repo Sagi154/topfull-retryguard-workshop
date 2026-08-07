@@ -4,3 +4,5 @@ Thumbs.db
 *~
 canvases/node_modules/
 /temp
+experiments/.venv/
+experiments/results/

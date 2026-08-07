@@ -12,7 +12,7 @@
 scenario_id: 1
 scenario_name: normal_operation
 condition: baseline            # baseline = RetryGuard OFF
-run_number: 1                  # increment for each repeat (aim for 3 runs)
+run_number: 3                  # smoke used run1+run2; real matrix starts at 3
 description: >
   Flat RPS well within cluster capacity. TopFull active, retries on (default),
   RetryGuard NOT running. Establishes the healthy-system reference point.
@@ -21,9 +21,7 @@ description: >
 duration_seconds: 300          # 5 minutes is sufficient for a sanity check
 
 # ── Load ────────────────────────────────────────────────────────────────────
-# NOTE: user_counts are NOT yet applied to the create scripts (hardcoded there).
-# These values document the intent; they will drive the scripts once the
-# create scripts are updated to read env-var overrides.
+# user_counts are applied at runtime via exported env vars (see PHASE5-EXPERIMENTS-GUIDE.md §6a).
 locust:
   user_counts:
     getproduct:   50           # ~half the default — keep well below capacity
@@ -53,7 +51,7 @@ retryguard:
   retry_attempts_off: 0        # Istio VirtualService retries.attempts when disabled
 
 # ── Output ───────────────────────────────────────────────────────────────────
-log_folder: baseline_topfull_no_retryguard_normal_op_run1
+log_folder: baseline_topfull_no_retryguard_normal_op_run3
 
 # ── Infrastructure ───────────────────────────────────────────────────────────
 # Matches infra/vm-ips.env. Override here if your setup differs.

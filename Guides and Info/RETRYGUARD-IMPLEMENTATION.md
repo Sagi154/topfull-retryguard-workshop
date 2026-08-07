@@ -62,7 +62,7 @@ Params JSON (from the YAML `retryguard:` block):
 | `Interval` (line 13, re-enable) | `re_enable_windows` (asymmetric extension of the paper's single Interval) |
 | `Interval` (line 14, disable) | `disable_windows` |
 | `Retries ← ON` | Patch VirtualService `retries.attempts` → `retry_attempts_on` |
-| `Retries ← OFF` | Patch VirtualService `retries.attempts` → `retry_attempts_off` |
+| `Retries ← OFF` | Disable retries on the VirtualService (see patch note below) |
 
 One controller state machine runs **per K8s service**, not per Locust endpoint.
 
@@ -104,9 +104,12 @@ Aggregation: **max** rejection rate across endpoints that map to the same servic
 
 - API: `kubernetes.client.CustomObjectsApi`
 - Resource: `networking.istio.io/v1alpha3` · plural `virtualservices` · namespace `default`
-- Flow: GET existing VS → preserve `spec.http[0].route` → merge-patch `retries.attempts` + `retryOn: "5xx,reset,connect-failure"`
+- Flow: GET existing VS → preserve `spec.http[0].route` → merge-patch the `http` rule
+- **Disable (`retry_attempts_off: 0`):** omit the `retries` block entirely. Istio's validation webhook rejects `retries.attempts: 0` while `retryOn` (or any retry policy) is still present (`http retry policy configured when attempts are set to 0`). Merge-patch replaces the `http` array, so omitting `retries` drops it.
+- **Re-enable:** restore `retries.attempts` + `retryOn: "5xx,reset,connect-failure"`
 - Route is preserved because Istio rejects an http rule with no route
 - Patch failures (e.g. VS missing — see PHASE5 guide §6c) are logged as `PATCH_FAIL` and do **not** update internal state
+- `run_scenario.py` also re-applies `retries.attempts=3` on all Boutique VirtualServices at end of a RetryGuard run, so a kill mid-OFF cannot leave the mesh without retries
 
 ---
 

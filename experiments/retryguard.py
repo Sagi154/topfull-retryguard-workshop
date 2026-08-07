@@ -213,8 +213,13 @@ def patch_virtualservice(
     namespace: str = VS_NAMESPACE,
 ) -> None:
     """
-    GET the existing VirtualService, then merge-patch retries.attempts while
+    GET the existing VirtualService, then merge-patch retries while
     preserving the existing route (Istio rejects an http rule with no route).
+
+    Istio validation rejects ``retries.attempts: 0`` while a retry policy is
+    still present (``retryOn`` etc.). To disable retries we omit the
+    ``retries`` block entirely; merge-patch replaces the ``http`` array so
+    the old retries key is dropped.
     """
     existing = api.get_namespaced_custom_object(
         group=VS_GROUP,
@@ -230,19 +235,14 @@ def patch_virtualservice(
     else:
         route = [{"destination": {"host": service_name}}]
 
-    body = {
-        "spec": {
-            "http": [
-                {
-                    "retries": {
-                        "attempts": int(attempts),
-                        "retryOn": RETRY_ON,
-                    },
-                    "route": route,
-                }
-            ]
+    http_rule: dict = {"route": route}
+    if int(attempts) > 0:
+        http_rule["retries"] = {
+            "attempts": int(attempts),
+            "retryOn": RETRY_ON,
         }
-    }
+
+    body = {"spec": {"http": [http_rule]}}
 
     api.patch_namespaced_custom_object(
         group=VS_GROUP,

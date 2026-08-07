@@ -15,7 +15,7 @@
 scenario_id: 3
 scenario_name: targeted_bottleneck
 condition: retryguard
-run_number: 1
+run_number: 2                  # smoke used run1; real matrix starts at 2
 description: >
   Moderate load, checkoutservice CPU-constrained. TopFull + RetryGuard active.
   RetryGuard suppresses retries directly at the bottleneck service.
@@ -50,7 +50,7 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
-log_folder: run_topfull_retryguard_targeted_bottleneck_run1
+log_folder: run_topfull_retryguard_targeted_bottleneck_run2
 
 infra:
   master_ssh_host: topfull-master
