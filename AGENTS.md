@@ -60,8 +60,10 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | [CONNECT-VMS.md](Guides%20and%20Info/CONNECT-VMS.md) | **SSH into the VMs.** Canonical playbook — also mirrored in `.cursor/rules/topfull-ssh.mdc` (always-applied) |
 | **[PHASE5-EXPERIMENTS-GUIDE.md](Guides%20and%20Info/PHASE5-EXPERIMENTS-GUIDE.md)** | **The most important doc for ongoing work.** Canonical reference for the experiment runner + scenario config system. Read before touching `experiments/` |
 | **[EXPERIMENT-READINESS-WORKPLAN.md](Guides%20and%20Info/EXPERIMENT-READINESS-WORKPLAN.md)** | **Current active workplan.** Checklist to validate the pipeline (cluster health, config audit, smoke-test runs, RetryGuard toggle proof) *before* committing to the full multi-run Phase 5/6 matrix. Start here for "what do we do next" |
+| **[PHASE5-PHASE6-RUNLIST.md](Guides%20and%20Info/PHASE5-PHASE6-RUNLIST.md)** | **Exact run checklist for Phases 5 & 6.** Every scenario, config file, starting run number, exact commands, and a checkbox per run. Use this to track progress through the experiment matrix. |
 | [SCENARIOS-GUIDE.md](Guides%20and%20Info/SCENARIOS-GUIDE.md) | Understand each of the 5 scenarios in detail: what it tests, load setup, manual step-by-step (pre-dates `run_scenario.py` automation, but good for *why*) |
 | [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md) | Understand exactly how `experiments/retryguard.py` maps to paper Algorithm 1, its metric source, endpoint→service map, VS patch mechanics, log format |
+| [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) | What data each run produces, where it lives, how to pull it, how to verify it, and how to load it for Phase 7 analysis |
 | [NEXT-PHASES-PLAN.md](Guides%20and%20Info/NEXT-PHASES-PLAN.md) | See the presentation-track vs lab-track split and near-term suggested order |
 | [PRESENTATION-GUIDE.md](Guides%20and%20Info/PRESENTATION-GUIDE.md), [PRESENTATION-ACTION-ITEMS.md](Guides%20and%20Info/PRESENTATION-ACTION-ITEMS.md), [NOTEBOOKLM-PROMPT.md](Guides%20and%20Info/NOTEBOOKLM-PROMPT.md) | Work on the slide deck / presentation track (separate from the lab track) |
 | [GEMINI-PROMPT.md](GEMINI-PROMPT.md), [CANVAS-VIEWING.md](CANVAS-VIEWING.md) | Presentation-generation tooling and how to view the interactive canvas in Cursor |
@@ -122,6 +124,12 @@ Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain 
 
 ```powershell
 pip install pyyaml   # once
+
+# Before every run: clear stale /tmp runner scripts.
+# /tmp has a sticky bit — if a previous run was by a different Linux user, their
+# files block SCP uploads. sudo rm is a no-op when files don't exist.
+ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp/rg_retryguard.sh /tmp/rg_locust_launch.sh"
+
 python experiments/run_scenario.py experiments/configs/scenario_1_baseline.yaml
 ```
 

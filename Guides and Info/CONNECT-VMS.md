@@ -15,13 +15,13 @@ Related human docs: [SETUP-GUIDE.md](SETUP-GUIDE.md) | [PREREQUISITES.md](PREREQ
 ## Agent rules (read first)
 
 1. **Do the work yourself** with the Shell tool. Do not only paste instructions unless blocked on interactive login.
-2. **Discover values on this machine** — do not copy another teammate’s `User`, `HostName`, or `IdentityFile` from examples in chat history.
+2. **`User` is always `idozacharia`** — that is the fixed Linux account on all three VMs that owns all experiment tooling (`/home/idozacharia/TopFull/`, `/home/idozacharia/experiments/`). The Windows username is irrelevant; do **not** use it as `User`. Do not copy another teammate's `HostName` or `IdentityFile`.
 3. **`User` is never an email.** It is the Linux account on the VM (usually the Windows username, e.g. `sagi1`). Browser SSH may show a different user (e.g. `sagi151ps`); ignore that for local OpenSSH.
 4. **Stopped VMs have no public IP.** `Connection timed out` almost always means `TERMINATED` or stale `HostName`, not a missing firewall rule. Project already has `default-allow-ssh` (`tcp:22` / `0.0.0.0/0`).
 5. **Ephemeral IPs change on stop/start.** After every start, refresh `HostName` in `~/.ssh/config`.
 6. **Interactive blockers:** `gcloud auth login` and first-time `ssh-keygen` passphrase prompts need the human. Stop, tell them what to complete, then continue.
 7. **Do not** commit private keys, `.pub` contents into git secrets carelessly, or overwrite unrelated `Host` blocks in `~/.ssh/config`.
-8. **Success criteria:** all three of these exit 0 with no password prompt:
+8. **Success criteria:** all three must return `idozacharia` with no password prompt:
    ```powershell
    ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master "hostname; whoami"
    ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-worker-1 "hostname; whoami"
@@ -51,7 +51,7 @@ Record:
 
 | Variable | How to get it |
 |----------|----------------|
-| `WIN_USER` | `$env:USERNAME` (typical SSH `User`) |
+| `SSH_USER` | Always `idozacharia` — fixed for this project |
 | `USERPROFILE` | `$env:USERPROFILE` |
 | `KEY` | `$env:USERPROFILE\.ssh\id_ed25519` |
 | `PUB` | `$env:USERPROFILE\.ssh\id_ed25519.pub` |
@@ -139,7 +139,7 @@ foreach ($vm in @('topfull-master','topfull-worker-1','topfull-load')) {
 }
 ```
 
-From the `whoami` line, set `SSH_USER` (must match across VMs; typically equals `WIN_USER`).
+The `whoami` output must be `idozacharia` on every VM.
 
 **Notes for agents:**
 
@@ -181,7 +181,7 @@ Host topfull-load
   StrictHostKeyChecking accept-new
 ```
 
-On Windows, `IdentityFile` may be `C:\Users\<WIN_USER>\.ssh\id_ed25519`.
+On Windows, `IdentityFile` is `C:\Users\<WIN_USER>\.ssh\id_ed25519` where `WIN_USER` is your Windows username (may differ from `idozacharia`).
 
 ---
 

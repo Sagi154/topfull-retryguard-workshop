@@ -100,6 +100,11 @@ Between every run you must:
 2. Copy logs to a named folder (runner does this automatically)
 3. For Scenarios 3/4: restore the constrained deployment (runner does this automatically)
 4. Wait for the cluster to settle before the next run
+5. **Clear stale `/tmp` runner scripts** if the previous run was by a different Linux user — `/tmp`'s sticky bit prevents a user from overwriting files owned by another:
+   ```powershell
+   ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp/rg_retryguard.sh /tmp/rg_locust_launch.sh"
+   ```
+   Safe to run before every run regardless — if files don't exist, it's a no-op.
 
 ---
 
@@ -181,12 +186,16 @@ scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_
 
 ### Repeating runs
 
-Before each repeat, increment `run_number` and update `log_folder` in the config:
-
-```yaml
-run_number: 2
-log_folder: baseline_topfull_no_retryguard_sustained_overload_run2
-```
+Before each repeat:
+1. Increment `run_number` and update `log_folder` in the config:
+   ```yaml
+   run_number: 2
+   log_folder: baseline_topfull_no_retryguard_sustained_overload_run2
+   ```
+2. Clear stale `/tmp` runner scripts (safe no-op if already clean):
+   ```powershell
+   ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp/rg_retryguard.sh /tmp/rg_locust_launch.sh"
+   ```
 
 ### YAML config schema
 

@@ -20,7 +20,7 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 1
+run_number: 2
 description: >
   Ramp to ρ > 1, hold 10 minutes. TopFull active, Istio default retries on,
   RetryGuard OFF. Captures the retry storm as the unmanaged baseline.
@@ -57,7 +57,7 @@ retryguard:
   retry_attempts_off: 0
 
 # ── Output ───────────────────────────────────────────────────────────────────
-log_folder: baseline_topfull_no_retryguard_sustained_overload_run1
+log_folder: baseline_topfull_no_retryguard_sustained_overload_run2
 
 infra:
   master_ssh_host: topfull-master

@@ -1,11 +1,11 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-run_scenario.py — Experiment runner for TopFull + RetryGuard scenarios.
+run_scenario.py - Experiment runner for TopFull + RetryGuard scenarios.
 
 Reads a scenario YAML config and orchestrates the full experiment:
   1. Pre-flight cluster health check
   2. Apply topology constraints (kubectl scale / cpu_limit)
-  3. Start master stack (proxy → deploy_rl → metric_collector)
+  3. Start master stack (proxy -> deploy_rl -> metric_collector)
   4. Optionally start RetryGuard
   5. Start Locust on the load-gen VM
   6. Wait for the configured duration
@@ -99,9 +99,9 @@ def write_remote_json(host: str, remote_path: str, data: dict):
 # --------------------------------------------------------------------------- #
 
 def banner(msg: str):
-    print(f"\n{'─'*60}")
+    print(f"\n{'-'*60}")
     print(f"  {msg}")
-    print(f"{'─'*60}")
+    print(f"{'-'*60}")
 
 
 def step(msg: str):
@@ -110,7 +110,7 @@ def step(msg: str):
 
 
 def wait_with_progress(seconds: int, label: str = ""):
-    msg = f"  Waiting {seconds}s{f' — {label}' if label else ''}"
+    msg = f"  Waiting {seconds}s{f': {label}' if label else ''}"
     print(msg, end="", flush=True)
     for _ in range(seconds):
         time.sleep(1)
@@ -136,13 +136,13 @@ def preflight(cfg: dict):
     r = ssh(master, "kubectl get nodes --no-headers 2>/dev/null")
     lines = [l for l in r.stdout.strip().splitlines() if l.strip()]
     if not lines:
-        print("[ERROR] No nodes returned — is kubectl configured?")
+        print("[ERROR] No nodes returned - is kubectl configured?")
         sys.exit(1)
     not_ready = [l for l in lines if "NotReady" in l]
     if not_ready:
         print(f"[ERROR] Nodes not Ready:\n" + "\n".join(not_ready))
         sys.exit(1)
-    step(f"Nodes: {len(lines)} Ready ✓")
+    step(f"Nodes: {len(lines)} Ready [OK]")
 
     step("Checking Online Boutique pods...")
     r = ssh(master, "kubectl get pods --no-headers 2>/dev/null | grep -v Running || true")
@@ -152,7 +152,7 @@ def preflight(cfg: dict):
         for l in non_running:
             print(f"    {l}")
     else:
-        step("All pods Running ✓")
+        step("All pods Running [OK]")
 
     step("Testing SSH to loadgen...")
     loadgen = cfg["infra"]["loadgen_ssh_host"]
@@ -160,7 +160,7 @@ def preflight(cfg: dict):
     if "ok" not in r.stdout:
         print("[ERROR] Loadgen not reachable.")
         sys.exit(1)
-    step("Loadgen reachable ✓")
+    step("Loadgen reachable [OK]")
 
 
 # --------------------------------------------------------------------------- #
@@ -205,7 +205,7 @@ def apply_constraints(cfg: dict) -> list:
                     f"-o jsonpath='{{.spec.replicas}}' 2>/dev/null")
             original_replicas = int(r.stdout.strip()) if r.stdout.strip().isdigit() else 1
             target = c["replicas"]
-            step(f"Scaling {dep} ({ns}): {original_replicas} → {target} replicas")
+            step(f"Scaling {dep} ({ns}): {original_replicas} -> {target} replicas")
             ssh(master, f"kubectl scale deployment {dep} --replicas={target} -n {ns}")
             restore_records.append({
                 "method": "replicas",
@@ -243,7 +243,7 @@ def apply_constraints(cfg: dict) -> list:
             })
 
         else:
-            print(f"[WARN] Unknown constraint method '{method}' — skipping {dep}")
+            print(f"[WARN] Unknown constraint method '{method}' - skipping {dep}")
 
     wait_with_progress(20, "pods stabilising after constraint")
     return restore_records
@@ -263,7 +263,7 @@ def restore_constraints(cfg: dict, restore_records: list):
 
         if rec["method"] == "replicas":
             orig = rec["original_replicas"]
-            step(f"Restoring {dep} ({ns}) → {orig} replicas")
+            step(f"Restoring {dep} ({ns}) -> {orig} replicas")
             ssh(master, f"kubectl scale deployment {dep} --replicas={orig} -n {ns}",
                 check=False)
 
@@ -354,7 +354,7 @@ def start_master_stack(cfg: dict):
     if "deploy_rl" not in r.stdout:
         print("[ERROR] deploy_rl.py did not start. Check tmux session 'toprl' on master.")
         sys.exit(1)
-    step("deploy_rl.py running ✓")
+    step("deploy_rl.py running [OK]")
 
     # Start metric_collector
     ssh(master, "tmux new-session -d -s metrics /tmp/rg_mc.sh")
@@ -414,7 +414,7 @@ def start_locust(cfg: dict):
     lc = cfg.get("locust", {})
     scripts = lc.get("scripts", ["online_boutique_create.sh", "online_boutique_create2.sh"])
 
-    # Env var mapping: YAML key → shell variable name in create scripts
+    # Env var mapping: YAML key -> shell variable name in create scripts
     ENV_MAP = {
         "getproduct":   "GETPRODUCT",
         "postcheckout": "POSTCHECKOUT",
@@ -459,7 +459,7 @@ def start_locust(cfg: dict):
     if count == 0:
         print("[ERROR] No Locust processes found. Check the create scripts on the loadgen.")
         sys.exit(1)
-    step(f"Locust running: {count} processes ✓")
+    step(f"Locust running: {count} processes [OK]")
 
 
 def stop_locust(cfg: dict):
@@ -568,7 +568,7 @@ def collect_results(cfg: dict) -> str:
 # --------------------------------------------------------------------------- #
 
 def run(config_path: str):
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
     scenario    = cfg["scenario_name"]
@@ -578,8 +578,8 @@ def run(config_path: str):
     log_folder  = cfg["log_folder"]
     rg_enabled  = cfg["retryguard"].get("enabled", False)
 
-    print(f"\n{'═'*60}")
-    print(f"  Scenario : {cfg['scenario_id']} — {scenario}")
+    print(f"\n{'='*60}")
+    print(f"  Scenario : {cfg['scenario_id']} - {scenario}")
     print(f"  Condition: {condition}")
     print(f"  Run #    : {run_n}")
     print(f"  Duration : {duration}s  ({duration//60}m {duration%60}s)")
@@ -600,7 +600,7 @@ def run(config_path: str):
             elif method == "cpu_limit":
                 print(f"    {c['deployment']}: cpu_limit={c['cpu_limit']}")
     print(f"  Output   : {log_folder}")
-    print(f"{'═'*60}")
+    print(f"{'='*60}")
 
     restore_records = []
     start_ts = datetime.now()
@@ -617,21 +617,21 @@ def run(config_path: str):
 
         start_locust(cfg)
 
-        banner(f"Experiment running — {duration}s")
+        banner(f"Experiment running - {duration}s")
         elapsed = 0
         interval = 15
         while elapsed < duration:
             remaining = duration - elapsed
             pct = int(elapsed / duration * 40)
-            bar = "█" * pct + "░" * (40 - pct)
+            bar = "#" * pct + "." * (40 - pct)
             print(f"\r  [{bar}] {elapsed:4d}s / {duration}s  ({remaining}s left) ",
                   end="", flush=True)
             time.sleep(min(interval, remaining))
             elapsed += min(interval, remaining)
-        print(f"\r  {'█'*40}  {duration}s / {duration}s  (done)              ")
+        print(f"\r  {'#'*40}  {duration}s / {duration}s  (done)              ")
 
     except KeyboardInterrupt:
-        print("\n\n[ABORT] Interrupted — stopping and collecting partial results.")
+        print("\n\n[ABORT] Interrupted - stopping and collecting partial results.")
 
     finally:
         end_ts = datetime.now()

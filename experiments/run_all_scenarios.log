@@ -1,0 +1,1399 @@
+
+========================================================================
+  Full experiment matrix (38 runs)
+========================================================================
+
+  --- S1 Normal Operation ---
+  Slot  1: scenario_1_baseline.yaml                  run1  ->  baseline_topfull_no_retryguard_normal_op_run1
+  Slot  2: scenario_1_baseline.yaml                  run2  ->  baseline_topfull_no_retryguard_normal_op_run2
+  Slot  3: scenario_1_baseline.yaml                  run3  ->  baseline_topfull_no_retryguard_normal_op_run3
+  Slot  4: scenario_1_retryguard.yaml                run1  ->  run_topfull_retryguard_normal_op_run1
+  Slot  5: scenario_1_retryguard.yaml                run2  ->  run_topfull_retryguard_normal_op_run2
+  Slot  6: scenario_1_retryguard.yaml                run3  ->  run_topfull_retryguard_normal_op_run3
+
+  --- S2 Sustained Overload ---
+  Slot  7: scenario_2_baseline.yaml                  run1  ->  baseline_topfull_no_retryguard_sustained_overload_run1
+  Slot  8: scenario_2_baseline.yaml                  run2  ->  baseline_topfull_no_retryguard_sustained_overload_run2
+  Slot  9: scenario_2_baseline.yaml                  run3  ->  baseline_topfull_no_retryguard_sustained_overload_run3
+  Slot 10: scenario_2_retryguard.yaml                run1  ->  run_topfull_retryguard_sustained_overload_run1
+  Slot 11: scenario_2_retryguard.yaml                run2  ->  run_topfull_retryguard_sustained_overload_run2
+  Slot 12: scenario_2_retryguard.yaml                run3  ->  run_topfull_retryguard_sustained_overload_run3
+
+  --- S3 Targeted Bottleneck ---
+  Slot 13: scenario_3_baseline.yaml                  run1  ->  baseline_topfull_no_retryguard_targeted_bottleneck_run1
+  Slot 14: scenario_3_baseline.yaml                  run2  ->  baseline_topfull_no_retryguard_targeted_bottleneck_run2
+  Slot 15: scenario_3_baseline.yaml                  run3  ->  baseline_topfull_no_retryguard_targeted_bottleneck_run3
+  Slot 16: scenario_3_retryguard.yaml                run1  ->  run_topfull_retryguard_targeted_bottleneck_run1
+  Slot 17: scenario_3_retryguard.yaml                run2  ->  run_topfull_retryguard_targeted_bottleneck_run2
+  Slot 18: scenario_3_retryguard.yaml                run3  ->  run_topfull_retryguard_targeted_bottleneck_run3
+
+  --- S4A Topology ProductCatalog ---
+  Slot 19: scenario_4a_baseline.yaml                 run1  ->  baseline_topfull_no_retryguard_topology_position_A_run1
+  Slot 20: scenario_4a_baseline.yaml                 run2  ->  baseline_topfull_no_retryguard_topology_position_A_run2
+  Slot 21: scenario_4a_baseline.yaml                 run3  ->  baseline_topfull_no_retryguard_topology_position_A_run3
+  Slot 22: scenario_4a_retryguard.yaml               run1  ->  run_topfull_retryguard_topology_position_A_run1
+  Slot 23: scenario_4a_retryguard.yaml               run2  ->  run_topfull_retryguard_topology_position_A_run2
+  Slot 24: scenario_4a_retryguard.yaml               run3  ->  run_topfull_retryguard_topology_position_A_run3
+
+  --- S4B Topology Payment ---
+  Slot 25: scenario_4b_baseline.yaml                 run1  ->  baseline_topfull_no_retryguard_topology_position_B_run1
+  Slot 26: scenario_4b_baseline.yaml                 run2  ->  baseline_topfull_no_retryguard_topology_position_B_run2
+  Slot 27: scenario_4b_baseline.yaml                 run3  ->  baseline_topfull_no_retryguard_topology_position_B_run3
+  Slot 28: scenario_4b_retryguard.yaml               run1  ->  run_topfull_retryguard_topology_position_B_run1
+  Slot 29: scenario_4b_retryguard.yaml               run2  ->  run_topfull_retryguard_topology_position_B_run2
+  Slot 30: scenario_4b_retryguard.yaml               run3  ->  run_topfull_retryguard_topology_position_B_run3
+
+  --- S5 Interval Sweep ---
+  Slot 31: scenario_5_interval_10s.yaml              run1  ->  run_topfull_retryguard_interval_10s_run1
+  Slot 32: scenario_5_interval_10s.yaml              run2  ->  run_topfull_retryguard_interval_10s_run2
+  Slot 33: scenario_5_interval_20s.yaml              run1  ->  run_topfull_retryguard_interval_20s_run1
+  Slot 34: scenario_5_interval_20s.yaml              run2  ->  run_topfull_retryguard_interval_20s_run2
+  Slot 35: scenario_5_interval_30s.yaml              run1  ->  run_topfull_retryguard_interval_30s_run1
+  Slot 36: scenario_5_interval_30s.yaml              run2  ->  run_topfull_retryguard_interval_30s_run2
+  Slot 37: scenario_5_interval_60s.yaml              run1  ->  run_topfull_retryguard_interval_60s_run1
+  Slot 38: scenario_5_interval_60s.yaml              run2  ->  run_topfull_retryguard_interval_60s_run2
+
+[11:55:21] Pre-flight: SSH to master...
+[11:55:23] Pre-flight: checking nodes...
+[11:55:26] Pre-flight: 2 node(s) Ready
+[11:55:26] Pre-flight: checking pods...
+[11:55:29] Pre-flight: all pods Running
+[11:55:29] Pre-flight: SSH to loadgen...
+[11:55:31] Pre-flight: loadgen reachable
+[11:55:31] Listing contents of /home/idozacharia/experiments/results on master...
+[11:55:33] Master results directory is already empty.
+[11:55:33] Local results directory: C:\Users\idoza\topfull-retryguard-workshop\experiments\results
+
+========================================================================
+[11:55:33] Slot 1/38 - S1 Normal Operation - scenario_1_baseline.yaml run1
+[11:55:33] log_folder: baseline_topfull_no_retryguard_normal_op_run1
+
+============================================================
+  Scenario : 1 - normal_operation
+  Condition: baseline
+  Run #    : 1
+  Duration : 300s  (5m 0s)
+  RetryGuard: OFF
+  Output   : baseline_topfull_no_retryguard_normal_op_run1
+============================================================
+
+============================================================
+  Pre-flight checks
+============================================================
+  [11:55:36] Testing SSH to master...
+  [11:55:39] Checking cluster nodes...
+  [11:55:41] Nodes: 2 Ready [OK]
+  [11:55:41] Checking Online Boutique pods...
+  [11:55:44] All pods Running [OK]
+  [11:55:44] Testing SSH to loadgen...
+  [11:55:46] Loadgen reachable [OK]
+
+============================================================
+  Clearing previous logs
+============================================================
+  [11:55:49] Cleared: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs
+
+============================================================
+  Starting master stack
+============================================================
+  [11:55:49] Killing stale processes...
+  [11:56:16] Started: Go proxy (tmux session: proxy)
+  Waiting 5s - proxy init.....
+  [11:56:23] Started: deploy_rl.py (tmux session: toprl)
+  Waiting 20s - Ray + RL checkpoint load....................
+  [11:56:46] deploy_rl.py running [OK]
+  [11:56:49] Started: metric_collector.py (tmux session: metrics)
+  Waiting 5s - metric_collector init.....
+
+============================================================
+  Starting Locust load
+============================================================
+  [11:56:54] Applying user counts from config:
+         export GETPRODUCT=50
+         export POSTCHECKOUT=10
+         export GETCART=50
+         export POSTCART=50
+         export CART=150
+         export RATE=45
+  Waiting 8s - Locust workers connecting........
+  [11:57:17] Locust running: 46 processes [OK]
+
+============================================================
+  Experiment running - 300s
+============================================================
+
+  [........................................]    0s / 300s  (300s left) 
+  [##......................................]   15s / 300s  (285s left) 
+  [####....................................]   30s / 300s  (270s left) 
+  [######..................................]   45s / 300s  (255s left) 
+  [########................................]   60s / 300s  (240s left) 
+  [##########..............................]   75s / 300s  (225s left) 
+  [############............................]   90s / 300s  (210s left) 
+  [##############..........................]  105s / 300s  (195s left) 
+  [################........................]  120s / 300s  (180s left) 
+  [##################......................]  135s / 300s  (165s left) 
+  [####################....................]  150s / 300s  (150s left) 
+  [######################..................]  165s / 300s  (135s left) 
+  [########################................]  180s / 300s  (120s left) 
+  [##########################..............]  195s / 300s  (105s left) 
+  [############################............]  210s / 300s  (90s left) 
+  [##############################..........]  225s / 300s  (75s left) 
+  [################################........]  240s / 300s  (60s left) 
+  [##################################......]  255s / 300s  (45s left) 
+  [####################################....]  270s / 300s  (30s left) 
+  [######################################..]  285s / 300s  (15s left) 
+  ########################################  300s / 300s  (done)              
+
+============================================================
+  Stopping all processes
+============================================================
+  [12:02:17] Stopping Locust...
+  [12:02:19] Stopping master processes (metric_collector, deploy_rl, proxy, RetryGuard, Ray)...
+
+============================================================
+  Collecting results
+============================================================
+  [12:02:33] Results saved to (on master): /home/idozacharia/experiments/results/baseline_topfull_no_retryguard_normal_op_run1
+  [12:02:33] To pull results to your PC:
+    scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_normal_op_run1 experiments/results/
+
+============================================================
+  Done
+============================================================
+  Scenario : normal_operation  |  Condition: baseline  |  Run: 1
+  Started  : 11:55:36
+  Ended    : 12:02:17
+  Actual   : 400s
+  Logs     : baseline_topfull_no_retryguard_normal_op_run1
+
+========================================================================
+[12:03:00] Verification passed for slot 1
+[12:03:10] Pulled results to C:\Users\idoza\topfull-retryguard-workshop\experiments\results\baseline_topfull_no_retryguard_normal_op_run1
+[12:03:10] Cool-down 90s before next run...
+
+========================================================================
+[12:04:40] Slot 2/38 - S1 Normal Operation - scenario_1_baseline.yaml run2
+[12:04:40] log_folder: baseline_topfull_no_retryguard_normal_op_run2
+
+============================================================
+  Scenario : 1 - normal_operation
+  Condition: baseline
+  Run #    : 2
+  Duration : 300s  (5m 0s)
+  RetryGuard: OFF
+  Output   : baseline_topfull_no_retryguard_normal_op_run2
+============================================================
+
+============================================================
+  Pre-flight checks
+============================================================
+  [12:04:42] Testing SSH to master...
+  [12:04:45] Checking cluster nodes...
+  [12:04:47] Nodes: 2 Ready [OK]
+  [12:04:47] Checking Online Boutique pods...
+  [12:04:50] All pods Running [OK]
+  [12:04:50] Testing SSH to loadgen...
+  [12:04:53] Loadgen reachable [OK]
+
+============================================================
+  Clearing previous logs
+============================================================
+  [12:04:55] Cleared: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs
+
+============================================================
+  Starting master stack
+============================================================
+  [12:04:55] Killing stale processes...
+  [12:05:21] Started: Go proxy (tmux session: proxy)
+  Waiting 5s - proxy init.....
+  [12:05:29] Started: deploy_rl.py (tmux session: toprl)
+  Waiting 20s - Ray + RL checkpoint load....................
+  [12:05:51] deploy_rl.py running [OK]
+  [12:05:54] Started: metric_collector.py (tmux session: metrics)
+  Waiting 5s - metric_collector init.....
+
+============================================================
+  Starting Locust load
+============================================================
+  [12:05:59] Applying user counts from config:
+         export GETPRODUCT=50
+         export POSTCHECKOUT=10
+         export GETCART=50
+         export POSTCART=50
+         export CART=150
+         export RATE=45
+  Waiting 8s - Locust workers connecting........
+  [12:06:21] Locust running: 46 processes [OK]
+
+============================================================
+  Experiment running - 300s
+============================================================
+
+  [........................................]    0s / 300s  (300s left) 
+  [##......................................]   15s / 300s  (285s left) 
+  [####....................................]   30s / 300s  (270s left) 
+  [######..................................]   45s / 300s  (255s left) 
+  [########................................]   60s / 300s  (240s left) 
+  [##########..............................]   75s / 300s  (225s left) 
+  [############............................]   90s / 300s  (210s left) 
+  [##############..........................]  105s / 300s  (195s left) 
+  [################........................]  120s / 300s  (180s left) 
+  [##################......................]  135s / 300s  (165s left) 
+  [####################....................]  150s / 300s  (150s left) 
+  [######################..................]  165s / 300s  (135s left) 
+  [########################................]  180s / 300s  (120s left) 
+  [##########################..............]  195s / 300s  (105s left) 
+  [############################............]  210s / 300s  (90s left) 
+  [##############################..........]  225s / 300s  (75s left) 
+  [################################........]  240s / 300s  (60s left) 
+  [##################################......]  255s / 300s  (45s left) 
+  [####################################....]  270s / 300s  (30s left) 
+  [######################################..]  285s / 300s  (15s left) 
+  ########################################  300s / 300s  (done)              
+
+============================================================
+  Stopping all processes
+============================================================
+  [12:11:21] Stopping Locust...
+  [12:11:24] Stopping master processes (metric_collector, deploy_rl, proxy, RetryGuard, Ray)...
+
+============================================================
+  Collecting results
+============================================================
+  [12:11:38] Results saved to (on master): /home/idozacharia/experiments/results/baseline_topfull_no_retryguard_normal_op_run2
+  [12:11:38] To pull results to your PC:
+    scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_normal_op_run2 experiments/results/
+
+============================================================
+  Done
+============================================================
+  Scenario : normal_operation  |  Condition: baseline  |  Run: 2
+  Started  : 12:04:42
+  Ended    : 12:11:21
+  Actual   : 398s
+  Logs     : baseline_topfull_no_retryguard_normal_op_run2
+
+========================================================================
+[12:12:08] Verification passed for slot 2
+[12:12:17] Pulled results to C:\Users\idoza\topfull-retryguard-workshop\experiments\results\baseline_topfull_no_retryguard_normal_op_run2
+[12:12:17] Cool-down 90s before next run...
+
+========================================================================
+[12:13:47] Slot 3/38 - S1 Normal Operation - scenario_1_baseline.yaml run3
+[12:13:47] log_folder: baseline_topfull_no_retryguard_normal_op_run3
+
+============================================================
+  Scenario : 1 - normal_operation
+  Condition: baseline
+  Run #    : 3
+  Duration : 300s  (5m 0s)
+  RetryGuard: OFF
+  Output   : baseline_topfull_no_retryguard_normal_op_run3
+============================================================
+
+============================================================
+  Pre-flight checks
+============================================================
+  [12:13:50] Testing SSH to master...
+  [12:13:53] Checking cluster nodes...
+  [12:13:55] Nodes: 2 Ready [OK]
+  [12:13:55] Checking Online Boutique pods...
+  [12:13:58] All pods Running [OK]
+  [12:13:58] Testing SSH to loadgen...
+  [12:14:00] Loadgen reachable [OK]
+
+============================================================
+  Clearing previous logs
+============================================================
+  [12:14:03] Cleared: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs
+
+============================================================
+  Starting master stack
+============================================================
+  [12:14:03] Killing stale processes...
+  [12:14:29] Started: Go proxy (tmux session: proxy)
+  Waiting 5s - proxy init.....
+  [12:14:37] Started: deploy_rl.py (tmux session: toprl)
+  Waiting 20s - Ray + RL checkpoint load....................
+  [12:15:00] deploy_rl.py running [OK]
+  [12:15:03] Started: metric_collector.py (tmux session: metrics)
+  Waiting 5s - metric_collector init.....
+
+============================================================
+  Starting Locust load
+============================================================
+  [12:15:08] Applying user counts from config:
+         export GETPRODUCT=50
+         export POSTCHECKOUT=10
+         export GETCART=50
+         export POSTCART=50
+         export CART=150
+         export RATE=45
+  Waiting 8s - Locust workers connecting........
+  [12:15:30] Locust running: 46 processes [OK]
+
+============================================================
+  Experiment running - 300s
+============================================================
+
+  [........................................]    0s / 300s  (300s left) 
+  [##......................................]   15s / 300s  (285s left) 
+  [####....................................]   30s / 300s  (270s left) 
+  [######..................................]   45s / 300s  (255s left) 
+  [########................................]   60s / 300s  (240s left) 
+  [##########..............................]   75s / 300s  (225s left) 
+  [############............................]   90s / 300s  (210s left) 
+  [##############..........................]  105s / 300s  (195s left) 
+  [################........................]  120s / 300s  (180s left) 
+  [##################......................]  135s / 300s  (165s left) 
+  [####################....................]  150s / 300s  (150s left) 
+  [######################..................]  165s / 300s  (135s left) 
+  [########################................]  180s / 300s  (120s left) 
+  [##########################..............]  195s / 300s  (105s left) 
+  [############################............]  210s / 300s  (90s left) 
+  [##############################..........]  225s / 300s  (75s left) 
+  [################################........]  240s / 300s  (60s left) 
+  [##################################......]  255s / 300s  (45s left) 
+  [####################################....]  270s / 300s  (30s left) 
+  [######################################..]  285s / 300s  (15s left) 
+  ########################################  300s / 300s  (done)              
+
+============================================================
+  Stopping all processes
+============================================================
+  [12:20:30] Stopping Locust...
+  [12:20:33] Stopping master processes (metric_collector, deploy_rl, proxy, RetryGuard, Ray)...
+
+============================================================
+  Collecting results
+============================================================
+  [12:20:47] Results saved to (on master): /home/idozacharia/experiments/results/baseline_topfull_no_retryguard_normal_op_run3
+  [12:20:47] To pull results to your PC:
+    scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_normal_op_run3 experiments/results/
+
+============================================================
+  Done
+============================================================
+  Scenario : normal_operation  |  Condition: baseline  |  Run: 3
+  Started  : 12:13:50
+  Ended    : 12:20:30
+  Actual   : 400s
+  Logs     : baseline_topfull_no_retryguard_normal_op_run3
+
+========================================================================
+[12:21:16] Verification passed for slot 3
+[12:21:26] Pulled results to C:\Users\idoza\topfull-retryguard-workshop\experiments\results\baseline_topfull_no_retryguard_normal_op_run3
+[12:21:26] Cool-down 90s before next run...
+
+========================================================================
+[12:22:56] Slot 4/38 - S1 Normal Operation - scenario_1_retryguard.yaml run1
+[12:22:56] log_folder: run_topfull_retryguard_normal_op_run1
+
+============================================================
+  Scenario : 1 - normal_operation
+  Condition: retryguard
+  Run #    : 1
+  Duration : 300s  (5m 0s)
+  RetryGuard: ON
+    threshold      : 20%
+    disable_windows: 2  (60s)
+    re_enable_windows: 3  (90s)
+  Output   : run_topfull_retryguard_normal_op_run1
+============================================================
+
+============================================================
+  Pre-flight checks
+============================================================
+  [12:22:58] Testing SSH to master...
+  [12:23:01] Checking cluster nodes...
+  [12:23:04] Nodes: 2 Ready [OK]
+  [12:23:04] Checking Online Boutique pods...
+  [12:23:07] All pods Running [OK]
+  [12:23:07] Testing SSH to loadgen...
+  [12:23:09] Loadgen reachable [OK]
+
+============================================================
+  Clearing previous logs
+============================================================
+  [12:23:12] Cleared: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs
+
+============================================================
+  Starting master stack
+============================================================
+  [12:23:12] Killing stale processes...
+  [12:23:38] Started: Go proxy (tmux session: proxy)
+  Waiting 5s - proxy init.....
+  [12:23:46] Started: deploy_rl.py (tmux session: toprl)
+  Waiting 20s - Ray + RL checkpoint load....................
+  [12:24:09] deploy_rl.py running [OK]
+  [12:24:11] Started: metric_collector.py (tmux session: metrics)
+  Waiting 5s - metric_collector init.....
+
+============================================================
+  Starting RetryGuard
+============================================================
+  [12:24:20] Uploaded RetryGuard params: re_enable_windows=3 (90s)
+  [12:24:29] Started: RetryGuard (tmux session: retryguard, script: /home/idozacharia/experiments/retryguard.py)
+  Waiting 3s - RetryGuard init...
+
+============================================================
+  Starting Locust load
+============================================================
+  [12:24:32] Applying user counts from config:
+         export GETPRODUCT=50
+         export POSTCHECKOUT=10
+         export GETCART=50
+         export POSTCART=50
+         export CART=150
+         export RATE=45
+  Waiting 8s - Locust workers connecting........
+  [12:24:55] Locust running: 46 processes [OK]
+
+============================================================
+  Experiment running - 300s
+============================================================
+
+  [........................................]    0s / 300s  (300s left) 
+  [##......................................]   15s / 300s  (285s left) 
+  [####....................................]   30s / 300s  (270s left) 
+  [######..................................]   45s / 300s  (255s left) 
+  [########................................]   60s / 300s  (240s left) 
+  [##########..............................]   75s / 300s  (225s left) 
+  [############............................]   90s / 300s  (210s left) 
+  [##############..........................]  105s / 300s  (195s left) 
+  [################........................]  120s / 300s  (180s left) 
+  [##################......................]  135s / 300s  (165s left) 
+  [####################....................]  150s / 300s  (150s left) 
+  [######################..................]  165s / 300s  (135s left) 
+  [########################................]  180s / 300s  (120s left) 
+  [##########################..............]  195s / 300s  (105s left) 
+  [############################............]  210s / 300s  (90s left) 
+  [##############################..........]  225s / 300s  (75s left) 
+  [################################........]  240s / 300s  (60s left) 
+  [##################################......]  255s / 300s  (45s left) 
+  [####################################....]  270s / 300s  (30s left) 
+  [######################################..]  285s / 300s  (15s left) 
+  ########################################  300s / 300s  (done)              
+
+============================================================
+  Stopping all processes
+============================================================
+  [12:29:55] Stopping Locust...
+  [12:29:58] Stopping master processes (metric_collector, deploy_rl, proxy, RetryGuard, Ray)...
+
+============================================================
+  Collecting results
+============================================================
+  [12:30:12] Results saved to (on master): /home/idozacharia/experiments/results/run_topfull_retryguard_normal_op_run1
+  [12:30:12] To pull results to your PC:
+    scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_normal_op_run1 experiments/results/
+
+============================================================
+  Restoring VirtualService retries
+============================================================
+  [12:30:39] Restored retries.attempts=3 on 10 VirtualServices
+
+============================================================
+  Done
+============================================================
+  Scenario : normal_operation  |  Condition: retryguard  |  Run: 1
+  Started  : 12:22:58
+  Ended    : 12:29:55
+  Actual   : 416s
+  Logs     : run_topfull_retryguard_normal_op_run1
+
+========================================================================
+[12:31:11] [WARN] Verification issues for slot 4:
+[12:31:11]   - retryguard.log missing START line
+[12:31:21] Pulled results to C:\Users\idoza\topfull-retryguard-workshop\experiments\results\run_topfull_retryguard_normal_op_run1
+[12:31:21] Cool-down 90s before next run...
+
+========================================================================
+[12:32:51] Slot 5/38 - S1 Normal Operation - scenario_1_retryguard.yaml run2
+[12:32:51] log_folder: run_topfull_retryguard_normal_op_run2
+
+============================================================
+  Scenario : 1 - normal_operation
+  Condition: retryguard
+  Run #    : 2
+  Duration : 300s  (5m 0s)
+  RetryGuard: ON
+    threshold      : 20%
+    disable_windows: 2  (60s)
+    re_enable_windows: 3  (90s)
+  Output   : run_topfull_retryguard_normal_op_run2
+============================================================
+
+============================================================
+  Pre-flight checks
+============================================================
+  [12:32:54] Testing SSH to master...
+  [12:32:56] Checking cluster nodes...
+  [12:32:59] Nodes: 2 Ready [OK]
+  [12:32:59] Checking Online Boutique pods...
+  [12:33:02] All pods Running [OK]
+  [12:33:02] Testing SSH to loadgen...
+  [12:33:04] Loadgen reachable [OK]
+
+============================================================
+  Clearing previous logs
+============================================================
+  [12:33:07] Cleared: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs
+
+============================================================
+  Starting master stack
+============================================================
+  [12:33:07] Killing stale processes...
+  [12:33:33] Started: Go proxy (tmux session: proxy)
+  Waiting 5s - proxy init.....
+  [12:33:41] Started: deploy_rl.py (tmux session: toprl)
+  Waiting 20s - Ray + RL checkpoint load....................
+  [12:34:04] deploy_rl.py running [OK]
+  [12:34:06] Started: metric_collector.py (tmux session: metrics)
+  Waiting 5s - metric_collector init.....
+
+============================================================
+  Starting RetryGuard
+============================================================
+  [12:34:15] Uploaded RetryGuard params: re_enable_windows=3 (90s)
+  [12:34:25] Started: RetryGuard (tmux session: retryguard, script: /home/idozacharia/experiments/retryguard.py)
+  Waiting 3s - RetryGuard init...
+
+============================================================
+  Starting Locust load
+============================================================
+  [12:34:28] Applying user counts from config:
+         export GETPRODUCT=50
+         export POSTCHECKOUT=10
+         export GETCART=50
+         export POSTCART=50
+         export CART=150
+         export RATE=45
+  Waiting 8s - Locust workers connecting........
+  [12:34:50] Locust running: 46 processes [OK]
+
+============================================================
+  Experiment running - 300s
+============================================================
+
+  [........................................]    0s / 300s  (300s left) 
+  [##......................................]   15s / 300s  (285s left) 
+  [####....................................]   30s / 300s  (270s left) 
+  [######..................................]   45s / 300s  (255s left) 
+  [########................................]   60s / 300s  (240s left) 
+  [##########..............................]   75s / 300s  (225s left) 
+  [############............................]   90s / 300s  (210s left) 
+  [##############..........................]  105s / 300s  (195s left) 
+  [################........................]  120s / 300s  (180s left) 
+  [##################......................]  135s / 300s  (165s left) 
+  [####################....................]  150s / 300s  (150s left) 
+  [######################..................]  165s / 300s  (135s left) 
+  [########################................]  180s / 300s  (120s left) 
+  [##########################..............]  195s / 300s  (105s left) 
+  [############################............]  210s / 300s  (90s left) 
+  [##############################..........]  225s / 300s  (75s left) 
+  [################################........]  240s / 300s  (60s left) 
+  [##################################......]  255s / 300s  (45s left) 
+  [####################################....]  270s / 300s  (30s left) 
+  [######################################..]  285s / 300s  (15s left) 
+  ########################################  300s / 300s  (done)              
+
+============================================================
+  Stopping all processes
+============================================================
+  [12:39:50] Stopping Locust...
+  [12:39:53] Stopping master processes (metric_collector, deploy_rl, proxy, RetryGuard, Ray)...
+
+============================================================
+  Collecting results
+============================================================
+  [12:40:06] Results saved to (on master): /home/idozacharia/experiments/results/run_topfull_retryguard_normal_op_run2
+  [12:40:06] To pull results to your PC:
+    scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_normal_op_run2 experiments/results/
+
+============================================================
+  Restoring VirtualService retries
+============================================================
+  [12:40:32] Restored retries.attempts=3 on 10 VirtualServices
+
+============================================================
+  Done
+============================================================
+  Scenario : normal_operation  |  Condition: retryguard  |  Run: 2
+  Started  : 12:32:54
+  Ended    : 12:39:50
+  Actual   : 416s
+  Logs     : run_topfull_retryguard_normal_op_run2
+
+========================================================================
+[12:41:11] [WARN] Verification issues for slot 5:
+[12:41:11]   - retryguard.log missing START line
+[12:41:21] Pulled results to C:\Users\idoza\topfull-retryguard-workshop\experiments\results\run_topfull_retryguard_normal_op_run2
+[12:41:21] Cool-down 90s before next run...
+
+========================================================================
+[12:42:51] Slot 6/38 - S1 Normal Operation - scenario_1_retryguard.yaml run3
+[12:42:51] log_folder: run_topfull_retryguard_normal_op_run3
+
+============================================================
+  Scenario : 1 - normal_operation
+  Condition: retryguard
+  Run #    : 3
+  Duration : 300s  (5m 0s)
+  RetryGuard: ON
+    threshold      : 20%
+    disable_windows: 2  (60s)
+    re_enable_windows: 3  (90s)
+  Output   : run_topfull_retryguard_normal_op_run3
+============================================================
+
+============================================================
+  Pre-flight checks
+============================================================
+  [12:42:54] Testing SSH to master...
+  [12:42:57] Checking cluster nodes...
+  [12:42:59] Nodes: 2 Ready [OK]
+  [12:42:59] Checking Online Boutique pods...
+  [12:43:02] All pods Running [OK]
+  [12:43:02] Testing SSH to loadgen...
+  [12:43:04] Loadgen reachable [OK]
+
+============================================================
+  Clearing previous logs
+============================================================
+  [12:43:07] Cleared: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs
+
+============================================================
+  Starting master stack
+============================================================
+  [12:43:07] Killing stale processes...
+  [12:43:33] Started: Go proxy (tmux session: proxy)
+  Waiting 5s - proxy init.....
+  [12:43:41] Started: deploy_rl.py (tmux session: toprl)
+  Waiting 20s - Ray + RL checkpoint load....................
+  [12:44:03] deploy_rl.py running [OK]
+  [12:44:06] Started: metric_collector.py (tmux session: metrics)
+  Waiting 5s - metric_collector init.....
+
+============================================================
+  Starting RetryGuard
+============================================================
+  [12:44:15] Uploaded RetryGuard params: re_enable_windows=3 (90s)
+  [12:44:25] Started: RetryGuard (tmux session: retryguard, script: /home/idozacharia/experiments/retryguard.py)
+  Waiting 3s - RetryGuard init...
+
+============================================================
+  Starting Locust load
+============================================================
+  [12:44:28] Applying user counts from config:
+         export GETPRODUCT=50
+         export POSTCHECKOUT=10
+         export GETCART=50
+         export POSTCART=50
+         export CART=150
+         export RATE=45
+  Waiting 8s - Locust workers connecting........
+  [12:44:50] Locust running: 46 processes [OK]
+
+============================================================
+  Experiment running - 300s
+============================================================
+
+  [........................................]    0s / 300s  (300s left) 
+  [##......................................]   15s / 300s  (285s left) 
+  [####....................................]   30s / 300s  (270s left) 
+  [######..................................]   45s / 300s  (255s left) 
+  [########................................]   60s / 300s  (240s left) 
+  [##########..............................]   75s / 300s  (225s left) 
+  [############............................]   90s / 300s  (210s left) 
+  [##############..........................]  105s / 300s  (195s left) 
+  [################........................]  120s / 300s  (180s left) 
+  [##################......................]  135s / 300s  (165s left) 
+  [####################....................]  150s / 300s  (150s left) 
+  [######################..................]  165s / 300s  (135s left) 
+  [########################................]  180s / 300s  (120s left) 
+  [##########################..............]  195s / 300s  (105s left) 
+  [############################............]  210s / 300s  (90s left) 
+  [##############################..........]  225s / 300s  (75s left) 
+  [################################........]  240s / 300s  (60s left) 
+  [##################################......]  255s / 300s  (45s left) 
+  [####################################....]  270s / 300s  (30s left) 
+  [######################################..]  285s / 300s  (15s left) 
+  ########################################  300s / 300s  (done)              
+
+============================================================
+  Stopping all processes
+============================================================
+  [12:49:50] Stopping Locust...
+  [12:49:53] Stopping master processes (metric_collector, deploy_rl, proxy, RetryGuard, Ray)...
+
+============================================================
+  Collecting results
+============================================================
+  [12:50:06] Results saved to (on master): /home/idozacharia/experiments/results/run_topfull_retryguard_normal_op_run3
+  [12:50:06] To pull results to your PC:
+    scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_normal_op_run3 experiments/results/
+
+============================================================
+  Restoring VirtualService retries
+============================================================
+  [12:50:32] Restored retries.attempts=3 on 10 VirtualServices
+
+============================================================
+  Done
+============================================================
+  Scenario : normal_operation  |  Condition: retryguard  |  Run: 3
+  Started  : 12:42:54
+  Ended    : 12:49:50
+  Actual   : 416s
+  Logs     : run_topfull_retryguard_normal_op_run3
+
+========================================================================
+[12:51:02] [WARN] Verification issues for slot 6:
+[12:51:02]   - retryguard.log missing START line
+[12:51:13] Pulled results to C:\Users\idoza\topfull-retryguard-workshop\experiments\results\run_topfull_retryguard_normal_op_run3
+[12:51:13] Cool-down 90s before next run...
+
+========================================================================
+[12:52:43] Slot 7/38 - S2 Sustained Overload - scenario_2_baseline.yaml run1
+[12:52:43] log_folder: baseline_topfull_no_retryguard_sustained_overload_run1
+python : Traceback (most recent call last):
+At C:\Users\idoza\AppData\Local\Temp\ps-script-fb345313-245d-4d9f-ac1b-41a25692751e.ps1:85 char:83
++ ...  = "utf-8"; python experiments/run_all_scenarios.py --yes 2>&1 | Tee- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 681, in <module>
+    run(args.config)
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 572, in run
+    cfg = yaml.safe_load(f)
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 125, in 
+safe_load
+    return load(stream, SafeLoader)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 79, in load
+    loader = Loader(stream)
+             ^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\loader.py", line 34, in __init__
+    Reader.__init__(self, stream)
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 85, in __init__
+    self.determine_encoding()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 124, in 
+determine_encoding
+    self.update_raw()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 178, in 
+update_raw
+    data = self.stream.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1255.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 399: character maps to <undefined>
+========================================================================
+[12:52:45] [ERROR] run_scenario.py exited with code 1 for slot 7
+[12:53:01] [WARN] Verification issues for slot 7:
+[12:53:01]   - Missing or unreadable: getproduct.csv
+[12:53:01]   - Missing or unreadable: postcheckout.csv
+[12:53:01]   - Missing or unreadable: getcart.csv
+[12:53:01]   - Missing or unreadable: postcart.csv
+[12:53:01]   - Missing or unreadable: emptycart.csv
+[12:53:01]   - Missing run_manifest.json
+scp: /home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1: No such file or 
+directory
+[12:53:04] [ERROR] SCP failed for slot 7: Command '['scp', '-r', '-o', 'BatchMode=yes', '-o', 'ControlMaster=no', 'topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1', 'C:\\Users\\idoza\\topfull-retryguard-workshop\\experiments\\results/']' returned non-zero exit status 1.
+[12:53:04] Cool-down 90s before next run...
+
+========================================================================
+[12:54:34] Slot 8/38 - S2 Sustained Overload - scenario_2_baseline.yaml run2
+[12:54:34] log_folder: baseline_topfull_no_retryguard_sustained_overload_run2
+Traceback (most recent call last):
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 681, in <module>
+    run(args.config)
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 572, in run
+    cfg = yaml.safe_load(f)
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 125, in 
+safe_load
+    return load(stream, SafeLoader)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 79, in load
+    loader = Loader(stream)
+             ^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\loader.py", line 34, in __init__
+    Reader.__init__(self, stream)
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 85, in __init__
+    self.determine_encoding()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 124, in 
+determine_encoding
+    self.update_raw()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 178, in 
+update_raw
+    data = self.stream.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1255.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 399: character maps to <undefined>
+========================================================================
+[12:54:37] [ERROR] run_scenario.py exited with code 1 for slot 8
+[12:54:52] [WARN] Verification issues for slot 8:
+[12:54:52]   - Missing or unreadable: getproduct.csv
+[12:54:52]   - Missing or unreadable: postcheckout.csv
+[12:54:52]   - Missing or unreadable: getcart.csv
+[12:54:52]   - Missing or unreadable: postcart.csv
+[12:54:52]   - Missing or unreadable: emptycart.csv
+[12:54:52]   - Missing run_manifest.json
+scp: /home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run2: No such file or 
+directory
+[12:54:56] [ERROR] SCP failed for slot 8: Command '['scp', '-r', '-o', 'BatchMode=yes', '-o', 'ControlMaster=no', 'topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run2', 'C:\\Users\\idoza\\topfull-retryguard-workshop\\experiments\\results/']' returned non-zero exit status 1.
+[12:54:56] Cool-down 90s before next run...
+
+========================================================================
+[12:56:26] Slot 9/38 - S2 Sustained Overload - scenario_2_baseline.yaml run3
+[12:56:26] log_folder: baseline_topfull_no_retryguard_sustained_overload_run3
+Traceback (most recent call last):
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 681, in <module>
+    run(args.config)
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 572, in run
+    cfg = yaml.safe_load(f)
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 125, in 
+safe_load
+    return load(stream, SafeLoader)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 79, in load
+    loader = Loader(stream)
+             ^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\loader.py", line 34, in __init__
+    Reader.__init__(self, stream)
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 85, in __init__
+    self.determine_encoding()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 124, in 
+determine_encoding
+    self.update_raw()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 178, in 
+update_raw
+    data = self.stream.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1255.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 399: character maps to <undefined>
+========================================================================
+[12:56:29] [ERROR] run_scenario.py exited with code 1 for slot 9
+[12:56:44] [WARN] Verification issues for slot 9:
+[12:56:44]   - Missing or unreadable: getproduct.csv
+[12:56:44]   - Missing or unreadable: postcheckout.csv
+[12:56:44]   - Missing or unreadable: getcart.csv
+[12:56:44]   - Missing or unreadable: postcart.csv
+[12:56:44]   - Missing or unreadable: emptycart.csv
+[12:56:44]   - Missing run_manifest.json
+scp: /home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run3: No such file or 
+directory
+[12:56:47] [ERROR] SCP failed for slot 9: Command '['scp', '-r', '-o', 'BatchMode=yes', '-o', 'ControlMaster=no', 'topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run3', 'C:\\Users\\idoza\\topfull-retryguard-workshop\\experiments\\results/']' returned non-zero exit status 1.
+[12:56:47] Cool-down 90s before next run...
+
+========================================================================
+[12:58:17] Slot 10/38 - S2 Sustained Overload - scenario_2_retryguard.yaml run1
+[12:58:17] log_folder: run_topfull_retryguard_sustained_overload_run1
+Traceback (most recent call last):
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 681, in <module>
+    run(args.config)
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 572, in run
+    cfg = yaml.safe_load(f)
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 125, in 
+safe_load
+    return load(stream, SafeLoader)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 79, in load
+    loader = Loader(stream)
+             ^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\loader.py", line 34, in __init__
+    Reader.__init__(self, stream)
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 85, in __init__
+    self.determine_encoding()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 124, in 
+determine_encoding
+    self.update_raw()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 178, in 
+update_raw
+    data = self.stream.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1255.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 1315: character maps to <undefined>
+========================================================================
+[12:58:20] [ERROR] run_scenario.py exited with code 1 for slot 10
+[12:58:38] [WARN] Verification issues for slot 10:
+[12:58:38]   - Missing or unreadable: getproduct.csv
+[12:58:38]   - Missing or unreadable: postcheckout.csv
+[12:58:38]   - Missing or unreadable: getcart.csv
+[12:58:38]   - Missing or unreadable: postcart.csv
+[12:58:38]   - Missing or unreadable: emptycart.csv
+[12:58:38]   - Missing retryguard.log
+[12:58:38]   - Missing run_manifest.json
+scp: /home/idozacharia/experiments/results/run_topfull_retryguard_sustained_overload_run1: No such file or directory
+[12:58:41] [ERROR] SCP failed for slot 10: Command '['scp', '-r', '-o', 'BatchMode=yes', '-o', 'ControlMaster=no', 'topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_sustained_overload_run1', 'C:\\Users\\idoza\\topfull-retryguard-workshop\\experiments\\results/']' returned non-zero exit status 1.
+[12:58:41] Cool-down 90s before next run...
+
+========================================================================
+[13:00:11] Slot 11/38 - S2 Sustained Overload - scenario_2_retryguard.yaml run2
+[13:00:11] log_folder: run_topfull_retryguard_sustained_overload_run2
+Traceback (most recent call last):
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 681, in <module>
+    run(args.config)
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 572, in run
+    cfg = yaml.safe_load(f)
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 125, in 
+safe_load
+    return load(stream, SafeLoader)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 79, in load
+    loader = Loader(stream)
+             ^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\loader.py", line 34, in __init__
+    Reader.__init__(self, stream)
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 85, in __init__
+    self.determine_encoding()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 124, in 
+determine_encoding
+    self.update_raw()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 178, in 
+update_raw
+    data = self.stream.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1255.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 1315: character maps to <undefined>
+========================================================================
+[13:00:14] [ERROR] run_scenario.py exited with code 1 for slot 11
+[13:00:32] [WARN] Verification issues for slot 11:
+[13:00:32]   - Missing or unreadable: getproduct.csv
+[13:00:32]   - Missing or unreadable: postcheckout.csv
+[13:00:32]   - Missing or unreadable: getcart.csv
+[13:00:32]   - Missing or unreadable: postcart.csv
+[13:00:32]   - Missing or unreadable: emptycart.csv
+[13:00:32]   - Missing retryguard.log
+[13:00:32]   - Missing run_manifest.json
+scp: /home/idozacharia/experiments/results/run_topfull_retryguard_sustained_overload_run2: No such file or directory
+[13:00:35] [ERROR] SCP failed for slot 11: Command '['scp', '-r', '-o', 'BatchMode=yes', '-o', 'ControlMaster=no', 'topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_sustained_overload_run2', 'C:\\Users\\idoza\\topfull-retryguard-workshop\\experiments\\results/']' returned non-zero exit status 1.
+[13:00:35] Cool-down 90s before next run...
+
+========================================================================
+[13:02:05] Slot 12/38 - S2 Sustained Overload - scenario_2_retryguard.yaml run3
+[13:02:05] log_folder: run_topfull_retryguard_sustained_overload_run3
+Traceback (most recent call last):
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 681, in <module>
+    run(args.config)
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 572, in run
+    cfg = yaml.safe_load(f)
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 125, in 
+safe_load
+    return load(stream, SafeLoader)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 79, in load
+    loader = Loader(stream)
+             ^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\loader.py", line 34, in __init__
+    Reader.__init__(self, stream)
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 85, in __init__
+    self.determine_encoding()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 124, in 
+determine_encoding
+    self.update_raw()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 178, in 
+update_raw
+    data = self.stream.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1255.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 1315: character maps to <undefined>
+========================================================================
+[13:02:08] [ERROR] run_scenario.py exited with code 1 for slot 12
+[13:02:27] [WARN] Verification issues for slot 12:
+[13:02:27]   - Missing or unreadable: getproduct.csv
+[13:02:27]   - Missing or unreadable: postcheckout.csv
+[13:02:27]   - Missing or unreadable: getcart.csv
+[13:02:27]   - Missing or unreadable: postcart.csv
+[13:02:27]   - Missing or unreadable: emptycart.csv
+[13:02:27]   - Missing retryguard.log
+[13:02:27]   - Missing run_manifest.json
+scp: /home/idozacharia/experiments/results/run_topfull_retryguard_sustained_overload_run3: No such file or directory
+[13:02:30] [ERROR] SCP failed for slot 12: Command '['scp', '-r', '-o', 'BatchMode=yes', '-o', 'ControlMaster=no', 'topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_sustained_overload_run3', 'C:\\Users\\idoza\\topfull-retryguard-workshop\\experiments\\results/']' returned non-zero exit status 1.
+[13:02:30] Cool-down 90s before next run...
+
+========================================================================
+[13:04:00] Slot 13/38 - S3 Targeted Bottleneck - scenario_3_baseline.yaml run1
+[13:04:00] log_folder: baseline_topfull_no_retryguard_targeted_bottleneck_run1
+Traceback (most recent call last):
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 681, in <module>
+    run(args.config)
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 572, in run
+    cfg = yaml.safe_load(f)
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 125, in 
+safe_load
+    return load(stream, SafeLoader)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 79, in load
+    loader = Loader(stream)
+             ^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\loader.py", line 34, in __init__
+    Reader.__init__(self, stream)
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 85, in __init__
+    self.determine_encoding()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 124, in 
+determine_encoding
+    self.update_raw()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 178, in 
+update_raw
+    data = self.stream.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1255.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 465: character maps to <undefined>
+========================================================================
+[13:04:03] [ERROR] run_scenario.py exited with code 1 for slot 13
+[13:04:18] [WARN] Verification issues for slot 13:
+[13:04:18]   - Missing or unreadable: getproduct.csv
+[13:04:18]   - Missing or unreadable: postcheckout.csv
+[13:04:18]   - Missing or unreadable: getcart.csv
+[13:04:18]   - Missing or unreadable: postcart.csv
+[13:04:18]   - Missing or unreadable: emptycart.csv
+[13:04:18]   - Missing run_manifest.json
+scp: /home/idozacharia/experiments/results/baseline_topfull_no_retryguard_targeted_bottleneck_run1: No such file or 
+directory
+[13:04:21] [ERROR] SCP failed for slot 13: Command '['scp', '-r', '-o', 'BatchMode=yes', '-o', 'ControlMaster=no', 'topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_targeted_bottleneck_run1', 'C:\\Users\\idoza\\topfull-retryguard-workshop\\experiments\\results/']' returned non-zero exit status 1.
+[13:04:21] Cool-down 90s before next run...
+
+========================================================================
+[13:05:51] Slot 14/38 - S3 Targeted Bottleneck - scenario_3_baseline.yaml run2
+[13:05:51] log_folder: baseline_topfull_no_retryguard_targeted_bottleneck_run2
+Traceback (most recent call last):
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 681, in <module>
+    run(args.config)
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 572, in run
+    cfg = yaml.safe_load(f)
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 125, in 
+safe_load
+    return load(stream, SafeLoader)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 79, in load
+    loader = Loader(stream)
+             ^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\loader.py", line 34, in __init__
+    Reader.__init__(self, stream)
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 85, in __init__
+    self.determine_encoding()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 124, in 
+determine_encoding
+    self.update_raw()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 178, in 
+update_raw
+    data = self.stream.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1255.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 465: character maps to <undefined>
+========================================================================
+[13:05:54] [ERROR] run_scenario.py exited with code 1 for slot 14
+[13:06:09] [WARN] Verification issues for slot 14:
+[13:06:09]   - Missing or unreadable: getproduct.csv
+[13:06:09]   - Missing or unreadable: postcheckout.csv
+[13:06:09]   - Missing or unreadable: getcart.csv
+[13:06:09]   - Missing or unreadable: postcart.csv
+[13:06:09]   - Missing or unreadable: emptycart.csv
+[13:06:09]   - Missing run_manifest.json
+scp: /home/idozacharia/experiments/results/baseline_topfull_no_retryguard_targeted_bottleneck_run2: No such file or 
+directory
+[13:06:13] [ERROR] SCP failed for slot 14: Command '['scp', '-r', '-o', 'BatchMode=yes', '-o', 'ControlMaster=no', 'topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_targeted_bottleneck_run2', 'C:\\Users\\idoza\\topfull-retryguard-workshop\\experiments\\results/']' returned non-zero exit status 1.
+[13:06:13] Cool-down 90s before next run...
+
+========================================================================
+[13:07:43] Slot 15/38 - S3 Targeted Bottleneck - scenario_3_baseline.yaml run3
+[13:07:43] log_folder: baseline_topfull_no_retryguard_targeted_bottleneck_run3
+Traceback (most recent call last):
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 681, in <module>
+    run(args.config)
+  File "C:\Users\idoza\topfull-retryguard-workshop\experiments\run_scenario.py", line 572, in run
+    cfg = yaml.safe_load(f)
+          ^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 125, in 
+safe_load
+    return load(stream, SafeLoader)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\__init__.py", line 79, in load
+    loader = Loader(stream)
+             ^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\loader.py", line 34, in __init__
+    Reader.__init__(self, stream)
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 85, in __init__
+    self.determine_encoding()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 124, in 
+determine_encoding
+    self.update_raw()
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\site-packages\yaml\reader.py", line 178, in 
+update_raw
+    data = self.stream.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\idoza\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1255.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 465: character maps to <undefined>
+========================================================================
+[13:07:46] [ERROR] run_scenario.py exited with code 1 for slot 15
+[13:08:01] [WARN] Verification issues for slot 15:
+[13:08:01]   - Missing or unreadable: getproduct.csv
+[13:08:01]   - Missing or unreadable: postcheckout.csv
+[13:08:01]   - Missing or unreadable: getcart.csv
+[13:08:01]   - Missing or unreadable: postcart.csv
+[13:08:01]   - Missing or unreadable: emptycart.csv
+[13:08:01]   - Missing run_manifest.json
+scp: /home/idozacharia/experiments/results/baseline_topfull_no_retryguard_targeted_bottleneck_run3: No such file or 
+directory
+[13:08:05] [ERROR] SCP failed for slot 15: Command '['scp', '-r', '-o', 'BatchMode=yes', '-o', 'ControlMaster=no', 'topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_targeted_bottleneck_run3', 'C:\\Users\\idoza\\topfull-retryguard-workshop\\experiments\\results/']' returned non-zero exit status 1.
+[13:08:05] Cool-down 90s before next run...
+
+========================================================================
+[13:09:35] Slot 16/38 - S3 Targeted Bottleneck - scenario_3_retryguard.yaml run1
+[13:09:35] log_folder: run_topfull_retryguard_targeted_bottleneck_run1
+
+============================================================
+  Scenario : 3 - targeted_bottleneck
+  Condition: retryguard
+  Run #    : 1
+  Duration : 600s  (10m 0s)
+  RetryGuard: ON
+    threshold      : 20%
+    disable_windows: 2  (60s)
+    re_enable_windows: 3  (90s)
+  Constraints:
+    checkoutservice: cpu_limit=100m
+  Output   : run_topfull_retryguard_targeted_bottleneck_run1
+============================================================
+
+============================================================
+  Pre-flight checks
+============================================================
+  [13:09:38] Testing SSH to master...
+  [13:09:40] Checking cluster nodes...
+  [13:09:43] Nodes: 2 Ready [OK]
+  [13:09:43] Checking Online Boutique pods...
+  [13:09:46] All pods Running [OK]
+  [13:09:46] Testing SSH to loadgen...
+  [13:09:49] Loadgen reachable [OK]
+
+============================================================
+  Clearing previous logs
+============================================================
+  [13:09:52] Cleared: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs
+
+============================================================
+  Applying topology constraints
+============================================================
+  [13:09:54] Applying CPU limit 100m to checkoutservice/server (default)
+  Waiting 20s - pods stabilising after constraint....................
+
+============================================================
+  Starting master stack
+============================================================
+  [13:10:17] Killing stale processes...
+  [13:10:44] Started: Go proxy (tmux session: proxy)
+  Waiting 5s - proxy init.....
+  [13:10:52] Started: deploy_rl.py (tmux session: toprl)
+  Waiting 20s - Ray + RL checkpoint load....................
+  [13:11:15] deploy_rl.py running [OK]
+  [13:11:18] Started: metric_collector.py (tmux session: metrics)
+  Waiting 5s - metric_collector init.....
+
+============================================================
+  Starting RetryGuard
+============================================================
+  [13:11:27] Uploaded RetryGuard params: re_enable_windows=3 (90s)
+  [13:11:36] Started: RetryGuard (tmux session: retryguard, script: /home/idozacharia/experiments/retryguard.py)
+  Waiting 3s - RetryGuard init...
+
+============================================================
+  Starting Locust load
+============================================================
+  [13:11:39] Applying user counts from config:
+         export GETPRODUCT=100
+         export POSTCHECKOUT=20
+         export GETCART=100
+         export POSTCART=100
+         export CART=300
+         export RATE=90
+  Waiting 8s - Locust workers connecting........
+  [13:12:02] Locust running: 46 processes [OK]
+
+============================================================
+  Experiment running - 600s
+============================================================
+
+  [........................................]    0s / 600s  (600s left) 
+  [#.......................................]   15s / 600s  (585s left) 
+  [##......................................]   30s / 600s  (570s left) 
+  [###.....................................]   45s / 600s  (555s left) 
+  [####....................................]   60s / 600s  (540s left) 
+  [#####...................................]   75s / 600s  (525s left) 
+  [######..................................]   90s / 600s  (510s left) 
+  [#######.................................]  105s / 600s  (495s left) 
+  [########................................]  120s / 600s  (480s left) 
+  [#########...............................]  135s / 600s  (465s left) 
+  [##########..............................]  150s / 600s  (450s left) 
+  [###########.............................]  165s / 600s  (435s left) 
+  [############............................]  180s / 600s  (420s left) 
+  [#############...........................]  195s / 600s  (405s left) 
+  [##############..........................]  210s / 600s  (390s left) 
+  [###############.........................]  225s / 600s  (375s left) 
+  [################........................]  240s / 600s  (360s left) 
+  [#################.......................]  255s / 600s  (345s left) 
+  [##################......................]  270s / 600s  (330s left) 
+  [###################.....................]  285s / 600s  (315s left) 
+  [####################....................]  300s / 600s  (300s left) 
+  [#####################...................]  315s / 600s  (285s left) 
+  [######################..................]  330s / 600s  (270s left) 
+  [#######################.................]  345s / 600s  (255s left) 
+  [########################................]  360s / 600s  (240s left) 
+  [#########################...............]  375s / 600s  (225s left) 
+  [##########################..............]  390s / 600s  (210s left) 
+  [###########################.............]  405s / 600s  (195s left) 
+  [############################............]  420s / 600s  (180s left) 
+  [#############################...........]  435s / 600s  (165s left) 
+  [##############################..........]  450s / 600s  (150s left) 
+  [###############################.........]  465s / 600s  (135s left) 
+  [################################........]  480s / 600s  (120s left) 
+  [#################################.......]  495s / 600s  (105s left) 
+  [##################################......]  510s / 600s  (90s left) 
+  [###################################.....]  525s / 600s  (75s left) 
+  [####################################....]  540s / 600s  (60s left) 
+  [#####################################...]  555s / 600s  (45s left) 
+  [######################################..]  570s / 600s  (30s left) 
+  [#######################################.]  585s / 600s  (15s left) 
+  ########################################  600s / 600s  (done)              
+
+============================================================
+  Stopping all processes
+============================================================
+  [13:22:02] Stopping Locust...
+  [13:22:04] Stopping master processes (metric_collector, deploy_rl, proxy, RetryGuard, Ray)...
+
+============================================================
+  Collecting results
+============================================================
+  [13:22:18] Results saved to (on master): /home/idozacharia/experiments/results/run_topfull_retryguard_targeted_bottleneck_run1
+  [13:22:18] To pull results to your PC:
+    scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_targeted_bottleneck_run1 experiments/results/
+
+============================================================
+  Restoring topology
+============================================================
+  [13:22:18] Restoring CPU resources on checkoutservice/server (default)
+
+============================================================
+  Restoring VirtualService retries
+============================================================
+  [13:22:47] Restored retries.attempts=3 on 10 VirtualServices
+
+============================================================
+  Done
+============================================================
+  Scenario : targeted_bottleneck  |  Condition: retryguard  |  Run: 1
+  Started  : 13:09:38
+  Ended    : 13:22:02
+  Actual   : 744s
+  Logs     : run_topfull_retryguard_targeted_bottleneck_run1
+
+========================================================================
+[13:23:20] [WARN] Verification issues for slot 16:
+[13:23:20]   - retryguard.log missing START line
+[13:23:30] Pulled results to C:\Users\idoza\topfull-retryguard-workshop\experiments\results\run_topfull_retryguard_targeted_bottleneck_run1
+[13:23:30] Cool-down 90s before next run...
+
+========================================================================
+[13:25:00] Slot 17/38 - S3 Targeted Bottleneck - scenario_3_retryguard.yaml run2
+[13:25:00] log_folder: run_topfull_retryguard_targeted_bottleneck_run2
+
+============================================================
+  Scenario : 3 - targeted_bottleneck
+  Condition: retryguard
+  Run #    : 2
+  Duration : 600s  (10m 0s)
+  RetryGuard: ON
+    threshold      : 20%
+    disable_windows: 2  (60s)
+    re_enable_windows: 3  (90s)
+  Constraints:
+    checkoutservice: cpu_limit=100m
+  Output   : run_topfull_retryguard_targeted_bottleneck_run2
+============================================================
+
+============================================================
+  Pre-flight checks
+============================================================
+  [13:25:03] Testing SSH to master...
+  [13:25:05] Checking cluster nodes...
+  [13:25:08] Nodes: 2 Ready [OK]
+  [13:25:08] Checking Online Boutique pods...
+  [13:25:11] All pods Running [OK]
+  [13:25:11] Testing SSH to loadgen...
+  [13:25:13] Loadgen reachable [OK]
+
+============================================================
+  Clearing previous logs
+============================================================
+  [13:25:16] Cleared: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs
+
+============================================================
+  Applying topology constraints
+============================================================
+  [13:25:19] Applying CPU limit 100m to checkoutservice/server (default)
+  Waiting 20s - pods stabilising after constraint....................
+
+============================================================
+  Starting master stack
+============================================================
+  [13:25:41] Killing stale processes...
+  [13:26:09] Started: Go proxy (tmux session: proxy)
+  Waiting 5s - proxy init.....
+  [13:26:16] Started: deploy_rl.py (tmux session: toprl)
+  Waiting 20s - Ray + RL checkpoint load....................
+  [13:26:39] deploy_rl.py running [OK]
+  [13:26:42] Started: metric_collector.py (tmux session: metrics)
+  Waiting 5s - metric_collector init.....
+
+============================================================
+  Starting RetryGuard
+============================================================
+  [13:26:51] Uploaded RetryGuard params: re_enable_windows=3 (90s)
+  [13:27:00] Started: RetryGuard (tmux session: retryguard, script: /home/idozacharia/experiments/retryguard.py)
+  Waiting 3s - RetryGuard init...
+
+============================================================
+  Starting Locust load
+============================================================
+  [13:27:03] Applying user counts from config:
+         export GETPRODUCT=100
+         export POSTCHECKOUT=20
+         export GETCART=100
+         export POSTCART=100
+         export CART=300
+         export RATE=90
+  Waiting 8s - Locust workers connecting........
+  [13:27:26] Locust running: 46 processes [OK]
+
+============================================================
+  Experiment running - 600s
+============================================================
+

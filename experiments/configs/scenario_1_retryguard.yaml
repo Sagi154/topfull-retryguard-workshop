@@ -9,7 +9,7 @@
 scenario_id: 1
 scenario_name: normal_operation
 condition: retryguard
-run_number: 2                  # smoke used run1; real matrix starts at 2
+run_number: 3
 description: >
   Flat RPS well within cluster capacity. TopFull + RetryGuard both active.
   RetryGuard must remain completely silent (zero VirtualService patches).
@@ -39,7 +39,7 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
-log_folder: run_topfull_retryguard_normal_op_run2
+log_folder: run_topfull_retryguard_normal_op_run3
 
 infra:
   master_ssh_host: topfull-master

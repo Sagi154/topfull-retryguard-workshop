@@ -29,8 +29,9 @@ Follow [Guides and Info/CONNECT-VMS.md](Guides%20and%20Info/CONNECT-VMS.md). Do 
 
 ## Hard rules
 
-- `User` is a Linux account (usually Windows username), never an email.
+- **Always connect as `idozacharia`** — that is the Linux account on all three VMs that owns the experiment tooling (`/home/idozacharia/TopFull/`, `/home/idozacharia/experiments/`). The Windows username (`idoza`) is a *different* Linux account; do not use it as `User`.
 - Ephemeral IPs change after stop/start — refresh `HostName` in `~/.ssh/config`.
 - Timeout usually means VM `TERMINATED` or stale IP, not a missing firewall rule.
 - Do not commit private keys or overwrite unrelated `Host` blocks in `~/.ssh/config`.
 - Interactive `gcloud auth login` / passphrase prompts need the human.
+- If SSH to `idozacharia` fails with `Permission denied`: use `idoza` (which has sudo) to re-install the key via `sudo bash /tmp/install_key.sh` (see CONNECT-VMS.md §Key install).

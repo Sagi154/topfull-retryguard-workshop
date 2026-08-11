@@ -12,7 +12,7 @@
 scenario_id: 1
 scenario_name: normal_operation
 condition: baseline            # baseline = RetryGuard OFF
-run_number: 3                  # smoke used run1+run2; real matrix starts at 3
+run_number: 3
 description: >
   Flat RPS well within cluster capacity. TopFull active, retries on (default),
   RetryGuard NOT running. Establishes the healthy-system reference point.

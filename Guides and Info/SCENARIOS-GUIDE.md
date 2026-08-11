@@ -33,6 +33,53 @@ run_topfull_retryguard_<scenario>_run<N>/
 
 ---
 
+## How to Run — Automated Runner
+
+All scenarios are executed through `experiments/run_scenario.py`, which runs on Windows and orchestrates everything (pre-flight, constraints, stack startup, Locust, results collection, restore) over SSH. The manual tmux steps in each scenario below are kept for reference but are **no longer needed** — the runner does all of them.
+
+### Prerequisites (one-time)
+
+```powershell
+pip install pyyaml
+```
+
+SSH host aliases (`topfull-master`, `topfull-load`) must be configured in `~/.ssh/config`. See [CONNECT-VMS.md](CONNECT-VMS.md).
+
+### General pattern
+
+```powershell
+# 0. Clear stale /tmp runner scripts (required if a previous run by a different
+#    Linux user left them — /tmp sticky bit prevents overwriting another user's files)
+ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp/rg_retryguard.sh /tmp/rg_locust_launch.sh"
+
+# 1. Verify cluster is healthy before any run
+ssh topfull-master "kubectl get nodes; kubectl get pods -n default"
+
+# 2. Run a scenario (runner handles everything end-to-end)
+python experiments/run_scenario.py experiments/configs/<config_file>.yaml
+
+# 3. Pull results to your PC after the run completes
+scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/
+
+# 4. To repeat: bump run_number and log_folder in the YAML before the next run
+#    e.g. run_number: 1 → 2, log_folder: ...run1 → ...run2
+```
+
+### Full experiment matrix — commands at a glance
+
+Run each scenario **≥3 times per condition** (≥2 for Scenario 5 intervals). Bump `run_number` and `log_folder` in the YAML for each repeat.
+
+| Scenario | Baseline config | RetryGuard config | Starting run# |
+|----------|----------------|-------------------|---------------|
+| 1 — Normal Op | `scenario_1_baseline.yaml` | `scenario_1_retryguard.yaml` | baseline→run3, RG→run2 (smoke used earlier runs) |
+| 2 — Sustained Overload | `scenario_2_baseline.yaml` | `scenario_2_retryguard.yaml` | both→run1 |
+| 3 — Targeted Bottleneck | `scenario_3_baseline.yaml` | `scenario_3_retryguard.yaml` | both→run2 (smoke used run1) |
+| 4A — Topology (ProductCatalog) | `scenario_4a_baseline.yaml` | `scenario_4a_retryguard.yaml` | both→run1 |
+| 4B — Topology (Payment) | `scenario_4b_baseline.yaml` | `scenario_4b_retryguard.yaml` | both→run1 |
+| 5 — Interval tuning | — (no baseline) | `scenario_5_interval_{10,20,30,60}s.yaml` | all→run1 |
+
+---
+
 ## Quick Reference — Experiment Matrix
 
 | # | Scenario | Load shape | RetryGuard condition | Primary questions answered |
@@ -63,42 +110,21 @@ This is a **required sanity check** before the core experiments. If RetryGuard m
 - Use the standard `online_boutique_create.sh` / `online_boutique_create2.sh` scripts; reduce user count to a comfortable level.
 - Run duration: 5 minutes is sufficient; the system should never approach ρ > 1.
 
-### Steps
+### How to run
 
-1. **Start the stack on master:**
-   ```bash
-   tmux new -s proxy   # Terminal 1
-   cd TopFull_master/online_boutique_scripts/src
-   ./proxy_online_boutique   # Go proxy
+```powershell
+# Baseline (RetryGuard off) — starts at run3 (run1+run2 were smoke runs)
+python experiments/run_scenario.py experiments/configs/scenario_1_baseline.yaml
+# Pull results:
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_normal_op_run3 experiments/results/
 
-   tmux new -s toprl   # Terminal 2
-   python deploy_rl.py
+# RetryGuard — starts at run2 (run1 was a smoke run)
+python experiments/run_scenario.py experiments/configs/scenario_1_retryguard.yaml
+# Pull results:
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_normal_op_run2 experiments/results/
+```
 
-   tmux new -s metrics   # Terminal 3
-   python metric_collector.py
-   ```
-
-2. **(TopFull only run)** — do NOT start RetryGuard. Let the load run for 5 minutes.
-
-3. **Start load on the load-gen VM:**
-   ```bash
-   tmux new -s locust
-   cd TopFull/TopFull_loadgen
-   ./online_boutique_create.sh && ./online_boutique_create2.sh
-   ```
-   Adjust user counts to keep load comfortably within capacity.
-
-4. After 5 minutes, **stop Locust**, save logs:
-   ```
-   baseline_topfull_no_retryguard_normal_op_run1/
-   ```
-
-5. **(TopFull + RetryGuard run)** — start RetryGuard on master alongside the stack, then repeat load. Save logs:
-   ```
-   run_topfull_retryguard_normal_op_run1/
-   ```
-
-6. Repeat both runs at least 2–3 times each.
+For each repeat: edit the YAML to bump `run_number` and update `log_folder` (e.g. `...run3` → `...run4`). Run ≥3 times per condition.
 
 ### What to look for
 
@@ -143,30 +169,26 @@ RetryGuard watches per-service rejection rates. After rejections stay above ~20%
 - Hold at that level for **at least 5 minutes** (10 minutes preferred for full cycle coverage).
 - Use the standard `online_boutique_create.sh` / `online_boutique_create2.sh` scripts at high user counts.
 
-### Steps
+### How to run
 
-1. Start the stack (proxy + RL + metric_collector) as in Scenario 1.
+```powershell
+# Baseline — run1 (never run before)
+python experiments/run_scenario.py experiments/configs/scenario_2_baseline.yaml
+# Pull results:
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1 experiments/results/
 
-2. **(TopFull only run)** — RetryGuard off. Start Locust at normal load, then gradually increase user count until rejection rates clearly exceed 20%. Hold for 5–10 minutes. Save logs:
-   ```
-   baseline_topfull_no_retryguard_sustained_overload_run1/
-   ```
+# RetryGuard — run1
+python experiments/run_scenario.py experiments/configs/scenario_2_retryguard.yaml
+# Pull results:
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_sustained_overload_run1 experiments/results/
+```
 
-3. Reset replica counts and wait for the cluster to recover.
+For each repeat: bump `run_number` and `log_folder` in the YAML. Run ≥3 times per condition.
 
-4. **(TopFull + RetryGuard run)** — Start RetryGuard before starting load. Repeat the same ramp and hold. Save logs:
-   ```
-   run_topfull_retryguard_sustained_overload_run1/
-   ```
-
-5. Tail RetryGuard logs during the run to confirm it detects overload and patches VirtualServices:
-   ```bash
-   # Expected log output pattern:
-   # [service=productcatalog] rejection_rate=0.31 → disabling retries (attempts: 3 → 0)
-   # [service=productcatalog] rejection_rate=0.08 → re-enabling retries (attempts: 0 → 3)
-   ```
-
-6. Repeat both conditions at least 3 times each.
+To monitor RetryGuard live while the run is in progress:
+```bash
+ssh topfull-master "tmux attach -t retryguard"   # Ctrl+B, D to detach without killing
+```
 
 ### What to look for
 
@@ -204,35 +226,29 @@ This scenario is directly analogous to the RetryGuard Bookinfo case study in the
 
 **Suggested bottleneck service:** `checkoutservice` (sits in a critical path: Frontend → Checkout → Cart, Shipping, Currency, ProductCatalog, Email, Payment).
 
-### Steps
+### How to run
 
-1. Before starting load, scale down the target service:
-   ```bash
-   # Example: constrain Checkout to 1 replica
-   ssh topfull-worker-1 # or run on master with kubectl
-   kubectl scale deployment checkoutservice --replicas=1 -n default
-   ```
+The runner automatically applies the `checkoutservice` CPU limit (`100m`) before load starts and removes it after the run — no manual `kubectl` needed.
 
-2. Start the stack (proxy + RL + metric_collector).
+```powershell
+# Baseline — starts at run2 (smoke used run1)
+python experiments/run_scenario.py experiments/configs/scenario_3_baseline.yaml
+# Pull results:
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_targeted_bottleneck_run2 experiments/results/
 
-3. **(TopFull only run)** — RetryGuard off. Start Locust at moderate load. Run for 5–10 minutes. Confirm the constrained service shows elevated rejection rates. Save logs:
-   ```
-   baseline_topfull_no_retryguard_targeted_bottleneck_run1/
-   ```
+# RetryGuard — starts at run2 (smoke used run1)
+python experiments/run_scenario.py experiments/configs/scenario_3_retryguard.yaml
+# Pull results:
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_targeted_bottleneck_run2 experiments/results/
+```
 
-4. Restore replicas, wait for cluster to settle, then re-constrain for the next run.
+For each repeat: bump `run_number` and `log_folder` in the YAML. Run ≥3 times per condition.
 
-5. **(TopFull + RetryGuard run)** — Start RetryGuard. Repeat. Save logs:
-   ```
-   run_topfull_retryguard_targeted_bottleneck_run1/
-   ```
-
-6. Repeat both conditions at least 3 times each.
-
-7. After all runs, restore the service to its normal replica count:
-   ```bash
-   kubectl scale deployment checkoutservice --replicas=<original> -n default
-   ```
+After all runs, verify the constraint was fully restored:
+```bash
+ssh topfull-master "kubectl get deployment checkoutservice -o jsonpath='{.spec.template.spec.containers[0].resources}'"
+# Should show no cpu limit (or the original value before the experiment)
+```
 
 ### What to look for
 
@@ -267,29 +283,35 @@ Two Targeted Bottleneck runs using identical load and the same constraint method
 
 Same as Scenario 3 — normal-to-moderate Locust load, full call chain exercised.
 
-### Steps
+### How to run
 
-**Run A — ProductCatalog bottleneck:**
+The runner applies and removes the CPU constraint automatically for both 4A and 4B. Finish all runs for one position before starting the other.
 
-1. Scale down ProductCatalog:
-   ```bash
-   kubectl scale deployment productcatalogservice --replicas=1 -n default
-   ```
-2. Run TopFull only, then TopFull + RetryGuard (same structure as Scenario 3).
-3. Save logs under `*_topology_position_A_run<N>/`.
-4. Restore replicas before Run B.
+**Run 4A — ProductCatalog bottleneck (gateway-adjacent):**
 
-**Run B — Payment bottleneck:**
+```powershell
+# Baseline — run1
+python experiments/run_scenario.py experiments/configs/scenario_4a_baseline.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_topology_position_A_run1 experiments/results/
 
-1. Scale down Payment:
-   ```bash
-   kubectl scale deployment paymentservice --replicas=1 -n default
-   ```
-2. Run TopFull only, then TopFull + RetryGuard.
-3. Save logs under `*_topology_position_B_run<N>/`.
-4. Restore replicas.
+# RetryGuard — run1
+python experiments/run_scenario.py experiments/configs/scenario_4a_retryguard.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_topology_position_A_run1 experiments/results/
+```
 
-Repeat each run at least 2–3 times.
+**Run 4B — Payment bottleneck (Checkout-mediated):**
+
+```powershell
+# Baseline — run1
+python experiments/run_scenario.py experiments/configs/scenario_4b_baseline.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_topology_position_B_run1 experiments/results/
+
+# RetryGuard — run1
+python experiments/run_scenario.py experiments/configs/scenario_4b_retryguard.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_topology_position_B_run1 experiments/results/
+```
+
+For each repeat: bump `run_number` and `log_folder` in the YAML. Run ≥3 times per condition per position.
 
 ### What to look for
 
@@ -328,29 +350,34 @@ Same as Scenario 2 (Sustained Overload) — ramp to ρ > 1, hold for 5–10 minu
 | **30s** | Paper default (Sec. 6.2) |
 | 60s | Conservative — slower recovery of goodput |
 
-### Steps
+### How to run
 
-1. Set the re-enable interval in the RetryGuard script before each run (e.g., via a config variable or command-line flag):
-   ```python
-   RE_ENABLE_WINDOWS = 1   # 10s  (1 window × 10s)
-   RE_ENABLE_WINDOWS = 2   # 20s
-   RE_ENABLE_WINDOWS = 3   # 30s  ← paper default
-   RE_ENABLE_WINDOWS = 6   # 60s
-   ```
-   *(Exact variable name depends on your implementation — adjust accordingly.)*
+The `re_enable_windows` parameter is already set correctly in each config — no manual script editing needed. There is no separate baseline for Scenario 5; use Scenario 2's baseline runs as the comparison.
 
-2. For each interval value:
-   - Start the stack with RetryGuard on (TopFull + RetryGuard only — no separate baseline needed here).
-   - Start Locust at overload level (same as Scenario 2).
-   - Hold for 5–10 minutes.
-   - Save logs: `run_topfull_retryguard_interval_<Xs>_run<N>/`
-   - Repeat at least 2 times per interval.
+```powershell
+# 10s effective wait (re_enable_windows: 1) — run1
+python experiments/run_scenario.py experiments/configs/scenario_5_interval_10s.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_10s_run1 experiments/results/
 
-3. After all four intervals are done, compare:
-   - Goodput over time (does it recover after RetryGuard fires?)
-   - Retries/request during overload
-   - Number of re-enable events logged (too many = oscillation)
-   - Time-to-recovery after first disable event
+# 20s effective wait (re_enable_windows: 2) — run1
+python experiments/run_scenario.py experiments/configs/scenario_5_interval_20s.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_20s_run1 experiments/results/
+
+# 30s effective wait (re_enable_windows: 3) — paper default — run1
+python experiments/run_scenario.py experiments/configs/scenario_5_interval_30s.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_30s_run1 experiments/results/
+
+# 60s effective wait (re_enable_windows: 6) — run1
+python experiments/run_scenario.py experiments/configs/scenario_5_interval_60s.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_60s_run1 experiments/results/
+```
+
+For each repeat: bump `run_number` and `log_folder` in the YAML. Run ≥2 times per interval.
+
+After all four intervals are done, compare:
+- Goodput over time (does it recover after RetryGuard fires?)
+- Number of toggle events logged (too many = oscillation)
+- Time-to-recovery after first disable event
 
 ### What to look for
 
