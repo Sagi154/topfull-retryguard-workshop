@@ -1,0 +1,19 @@
+{
+  "scenario_id": 2,
+  "scenario_name": "sustained_overload",
+  "condition": "retryguard",
+  "run_number": 3,
+  "duration_seconds": 600,
+  "retryguard": {
+    "enabled": true,
+    "rejection_threshold": 0.2,
+    "window_duration_seconds": 30,
+    "disable_windows": 2,
+    "re_enable_windows": 3,
+    "retry_attempts_on": 3,
+    "retry_attempts_off": 0
+  },
+  "scale_constraints": [],
+  "log_folder": "run_topfull_retryguard_sustained_overload_run3",
+  "collected_at": "2026-08-15T12:48:45.238146Z"
+}

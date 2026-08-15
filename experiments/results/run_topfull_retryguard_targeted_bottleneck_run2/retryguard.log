@@ -1,0 +1,68 @@
+2026-08-15T19:19:10Z  WAITING  for metric_collector CSVs under /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs (timeout=60s)
+2026-08-15T19:19:10Z  READY  found getproduct.csv
+2026-08-15T19:19:10Z  START  threshold=0.20 window=30s disable_windows=2 re_enable_windows=3 services=['cartservice', 'checkoutservice', 'productcatalogservice']
+2026-08-15T19:19:40Z  OBSERVE  cartservice  rejection=0.0472  low=1 high=0  state=ON
+2026-08-15T19:19:40Z  OBSERVE  checkoutservice  rejection=0.5113  low=0 high=1  state=ON
+2026-08-15T19:19:40Z  OBSERVE  productcatalogservice  rejection=0.0000  low=1 high=0  state=ON
+2026-08-15T19:20:10Z  OBSERVE  cartservice  rejection=0.3078  low=0 high=1  state=ON
+2026-08-15T19:20:10Z  OBSERVE  checkoutservice  rejection=0.7934  low=0 high=2  state=ON
+2026-08-15T19:20:11Z  checkoutservice  ON→OFF   rejection=0.79  consecutive_high=2  attempts=0
+2026-08-15T19:20:11Z  OBSERVE  productcatalogservice  rejection=0.1682  low=2 high=0  state=ON
+2026-08-15T19:20:41Z  OBSERVE  cartservice  rejection=0.7327  low=0 high=2  state=ON
+2026-08-15T19:20:41Z  cartservice  ON→OFF   rejection=0.73  consecutive_high=2  attempts=0
+2026-08-15T19:20:41Z  OBSERVE  checkoutservice  rejection=0.9988  low=0 high=3  state=OFF
+2026-08-15T19:20:41Z  OBSERVE  productcatalogservice  rejection=0.6406  low=0 high=1  state=ON
+2026-08-15T19:21:11Z  OBSERVE  cartservice  rejection=0.8193  low=0 high=3  state=OFF
+2026-08-15T19:21:11Z  OBSERVE  checkoutservice  rejection=0.9958  low=0 high=4  state=OFF
+2026-08-15T19:21:11Z  OBSERVE  productcatalogservice  rejection=0.7315  low=0 high=2  state=ON
+2026-08-15T19:21:11Z  productcatalogservice  ON→OFF   rejection=0.73  consecutive_high=2  attempts=0
+2026-08-15T19:21:41Z  OBSERVE  cartservice  rejection=0.8037  low=0 high=4  state=OFF
+2026-08-15T19:21:41Z  OBSERVE  checkoutservice  rejection=0.9606  low=0 high=5  state=OFF
+2026-08-15T19:21:41Z  OBSERVE  productcatalogservice  rejection=0.7840  low=0 high=3  state=OFF
+2026-08-15T19:22:11Z  OBSERVE  cartservice  rejection=0.8249  low=0 high=5  state=OFF
+2026-08-15T19:22:11Z  OBSERVE  checkoutservice  rejection=0.9903  low=0 high=6  state=OFF
+2026-08-15T19:22:11Z  OBSERVE  productcatalogservice  rejection=0.8414  low=0 high=4  state=OFF
+2026-08-15T19:22:41Z  OBSERVE  cartservice  rejection=0.8706  low=0 high=6  state=OFF
+2026-08-15T19:22:41Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=7  state=OFF
+2026-08-15T19:22:41Z  OBSERVE  productcatalogservice  rejection=0.8728  low=0 high=5  state=OFF
+2026-08-15T19:23:11Z  OBSERVE  cartservice  rejection=0.7900  low=0 high=7  state=OFF
+2026-08-15T19:23:11Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=8  state=OFF
+2026-08-15T19:23:11Z  OBSERVE  productcatalogservice  rejection=0.8140  low=0 high=6  state=OFF
+2026-08-15T19:23:41Z  OBSERVE  cartservice  rejection=0.7982  low=0 high=8  state=OFF
+2026-08-15T19:23:41Z  OBSERVE  checkoutservice  rejection=0.9894  low=0 high=9  state=OFF
+2026-08-15T19:23:41Z  OBSERVE  productcatalogservice  rejection=0.8023  low=0 high=7  state=OFF
+2026-08-15T19:24:11Z  OBSERVE  cartservice  rejection=0.7980  low=0 high=9  state=OFF
+2026-08-15T19:24:11Z  OBSERVE  checkoutservice  rejection=0.9911  low=0 high=10  state=OFF
+2026-08-15T19:24:11Z  OBSERVE  productcatalogservice  rejection=0.8047  low=0 high=8  state=OFF
+2026-08-15T19:24:41Z  OBSERVE  cartservice  rejection=0.7746  low=0 high=10  state=OFF
+2026-08-15T19:24:41Z  OBSERVE  checkoutservice  rejection=0.9667  low=0 high=11  state=OFF
+2026-08-15T19:24:41Z  OBSERVE  productcatalogservice  rejection=0.7725  low=0 high=9  state=OFF
+2026-08-15T19:25:11Z  OBSERVE  cartservice  rejection=0.7826  low=0 high=11  state=OFF
+2026-08-15T19:25:11Z  OBSERVE  checkoutservice  rejection=0.9623  low=0 high=12  state=OFF
+2026-08-15T19:25:11Z  OBSERVE  productcatalogservice  rejection=0.8007  low=0 high=10  state=OFF
+2026-08-15T19:25:41Z  OBSERVE  cartservice  rejection=0.8176  low=0 high=12  state=OFF
+2026-08-15T19:25:41Z  OBSERVE  checkoutservice  rejection=0.9986  low=0 high=13  state=OFF
+2026-08-15T19:25:41Z  OBSERVE  productcatalogservice  rejection=0.8401  low=0 high=11  state=OFF
+2026-08-15T19:26:11Z  OBSERVE  cartservice  rejection=0.8094  low=0 high=13  state=OFF
+2026-08-15T19:26:11Z  OBSERVE  checkoutservice  rejection=0.9986  low=0 high=14  state=OFF
+2026-08-15T19:26:11Z  OBSERVE  productcatalogservice  rejection=0.8523  low=0 high=12  state=OFF
+2026-08-15T19:26:41Z  OBSERVE  cartservice  rejection=0.8426  low=0 high=14  state=OFF
+2026-08-15T19:26:41Z  OBSERVE  checkoutservice  rejection=0.9635  low=0 high=15  state=OFF
+2026-08-15T19:26:41Z  OBSERVE  productcatalogservice  rejection=0.8811  low=0 high=13  state=OFF
+2026-08-15T19:27:11Z  OBSERVE  cartservice  rejection=0.8239  low=0 high=15  state=OFF
+2026-08-15T19:27:11Z  OBSERVE  checkoutservice  rejection=0.9952  low=0 high=16  state=OFF
+2026-08-15T19:27:11Z  OBSERVE  productcatalogservice  rejection=0.8127  low=0 high=14  state=OFF
+2026-08-15T19:27:41Z  OBSERVE  cartservice  rejection=0.8286  low=0 high=16  state=OFF
+2026-08-15T19:27:41Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=17  state=OFF
+2026-08-15T19:27:41Z  OBSERVE  productcatalogservice  rejection=0.8642  low=0 high=15  state=OFF
+2026-08-15T19:28:11Z  OBSERVE  cartservice  rejection=0.8308  low=0 high=17  state=OFF
+2026-08-15T19:28:11Z  OBSERVE  checkoutservice  rejection=0.9667  low=0 high=18  state=OFF
+2026-08-15T19:28:11Z  OBSERVE  productcatalogservice  rejection=0.8411  low=0 high=16  state=OFF
+2026-08-15T19:28:41Z  OBSERVE  cartservice  rejection=0.8808  low=0 high=18  state=OFF
+2026-08-15T19:28:41Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=19  state=OFF
+2026-08-15T19:28:41Z  OBSERVE  productcatalogservice  rejection=0.8930  low=0 high=17  state=OFF
+2026-08-15T19:29:11Z  OBSERVE  cartservice  rejection=0.8746  low=0 high=19  state=OFF
+2026-08-15T19:29:11Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=20  state=OFF
+2026-08-15T19:29:11Z  OBSERVE  productcatalogservice  rejection=0.9148  low=0 high=18  state=OFF
+2026-08-15T19:29:41Z  SHUTDOWN  signal=15
+2026-08-15T19:29:41Z  EXIT

@@ -1,0 +1,27 @@
+{
+  "scenario_id": 3,
+  "scenario_name": "targeted_bottleneck",
+  "condition": "baseline",
+  "run_number": 1,
+  "duration_seconds": 600,
+  "retryguard": {
+    "enabled": false,
+    "rejection_threshold": 0.2,
+    "window_duration_seconds": 30,
+    "disable_windows": 2,
+    "re_enable_windows": 3,
+    "retry_attempts_on": 3,
+    "retry_attempts_off": 0
+  },
+  "scale_constraints": [
+    {
+      "deployment": "checkoutservice",
+      "namespace": "default",
+      "method": "cpu_limit",
+      "cpu_limit": "100m",
+      "container": "server"
+    }
+  ],
+  "log_folder": "baseline_topfull_no_retryguard_targeted_bottleneck_run1",
+  "collected_at": "2026-08-15T13:03:44.585200Z"
+}

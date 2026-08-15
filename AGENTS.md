@@ -33,7 +33,7 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   retryguard.py      ← RetryGuard controller (deployed to master)
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
-  results/           ← (empty so far — no experiment has been run yet)
+  results/           ← Phase 5/6 matrix CSVs (29 folders locally as of 2026-08-15; S1 still on Ido’s machine)
 TopFull/             ← git submodule, upstream https://github.com/kaist-ina/TopFull (read locally; also cloned separately on the VMs)
 context/             ← papers/decks: RetryGuard.pdf, TopFull.pdf, project-plan pptx files
 canvases/            ← interactive workplan canvas for Cursor (topfull-retryguard-workplan.canvas.tsx)
@@ -58,41 +58,37 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | [SETUP-GUIDE.md](Guides%20and%20Info/SETUP-GUIDE.md) | Get exact commands for cluster/Istio/dependency setup, if something needs to be rebuilt |
 | [MANAGED-KUBERNETES.md](Guides%20and%20Info/MANAGED-KUBERNETES.md) | Understand why we used self-managed `kubeadm` K8s instead of GKE (decision already made — not adopted) |
 | [CONNECT-VMS.md](Guides%20and%20Info/CONNECT-VMS.md) | **SSH into the VMs.** Canonical playbook — also mirrored in `.cursor/rules/topfull-ssh.mdc` (always-applied) |
-| **[PHASE5-EXPERIMENTS-GUIDE.md](Guides%20and%20Info/PHASE5-EXPERIMENTS-GUIDE.md)** | **The most important doc for ongoing work.** Canonical reference for the experiment runner + scenario config system. Read before touching `experiments/` |
-| **[EXPERIMENT-READINESS-WORKPLAN.md](Guides%20and%20Info/EXPERIMENT-READINESS-WORKPLAN.md)** | **Current active workplan.** Checklist to validate the pipeline (cluster health, config audit, smoke-test runs, RetryGuard toggle proof) *before* committing to the full multi-run Phase 5/6 matrix. Start here for "what do we do next" |
-| **[PHASE5-PHASE6-RUNLIST.md](Guides%20and%20Info/PHASE5-PHASE6-RUNLIST.md)** | **Exact run checklist for Phases 5 & 6.** Every scenario, config file, starting run number, exact commands, and a checkbox per run. Use this to track progress through the experiment matrix. |
+| **[PHASE5-EXPERIMENTS-GUIDE.md](Guides%20and%20Info/PHASE5-EXPERIMENTS-GUIDE.md)** | Canonical reference for the experiment runner + scenario config system. Read before touching `experiments/` |
+| **[PHASE5-PHASE6-RUNLIST.md](Guides%20and%20Info/PHASE5-PHASE6-RUNLIST.md)** | **Matrix checklist + where results live.** All 38 runs marked done as of 2026-08-15; start here for inventory / gaps before Phase 7 |
+| [EXPERIMENT-READINESS-WORKPLAN.md](Guides%20and%20Info/EXPERIMENT-READINESS-WORKPLAN.md) | Historical smoke-validation checklist (Steps 1–8 passed 2026-08-07). Do not mix smoke folders into Phase 7 analysis |
+| [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) | **Next for Phase 7.** What each run produces, how to pull/verify, how to load for charts |
 | [SCENARIOS-GUIDE.md](Guides%20and%20Info/SCENARIOS-GUIDE.md) | Understand each of the 5 scenarios in detail: what it tests, load setup, manual step-by-step (pre-dates `run_scenario.py` automation, but good for *why*) |
 | [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md) | Understand exactly how `experiments/retryguard.py` maps to paper Algorithm 1, its metric source, endpoint→service map, VS patch mechanics, log format |
-| [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) | What data each run produces, where it lives, how to pull it, how to verify it, and how to load it for Phase 7 analysis |
 | [NEXT-PHASES-PLAN.md](Guides%20and%20Info/NEXT-PHASES-PLAN.md) | See the presentation-track vs lab-track split and near-term suggested order |
 | [PRESENTATION-GUIDE.md](Guides%20and%20Info/PRESENTATION-GUIDE.md), [PRESENTATION-ACTION-ITEMS.md](Guides%20and%20Info/PRESENTATION-ACTION-ITEMS.md), [NOTEBOOKLM-PROMPT.md](Guides%20and%20Info/NOTEBOOKLM-PROMPT.md) | Work on the slide deck / presentation track (separate from the lab track) |
 | [GEMINI-PROMPT.md](GEMINI-PROMPT.md), [CANVAS-VIEWING.md](CANVAS-VIEWING.md) | Presentation-generation tooling and how to view the interactive canvas in Cursor |
 
 ---
 
-## 4. Current status (as of 2026-08-07)
+## 4. Current status (as of 2026-08-16)
 
 ### ✅ Done
 
-- **Phases 0–4** (accounts, VM provisioning, K8s cluster via `kubeadm`, Istio 1.17 minimal profile, dependencies, Online Boutique deployed with Envoy sidecars, `instance_scaling.py` run) — per the guides these are complete.
-- **Experiment infrastructure (Phase 5 tooling)** — fully built, all marked DONE in PHASE5-EXPERIMENTS-GUIDE.md §6:
-  - `experiments/run_scenario.py` — full orchestrator (pre-flight → clear logs → apply constraints → start proxy/deploy_rl/metric_collector → optionally RetryGuard → start Locust → wait → stop → collect → restore).
-  - 14 scenario YAML configs in `experiments/configs/` (§6a: Locust user counts are wired end-to-end via env vars).
-  - `experiments/retryguard.py` — RetryGuard controller implemented and deployed to master (§6b). Full behavior documented in RETRYGUARD-IMPLEMENTATION.md.
-  - `experiments/virtual-services.yaml` — 10 Istio VirtualServices applied on the cluster with default `retries.attempts: 3` (§6c).
-  - `metric_collector.py` crash-on-startup bug fixed on master (§6d) — no longer dies with `KeyError` before Locust traffic starts.
-- **Experiment readiness (smoke validation)** — [EXPERIMENT-READINESS-WORKPLAN.md](Guides%20and%20Info/EXPERIMENT-READINESS-WORKPLAN.md) Steps 1–8 complete as of 2026-08-07. Pipeline produces trustworthy CSVs + RetryGuard logs. Fixes landed during smoke:
-  - Runner: `pgrep -fa` for deploy_rl check; safer `pkill -f` patterns; `cpu_limit` also lowers requests and restores full original resources; end-of-run VirtualService retries restore after RetryGuard.
-  - RetryGuard: disable retries by *omitting* the `retries` block (Istio rejects `attempts: 0` with a retry policy present).
-  - Smoke results live under `experiments/results/` (also on master). Do **not** treat them as Phase 5/6 matrix data. Smoke-used configs are bumped to the next free `run_number`/`log_folder`.
+- **Phases 0–4** (accounts, VM provisioning, K8s cluster via `kubeadm`, Istio 1.17 minimal profile, dependencies, Online Boutique deployed with Envoy sidecars, `instance_scaling.py` run) — complete.
+- **Experiment infrastructure** — `run_scenario.py`, `run_all_scenarios.py` (38-slot matrix), 14 YAMLs, RetryGuard, VirtualServices, metric_collector fix — complete (PHASE5-EXPERIMENTS-GUIDE.md §6).
+- **Experiment readiness (smoke)** — Steps 1–8 passed 2026-08-07. Smoke data is **not** matrix data.
+- **Phase 5 & 6 matrix (38 runs)** — complete as of 2026-08-15:
+  - Slots 1–9 (S1 base×3, S1 RG×3, S2 base×3): run 2026-08-11 (Ido); S1 folders still on Ido’s machine.
+  - Slots 10–38: resumed with `run_all_scenarios.py --yes --resume 9` on 2026-08-15 (~7h); slot 17 (S3 RG run2) re-run after a permission failure on a stale master folder.
+  - Local `experiments/results/`: 29 matrix folders (S2 RG, S3, S4A/B, S5). Master also has S2 baseline×3 (not yet pulled to this laptop).
+  - Batch runner bumped touched configs to next free `run_number` (typically 4 for ×3 scenarios, 3 for S5).
 
-### ❌ Not done yet — this is the actual remaining work
+### ❌ Not done yet — remaining work
 
-1. **Phase 5 — baseline runs.** Scenarios 1–4, RetryGuard off, ≥3 runs each (use next free run# — see readiness workplan footer).
-2. **Phase 6 — RetryGuard runs.** Same scenarios 1–4 with RetryGuard on, ≥3 runs each, plus **Scenario 5** (re-enable interval sweep: 10s/20s/30s/60s labels → `re_enable_windows` 1/2/3/6, RetryGuard-only, ≥2 runs each).
-3. **Phase 7 — evaluation + report.** Time-series charts comparing baseline vs RetryGuard per scenario; written report answering the open questions. **Known gap before Phase 7:** per-run CPU/mem/`num_instances.csv` from `resource_collector.py` are not written into results today (collector is only used in-memory by the RL loop) — wire or drop that Layer before relying on resource charts.
+1. **Consolidate results for Phase 7:** copy S1×6 from Ido; optionally `scp` S2 baseline×3 from master → `experiments/results/`.
+2. **Phase 7 — evaluation + report.** Time-series charts (baseline vs RetryGuard); written report on the open questions (§8). **Known gap:** per-run CPU/mem/`num_instances.csv` from `resource_collector.py` are not written into results (in-memory RL only) — wire or drop before relying on resource charts.
 
-**Recommended order:** start the real Phase 5/6 matrix per [PHASE5-EXPERIMENTS-GUIDE.md](Guides%20and%20Info/PHASE5-EXPERIMENTS-GUIDE.md) §2 / §5 — readiness gates are green.
+**Recommended order:** gather missing result folders → Phase 7 analysis per [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md).
 
 ### ⚠️ Live infra caveat (check before assuming the cluster is healthy)
 

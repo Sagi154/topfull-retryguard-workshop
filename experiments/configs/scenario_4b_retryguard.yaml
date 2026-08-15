@@ -5,7 +5,7 @@
 scenario_id: 4
 scenario_name: topology_position_B
 condition: retryguard
-run_number: 1
+run_number: 4
 description: >
   paymentservice constrained (Checkout-mediated). TopFull + RetryGuard.
   Question: does RetryGuard provide greater relative benefit when TopFull's
@@ -41,7 +41,7 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
-log_folder: run_topfull_retryguard_topology_position_B_run1
+log_folder: run_topfull_retryguard_topology_position_B_run4
 
 infra:
   master_ssh_host: topfull-master

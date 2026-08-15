@@ -1,0 +1,27 @@
+{
+  "scenario_id": 4,
+  "scenario_name": "topology_position_B",
+  "condition": "retryguard",
+  "run_number": 3,
+  "duration_seconds": 600,
+  "retryguard": {
+    "enabled": true,
+    "rejection_threshold": 0.2,
+    "window_duration_seconds": 30,
+    "disable_windows": 2,
+    "re_enable_windows": 3,
+    "retry_attempts_on": 3,
+    "retry_attempts_off": 0
+  },
+  "scale_constraints": [
+    {
+      "deployment": "paymentservice",
+      "namespace": "default",
+      "method": "cpu_limit",
+      "cpu_limit": "100m",
+      "container": "server"
+    }
+  ],
+  "log_folder": "run_topfull_retryguard_topology_position_B_run3",
+  "collected_at": "2026-08-15T17:16:41.985531Z"
+}

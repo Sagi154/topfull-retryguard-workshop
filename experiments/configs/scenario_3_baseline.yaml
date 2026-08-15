@@ -26,7 +26,7 @@
 scenario_id: 3
 scenario_name: targeted_bottleneck
 condition: baseline
-run_number: 3
+run_number: 4
 description: >
   Moderate full-chain load with checkoutservice CPU-constrained.
   TopFull active, RetryGuard OFF. Captures per-service retry amplification
@@ -69,7 +69,7 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
-log_folder: baseline_topfull_no_retryguard_targeted_bottleneck_run3
+log_folder: baseline_topfull_no_retryguard_targeted_bottleneck_run4
 
 infra:
   master_ssh_host: topfull-master

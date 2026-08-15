@@ -16,7 +16,7 @@
 scenario_id: 4
 scenario_name: topology_position_A
 condition: baseline
-run_number: 1
+run_number: 4
 description: >
   productcatalogservice constrained (gateway-adjacent position).
   TopFull active, RetryGuard OFF. TopFull has a direct entry-API signal.
@@ -51,7 +51,7 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
-log_folder: baseline_topfull_no_retryguard_topology_position_A_run1
+log_folder: baseline_topfull_no_retryguard_topology_position_A_run4
 
 infra:
   master_ssh_host: topfull-master

@@ -17,7 +17,7 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: retryguard
-run_number: 1
+run_number: 4
 description: >
   Ramp to ρ > 1, hold 10 minutes. TopFull + RetryGuard both active.
   RetryGuard suppresses retries per service when rejection > 20%.
@@ -47,7 +47,7 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
-log_folder: run_topfull_retryguard_sustained_overload_run1
+log_folder: run_topfull_retryguard_sustained_overload_run4
 
 infra:
   master_ssh_host: topfull-master

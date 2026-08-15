@@ -16,7 +16,7 @@
 scenario_id: 5
 scenario_name: interval_tuning
 condition: retryguard
-run_number: 1
+run_number: 3
 description: >
   Sustained overload. RetryGuard on, re-enable interval = 10s (aggressive).
   Risk of oscillation: retries re-enabled before bottleneck clears.
@@ -46,7 +46,7 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
-log_folder: run_topfull_retryguard_interval_10s_run1
+log_folder: run_topfull_retryguard_interval_10s_run3
 
 infra:
   master_ssh_host: topfull-master

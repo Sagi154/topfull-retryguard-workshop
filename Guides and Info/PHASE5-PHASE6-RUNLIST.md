@@ -6,7 +6,12 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 >
 > **Before starting any session:** verify cluster health — `ssh topfull-master "kubectl get nodes; kubectl get pods -n default"`. IPs change after VM restarts; refresh `~/.ssh/config` if SSH fails (see [CONNECT-VMS.md](CONNECT-VMS.md)).
 >
-> **Progress (2026-08-11):** Matrix run via `experiments/run_all_scenarios.py` after clearing master `experiments/results/` — all matrix runs use **run1–run3** (smoke numbering discarded). **Done:** S1 baseline×3, S1 RetryGuard×3, S2 baseline×3 (slots 1–9). **Next:** `--resume 9` → S2 RetryGuard run1 (slot 10). Interrupted mid-slot-10; re-run that slot.
+> **Progress (2026-08-15):** Full 38-slot matrix finished via `experiments/run_all_scenarios.py --yes --resume 9` (slots 10–38) plus a one-off re-run of **slot 17** (S3 RetryGuard run2; earlier collect failed on a stale `idozacharia`-owned folder). Soft verify warnings about `retryguard.log` missing `START` are false positives (timestamped `START` lines are present).
+>
+> **Where results live:**
+> - **Local (`experiments/results/`):** S2 RG×3, S3 base+RG×3, S4A/B base+RG×3, S5×8 (29 folders).
+> - **Master only (not yet on this laptop):** S2 baseline×3 — pull with `scp`.
+> - **On Ido’s machine (slots 1–9):** S1 baseline×3, S1 RetryGuard×3 (and originally S2 baseline×3). Copy those over before Phase 7.
 
 ---
 
@@ -26,7 +31,7 @@ log_folder: baseline_topfull_no_retryguard_sustained_overload_run2   # was _run1
 
 ### Scenario 1 — Normal Operation (5 min each)
 
-Config: `experiments/configs/scenario_1_baseline.yaml` · **run1–run3** (matrix; results under `experiments/results/`)
+Config: `experiments/configs/scenario_1_baseline.yaml` · **run1–run3** (matrix; results on Ido’s machine — copy locally)
 
 - [x] **Run 1** — `baseline_topfull_no_retryguard_normal_op_run1`
 - [x] **Run 2** — `baseline_topfull_no_retryguard_normal_op_run2`
@@ -36,55 +41,49 @@ Config: `experiments/configs/scenario_1_baseline.yaml` · **run1–run3** (matri
 
 ### Scenario 2 — Sustained Overload (10 min each)
 
-Config: `experiments/configs/scenario_2_baseline.yaml` · **run1–run3**
+Config: `experiments/configs/scenario_2_baseline.yaml` · **run1–run3** (on master; pull locally if needed)
 
 - [x] **Run 1** — `baseline_topfull_no_retryguard_sustained_overload_run1`
 - [x] **Run 2** — `baseline_topfull_no_retryguard_sustained_overload_run2`
 - [x] **Run 3** — `baseline_topfull_no_retryguard_sustained_overload_run3`
 
+```powershell
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1 experiments/results/
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run2 experiments/results/
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run3 experiments/results/
+```
+
 ---
 
 ### Scenario 3 — Targeted Bottleneck / checkoutservice (10 min each)
 
-Config: `experiments/configs/scenario_3_baseline.yaml` · starts at **run1**
+Config: `experiments/configs/scenario_3_baseline.yaml` · **run1–run3** (local)
 
 The runner applies and removes the `checkoutservice` CPU limit (`100m`) automatically.
 
-- [ ] **Run 1**
-  ```powershell
-  python experiments/run_scenario.py experiments/configs/scenario_3_baseline.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_targeted_bottleneck_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
-- [ ] **Run 3** — bump to `run_number: 3` / `log_folder: ...run3`
+- [x] **Run 1** — `baseline_topfull_no_retryguard_targeted_bottleneck_run1`
+- [x] **Run 2** — `baseline_topfull_no_retryguard_targeted_bottleneck_run2`
+- [x] **Run 3** — `baseline_topfull_no_retryguard_targeted_bottleneck_run3`
 
 ---
 
 ### Scenario 4A — Topology: productcatalogservice (10 min each)
 
-Config: `experiments/configs/scenario_4a_baseline.yaml` · starts at **run1**
+Config: `experiments/configs/scenario_4a_baseline.yaml` · **run1–run3** (local)
 
-- [ ] **Run 1**
-  ```powershell
-  python experiments/run_scenario.py experiments/configs/scenario_4a_baseline.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_topology_position_A_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
-- [ ] **Run 3** — bump to `run_number: 3` / `log_folder: ...run3`
+- [x] **Run 1** — `baseline_topfull_no_retryguard_topology_position_A_run1`
+- [x] **Run 2** — `baseline_topfull_no_retryguard_topology_position_A_run2`
+- [x] **Run 3** — `baseline_topfull_no_retryguard_topology_position_A_run3`
 
 ---
 
 ### Scenario 4B — Topology: paymentservice (10 min each)
 
-Config: `experiments/configs/scenario_4b_baseline.yaml` · starts at **run1**
+Config: `experiments/configs/scenario_4b_baseline.yaml` · **run1–run3** (local)
 
-- [ ] **Run 1**
-  ```powershell
-  python experiments/run_scenario.py experiments/configs/scenario_4b_baseline.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_topology_position_B_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
-- [ ] **Run 3** — bump to `run_number: 3` / `log_folder: ...run3`
+- [x] **Run 1** — `baseline_topfull_no_retryguard_topology_position_B_run1`
+- [x] **Run 2** — `baseline_topfull_no_retryguard_topology_position_B_run2`
+- [x] **Run 3** — `baseline_topfull_no_retryguard_topology_position_B_run3`
 
 ---
 
@@ -113,7 +112,7 @@ Scenarios 1–4 with RetryGuard enabled, ≥3 runs each. Plus Scenario 5 interva
 
 ### Scenario 1 — Normal Operation + RetryGuard (5 min each)
 
-Config: `experiments/configs/scenario_1_retryguard.yaml` · **run1–run3**
+Config: `experiments/configs/scenario_1_retryguard.yaml` · **run1–run3** (on Ido’s machine — copy locally)
 
 **Expected:** zero VirtualService patches in `retryguard.log`. If any toggle fires, stop — threshold needs investigation.
 
@@ -125,61 +124,43 @@ Config: `experiments/configs/scenario_1_retryguard.yaml` · **run1–run3**
 
 ### Scenario 2 — Sustained Overload + RetryGuard (10 min each)
 
-Config: `experiments/configs/scenario_2_retryguard.yaml` · starts at **run1** (resume here)
+Config: `experiments/configs/scenario_2_retryguard.yaml` · **run1–run3** (local)
 
 Monitor RetryGuard live if you want: `ssh topfull-master "tmux attach -t retryguard"` (Ctrl+B, D to detach).
 
-- [ ] **Run 1** — interrupted 2026-08-11; re-run
-  ```powershell
-  python experiments/run_all_scenarios.py --yes --resume 9
-  # or single:
-  python experiments/run_scenario.py experiments/configs/scenario_2_retryguard.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_sustained_overload_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
-- [ ] **Run 3** — bump to `run_number: 3` / `log_folder: ...run3`
+- [x] **Run 1** — `run_topfull_retryguard_sustained_overload_run1`
+- [x] **Run 2** — `run_topfull_retryguard_sustained_overload_run2`
+- [x] **Run 3** — `run_topfull_retryguard_sustained_overload_run3`
 
 ---
 
 ### Scenario 3 — Targeted Bottleneck + RetryGuard (10 min each)
 
-Config: `experiments/configs/scenario_3_retryguard.yaml` · starts at **run1**
+Config: `experiments/configs/scenario_3_retryguard.yaml` · **run1–run3** (local; run2 re-done 2026-08-15 after collect failure)
 
-- [ ] **Run 1**
-  ```powershell
-  python experiments/run_scenario.py experiments/configs/scenario_3_retryguard.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_targeted_bottleneck_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
-- [ ] **Run 3** — bump to `run_number: 3` / `log_folder: ...run3`
+- [x] **Run 1** — `run_topfull_retryguard_targeted_bottleneck_run1`
+- [x] **Run 2** — `run_topfull_retryguard_targeted_bottleneck_run2`
+- [x] **Run 3** — `run_topfull_retryguard_targeted_bottleneck_run3`
 
 ---
 
 ### Scenario 4A — Topology: productcatalogservice + RetryGuard (10 min each)
 
-Config: `experiments/configs/scenario_4a_retryguard.yaml` · starts at **run1**
+Config: `experiments/configs/scenario_4a_retryguard.yaml` · **run1–run3** (local)
 
-- [ ] **Run 1**
-  ```powershell
-  python experiments/run_scenario.py experiments/configs/scenario_4a_retryguard.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_topology_position_A_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
-- [ ] **Run 3** — bump to `run_number: 3` / `log_folder: ...run3`
+- [x] **Run 1** — `run_topfull_retryguard_topology_position_A_run1`
+- [x] **Run 2** — `run_topfull_retryguard_topology_position_A_run2`
+- [x] **Run 3** — `run_topfull_retryguard_topology_position_A_run3`
 
 ---
 
 ### Scenario 4B — Topology: paymentservice + RetryGuard (10 min each)
 
-Config: `experiments/configs/scenario_4b_retryguard.yaml` · starts at **run1**
+Config: `experiments/configs/scenario_4b_retryguard.yaml` · **run1–run3** (local)
 
-- [ ] **Run 1**
-  ```powershell
-  python experiments/run_scenario.py experiments/configs/scenario_4b_retryguard.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_topology_position_B_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
-- [ ] **Run 3** — bump to `run_number: 3` / `log_folder: ...run3`
+- [x] **Run 1** — `run_topfull_retryguard_topology_position_B_run1`
+- [x] **Run 2** — `run_topfull_retryguard_topology_position_B_run2`
+- [x] **Run 3** — `run_topfull_retryguard_topology_position_B_run3`
 
 ---
 
@@ -195,36 +176,20 @@ RetryGuard only — no separate baseline needed (Scenario 2 baseline is the comp
 | `scenario_5_interval_60s.yaml` | 6 | 180s |
 
 **10s interval (re_enable_windows: 1):**
-- [ ] **Run 1**
-  ```powershell
-  python experiments/run_scenario.py experiments/configs/scenario_5_interval_10s.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_10s_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
+- [x] **Run 1** — `run_topfull_retryguard_interval_10s_run1`
+- [x] **Run 2** — `run_topfull_retryguard_interval_10s_run2`
 
 **20s interval (re_enable_windows: 2):**
-- [ ] **Run 1**
-  ```powershell
-  python experiments/run_scenario.py experiments/configs/scenario_5_interval_20s.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_20s_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
+- [x] **Run 1** — `run_topfull_retryguard_interval_20s_run1`
+- [x] **Run 2** — `run_topfull_retryguard_interval_20s_run2`
 
 **30s interval — paper default (re_enable_windows: 3):**
-- [ ] **Run 1**
-  ```powershell
-  python experiments/run_scenario.py experiments/configs/scenario_5_interval_30s.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_30s_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
+- [x] **Run 1** — `run_topfull_retryguard_interval_30s_run1`
+- [x] **Run 2** — `run_topfull_retryguard_interval_30s_run2`
 
 **60s interval (re_enable_windows: 6):**
-- [ ] **Run 1**
-  ```powershell
-  python experiments/run_scenario.py experiments/configs/scenario_5_interval_60s.yaml
-  scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_60s_run1 experiments/results/
-  ```
-- [ ] **Run 2** — bump to `run_number: 2` / `log_folder: ...run2`
+- [x] **Run 1** — `run_topfull_retryguard_interval_60s_run1`
+- [x] **Run 2** — `run_topfull_retryguard_interval_60s_run2`
 
 ---
 
@@ -250,6 +215,8 @@ RetryGuard only — no separate baseline needed (Scenario 2 baseline is the comp
 | Phase 6 | 23 | ≈3h 35min |
 | **Grand total** | **38** | **≈5h 50min** |
 
+**Matrix execution status:** all 38 slots completed (2026-08-11 slots 1–9; 2026-08-15 slots 10–38 + slot 17 re-run).
+
 ---
 
 ## After each run — quick checklist
@@ -258,7 +225,7 @@ RetryGuard only — no separate baseline needed (Scenario 2 baseline is the comp
 2. **RPS > 0:** open any CSV, confirm `RPS` is non-zero after the first ~10 rows.
 3. **Pull results** with the `scp` command above before starting the next run.
 4. **Bump YAML** (`run_number` + `log_folder`) before the next repeat.
-5. **RetryGuard runs only:** check `retryguard.log` exists and starts with a `START` line.
+5. **RetryGuard runs only:** check `retryguard.log` exists and contains a `START` line (may be preceded by `WAITING`/`READY`; verifier that requires `START` at line start can false-alarm).
 
 Full verification checklist: [METRICS-COLLECTION-GUIDE.md](METRICS-COLLECTION-GUIDE.md) §7.
 
