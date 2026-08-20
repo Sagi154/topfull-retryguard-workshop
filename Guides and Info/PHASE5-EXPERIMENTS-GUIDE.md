@@ -218,6 +218,17 @@ locust:
   scripts:
     - online_boutique_create.sh
     - online_boutique_create2.sh
+  # Optional: mid-run load changes (added for the recovery-phase fix, see
+  # PHASE7-DATA-GAPS.md Gap 1). If present, this REPLACES user_counts above
+  # (the two are mutually exclusive — resolve_locust_phases() raises a
+  # ConfigError if both are set). phases[0].at_seconds must be 0.
+  # phases:
+  #   - at_seconds: 0
+  #     user_counts: {getproduct: 100, postcheckout: 20, getcart: 100, postcart: 100, emptycart: 300}
+  #     spawn_rate: 90
+  #   - at_seconds: 300
+  #     user_counts: {getproduct: 25, postcheckout: 5, getcart: 25, postcart: 25, emptycart: 75}
+  #     spawn_rate: 90
 
 scale_constraints: []        # empty = no manipulation
 # method: replicas
