@@ -1,4 +1,6 @@
 ﻿#!/usr/bin/env python3
+from __future__ import annotations
+
 """
 run_scenario.py - Experiment runner for TopFull + RetryGuard scenarios.
 
@@ -92,6 +94,94 @@ def write_remote_json(host: str, remote_path: str, data: dict):
         scp_to(tmp, host, remote_path)
     finally:
         os.unlink(tmp)
+
+
+# --------------------------------------------------------------------------- #
+#  Load-phase scheduling (pure logic, no I/O — see test_run_scenario.py)
+# --------------------------------------------------------------------------- #
+
+class ConfigError(Exception):
+    """Raised for malformed scenario YAML that the runner cannot safely execute."""
+
+
+def resolve_locust_phases(cfg: dict) -> list[dict]:
+    """
+    Normalize the locust load profile into an ordered list of phases.
+
+    Each returned phase is a dict with keys: at_seconds (int), user_counts
+    (dict), spawn_rate (int or None). Phase 0 always starts at at_seconds=0.
+
+    Backward compatible: a config with no `locust.phases` key produces a
+    single phase from the legacy `locust.user_counts` / `locust.spawn_rate`
+    keys, at_seconds=0 — this must behave identically to the pre-phases
+    runner for all 38 existing matrix configs.
+    """
+    lc = cfg.get("locust", {})
+    explicit_phases = lc.get("phases")
+    legacy_user_counts = lc.get("user_counts")
+
+    if explicit_phases and legacy_user_counts:
+        raise ConfigError(
+            "locust.phases and locust.user_counts are mutually exclusive - "
+            "put the initial load into phases[0].user_counts instead of "
+            "top-level locust.user_counts."
+        )
+
+    if not explicit_phases:
+        return [{
+            "at_seconds": 0,
+            "user_counts": lc.get("user_counts", {}),
+            "spawn_rate": lc.get("spawn_rate"),
+        }]
+
+    phases = []
+    for i, p in enumerate(explicit_phases):
+        if "at_seconds" not in p:
+            raise ConfigError(f"locust.phases[{i}] is missing required key 'at_seconds'")
+        phases.append({
+            "at_seconds": int(p["at_seconds"]),
+            "user_counts": p.get("user_counts", {}),
+            "spawn_rate": p.get("spawn_rate", lc.get("spawn_rate")),
+        })
+
+    phases.sort(key=lambda p: p["at_seconds"])
+
+    if phases[0]["at_seconds"] != 0:
+        raise ConfigError(
+            f"locust.phases[0].at_seconds must be 0 (got {phases[0]['at_seconds']})"
+        )
+    for i in range(1, len(phases)):
+        if phases[i]["at_seconds"] <= phases[i - 1]["at_seconds"]:
+            raise ConfigError(
+                "locust.phases must have strictly increasing at_seconds "
+                f"(phase {i - 1} at {phases[i - 1]['at_seconds']}s, "
+                f"phase {i} at {phases[i]['at_seconds']}s)"
+            )
+
+    duration = cfg.get("duration_seconds")
+    if duration is not None:
+        for i, p in enumerate(phases):
+            if p["at_seconds"] >= duration:
+                raise ConfigError(
+                    f"locust.phases[{i}].at_seconds ({p['at_seconds']}s) must be "
+                    f"< duration_seconds ({duration}s)"
+                )
+
+    return phases
+
+
+def due_phases(elapsed: int, fired: set, phases: list[dict]) -> list[int]:
+    """
+    Return indices (into `phases`) of phases whose at_seconds has been
+    reached but that have not yet fired, in ascending order.
+
+    `fired` is the set of phase indices already switched to; index 0
+    (the initial launch) must be pre-marked fired by the caller.
+    """
+    return sorted(
+        i for i, p in enumerate(phases)
+        if i not in fired and p["at_seconds"] <= elapsed
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -407,8 +497,8 @@ def start_retryguard(cfg: dict):
 #  Locust
 # --------------------------------------------------------------------------- #
 
-def start_locust(cfg: dict):
-    banner("Starting Locust load")
+def _launch_locust(cfg: dict, user_counts: dict, spawn_rate) -> None:
+    """Kill any running Locust and start it fresh at the given load level."""
     loadgen = cfg["infra"]["loadgen_ssh_host"]
     loadgen_path = cfg["infra"]["topfull_loadgen_path"]
     lc = cfg.get("locust", {})
@@ -423,25 +513,23 @@ def start_locust(cfg: dict):
         "emptycart":    "CART",      # create scripts use CART, not EMPTYCART
     }
 
-    user_counts = lc.get("user_counts", {})
     exports = []
     for yaml_key, shell_var in ENV_MAP.items():
         if yaml_key in user_counts:
             exports.append(f"export {shell_var}={user_counts[yaml_key]}")
-    if "spawn_rate" in lc:
-        exports.append(f"export RATE={lc['spawn_rate']}")
+    if spawn_rate is not None:
+        exports.append(f"export RATE={spawn_rate}")
     env_prefix = "; ".join(exports) + "; " if exports else ""
 
     if exports:
-        step("Applying user counts from config:")
+        step("Applying user counts:")
         for e in exports:
             print(f"         {e}")
 
-    # Kill any stale Locust processes
+    # Kill any stale Locust processes (also used for a mid-run phase switch)
     ssh(loadgen, "tmux kill-server 2>/dev/null; pkill -9 -f '[l]ocust' 2>/dev/null; sleep 1; true",
         check=False)
 
-    # Write and execute a launch script on the loadgen
     launch_cmd = " && ".join(f"bash {s}" for s in scripts)
     launch_script = (
         f"#!/bin/bash\n"
@@ -453,13 +541,23 @@ def start_locust(cfg: dict):
 
     wait_with_progress(8, "Locust workers connecting")
 
-    # Verify Locust is running
     r = ssh(loadgen, "pgrep -c locust 2>/dev/null || echo 0")
     count = int(r.stdout.strip())
     if count == 0:
         print("[ERROR] No Locust processes found. Check the create scripts on the loadgen.")
         sys.exit(1)
     step(f"Locust running: {count} processes [OK]")
+
+
+def start_locust(cfg: dict, phases: list[dict]) -> None:
+    banner("Starting Locust load")
+    first = phases[0]
+    _launch_locust(cfg, first["user_counts"], first["spawn_rate"])
+
+
+def switch_locust_phase(cfg: dict, phase: dict) -> None:
+    banner(f"Switching Locust load phase at t={phase['at_seconds']}s")
+    _launch_locust(cfg, phase["user_counts"], phase["spawn_rate"])
 
 
 def stop_locust(cfg: dict):
@@ -577,6 +675,7 @@ def run(config_path: str):
     duration    = cfg["duration_seconds"]
     log_folder  = cfg["log_folder"]
     rg_enabled  = cfg["retryguard"].get("enabled", False)
+    phases = resolve_locust_phases(cfg)
 
     print(f"\n{'='*60}")
     print(f"  Scenario : {cfg['scenario_id']} - {scenario}")
@@ -599,6 +698,10 @@ def run(config_path: str):
                 print(f"    {c['deployment']}: scale to {c['replicas']} replica(s)")
             elif method == "cpu_limit":
                 print(f"    {c['deployment']}: cpu_limit={c['cpu_limit']}")
+    if len(phases) > 1:
+        print(f"  Load phases:")
+        for p in phases:
+            print(f"    t={p['at_seconds']:4d}s  user_counts={p['user_counts']}")
     print(f"  Output   : {log_folder}")
     print(f"{'='*60}")
 
@@ -615,7 +718,8 @@ def run(config_path: str):
         if rg_enabled:
             start_retryguard(cfg)
 
-        start_locust(cfg)
+        start_locust(cfg, phases)
+        fired_phases = {0}
 
         banner(f"Experiment running - {duration}s")
         elapsed = 0
@@ -626,8 +730,14 @@ def run(config_path: str):
             bar = "#" * pct + "." * (40 - pct)
             print(f"\r  [{bar}] {elapsed:4d}s / {duration}s  ({remaining}s left) ",
                   end="", flush=True)
-            time.sleep(min(interval, remaining))
-            elapsed += min(interval, remaining)
+            step_seconds = min(interval, remaining)
+            time.sleep(step_seconds)
+            elapsed += step_seconds
+
+            for idx in due_phases(elapsed, fired_phases, phases):
+                print()
+                switch_locust_phase(cfg, phases[idx])
+                fired_phases.add(idx)
         print(f"\r  {'#'*40}  {duration}s / {duration}s  (done)              ")
 
     except KeyboardInterrupt:
