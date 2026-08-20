@@ -17,7 +17,7 @@ Two experimental conditions, same load each time:
 | **Baseline** (Phase 5) | TopFull | Istio default (`attempts: 3`, RetryGuard off) |
 | **Primary** (Phase 6) | TopFull | RetryGuard dynamically toggles retries per service |
 
-We run **5 scenarios** (see §5) under both conditions, ≥3 repeats each (Locust traffic is non-deterministic), then compare goodput / P99 latency / rejection rate / retries-per-request / CPU-mem / RetryGuard toggle events.
+We run **5 scenarios** (see §5) under both conditions, ≥3 repeats each (Locust traffic is non-deterministic), then compare goodput / P95 latency / rejection rate / RetryGuard toggle events. Retries-per-request was never collected in the finished matrix (Gap 3 collector now built, needs re-runs); CPU-mem was planned but never collected; P99 was dropped as a target metric (P95 fully satisfies both source papers and the eval deck) — see [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md).
 
 This is a workshop deliverable: a presentation (project plan) + eventually a written report with the above comparison.
 
@@ -27,15 +27,16 @@ This is a workshop deliverable: a presentation (project plan) + eventually a wri
 
 ```
 Guides and Info/     ← all human-facing docs (see §3 — start here for "why")
-experiments/         ← the actual tooling: runner, scenario configs, RetryGuard controller
+experiments/         ← the actual tooling: runner, scenario configs, RetryGuard + Envoy retry collectors
   configs/           ← 14 scenario YAML files (5 scenarios × baseline/retryguard, +4 interval variants)
   run_scenario.py    ← orchestrator, runs on Windows, drives everything over SSH
   retryguard.py      ← RetryGuard controller (deployed to master)
+  envoy_retry_collector.py ← Gap 3: scrapes Envoy sidecar outbound retry counters (deployed to master)
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
-  results/           ← Phase 5/6 matrix CSVs (29 folders locally as of 2026-08-15; S1 still on Ido’s machine)
+  results/           ← all 38 Phase 5/6 matrix folders (local and in git as of 2026-08-20)
 TopFull/             ← git submodule, upstream https://github.com/kaist-ina/TopFull (read locally; also cloned separately on the VMs)
-context/             ← papers/decks: RetryGuard.pdf, TopFull.pdf, project-plan pptx files
+context/             ← papers/decks: RetryGuard.pdf, TopFull.pdf, Evaluating_RetryGuard_on_TopFull.{pdf,md} (current eval deck + transcription)
 canvases/            ← interactive workplan canvas for Cursor (topfull-retryguard-workplan.canvas.tsx)
 infra/vm-ips.env     ← a snapshot of VM IPs/user from one teammate's session — likely STALE, see §7
 .cursor/rules/topfull-ssh.mdc ← always-applied rule: SSH conventions for the 3 VMs
@@ -54,14 +55,17 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 |---|---|
 | [PREREQUISITES.md](Guides%20and%20Info/PREREQUISITES.md) | Understand what should be true before any cloud work (mostly historical now — VMs already exist) |
 | [MENTOR-COORDINATION.md](Guides%20and%20Info/MENTOR-COORDINATION.md) | Understand decisions mentors already made (GCP, Istio-based RetryGuard integration, eval strategy) |
-| [WORKPLAN.md](Guides%20and%20Info/WORKPLAN.md) | See the full Phase 0–7 plan with Why/How/Done-when for each step (mostly complete — Phases 0–4 done) |
+| [WORKPLAN.md](Guides%20and%20Info/WORKPLAN.md) | See the full Phase 0–7 plan with Why/How/Done-when for each step (Phases 0–6 done; Phase 7 remaining) |
 | [SETUP-GUIDE.md](Guides%20and%20Info/SETUP-GUIDE.md) | Get exact commands for cluster/Istio/dependency setup, if something needs to be rebuilt |
 | [MANAGED-KUBERNETES.md](Guides%20and%20Info/MANAGED-KUBERNETES.md) | Understand why we used self-managed `kubeadm` K8s instead of GKE (decision already made — not adopted) |
 | [CONNECT-VMS.md](Guides%20and%20Info/CONNECT-VMS.md) | **SSH into the VMs.** Canonical playbook — also mirrored in `.cursor/rules/topfull-ssh.mdc` (always-applied) |
 | **[PHASE5-EXPERIMENTS-GUIDE.md](Guides%20and%20Info/PHASE5-EXPERIMENTS-GUIDE.md)** | Canonical reference for the experiment runner + scenario config system. Read before touching `experiments/` |
-| **[PHASE5-PHASE6-RUNLIST.md](Guides%20and%20Info/PHASE5-PHASE6-RUNLIST.md)** | **Matrix checklist + where results live.** All 38 runs marked done as of 2026-08-15; start here for inventory / gaps before Phase 7 |
+| **[PHASE5-PHASE6-RUNLIST.md](Guides%20and%20Info/PHASE5-PHASE6-RUNLIST.md)** | **Matrix checklist.** All 38 runs done as of 2026-08-15; all 38 folders are local and in git. The “where results live” header in that file is stale |
 | [EXPERIMENT-READINESS-WORKPLAN.md](Guides%20and%20Info/EXPERIMENT-READINESS-WORKPLAN.md) | Historical smoke-validation checklist (Steps 1–8 passed 2026-08-07). Do not mix smoke folders into Phase 7 analysis |
-| [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) | **Next for Phase 7.** What each run produces, how to pull/verify, how to load for charts |
+| [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) | What each run produces, how to pull/verify, how to load for charts |
+| **[PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md)** | **Read before analysing.** Three gaps found in the finished matrix (no re-enable events → S5 unanswerable; no P99 — resolved by dropping it, use P95; no retries-per-request) and what is still answerable |
+| **[PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md)** | **Runbook.** Exact scenario runs left to execute to close Gap 1 and Gap 3 (mechanisms already built/tested/live-validated) — Tier 1 required (6 runs), Tier 2 recommended (8 runs), verification steps, and what stays open regardless |
+| [Evaluating_RetryGuard_on_TopFull.md](context/Evaluating_RetryGuard_on_TopFull.md) | **Eval plan deck** (transcription of the PDF). Slides 8–9 open questions, 11–15 scenario objectives, 16 measurement layers — source of truth for what Phase 7 is supposed to answer |
 | [SCENARIOS-GUIDE.md](Guides%20and%20Info/SCENARIOS-GUIDE.md) | Understand each of the 5 scenarios in detail: what it tests, load setup, manual step-by-step (pre-dates `run_scenario.py` automation, but good for *why*) |
 | [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md) | Understand exactly how `experiments/retryguard.py` maps to paper Algorithm 1, its metric source, endpoint→service map, VS patch mechanics, log format |
 | [NEXT-PHASES-PLAN.md](Guides%20and%20Info/NEXT-PHASES-PLAN.md) | See the presentation-track vs lab-track split and near-term suggested order |
@@ -70,7 +74,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-08-16)
+## 4. Current status (as of 2026-08-20)
 
 ### ✅ Done
 
@@ -78,17 +82,19 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 - **Experiment infrastructure** — `run_scenario.py`, `run_all_scenarios.py` (38-slot matrix), 14 YAMLs, RetryGuard, VirtualServices, metric_collector fix — complete (PHASE5-EXPERIMENTS-GUIDE.md §6).
 - **Experiment readiness (smoke)** — Steps 1–8 passed 2026-08-07. Smoke data is **not** matrix data.
 - **Phase 5 & 6 matrix (38 runs)** — complete as of 2026-08-15:
-  - Slots 1–9 (S1 base×3, S1 RG×3, S2 base×3): run 2026-08-11 (Ido); S1 folders still on Ido’s machine.
+  - Slots 1–9 (S1 base×3, S1 RG×3, S2 base×3): run 2026-08-11 (Ido).
   - Slots 10–38: resumed with `run_all_scenarios.py --yes --resume 9` on 2026-08-15 (~7h); slot 17 (S3 RG run2) re-run after a permission failure on a stale master folder.
-  - Local `experiments/results/`: 29 matrix folders (S2 RG, S3, S4A/B, S5). Master also has S2 baseline×3 (not yet pulled to this laptop).
   - Batch runner bumped touched configs to next free `run_number` (typically 4 for ×3 scenarios, 3 for S5).
+- **Results consolidated** — all 38 matrix folders are on this laptop in `experiments/results/` **and tracked in git** (`90c43c9` on 2026-08-20 added S1×6 and S2 baseline×3). Older “S1 on Ido’s machine / S2 baseline on master only / 29 local folders” notes are stale.
+- **Results audit (2026-08-20)** — [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md). **30 of 38 runs are usable** (all except the 8 Scenario 5 interval runs). Three gaps found: (a) **zero `OFF→ON` events in all 23 RetryGuard runs**, so S5 has no signal and S2 never completed disable→recover→re-enable — recovery-phase `locust.phases` mechanism + S2/S5 configs updated, not yet re-run; (b) **`Latency99` is 0 in every row** (hardcoded in TopFull's `metric_collector.py`) — **resolved: P99 dropped as a target metric**, report P95; (c) **no retries-per-request series** in the finished matrix — **collector built** (`experiments/envoy_retry_collector.py`, wired into `run_scenario.py`, enabled in all 14 YAMLs, unit-tested) but existing folders predate it; deploy the script to master and re-run to close the data gap. Layer 2 CPU/mem is still unwired; no scenario objective or open question depends on it.
+- **Eval deck transcribed** — `context/Evaluating_RetryGuard_on_TopFull.md` (from the PDF). Replaces the older project-plan pptx files.
+- **Envoy retry collector (Gap 3, 2026-08-20)** — scrapes caller-side Envoy outbound retry counters via `kubectl exec` into `istio-proxy`; writes `envoy_retries_{frontend,checkoutservice}.csv`. **Live-validated end-to-end** on the real cluster: found and fixed a real blocker (Istio's default stats reduction hides `upstream_rq_retry*`; `run_scenario.py` now self-heals it via `ensure_envoy_stats_enabled()`), deployed the script to master, and smoke-tested it producing correctly-formatted CSVs. Not present in the existing 38 results folders — needs fresh runs, see [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md).
 
 ### ❌ Not done yet — remaining work
 
-1. **Consolidate results for Phase 7:** copy S1×6 from Ido; optionally `scp` S2 baseline×3 from master → `experiments/results/`.
-2. **Phase 7 — evaluation + report.** Time-series charts (baseline vs RetryGuard); written report on the open questions (§8). **Known gap:** per-run CPU/mem/`num_instances.csv` from `resource_collector.py` are not written into results (in-memory RL only) — wire or drop before relying on resource charts.
+1. **Phase 7 — evaluation + report.** Time-series charts (baseline vs RetryGuard) on the 30 usable runs; written report on the open questions (§8). **Read [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md) first.** Decide whether to re-run S5 with a recovery phase or reframe it as a negative result (re-enable interval is inert under saturating overload alongside TopFull).
 
-**Recommended order:** gather missing result folders → Phase 7 analysis per [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md).
+**Recommended order:** review the gaps doc → decide on S5 → Phase 7 analysis per [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md).
 
 ### ⚠️ Live infra caveat (check before assuming the cluster is healthy)
 
@@ -112,7 +118,7 @@ If it doesn't recover within a few minutes, follow the troubleshooting table in 
 | 4A/4B | Topology Position | `productcatalogservice` (A) vs `paymentservice` (B) CPU-limited | 10 min | `scenario_4{a,b}_{baseline,retryguard}.yaml` |
 | 5 | Re-enable Interval Tuning | RetryGuard `re_enable_windows` = 1/2/3/6 (10/20/30/60s) | 10 min | `scenario_5_interval_{10,20,30,60}s.yaml` |
 
-Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit` (kubectl patch), not replica scaling.
+Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit` (kubectl patch), not replica scaling. Scenario 5's existing 8 runs have **no re-enable events** — the interval parameter was never exercised (see [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md)).
 
 ---
 
@@ -164,14 +170,14 @@ Full config schema, `scale_constraints` methods, and troubleshooting: [PHASE5-EX
 
 ## 8. Key open questions this project is trying to answer
 
-(from MENTOR-COORDINATION.md / SCENARIOS-GUIDE.md — keep these in mind when interpreting results)
+(from [Evaluating_RetryGuard_on_TopFull.md](context/Evaluating_RetryGuard_on_TopFull.md) slides 8–9 / MENTOR-COORDINATION.md — keep these in mind when interpreting results. Answerability after the 2026-08-20 audit is in [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md).)
 
-- Does RetryGuard help at the **system level**, the **per-microservice level**, or both? (Mentors expect system-level gain may be small (~0.2%) while specific services improve a lot (~30%).)
-- **Topology beneficiaries** — which services gain most from suppressed retries?
-- **Chain propagation** — does relief at a bottleneck propagate upstream to callers?
-- **Controller interaction** — how do TopFull's RL loop (1s) and RetryGuard (30s windows) interact/oscillate?
-- **Topology position sensitivity** — does RetryGuard help more where TopFull's entry-level signal is weaker (Checkout-mediated Payment vs direct ProductCatalog)?
-- **Interval sensitivity** — does the paper's 30s default hold up when running alongside TopFull's faster RL loop?
+- Does RetryGuard help at the **system level**, the **per-microservice level**, or both? (Mentors expect system-level gain may be small (~0.2%) while specific services improve a lot (~30%).) — **answerable** (goodput, P95, rejection).
+- **Topology beneficiaries** — which services gain most from suppressed retries? — **answerable** (per-endpoint CSVs).
+- **Chain propagation** — does relief at a bottleneck propagate upstream to callers? — **answerable**, coarse (only 5 Locust endpoints).
+- **Controller interaction** — how do TopFull's RL loop (1s) and RetryGuard (30s windows) interact/oscillate? — **partial** (admitted `RPS` as proxy; `num_agent.csv` is empty; no recover→re-enable cycle).
+- **Topology position sensitivity** — does RetryGuard help more where TopFull's entry-level signal is weaker (Checkout-mediated Payment vs direct ProductCatalog)? — **answerable** (S4A vs S4B).
+- **Interval sensitivity** — does the paper's 30s default hold up when running alongside TopFull's faster RL loop? — **blocked** (zero `OFF→ON` events; S5 unusable).
 
 ---
 

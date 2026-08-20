@@ -401,6 +401,7 @@ def start_master_stack(cfg: dict):
         "pkill -9 -f '[p]roxy_online_boutique' 2>/dev/null; "
         "pkill -9 -f '[d]eploy_rl.py' 2>/dev/null; "
         "pkill -9 -f '[m]etric_collector.py' 2>/dev/null; "
+        "pkill -9 -f '[e]nvoy_retry_collector.py' 2>/dev/null; "
         "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
         "tmux kill-server 2>/dev/null; "
         "sleep 2; true",
@@ -494,6 +495,94 @@ def start_retryguard(cfg: dict):
 
 
 # --------------------------------------------------------------------------- #
+#  Envoy retry-stats collector (Gap 3 — retries per request)
+# --------------------------------------------------------------------------- #
+
+# Istio's default proxyStatsMatcher strips detailed per-cluster stats (including
+# upstream_rq_retry*) from the Envoy admin /stats endpoint to save memory. Without
+# this annotation, envoy_retry_collector.py silently gets all-zero data forever —
+# confirmed live on 2026-08-20 (PHASE7-DATA-GAPS.md Gap 3). Applying it via
+# kubectl patch is idempotent: a no-op (no pod restart) once already applied.
+STATS_INCLUSION_REGEX = r"cluster\.outbound.*upstream_rq.*"
+
+
+def ensure_envoy_stats_enabled(cfg: dict, caller_pods: list):
+    """
+    Patch each caller Deployment's pod template with
+    sidecar.istio.io/statsInclusionRegexps so Envoy actually exposes
+    upstream_rq_retry* counters. Idempotent — only causes a rollout the
+    first time it's applied to a given deployment.
+    """
+    master = cfg["infra"]["master_ssh_host"]
+    patch = json.dumps({
+        "spec": {"template": {"metadata": {"annotations": {
+            "sidecar.istio.io/statsInclusionRegexps": STATS_INCLUSION_REGEX,
+        }}}}
+    })
+    write_remote_json(master, "/tmp/envoy_stats_patch.json",
+                       json.loads(patch))
+    for dep in caller_pods:
+        r = ssh(master,
+                f"kubectl patch deployment {dep} -n default --type merge "
+                f"--patch-file /tmp/envoy_stats_patch.json",
+                check=False)
+        if r.returncode != 0:
+            print(f"[WARN] Could not patch {dep} for Envoy stats inclusion: "
+                  f"{r.stderr.strip()}")
+            continue
+        ssh(master,
+            f"kubectl rollout status deployment/{dep} -n default --timeout=60s",
+            check=False)
+    step(f"Envoy stats inclusion ensured on: {', '.join(caller_pods)}")
+
+
+def start_envoy_retry_collector(cfg: dict):
+    """
+    Start the Envoy sidecar retry-stats scraper on master.
+
+    Independent of RetryGuard: must run in both baseline and RetryGuard
+    conditions so retry volume is comparable across arms.
+    """
+    erc_cfg = cfg.get("envoy_retry_collector", {})
+    if not erc_cfg.get("enabled", False):
+        return
+
+    banner("Starting Envoy retry collector")
+    master = cfg["infra"]["master_ssh_host"]
+    venv = cfg["infra"]["venv_activate"]
+    script = cfg["infra"].get(
+        "envoy_retry_collector_script",
+        "/home/idozacharia/experiments/envoy_retry_collector.py",
+    )
+
+    caller_pods = list(erc_cfg.get(
+        "caller_target_map", {"frontend": [], "checkoutservice": []}
+    ).keys())
+    ensure_envoy_stats_enabled(cfg, caller_pods)
+
+    params = {
+        "poll_interval_seconds": int(erc_cfg.get("poll_interval_seconds", 5)),
+    }
+    if "caller_target_map" in erc_cfg:
+        params["caller_target_map"] = erc_cfg["caller_target_map"]
+
+    write_remote_json(master, "/tmp/envoy_retry_params.json", params)
+    step(f"Uploaded Envoy retry collector params: "
+         f"poll_interval={params['poll_interval_seconds']}s")
+
+    start_script = (
+        f"#!/bin/bash\n"
+        f"source {venv}\n"
+        f"python3 {script} --params /tmp/envoy_retry_params.json\n"
+    )
+    write_remote_script(master, "/tmp/rg_envoy_retry.sh", start_script)
+    ssh(master, "tmux new-session -d -s envoyretry /tmp/rg_envoy_retry.sh")
+    step(f"Started: Envoy retry collector "
+         f"(tmux session: envoyretry, script: {script})")
+    wait_with_progress(3, "Envoy retry collector init")
+
+
+# --------------------------------------------------------------------------- #
 #  Locust
 # --------------------------------------------------------------------------- #
 
@@ -574,13 +663,15 @@ def stop_locust(cfg: dict):
 
 def stop_master_stack(cfg: dict):
     master = cfg["infra"]["master_ssh_host"]
-    step("Stopping master processes (metric_collector, deploy_rl, proxy, RetryGuard, Ray)...")
+    step("Stopping master processes (metric_collector, deploy_rl, proxy, "
+         "RetryGuard, Envoy retry collector, Ray)...")
     # Bracket trick avoids pkill matching this ssh/bash -c line itself.
     ssh(master,
         "pkill -f '[m]etric_collector.py' 2>/dev/null; "
         "pkill -f '[d]eploy_rl.py' 2>/dev/null; "
         "pkill -f '[p]roxy_online_boutique' 2>/dev/null; "
         "pkill -f '[r]etryguard.py' 2>/dev/null; "
+        "pkill -f '[e]nvoy_retry_collector.py' 2>/dev/null; "
         "sleep 2; "
         "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
         "tmux kill-server 2>/dev/null; "
@@ -649,6 +740,7 @@ def collect_results(cfg: dict) -> str:
         "run_number":    cfg["run_number"],
         "duration_seconds": cfg["duration_seconds"],
         "retryguard":    cfg["retryguard"],
+        "envoy_retry_collector": cfg.get("envoy_retry_collector", {}),
         "scale_constraints": cfg.get("scale_constraints", []),
         "log_folder":    log_folder,
         "collected_at":  datetime.utcnow().isoformat() + "Z",
@@ -690,6 +782,11 @@ def run(config_path: str):
         print(f"    threshold      : {rg['rejection_threshold']*100:.0f}%")
         print(f"    disable_windows: {rg['disable_windows']}  ({rg['disable_windows']*wd}s)")
         print(f"    re_enable_windows: {rew}  ({rew*wd}s)")
+    erc_enabled = cfg.get("envoy_retry_collector", {}).get("enabled", False)
+    print(f"  Envoy retry collector: {'ON' if erc_enabled else 'OFF'}")
+    if erc_enabled:
+        print(f"    poll_interval  : "
+              f"{cfg['envoy_retry_collector'].get('poll_interval_seconds', 5)}s")
     if cfg.get("scale_constraints"):
         print(f"  Constraints:")
         for c in cfg["scale_constraints"]:
@@ -714,6 +811,9 @@ def run(config_path: str):
         restore_records = apply_constraints(cfg)
 
         start_master_stack(cfg)
+
+        # Envoy retry collector is independent of RetryGuard — run in both arms.
+        start_envoy_retry_collector(cfg)
 
         if rg_enabled:
             start_retryguard(cfg)

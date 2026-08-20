@@ -428,7 +428,7 @@ curl -I http://MASTER_IP:30440
 
 ## Phase 7 - Evaluation
 
-Compare **Phase 5 baseline** vs **Phase 6 RetryGuard** on: goodput, P99 latency, rejection %, retries/request, CPU/memory, pod replica count. Write report per mentor expectations ([MENTOR-COORDINATION.md](MENTOR-COORDINATION.md)); reference RetryGuard paper Table 1 style metrics.
+Compare **Phase 5 baseline** vs **Phase 6 RetryGuard** on: goodput, P95 latency, rejection %, retries/request, CPU/memory, pod replica count. Write report per mentor expectations ([MENTOR-COORDINATION.md](MENTOR-COORDINATION.md)); reference RetryGuard paper Table 1 style metrics.
 
 ---
 

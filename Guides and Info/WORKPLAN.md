@@ -596,7 +596,7 @@ Before Phase 1: [PREREQUISITES.md](PREREQUISITES.md) and [MENTOR-COORDINATION.md
 
 **How:**
 
-1. Plot or table: goodput, p99 latency, rejection %, retries per request.
+1. Plot or table: goodput, p95 latency, rejection %, retries per request.
 2. Compare CPU/memory and pod replica counts during overload.
 3. Check if RetryGuard reduced retry storms without hurting goodput (paper Table 1).
 
@@ -641,7 +641,7 @@ Each scenario is run with two retry conditions (baseline and RetryGuard), and ea
 | Metric | Description |
 |--------|-------------|
 | **Goodput (rps)** | Successful responses within latency SLO |
-| **P99 Latency (ms)** | End-to-end 99th percentile |
+| **P95 Latency (ms)** | End-to-end 95th percentile (P99 dropped — see [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 2; TopFull's collector hardcodes it to 0, and neither source paper nor the eval deck requires it) |
 | **Rejection Rate (%)** | Failed requests — the signal RetryGuard reads to decide whether to suppress retries |
 
 ### Cost / efficiency (Layer 2 — cAdvisor via `resource_collector.py`)

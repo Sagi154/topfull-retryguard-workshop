@@ -391,7 +391,7 @@ After all four intervals are done, compare:
 
 | Layer | Tool | What to collect |
 |-------|------|----------------|
-| System & API performance | `metric_collector.py` → `logs/*.csv` | Goodput (rps), P99 latency, rejection rate per API |
+| System & API performance | `metric_collector.py` → `logs/*.csv` | Goodput (rps), P95 latency, rejection rate per API |
 | Retries | `metric_collector.py` | Retries per request — the most direct measure of RetryGuard's effect |
 | Resource usage | `resource_collector.py` (cAdvisor) | CPU, memory per pod; pod replica counts (`num_instances.csv`) |
 | Controller state | RetryGuard script logs | Which services had retries toggled, and when; time between disable and re-enable |

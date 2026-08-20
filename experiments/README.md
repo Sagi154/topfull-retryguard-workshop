@@ -108,8 +108,12 @@ scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_
 | `retryguard.re_enable_windows` | int | Consecutive windows below threshold → re-enable |
 | `retryguard.retry_attempts_on` | int | Istio retries.attempts when enabled |
 | `retryguard.retry_attempts_off` | int | Istio retries.attempts when disabled |
+| `envoy_retry_collector.enabled` | bool | Whether to scrape Envoy outbound retry counters (default true in all configs) |
+| `envoy_retry_collector.poll_interval_seconds` | int | Scrape interval (default 5) |
 | `log_folder` | string | Output folder name (on master under `results_base_path`) |
 | `infra.*` | map | SSH hosts, paths, venv — override if your setup differs |
+| `infra.retryguard_script` | string | Path to `retryguard.py` on master |
+| `infra.envoy_retry_collector_script` | string | Path to `envoy_retry_collector.py` on master |
 
 ### scale_constraints — method: replicas
 
@@ -138,5 +142,5 @@ The runner removes the cpu limit after the run via a JSON Patch.
 
 ## Known limitations / TODOs
 
-- **Locust user counts** — `locust.user_counts` in the config is not yet wired into the create scripts. The scripts use hardcoded values (`GETPRODUCT=100`, etc.). Update the scripts to read env-var overrides, then the runner can inject the correct counts per scenario.
-- **RetryGuard script** — `retryguard.py` must be present on the master at the path specified by `infra.retryguard_script`. This is the script you implement in Phase 6.
+- **Envoy retry collector on master** — `envoy_retry_collector.py` must be present on the master at `infra.envoy_retry_collector_script` (default `/home/idozacharia/experiments/envoy_retry_collector.py`) before any run with `envoy_retry_collector.enabled: true`. Deploy with `scp` the same way as `retryguard.py`.
+- **Retries-per-request in the existing matrix** — the finished 38 folders predate the Envoy collector; only new runs produce `envoy_retries_*.csv`. See PHASE7-DATA-GAPS.md Gap 3.

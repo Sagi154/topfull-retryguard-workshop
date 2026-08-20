@@ -1,6 +1,12 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 5 — Re-enable Interval Tuning  |  Interval: 30s (PAPER DEFAULT)
 # re_enable_windows: 3  →  3 × 30s = 90s effective wait
+#
+# Recovery phase (added for Gap 1, see PHASE7-DATA-GAPS.md): duration
+# extended 600s -> 900s with a load-drop phase at t=300s so recovery can
+# occur and re_enable_windows gets exercised. Load profile must stay
+# byte-identical to scenario_2_baseline.yaml, scenario_2_retryguard.yaml,
+# and the other three scenario_5_interval_*.yaml configs.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 5
@@ -8,19 +14,29 @@ scenario_name: interval_tuning
 condition: retryguard
 run_number: 3
 description: >
-  Sustained overload. RetryGuard on, re-enable interval = 30s (paper default,
+  Sustained overload 0-300s, then dropped to ~25% load 300-900s so recovery
+  can occur. RetryGuard on, re-enable interval = 30s (paper default,
   RetryGuard Sec. 6.2). The reference point for all interval comparisons.
 
-duration_seconds: 600
+duration_seconds: 900
 
 locust:
-  user_counts:
-    getproduct:   100
-    postcheckout: 20
-    getcart:      100
-    postcart:     100
-    emptycart:    300
   spawn_rate: 90
+  phases:
+    - at_seconds: 0
+      user_counts:
+        getproduct:   100
+        postcheckout: 20
+        getcart:      100
+        postcart:     100
+        emptycart:    300
+    - at_seconds: 300
+      user_counts:
+        getproduct:   25
+        postcheckout: 5
+        getcart:      25
+        postcart:     25
+        emptycart:    75
   scripts:
     - online_boutique_create.sh
     - online_boutique_create2.sh
@@ -36,6 +52,13 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
+# ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
+# Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).
+# Independent of RetryGuard: enabled in both baseline and RetryGuard arms.
+envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
 log_folder: run_topfull_retryguard_interval_30s_run3
 
 infra:
@@ -46,3 +69,4 @@ infra:
   venv_activate: /home/idozacharia/TopFull/venv/bin/activate
   results_base_path: /home/idozacharia/experiments/results
   retryguard_script: /home/idozacharia/experiments/retryguard.py
+  envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py

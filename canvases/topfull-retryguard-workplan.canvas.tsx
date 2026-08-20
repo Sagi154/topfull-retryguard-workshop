@@ -578,7 +578,7 @@ const phases: {
         status: "pending",
         why: "This is the core project deliverable.",
         how: [
-          "Plot or table: goodput, p99 latency, rejection %, retries per request.",
+          "Plot or table: goodput, p95 latency, rejection %, retries per request.",
           "Compare CPU/memory and pod replica counts during overload.",
           "Check if RetryGuard reduced retry storms without hurting goodput (paper Table 1).",
         ],
@@ -687,8 +687,8 @@ export default function WorkplanCanvas() {
             <Stack gap={6}>
               <Text weight="semibold">Goodput (rps)</Text>
               <Text tone="secondary" size="small">Successful responses within latency SLO</Text>
-              <Text weight="semibold">P99 Latency (ms)</Text>
-              <Text tone="secondary" size="small">End-to-end 99th percentile</Text>
+              <Text weight="semibold">P95 Latency (ms)</Text>
+              <Text tone="secondary" size="small">End-to-end 95th percentile</Text>
               <Text weight="semibold">Rejection Rate (%)</Text>
               <Text tone="secondary" size="small">Failed requests</Text>
             </Stack>

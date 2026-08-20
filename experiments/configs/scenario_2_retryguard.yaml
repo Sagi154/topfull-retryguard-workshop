@@ -12,6 +12,14 @@
 #   - Goodput may recover or stabilize at a higher level vs baseline
 #   - TopFull RL may increase admission rate (watch deploy_rl output)
 #   - disable → recover → re-enable cycle repeating over 5–10 min
+#
+# Recovery phase (added for Gap 1, see PHASE7-DATA-GAPS.md): the original
+# flat 600s overload triggered disables reliably but rejection never fell
+# back under the 20% threshold, so `re_enable_windows` never got exercised
+# (zero OFF->ON events across all 23 RetryGuard runs). Duration extended
+# 600s -> 900s and a load-drop phase added at t=300s so `consecutive_low`
+# can actually accumulate. Load profile must stay byte-identical to
+# scenario_2_baseline.yaml and all four scenario_5_interval_*.yaml configs.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 2
@@ -19,19 +27,30 @@ scenario_name: sustained_overload
 condition: retryguard
 run_number: 4
 description: >
-  Ramp to ρ > 1, hold 10 minutes. TopFull + RetryGuard both active.
-  RetryGuard suppresses retries per service when rejection > 20%.
+  Ramp to ρ > 1, hold 5 min (0-300s) then drop to ~25% load for the
+  remaining 10 min (300-900s). TopFull + RetryGuard both active.
+  RetryGuard suppresses retries per service when rejection > 20%, and the
+  load drop gives the disable -> recover -> re-enable cycle room to complete.
 
-duration_seconds: 600
+duration_seconds: 900
 
 locust:
-  user_counts:
-    getproduct:   100
-    postcheckout: 20
-    getcart:      100
-    postcart:     100
-    emptycart:    300
   spawn_rate: 90
+  phases:
+    - at_seconds: 0
+      user_counts:
+        getproduct:   100
+        postcheckout: 20
+        getcart:      100
+        postcart:     100
+        emptycart:    300
+    - at_seconds: 300
+      user_counts:
+        getproduct:   25
+        postcheckout: 5
+        getcart:      25
+        postcart:     25
+        emptycart:    75
   scripts:
     - online_boutique_create.sh
     - online_boutique_create2.sh
@@ -47,6 +66,13 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
+# ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
+# Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).
+# Independent of RetryGuard: enabled in both baseline and RetryGuard arms.
+envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
 log_folder: run_topfull_retryguard_sustained_overload_run4
 
 infra:
@@ -57,3 +83,4 @@ infra:
   venv_activate: /home/idozacharia/TopFull/venv/bin/activate
   results_base_path: /home/idozacharia/experiments/results
   retryguard_script: /home/idozacharia/experiments/retryguard.py
+  envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py

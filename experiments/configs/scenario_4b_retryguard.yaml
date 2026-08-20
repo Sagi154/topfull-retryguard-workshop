@@ -41,6 +41,13 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
+# ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
+# Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).
+# Independent of RetryGuard: enabled in both baseline and RetryGuard arms.
+envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
 log_folder: run_topfull_retryguard_topology_position_B_run4
 
 infra:
@@ -51,3 +58,4 @@ infra:
   venv_activate: /home/idozacharia/TopFull/venv/bin/activate
   results_base_path: /home/idozacharia/experiments/results
   retryguard_script: /home/idozacharia/experiments/retryguard.py
+  envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py

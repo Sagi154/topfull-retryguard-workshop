@@ -218,5 +218,145 @@ class TestLaunchLocustWiring(unittest.TestCase):
         mock_launch.assert_called_once_with(cfg, {"getproduct": 25}, 20)
 
 
+class TestEnvoyRetryCollectorWiring(unittest.TestCase):
+    def _cfg(self, enabled=True):
+        return {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "venv_activate": "/home/idozacharia/TopFull/venv/bin/activate",
+                "envoy_retry_collector_script":
+                    "/home/idozacharia/experiments/envoy_retry_collector.py",
+            },
+            "envoy_retry_collector": {
+                "enabled": enabled,
+                "poll_interval_seconds": 5,
+            },
+        }
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_start_uploads_params_and_launches_tmux(
+        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(enabled=True)
+        run_scenario.start_envoy_retry_collector(cfg)
+
+        json_path, params = mock_write_json.call_args[0][1:3]
+        self.assertEqual(json_path, "/tmp/envoy_retry_params.json")
+        self.assertEqual(params["poll_interval_seconds"], 5)
+        self.assertNotIn("caller_target_map", params)
+
+        script_path, script_body = mock_write_script.call_args[0][1:3]
+        self.assertEqual(script_path, "/tmp/rg_envoy_retry.sh")
+        self.assertIn("envoy_retry_collector.py --params /tmp/envoy_retry_params.json",
+                      script_body)
+
+        tmux_calls = [
+            c for c in mock_ssh.call_args_list
+            if "tmux new-session" in c.args[1] and "envoyretry" in c.args[1]
+        ]
+        self.assertEqual(len(tmux_calls), 1)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_start_noop_when_disabled(
+        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(enabled=False)
+        run_scenario.start_envoy_retry_collector(cfg)
+        mock_ssh.assert_not_called()
+        mock_write_json.assert_not_called()
+        mock_write_script.assert_not_called()
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_start_passes_caller_target_map_override(
+        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(enabled=True)
+        cfg["envoy_retry_collector"]["caller_target_map"] = {
+            "frontend": ["cartservice"],
+        }
+        run_scenario.start_envoy_retry_collector(cfg)
+        params = mock_write_json.call_args[0][2]
+        self.assertEqual(params["caller_target_map"], {"frontend": ["cartservice"]})
+
+    @mock.patch("run_scenario.ssh")
+    def test_stop_master_stack_pkills_envoy_collector(self, mock_ssh):
+        cfg = {
+            "infra": {"master_ssh_host": "topfull-master"},
+        }
+        run_scenario.stop_master_stack(cfg)
+        cmd = mock_ssh.call_args[0][1]
+        self.assertIn("[e]nvoy_retry_collector.py", cmd)
+
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_ensure_envoy_stats_enabled_patches_each_caller(
+        self, mock_ssh, mock_write_json
+    ):
+        mock_ssh.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
+        cfg = {"infra": {"master_ssh_host": "topfull-master"}}
+        run_scenario.ensure_envoy_stats_enabled(cfg, ["frontend", "checkoutservice"])
+
+        patch_calls = [
+            c for c in mock_ssh.call_args_list
+            if "kubectl patch deployment" in c.args[1]
+        ]
+        self.assertEqual(len(patch_calls), 2)
+        self.assertIn("frontend", patch_calls[0].args[1])
+        self.assertIn("checkoutservice", patch_calls[1].args[1])
+
+        rollout_calls = [
+            c for c in mock_ssh.call_args_list
+            if "kubectl rollout status" in c.args[1]
+        ]
+        self.assertEqual(len(rollout_calls), 2)
+
+        patched_json = mock_write_json.call_args[0][2]
+        self.assertEqual(
+            patched_json["spec"]["template"]["metadata"]["annotations"]
+            ["sidecar.istio.io/statsInclusionRegexps"],
+            run_scenario.STATS_INCLUSION_REGEX,
+        )
+
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_ensure_envoy_stats_enabled_warns_but_continues_on_patch_failure(
+        self, mock_ssh, mock_write_json
+    ):
+        mock_ssh.return_value = SimpleNamespace(
+            returncode=1, stdout="", stderr="not found"
+        )
+        cfg = {"infra": {"master_ssh_host": "topfull-master"}}
+        # Must not raise.
+        run_scenario.ensure_envoy_stats_enabled(cfg, ["frontend"])
+        rollout_calls = [
+            c for c in mock_ssh.call_args_list
+            if "kubectl rollout status" in c.args[1]
+        ]
+        self.assertEqual(len(rollout_calls), 0)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ensure_envoy_stats_enabled")
+    @mock.patch("run_scenario.ssh")
+    def test_start_envoy_retry_collector_calls_ensure_stats_first(
+        self, mock_ssh, mock_ensure, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(enabled=True)
+        run_scenario.start_envoy_retry_collector(cfg)
+        mock_ensure.assert_called_once_with(
+            cfg, ["frontend", "checkoutservice"]
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

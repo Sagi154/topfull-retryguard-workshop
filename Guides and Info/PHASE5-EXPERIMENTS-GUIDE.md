@@ -24,10 +24,11 @@ Every scenario is run **multiple times** (≥3 per condition) because Locust gen
 | 1 | master | Go proxy (`proxy_online_boutique.go`) | `proxy` |
 | 2 | master | RL controller (`deploy_rl.py`) | `toprl` |
 | 3 | master | Metric collector (`metric_collector.py`) | `metrics` |
-| 4 | master | RetryGuard (`retryguard.py`) — Phase 6 only | `retryguard` |
-| 5 | loadgen | Locust (`online_boutique_create.sh` + `create2.sh`) | `loadgen` |
+| 4 | master | Envoy retry collector (`envoy_retry_collector.py`) — both conditions | `envoyretry` |
+| 5 | master | RetryGuard (`retryguard.py`) — Phase 6 / RetryGuard configs only | `retryguard` |
+| 6 | loadgen | Locust (`online_boutique_create.sh` + `create2.sh`) | `loadgen` |
 
-Order matters: `deploy_rl.py` requires the proxy to be running. `metric_collector.py` needs Locust traffic to be flowing or it crashes on a `KeyError` (the proxy has no metrics for endpoints with zero requests yet).
+Order matters: `deploy_rl.py` requires the proxy to be running. `metric_collector.py` needs Locust traffic to be flowing or it crashes on a `KeyError` (the proxy has no metrics for endpoints with zero requests yet). The Envoy retry collector is independent of RetryGuard and starts in both baseline and RetryGuard arms (see [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 3).
 
 ---
 
@@ -114,7 +115,7 @@ The collection tools are identical for every run. What changes is which metrics 
 
 | Layer | Tool | Output | Always collected? |
 |-------|------|--------|------------------|
-| API performance | `metric_collector.py` | `logs/*.csv` — goodput (rps), P99 latency, rejection rate per endpoint | Yes |
+| API performance | `metric_collector.py` | `logs/*.csv` — goodput (rps), P95 latency, rejection rate per endpoint | Yes |
 | Resource usage | `resource_collector.py` (inside deploy_rl) | CPU/memory per pod, `num_instances.csv` via cAdvisor | Yes |
 | Controller decisions | RetryGuard script logs | VirtualService patches with timestamps (service, old→new attempts) | Only when RetryGuard is on |
 | TopFull state | `overload_detection.py` output | Which APIs flagged as overloaded and at what priority | Yes |
@@ -164,12 +165,13 @@ Runs on Windows. Reads a YAML config and orchestrates the entire experiment over
 2. **Clear logs** — wipes `logs/*.csv` on master so results don't bleed across runs
 3. **Apply constraints** — runs `kubectl scale` or `kubectl patch` cpu_limit on the appropriate deployment; auto-detects and records original replica counts for clean restore
 4. **Start master stack** — SCPs LF-safe start scripts to master, launches proxy → deploy_rl → metric_collector into named tmux sessions; verifies `deploy_rl.py` actually started
-5. **Start RetryGuard** — if `retryguard.enabled: true`, SCPs `retryguard_params.json` to master and starts `retryguard.py` in its own tmux session
-6. **Start Locust** — generates and SCPs a launch script to loadgen, starts create scripts in tmux, verifies Locust processes are running
-7. **Progress bar** — updates every 15s; `Ctrl+C` aborts cleanly and still collects partial results
-8. **Stop** — stops Locust, kills all master processes (metric_collector, deploy_rl, proxy, RetryGuard, Ray workers, tmux)
-9. **Collect** — copies `logs/` to `results_base_path/<log_folder>/` on master; writes a `run_manifest.json` (config snapshot + timestamps) alongside the CSVs
-10. **Restore** — puts deployments back to their original state
+5. **Start Envoy retry collector** — if `envoy_retry_collector.enabled: true` (default in all 14 configs): first idempotently patches `frontend`/`checkoutservice` Deployments with the `sidecar.istio.io/statsInclusionRegexps` annotation so Envoy actually exposes retry counters (Istio hides them by default — see [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 3), then SCPs params JSON and starts `envoy_retry_collector.py` in tmux session `envoyretry` (both baseline and RetryGuard arms)
+6. **Start RetryGuard** — if `retryguard.enabled: true`, SCPs `retryguard_params.json` to master and starts `retryguard.py` in its own tmux session
+7. **Start Locust** — generates and SCPs a launch script to loadgen, starts create scripts in tmux, verifies Locust processes are running; if `locust.phases` is set, relaunches Locust at each `at_seconds` boundary during the run
+8. **Progress bar** — updates every 15s; `Ctrl+C` aborts cleanly and still collects partial results
+9. **Stop** — stops Locust, kills all master processes (metric_collector, deploy_rl, proxy, RetryGuard, Envoy retry collector, Ray workers, tmux)
+10. **Collect** — copies `logs/` to `results_base_path/<log_folder>/` on master; writes a `run_manifest.json` (config snapshot + timestamps) alongside the CSVs
+11. **Restore** — puts deployments back to their original state; after RetryGuard runs, restores VirtualService retries
 
 ### Usage
 
@@ -252,6 +254,16 @@ retryguard:
   retry_attempts_on: 3       # Istio VirtualService retries.attempts when enabled
   retry_attempts_off: 0      # Istio VirtualService retries.attempts when disabled
 
+# Gap 3 — retries-per-request via Envoy sidecar outbound stats.
+# Independent of RetryGuard: enable in both baseline and RetryGuard arms.
+envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 5
+  # Optional override of the hardcoded caller→target map in envoy_retry_collector.py:
+  # caller_target_map:
+  #   frontend: [cartservice, productcatalogservice, checkoutservice]
+  #   checkoutservice: [cartservice, productcatalogservice, paymentservice]
+
 log_folder: baseline_topfull_no_retryguard_sustained_overload_run1
 
 infra:
@@ -262,6 +274,7 @@ infra:
   venv_activate: /home/idozacharia/TopFull/venv/bin/activate
   results_base_path: /home/idozacharia/experiments/results
   retryguard_script: /home/idozacharia/experiments/retryguard.py
+  envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py
 ```
 
 ### Constraint methods for Scenarios 3/4

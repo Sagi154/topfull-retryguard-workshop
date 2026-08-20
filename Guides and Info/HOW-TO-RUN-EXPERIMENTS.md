@@ -219,8 +219,8 @@ Every `*.csv` file has the same five columns, one row per second:
 | `RPS` | Requests per second arriving at the endpoint |
 | `Fail` | Failed requests per second (5xx or timeout) |
 | `Goodput` | Successful requests per second (`RPS - Fail`) |
-| `Latency95` | 95th-percentile latency in milliseconds |
-| `Latency99` | 99th-percentile latency in milliseconds |
+| `Latency95` | 95th-percentile latency in milliseconds — the latency metric of record (P99 dropped, see [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 2) |
+| `Latency99` | Always `0` — hardcoded in TopFull's `metric_collector.py`. Do not use. |
 
 **The key comparison metric is `Goodput`** — how much useful work the system was able to complete. Under overload, `Fail` rises and `Goodput` drops.
 

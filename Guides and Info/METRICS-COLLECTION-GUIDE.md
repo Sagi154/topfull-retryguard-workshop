@@ -8,15 +8,18 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 
 ## 1. What gets collected and by what tool
 
-Every run produces output from three sources. The first two are always present; the third only when RetryGuard is on.
+Every run produces output from up to four sources. API performance and the run manifest are always present; RetryGuard decisions only when RetryGuard is on; Envoy retry counters when `envoy_retry_collector.enabled: true` (default in all 14 scenario configs).
 
 | Source | Written by | Format | Always collected? |
 |--------|-----------|--------|------------------|
 | **API performance** | `metric_collector.py` | One CSV per Locust endpoint, one row per second | Yes |
 | **Run manifest** | `run_scenario.py` at collection time | `run_manifest.json` | Yes |
 | **RetryGuard decisions** | `retryguard.py` | `retryguard.log` text file | RetryGuard runs only |
+| **Envoy retry counters** | `envoy_retry_collector.py` | `envoy_retries_{caller}.csv` + `envoy_retry_collector.log` | When collector enabled (default) |
 
-> **Known gap:** `resource_collector.py` (CPU/memory per pod via cAdvisor) is used in-memory by the RL loop but does **not** write per-run CSV files to the results folder. CPU/memory charts are not available from the current pipeline. If those metrics are needed for Phase 7, the collector needs to be wired up first — see EXPERIMENT-READINESS-WORKPLAN.md Step 8.
+> **Known gap (Layer 2):** `resource_collector.py` (CPU/memory per pod via cAdvisor) is used in-memory by the RL loop but does **not** write per-run CSV files to the results folder. CPU/memory charts are not available from the current pipeline. If those metrics are needed for Phase 7, the collector needs to be wired up first — see EXPERIMENT-READINESS-WORKPLAN.md Step 8.
+>
+> **Gap 3 note:** The Envoy retry collector closes the *instrumentation* half of the "retries per request" gap. The existing 38 matrix folders were collected *before* this collector existed, so they still have no retry-count series. New runs (including the Gap 1 recovery-phase re-runs) will produce the CSVs. See [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 3.
 
 ---
 
@@ -32,7 +35,10 @@ The runner (`run_scenario.py`) creates one folder per run on the master VM under
     getcart.csv
     postcart.csv
     emptycart.csv
-    retryguard.log          ← RetryGuard runs only
+    envoy_retries_frontend.csv          ← when envoy_retry_collector enabled
+    envoy_retries_checkoutservice.csv   ← when envoy_retry_collector enabled
+    envoy_retry_collector.log           ← when envoy_retry_collector enabled
+    retryguard.log                      ← RetryGuard runs only
     run_manifest.json
 ```
 
@@ -77,8 +83,8 @@ RPS, Fail, Goodput, Latency95, Latency99
 | `RPS` | Requests per second sent to this endpoint (offered load) |
 | `Fail` | Failed requests per second (5xx / timeout) |
 | `Goodput` | `RPS - Fail` — successful requests per second (the primary health metric) |
-| `Latency95` | 95th-percentile response latency in milliseconds |
-| `Latency99` | 99th-percentile response latency in milliseconds |
+| `Latency95` | 95th-percentile response latency in milliseconds — **the latency metric of record** (see [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 2) |
+| `Latency99` | Always `0` — hardcoded in TopFull's `metric_collector.py`, never actually computed. **Do not use.** P99 was dropped as a target metric on 2026-08-20: neither RetryGuard's paper (average-latency-based), TopFull's paper (goodput-based), nor the eval deck (generic "API latency") requires it. Column left as-is because it's written by TopFull's unmodified collector. |
 
 ### Timing
 
@@ -90,8 +96,8 @@ RPS, Fail, Goodput, Latency95, Latency99
 
 ```
 RPS,Fail,Goodput,Latency95,Latency99
-13.2,0,13.2,42,58
-13.5,0,13.5,40,55
+13.2,0,13.2,42,0
+13.5,0,13.5,40,0
 ...
 ```
 
@@ -101,8 +107,8 @@ RPS,Fail,Goodput,Latency95,Latency99
 
 ```
 RPS,Fail,Goodput,Latency95,Latency99
-20.1,19.6,0.5,4200,8100
-20.3,20.3,0.0,9999,9999
+20.1,19.6,0.5,4200,0
+20.3,20.3,0.0,9999,0
 ...
 ```
 
@@ -156,7 +162,44 @@ Cross-reference this timestamp with `postcheckout.csv` — you should see `Fail`
 
 ---
 
-## 5. The run manifest
+## 5. The Envoy retry CSVs (retries per request)
+
+**Files** (when `envoy_retry_collector.enabled: true`):
+
+| File | Caller sidecar scraped | Target services in rows |
+|------|------------------------|-------------------------|
+| `envoy_retries_frontend.csv` | `frontend` | `cartservice`, `productcatalogservice`, `checkoutservice` |
+| `envoy_retries_checkoutservice.csv` | `checkoutservice` | `cartservice`, `productcatalogservice`, `paymentservice` |
+| `envoy_retry_collector.log` | — | `START` / `WARNING` / `SHUTDOWN` / `EXIT` lines |
+
+**Why scrape callers, not callees.** Envoy records retry counters on the *caller's outbound* cluster stats (`cluster.outbound|…|<svc>.….upstream_rq_retry`), not on the callee's inbound stats. Scraping `frontend` and `checkoutservice` covers the four services we care about (the three RetryGuard toggles plus `paymentservice` for S4B).
+
+> **Prerequisite (handled automatically):** Istio's default stats reduction hides `upstream_rq_retry*` from the plain `/stats` dump unless the pod carries a `sidecar.istio.io/statsInclusionRegexps` annotation. `run_scenario.py`'s `start_envoy_retry_collector()` patches `frontend`/`checkoutservice` with this annotation before every run (idempotent — a no-op after the first time). See [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 3 for the full story; confirmed live on 2026-08-20.
+
+### Columns
+
+```
+timestamp, target_service, upstream_rq_total, upstream_rq_retry, upstream_rq_retry_success, upstream_rq_retry_limit_exceeded
+```
+
+Counters are **cumulative** for the pod's lifetime (Envoy never resets them mid-run). One row is written per target service per poll (default every 5s).
+
+### Deriving retries-per-request at analysis time
+
+```python
+# consecutive rows for the same target_service in one caller CSV
+d_retry = row_n["upstream_rq_retry"] - row_n1["upstream_rq_retry"]
+d_total = row_n["upstream_rq_total"] - row_n1["upstream_rq_total"]
+retries_per_request = (d_retry / d_total) if d_total > 0 else 0.0
+```
+
+Join against `retryguard.log` toggle timestamps to show that `ON→OFF` reduces the retry rate on that service.
+
+> The existing 38 matrix folders do **not** contain these files — they predate the collector. Only runs started after this collector was enabled will have them.
+
+---
+
+## 6. The run manifest
 
 **File:** `run_manifest.json` — written by `run_scenario.py` at the end of collection.
 
@@ -168,6 +211,7 @@ Cross-reference this timestamp with `postcheckout.csv` — you should see `Fail`
   "run_number": 1,
   "duration_seconds": 600,
   "retryguard": { "enabled": false, ... },
+  "envoy_retry_collector": { "enabled": true, "poll_interval_seconds": 5 },
   "scale_constraints": [],
   "log_folder": "baseline_topfull_no_retryguard_sustained_overload_run1",
   "collected_at": "2026-08-11T10:00:00Z"
@@ -178,7 +222,7 @@ This makes each folder self-describing — you don't need to look up the YAML to
 
 ---
 
-## 6. How to pull results to your PC
+## 7. How to pull results to your PC
 
 After each run completes (the runner prints the `scp` command for you):
 
@@ -205,7 +249,7 @@ experiments/results/
 
 ---
 
-## 7. Verifying a run after collection
+## 8. Verifying a run after collection
 
 Before moving on to the next run or repeating, do a quick sanity check:
 
@@ -228,7 +272,7 @@ ssh topfull-master "wc -l /home/idozacharia/experiments/results/<log_folder>/*.c
 
 ---
 
-## 8. Collecting across runs for analysis (Phase 7 preview)
+## 9. Collecting across runs for analysis (Phase 7 preview)
 
 Each run folder is independent. For Phase 7, you'll load all runs for a given scenario+condition together.
 
@@ -260,7 +304,7 @@ avg_series = pd.concat([df["Goodput"].iloc[:min_len] for df in dfs], axis=1).mea
 
 ---
 
-## 9. Quick reference — per-scenario focus metrics
+## 10. Quick reference — per-scenario focus metrics
 
 | Scenario | Primary files | What to look for |
 |----------|--------------|-----------------|
