@@ -1,27 +1,25 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 2 — Sustained Overload  |  Condition: BASELINE (no RetryGuard)
 #
-# The CORE experiment. Ramp Locust until offered load exceeds cluster capacity
-# (ρ > 1) and hold for 5–10 minutes. With Istio retries on (default), failed
-# requests are retried internally — invisible to TopFull's entry-rate limiter.
-# This creates a retry storm: one user request → multiple backend attempts →
-# cluster stays saturated even after TopFull cuts the entry rate.
+# The CORE experiment (eval deck slide 12 / SCENARIOS-GUIDE.md). Ramp Locust
+# until offered load exceeds cluster capacity (ρ > 1) and HOLD that level
+# for 10 minutes. With Istio retries on (default), failed requests are retried
+# internally — invisible to TopFull's entry-rate limiter. This creates a
+# retry storm: one user request → multiple backend attempts → cluster stays
+# saturated even after TopFull cuts the entry rate.
+#
+# This file is a FLAT 600s hold. It does NOT drop load mid-run. A 2026-08-20
+# edit briefly added a recovery phase here so re-enable could fire; that
+# diverged from the deck. Forced recovery now lives in Scenario 6. Existing
+# matrix runs 1–3 used this same flat shape; run4 is the next repeat (with
+# Envoy + resource collectors enabled).
 #
 # What to look for:
 #   - Rejection rates stay elevated despite TopFull throttling
-#   - Retries-per-request > 0 (visible in Istio/Envoy sidecar metrics)
+#   - Retries-per-request > 0 (Envoy sidecar metrics)
 #   - Goodput plateaus or drops
-#   - CPU stays high on constrained services
-#
-# Run duration: 10 minutes minimum. The retry storm must be visible across
-# multiple consecutive 30-second windows for a fair RetryGuard comparison.
-#
-# Recovery phase (added for Gap 1, see PHASE7-DATA-GAPS.md): the baseline has
-# no RetryGuard to disable/re-enable, but its load profile must stay
-# IDENTICAL to scenario_2_retryguard.yaml and the scenario_5_interval_*.yaml
-# configs (all benchmarked against this baseline) for the comparison to
-# remain apples-to-apples per slide 6's "Workload Scenario: Fixed" rule.
-# Duration extended 600s -> 900s and a load-drop phase added at t=300s.
+#   - Under this hold, RetryGuard (when on) typically disables and does NOT
+#     re-enable — that is a result, not a config bug (PHASE7-DATA-GAPS.md Gap 1)
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 2
@@ -29,37 +27,23 @@ scenario_name: sustained_overload
 condition: baseline
 run_number: 4
 description: >
-  Ramp to ρ > 1, hold 5 min (0-300s) then drop to ~25% load for the
-  remaining 10 min (300-900s) so the RetryGuard-arm comparison has a
-  recovery window. TopFull active, Istio default retries on, RetryGuard OFF.
-  Captures the retry storm as the unmanaged baseline.
+  Ramp to ρ > 1, hold 10 minutes. TopFull active, Istio default retries on,
+  RetryGuard OFF. Captures the retry storm as the unmanaged baseline.
 
 # ── Timing ──────────────────────────────────────────────────────────────────
-duration_seconds: 900          # 15 minutes: 5 min hold + 10 min recovery window
+duration_seconds: 600          # 10 minutes — deck hold, not the S6 recovery profile
 
 # ── Load ────────────────────────────────────────────────────────────────────
 # Full load — the default create.sh values already produce overload on our
 # 1-worker setup. Increase if rejection rates don't exceed 20% after ~2 min.
-# Phase 1 (t=300s) drops to ~25% of peak so downstream services can recover;
-# must be byte-identical to the phases in scenario_2_retryguard.yaml and all
-# four scenario_5_interval_*.yaml configs.
 locust:
+  user_counts:
+    getproduct:   100
+    postcheckout: 20
+    getcart:      100
+    postcart:     100
+    emptycart:    300
   spawn_rate: 90
-  phases:
-    - at_seconds: 0
-      user_counts:
-        getproduct:   100
-        postcheckout: 20
-        getcart:      100
-        postcart:     100
-        emptycart:    300
-    - at_seconds: 300
-      user_counts:
-        getproduct:   25
-        postcheckout: 5
-        getcart:      25
-        postcart:     25
-        emptycart:    75
   scripts:
     - online_boutique_create.sh
     - online_boutique_create2.sh
@@ -77,11 +61,13 @@ retryguard:
   retry_attempts_on: 3
   retry_attempts_off: 0
 
-# ── Output ───────────────────────────────────────────────────────────────────
 # ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
-# Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).
-# Independent of RetryGuard: enabled in both baseline and RetryGuard arms.
 envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
+# ── Resource usage collector (Layer 2 — CPU/memory per service) ──────────────
+resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
@@ -96,3 +82,4 @@ infra:
   results_base_path: /home/idozacharia/experiments/results
   retryguard_script: /home/idozacharia/experiments/retryguard.py
   envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py
+  resource_usage_collector_script: /home/idozacharia/experiments/resource_usage_collector.py

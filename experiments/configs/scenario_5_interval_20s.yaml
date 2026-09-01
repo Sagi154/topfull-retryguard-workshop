@@ -2,11 +2,10 @@
 # Scenario 5 — Re-enable Interval Tuning  |  Interval: 20s (below paper default)
 # re_enable_windows: 2  →  2 × 30s = 60s effective wait
 #
-# Recovery phase (added for Gap 1, see PHASE7-DATA-GAPS.md): duration
-# extended 600s -> 900s with a load-drop phase at t=300s so recovery can
-# occur and re_enable_windows gets exercised. Load profile must stay
-# byte-identical to scenario_2_baseline.yaml, scenario_2_retryguard.yaml,
-# and the other three scenario_5_interval_*.yaml configs.
+# Same load as Scenario 6 (forced recovery), NOT Scenario 2.
+# Load must stay byte-identical to scenario_6_recovery_{baseline,retryguard}.yaml
+# and the other three scenario_5_interval_*.yaml files. Compare against S6
+# baseline, not S2.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 5
@@ -60,6 +59,11 @@ envoy_retry_collector:
   enabled: true
   poll_interval_seconds: 5
 
+# ── Resource usage collector (Layer 2 — CPU/memory per service) ──────────────
+resource_usage_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
 log_folder: run_topfull_retryguard_interval_20s_run3
 
 infra:
@@ -71,3 +75,4 @@ infra:
   results_base_path: /home/idozacharia/experiments/results
   retryguard_script: /home/idozacharia/experiments/retryguard.py
   envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py
+  resource_usage_collector_script: /home/idozacharia/experiments/resource_usage_collector.py

@@ -1,25 +1,19 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 2 — Sustained Overload  |  Condition: RETRYGUARD ON
 #
-# Identical load to the baseline. RetryGuard watches per-service rejection
-# rates. After ~20% rejection persists across 2 consecutive 30-second windows,
-# it patches the Istio VirtualService for that service: retries.attempts → 0.
-# The retry storm subsides; TopFull's RL may then admit more traffic.
+# Identical FLAT 600s load to scenario_2_baseline.yaml. RetryGuard watches
+# per-service rejection rates. After ~20% rejection persists across 2
+# consecutive 30-second windows, it patches the Istio VirtualService:
+# retries.attempts → 0. The deck (slide 12) expects disable → recover →
+# re-enable under CONTINUED overload. Matrix runs 1–3 showed disable fires
+# and re-enable does not (rejection stays ~75–100%). That is Scenario 2's
+# result. To elicit OFF→ON by dropping offered load, use Scenario 6 / S5.
 #
 # What to look for:
 #   - RetryGuard log: VirtualService patches with timestamps
-#   - Retries-per-request drops after each patch
-#   - Goodput may recover or stabilize at a higher level vs baseline
-#   - TopFull RL may increase admission rate (watch deploy_rl output)
-#   - disable → recover → re-enable cycle repeating over 5–10 min
-#
-# Recovery phase (added for Gap 1, see PHASE7-DATA-GAPS.md): the original
-# flat 600s overload triggered disables reliably but rejection never fell
-# back under the 20% threshold, so `re_enable_windows` never got exercised
-# (zero OFF->ON events across all 23 RetryGuard runs). Duration extended
-# 600s -> 900s and a load-drop phase added at t=300s so `consecutive_low`
-# can actually accumulate. Load profile must stay byte-identical to
-# scenario_2_baseline.yaml and all four scenario_5_interval_*.yaml configs.
+#   - Retries-per-request drops after each disable
+#   - Goodput vs the flat S2 baseline
+#   - Whether TopFull RL admits more traffic after suppression
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 2
@@ -27,30 +21,19 @@ scenario_name: sustained_overload
 condition: retryguard
 run_number: 4
 description: >
-  Ramp to ρ > 1, hold 5 min (0-300s) then drop to ~25% load for the
-  remaining 10 min (300-900s). TopFull + RetryGuard both active.
-  RetryGuard suppresses retries per service when rejection > 20%, and the
-  load drop gives the disable -> recover -> re-enable cycle room to complete.
+  Ramp to ρ > 1, hold 10 minutes. TopFull + RetryGuard both active.
+  RetryGuard suppresses retries per service when rejection > 20%.
 
-duration_seconds: 900
+duration_seconds: 600
 
 locust:
+  user_counts:
+    getproduct:   100
+    postcheckout: 20
+    getcart:      100
+    postcart:     100
+    emptycart:    300
   spawn_rate: 90
-  phases:
-    - at_seconds: 0
-      user_counts:
-        getproduct:   100
-        postcheckout: 20
-        getcart:      100
-        postcart:     100
-        emptycart:    300
-    - at_seconds: 300
-      user_counts:
-        getproduct:   25
-        postcheckout: 5
-        getcart:      25
-        postcart:     25
-        emptycart:    75
   scripts:
     - online_boutique_create.sh
     - online_boutique_create2.sh
@@ -67,9 +50,12 @@ retryguard:
   retry_attempts_off: 0
 
 # ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
-# Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).
-# Independent of RetryGuard: enabled in both baseline and RetryGuard arms.
 envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
+# ── Resource usage collector (Layer 2 — CPU/memory per service) ──────────────
+resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
@@ -84,3 +70,4 @@ infra:
   results_base_path: /home/idozacharia/experiments/results
   retryguard_script: /home/idozacharia/experiments/retryguard.py
   envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py
+  resource_usage_collector_script: /home/idozacharia/experiments/resource_usage_collector.py

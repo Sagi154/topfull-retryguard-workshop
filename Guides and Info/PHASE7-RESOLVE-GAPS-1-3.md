@@ -18,12 +18,12 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 | **Layer 1** — API latency | ✅ Have it (`Latency95`; P99 dropped, see Gap 2) | ✅ Same | ✅ Same |
 | **Layer 1** — API rejection rate | ✅ Have it (derived `Fail/RPS`, all 38 runs) | ✅ Same | ✅ Same |
 | **Layer 1** — Retries per request | ❌ Missing in all 38 runs | ✅ **Closed** for whichever scenarios you re-run (§3) | ❌ Stays missing — headline hypothesis (slide 2) has no direct evidence |
-| **Layer 2** — CPU/Memory limits | ❌ `resource_collector.py` never wired to write CSVs | ❌ **Still open** — out of scope for this guide | ❌ Still open |
+| **Layer 2** — CPU/Memory limits | ❌ Missing in all 38 runs | ✅ **Closed** for whichever scenarios you re-run (collector enabled by default) | ❌ Stays missing |
 | **Layer 2** — Pod instance counts | N/A by design (all services fixed at 1 replica, slide 6) | N/A | N/A |
 | **Layer 3** — Per-service toggle timing | ✅ Have it (`retryguard.log` `ON→OFF`/`OFF→ON`) | ✅ Same | ✅ Same |
 | **Layer 3** — Time-to-recovery intervals | ❌ No `OFF→ON` events exist to measure from | ✅ **Closed** for S2/S5 (§3, Tier 1) | ❌ Stays missing |
 
-**Layer 2 (CPU/Memory) is a real, acknowledged gap that this guide does not close.** Per the existing audit in [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md), no scenario objective (slides 11–15) or open question (slides 8–9) explicitly *requires* it — it only supports the secondary half of slide 2's hypothesis ("...and resource utilization..."). If you want it too, that's a separate effort (wire `resource_collector.py` to write CSVs, see [EXPERIMENT-READINESS-WORKPLAN.md](EXPERIMENT-READINESS-WORKPLAN.md) Step 8) — not covered here.
+**Layer 2 (CPU/Memory) is now instrumented for new runs.** `resource_usage_collector.py` writes `resource_usage.csv` (CPU millicores + memory working set per service). The existing 38 matrix folders still lack it — same pattern as Gap 3. Pod replica counts in the CSV will be flat at `1` (fixed-replica design); autoscaling/over-scaling charts remain N/A.
 
 ### 1b. Slides 8–9 open questions
 
@@ -218,7 +218,7 @@ for f in ['envoy_retries_frontend.csv', 'envoy_retries_checkoutservice.csv']:
 
 ## 6. What stays open even after this (be upfront about it)
 
-- **Layer 2 — CPU/Memory per pod.** Still not collected. Out of scope here; see §1a.
+- **Layer 2 — CPU/Memory per pod.** Instrumented for new runs via `resource_usage_collector.py` → `resource_usage.csv`. Still absent from the existing 38 matrix folders. Replica-count time series remains N/A (all services fixed at 1 replica).
 - **`num_agent.csv` still empty.** TopFull's internal admission state remains unrecorded; Controller Interaction stays "Partial" even after Gaps 1 & 3 close. `RPS` from the endpoint CSVs remains the best available proxy.
 - **Shallow-topology caveat (slide 14) is unchanged** — S4A/S4B retry-count data will be genuinely useful, but the deck's own caveat about this being a small topology still applies to any conclusions drawn from it.
 

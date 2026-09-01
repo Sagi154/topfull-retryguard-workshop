@@ -1,32 +1,24 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Scenario 5 — Re-enable Interval Tuning  |  Interval: 10s (aggressive)
+# Scenario 6 — Forced Recovery  |  Condition: RETRYGUARD ON
 #
-# Same load as Scenario 6 (forced recovery), NOT Scenario 2. RetryGuard ALWAYS ON.
-# Only the re_enable_windows parameter changes across the four S5 configs.
+# Identical load to scenario_6_recovery_baseline.yaml. Paper-default
+# re_enable_windows: 3 (90s effective). Same experiment as
+# scenario_5_interval_30s.yaml (keep both: this is the canonical S6 pair;
+# S5-30s is the default point on the interval sweep).
 #
-# re_enable_windows: 1  →  1 × 30s = 30s effective wait
-# (RetryGuard re-enables retries after just 1 window below threshold.
-#  Folder label "10s" is historical; see PHASE5-EXPERIMENTS-GUIDE.md §2 table.)
-#
-# Risk: re-enables too fast. Retries restart before bottleneck is truly clear.
-# Likely outcome: oscillation — disable/re-enable cycles repeat rapidly.
-# Watch for: number of toggle events per run (too many = instability).
-#
-# Gap 1: flat S2 never produced OFF→ON. This file uses Scenario 6's 900s
-# load-drop profile so re_enable_windows can fire. Load must stay
-# byte-identical to scenario_6_recovery_{baseline,retryguard}.yaml and the
-# other three scenario_5_interval_*.yaml files — only re_enable_windows
-# differs across the four S5 files. Compare against S6 baseline, not S2.
+# Load profile must stay byte-identical to scenario_6_recovery_baseline.yaml
+# and all four scenario_5_interval_*.yaml configs. Only retryguard.enabled
+# / condition / log_folder differ vs the S6 baseline.
 # ─────────────────────────────────────────────────────────────────────────────
 
-scenario_id: 5
-scenario_name: interval_tuning
+scenario_id: 6
+scenario_name: forced_recovery
 condition: retryguard
-run_number: 3
+run_number: 1
 description: >
-  Sustained overload 0-300s, then dropped to ~25% load 300-900s so recovery
-  can occur. RetryGuard on, re-enable interval = 10s (aggressive).
-  Risk of oscillation: retries re-enabled before bottleneck clears.
+  Peak overload 0-300s, then drop to ~25% load 300-900s. TopFull + RetryGuard
+  both active, re-enable interval = paper default (3 windows × 30s = 90s).
+  Load drop gives disable -> recover -> re-enable room to complete.
 
 duration_seconds: 900
 
@@ -58,23 +50,19 @@ retryguard:
   rejection_threshold: 0.20
   window_duration_seconds: 30
   disable_windows: 2
-  re_enable_windows: 1         # ← THE VARIABLE: 1 window × 30s = 30s effective
+  re_enable_windows: 3         # paper default — same as scenario_5_interval_30s.yaml
   retry_attempts_on: 3
   retry_attempts_off: 0
 
-# ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
-# Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).
-# Independent of RetryGuard: enabled in both baseline and RetryGuard arms.
 envoy_retry_collector:
   enabled: true
   poll_interval_seconds: 5
 
-# ── Resource usage collector (Layer 2 — CPU/memory per service) ──────────────
 resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
-log_folder: run_topfull_retryguard_interval_10s_run3
+log_folder: run_topfull_retryguard_forced_recovery_run1
 
 infra:
   master_ssh_host: topfull-master

@@ -358,5 +358,82 @@ class TestEnvoyRetryCollectorWiring(unittest.TestCase):
         )
 
 
+class TestResourceUsageCollectorWiring(unittest.TestCase):
+    def _cfg(self, enabled=True):
+        return {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "venv_activate": "/home/idozacharia/TopFull/venv/bin/activate",
+                "resource_usage_collector_script":
+                    "/home/idozacharia/experiments/resource_usage_collector.py",
+            },
+            "resource_usage_collector": {
+                "enabled": enabled,
+                "poll_interval_seconds": 5,
+            },
+        }
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_start_uploads_params_and_launches_tmux(
+        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(enabled=True)
+        run_scenario.start_resource_usage_collector(cfg)
+
+        json_path, params = mock_write_json.call_args[0][1:3]
+        self.assertEqual(json_path, "/tmp/resource_usage_params.json")
+        self.assertEqual(params["poll_interval_seconds"], 5)
+        self.assertNotIn("services", params)
+
+        script_path, script_body = mock_write_script.call_args[0][1:3]
+        self.assertEqual(script_path, "/tmp/rg_resource_usage.sh")
+        self.assertIn(
+            "resource_usage_collector.py --params /tmp/resource_usage_params.json",
+            script_body,
+        )
+
+        tmux_calls = [
+            c for c in mock_ssh.call_args_list
+            if "tmux new-session" in c.args[1] and "resourceusage" in c.args[1]
+        ]
+        self.assertEqual(len(tmux_calls), 1)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_start_noop_when_disabled(
+        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(enabled=False)
+        run_scenario.start_resource_usage_collector(cfg)
+        mock_ssh.assert_not_called()
+        mock_write_json.assert_not_called()
+        mock_write_script.assert_not_called()
+
+    @mock.patch("run_scenario.ssh")
+    def test_stop_master_stack_pkills_resource_collector(self, mock_ssh):
+        cfg = {"infra": {"master_ssh_host": "topfull-master"}}
+        run_scenario.stop_master_stack(cfg)
+        cmd = mock_ssh.call_args[0][1]
+        self.assertIn("[r]esource_usage_collector.py", cmd)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_start_passes_services_override(
+        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(enabled=True)
+        cfg["resource_usage_collector"]["services"] = ["frontend", "checkoutservice"]
+        run_scenario.start_resource_usage_collector(cfg)
+        params = mock_write_json.call_args[0][2]
+        self.assertEqual(params["services"], ["frontend", "checkoutservice"])
+
+
 if __name__ == "__main__":
     unittest.main()

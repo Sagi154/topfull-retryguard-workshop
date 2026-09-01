@@ -99,7 +99,7 @@ This is now **self-healing**: `run_scenario.py`'s `start_envoy_retry_collector()
 
 These were documented before this audit and are listed here so the Layer 1–3 picture is in one place:
 
-- **Layer 2 — CPU/memory per pod.** `resource_collector.py` feeds the RL loop in memory and never writes per-run CSVs. See [METRICS-COLLECTION-GUIDE.md](METRICS-COLLECTION-GUIDE.md) §1 and [EXPERIMENT-READINESS-WORKPLAN.md](EXPERIMENT-READINESS-WORKPLAN.md) Step 8. Needed only for the "resource utilization" half of the slide 2 hypothesis and the slide 16 Layer 2 row — **no scenario objective and no open question depends on it.**
+- **Layer 2 — CPU/memory per pod.** `resource_usage_collector.py` is wired into `run_scenario.py` and enabled in all 14 configs (writes `resource_usage.csv` via kubelet `stats/summary`). The existing 38 matrix folders predate it — only new runs get CPU/memory series. TopFull's in-memory `resource_collector.py` is unchanged. Pod replica counts in the CSV document the fixed-replica design (`1` everywhere); autoscaling charts remain N/A.
 - **Pod instance counts (`num_instances.csv`).** Moot by design: slide 6 fixes replicas in both arms, all services ran at 1 replica, and S3/S4 constrain via CPU limit. "Prevents over-scaling" was never measurable in this setup.
 - **`num_agent.csv` is effectively empty.** Present in all 38 folders but all zeros, apart from a single non-zero row in a few runs and 287 in `baseline_topfull_no_retryguard_topology_position_B_run3`. TopFull's internal admission state is therefore not recorded; use `RPS` from the endpoint CSVs as a proxy for admitted load when discussing controller interaction.
 

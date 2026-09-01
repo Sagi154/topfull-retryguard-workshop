@@ -8,7 +8,7 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 
 ## 1. What gets collected and by what tool
 
-Every run produces output from up to four sources. API performance and the run manifest are always present; RetryGuard decisions only when RetryGuard is on; Envoy retry counters when `envoy_retry_collector.enabled: true` (default in all 14 scenario configs).
+Every run produces output from up to five sources. API performance and the run manifest are always present; RetryGuard decisions only when RetryGuard is on; Envoy retry counters and CPU/memory when their collectors are enabled (default in all 14 scenario configs).
 
 | Source | Written by | Format | Always collected? |
 |--------|-----------|--------|------------------|
@@ -16,8 +16,9 @@ Every run produces output from up to four sources. API performance and the run m
 | **Run manifest** | `run_scenario.py` at collection time | `run_manifest.json` | Yes |
 | **RetryGuard decisions** | `retryguard.py` | `retryguard.log` text file | RetryGuard runs only |
 | **Envoy retry counters** | `envoy_retry_collector.py` | `envoy_retries_{caller}.csv` + `envoy_retry_collector.log` | When collector enabled (default) |
+| **CPU/memory per service** | `resource_usage_collector.py` | `resource_usage.csv` + `resource_usage_collector.log` | When collector enabled (default) |
 
-> **Known gap (Layer 2):** `resource_collector.py` (CPU/memory per pod via cAdvisor) is used in-memory by the RL loop but does **not** write per-run CSV files to the results folder. CPU/memory charts are not available from the current pipeline. If those metrics are needed for Phase 7, the collector needs to be wired up first — see EXPERIMENT-READINESS-WORKPLAN.md Step 8.
+> **Layer 2 note:** `resource_usage_collector.py` (kubelet `stats/summary` via `kubectl get --raw`) closes the *instrumentation* half of the CPU/memory gap. TopFull's in-memory `resource_collector.py` still feeds the RL loop only — it is not patched. The existing 38 matrix folders predate this collector; new runs will produce `resource_usage.csv`. Pod replica counts in the CSV will be `1` for every service (fixed-replica experimental design). See [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md).
 >
 > **Gap 3 note:** The Envoy retry collector closes the *instrumentation* half of the "retries per request" gap. The existing 38 matrix folders were collected *before* this collector existed, so they still have no retry-count series. New runs (including the Gap 1 recovery-phase re-runs) will produce the CSVs. See [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 3.
 
@@ -38,6 +39,8 @@ The runner (`run_scenario.py`) creates one folder per run on the master VM under
     envoy_retries_frontend.csv          ← when envoy_retry_collector enabled
     envoy_retries_checkoutservice.csv   ← when envoy_retry_collector enabled
     envoy_retry_collector.log           ← when envoy_retry_collector enabled
+    resource_usage.csv                  ← when resource_usage_collector enabled
+    resource_usage_collector.log        ← when resource_usage_collector enabled
     retryguard.log                      ← RetryGuard runs only
     run_manifest.json
 ```
@@ -199,7 +202,40 @@ Join against `retryguard.log` toggle timestamps to show that `ON→OFF` reduces 
 
 ---
 
-## 6. The run manifest
+## 6. The resource usage CSV (CPU/memory per service)
+
+**Files** (when `resource_usage_collector.enabled: true`):
+
+| File | Source | Content |
+|------|--------|---------|
+| `resource_usage.csv` | kubelet `stats/summary` via `kubectl get --raw` | Per-service CPU and memory, one row per service per poll |
+| `resource_usage_collector.log` | — | `START` / `WARNING` / `SHUTDOWN` / `EXIT` lines |
+
+Scrapes the worker node's kubelet summary API. App-container usage only (`istio-proxy` and `POD` pause containers are skipped). Services with no matching pod in a given poll are omitted (not zero-filled).
+
+### Columns
+
+```
+timestamp, service, cpu_millicores, memory_working_set_bytes, replica_count
+```
+
+| Column | Meaning |
+|--------|---------|
+| `timestamp` | UTC ISO time of the poll |
+| `service` | Deployment name (`checkoutservice`, `paymentservice`, …) |
+| `cpu_millicores` | Sum of app-container `usageNanoCores` across replicas, in millicores |
+| `memory_working_set_bytes` | Sum of app-container working-set memory across replicas |
+| `replica_count` | `readyReplicas` from the Deployment status (always `1` in this workshop's fixed-replica setup) |
+
+Default poll interval: **5s** (same as Envoy collector). A 600s run produces ~120 rows per service.
+
+Join against `retryguard.log` toggle timestamps to show CPU/memory dropping after `ON→OFF` on a service.
+
+> The existing 38 matrix folders do **not** contain this file — they predate the collector.
+
+---
+
+## 7. The run manifest
 
 **File:** `run_manifest.json` — written by `run_scenario.py` at the end of collection.
 
@@ -212,6 +248,7 @@ Join against `retryguard.log` toggle timestamps to show that `ON→OFF` reduces 
   "duration_seconds": 600,
   "retryguard": { "enabled": false, ... },
   "envoy_retry_collector": { "enabled": true, "poll_interval_seconds": 5 },
+  "resource_usage_collector": { "enabled": true, "poll_interval_seconds": 5 },
   "scale_constraints": [],
   "log_folder": "baseline_topfull_no_retryguard_sustained_overload_run1",
   "collected_at": "2026-08-11T10:00:00Z"
@@ -222,7 +259,7 @@ This makes each folder self-describing — you don't need to look up the YAML to
 
 ---
 
-## 7. How to pull results to your PC
+## 8. How to pull results to your PC
 
 After each run completes (the runner prints the `scp` command for you):
 
@@ -249,7 +286,7 @@ experiments/results/
 
 ---
 
-## 8. Verifying a run after collection
+## 9. Verifying a run after collection
 
 Before moving on to the next run or repeating, do a quick sanity check:
 
@@ -269,10 +306,11 @@ ssh topfull-master "wc -l /home/idozacharia/experiments/results/<log_folder>/*.c
 | `Fail` elevated for S2/3 baseline | High throughout overload period | Expected and correct |
 | `retryguard.log` exists (RetryGuard runs) | File present, `START` line at top | RetryGuard didn't start — check `tmux` session |
 | `run_manifest.json` exists | Always | Runner aborted before collection step |
+| `resource_usage.csv` has rows (when enabled) | `memory_working_set_bytes > 0` for `frontend` under any load | kubelet `stats/summary` blocked — check collector log on master |
 
 ---
 
-## 9. Collecting across runs for analysis (Phase 7 preview)
+## 10. Collecting across runs for analysis (Phase 7 preview)
 
 Each run folder is independent. For Phase 7, you'll load all runs for a given scenario+condition together.
 
@@ -304,7 +342,7 @@ avg_series = pd.concat([df["Goodput"].iloc[:min_len] for df in dfs], axis=1).mea
 
 ---
 
-## 10. Quick reference — per-scenario focus metrics
+## 11. Quick reference — per-scenario focus metrics
 
 | Scenario | Primary files | What to look for |
 |----------|--------------|-----------------|

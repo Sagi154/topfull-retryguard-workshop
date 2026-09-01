@@ -17,7 +17,7 @@ Two experimental conditions, same load each time:
 | **Baseline** (Phase 5) | TopFull | Istio default (`attempts: 3`, RetryGuard off) |
 | **Primary** (Phase 6) | TopFull | RetryGuard dynamically toggles retries per service |
 
-We run **5 scenarios** (see §5) under both conditions, ≥3 repeats each (Locust traffic is non-deterministic), then compare goodput / P95 latency / rejection rate / RetryGuard toggle events. Retries-per-request was never collected in the finished matrix (Gap 3 collector now built, needs re-runs); CPU-mem was planned but never collected; P99 was dropped as a target metric (P95 fully satisfies both source papers and the eval deck) — see [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md).
+We run **5 scenarios** (see §5) under both conditions, ≥3 repeats each (Locust traffic is non-deterministic), then compare goodput / P95 latency / rejection rate / RetryGuard toggle events. Retries-per-request and CPU/memory were never collected in the finished 38-run matrix (collectors now built and enabled in all 14 configs — need re-runs); P99 was dropped as a target metric (P95 fully satisfies both source papers and the eval deck) — see [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md).
 
 This is a workshop deliverable: a presentation (project plan) + eventually a written report with the above comparison.
 
@@ -32,6 +32,7 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   run_scenario.py    ← orchestrator, runs on Windows, drives everything over SSH
   retryguard.py      ← RetryGuard controller (deployed to master)
   envoy_retry_collector.py ← Gap 3: scrapes Envoy sidecar outbound retry counters (deployed to master)
+  resource_usage_collector.py ← Layer 2: scrapes CPU/memory per service via kubelet stats/summary (deployed to master)
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
   results/           ← all 38 Phase 5/6 matrix folders (local and in git as of 2026-08-20)
@@ -86,9 +87,10 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
   - Slots 10–38: resumed with `run_all_scenarios.py --yes --resume 9` on 2026-08-15 (~7h); slot 17 (S3 RG run2) re-run after a permission failure on a stale master folder.
   - Batch runner bumped touched configs to next free `run_number` (typically 4 for ×3 scenarios, 3 for S5).
 - **Results consolidated** — all 38 matrix folders are on this laptop in `experiments/results/` **and tracked in git** (`90c43c9` on 2026-08-20 added S1×6 and S2 baseline×3). Older “S1 on Ido’s machine / S2 baseline on master only / 29 local folders” notes are stale.
-- **Results audit (2026-08-20)** — [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md). **30 of 38 runs are usable** (all except the 8 Scenario 5 interval runs). Three gaps found: (a) **zero `OFF→ON` events in all 23 RetryGuard runs**, so S5 has no signal and S2 never completed disable→recover→re-enable — recovery-phase `locust.phases` mechanism + S2/S5 configs updated, not yet re-run; (b) **`Latency99` is 0 in every row** (hardcoded in TopFull's `metric_collector.py`) — **resolved: P99 dropped as a target metric**, report P95; (c) **no retries-per-request series** in the finished matrix — **collector built** (`experiments/envoy_retry_collector.py`, wired into `run_scenario.py`, enabled in all 14 YAMLs, unit-tested) but existing folders predate it; deploy the script to master and re-run to close the data gap. Layer 2 CPU/mem is still unwired; no scenario objective or open question depends on it.
+- **Results audit (2026-08-20)** — [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md). **30 of 38 runs are usable** (all except the 8 Scenario 5 interval runs). Three gaps found: (a) **zero `OFF→ON` events in all 23 RetryGuard runs**, so S5 has no signal and S2 never completed disable→recover→re-enable — recovery-phase `locust.phases` mechanism + S2/S5 configs updated, not yet re-run; (b) **`Latency99` is 0 in every row** (hardcoded in TopFull's `metric_collector.py`) — **resolved: P99 dropped as a target metric**, report P95; (c) **no retries-per-request series** in the finished matrix — **collector built** (`experiments/envoy_retry_collector.py`, wired into `run_scenario.py`, enabled in all 14 YAMLs, unit-tested) but existing folders predate it; deploy the script to master and re-run to close the data gap. Layer 2 CPU/mem was unwired in the 38-run matrix — **now instrumented** via `resource_usage_collector.py` (kubelet `stats/summary` → `resource_usage.csv`); existing folders still lack it until re-runs.
 - **Eval deck transcribed** — `context/Evaluating_RetryGuard_on_TopFull.md` (from the PDF). Replaces the older project-plan pptx files.
 - **Envoy retry collector (Gap 3, 2026-08-20)** — scrapes caller-side Envoy outbound retry counters via `kubectl exec` into `istio-proxy`; writes `envoy_retries_{frontend,checkoutservice}.csv`. **Live-validated end-to-end** on the real cluster: found and fixed a real blocker (Istio's default stats reduction hides `upstream_rq_retry*`; `run_scenario.py` now self-heals it via `ensure_envoy_stats_enabled()`), deployed the script to master, and smoke-tested it producing correctly-formatted CSVs. Not present in the existing 38 results folders — needs fresh runs, see [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md).
+- **Resource usage collector (Layer 2)** — `experiments/resource_usage_collector.py` scrapes per-service CPU/memory via kubelet `stats/summary`; wired into `run_scenario.py`, enabled in all 14 YAMLs, unit-tested. Deploy to master before runs (same as Envoy collector). Not in the existing 38 results folders.
 
 ### ❌ Not done yet — remaining work
 
@@ -130,7 +132,7 @@ pip install pyyaml   # once
 # Before every run: clear stale /tmp runner scripts.
 # /tmp has a sticky bit — if a previous run was by a different Linux user, their
 # files block SCP uploads. sudo rm is a no-op when files don't exist.
-ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp/rg_retryguard.sh /tmp/rg_locust_launch.sh"
+ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp/rg_retryguard.sh /tmp/rg_envoy_retry.sh /tmp/rg_resource_usage.sh /tmp/rg_locust_launch.sh"
 
 python experiments/run_scenario.py experiments/configs/scenario_1_baseline.yaml
 ```

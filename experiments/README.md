@@ -110,10 +110,13 @@ scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_
 | `retryguard.retry_attempts_off` | int | Istio retries.attempts when disabled |
 | `envoy_retry_collector.enabled` | bool | Whether to scrape Envoy outbound retry counters (default true in all configs) |
 | `envoy_retry_collector.poll_interval_seconds` | int | Scrape interval (default 5) |
+| `resource_usage_collector.enabled` | bool | Whether to scrape CPU/memory per service (default true in all configs) |
+| `resource_usage_collector.poll_interval_seconds` | int | Scrape interval (default 5) |
 | `log_folder` | string | Output folder name (on master under `results_base_path`) |
 | `infra.*` | map | SSH hosts, paths, venv — override if your setup differs |
 | `infra.retryguard_script` | string | Path to `retryguard.py` on master |
 | `infra.envoy_retry_collector_script` | string | Path to `envoy_retry_collector.py` on master |
+| `infra.resource_usage_collector_script` | string | Path to `resource_usage_collector.py` on master |
 
 ### scale_constraints — method: replicas
 
@@ -143,4 +146,5 @@ The runner removes the cpu limit after the run via a JSON Patch.
 ## Known limitations / TODOs
 
 - **Envoy retry collector on master** — `envoy_retry_collector.py` must be present on the master at `infra.envoy_retry_collector_script` (default `/home/idozacharia/experiments/envoy_retry_collector.py`) before any run with `envoy_retry_collector.enabled: true`. Deploy with `scp` the same way as `retryguard.py`.
+- **Resource usage collector on master** — `resource_usage_collector.py` must be present at `infra.resource_usage_collector_script` (default `/home/idozacharia/experiments/resource_usage_collector.py`) before any run with `resource_usage_collector.enabled: true`. Deploy with `scp` the same way.
 - **Retries-per-request in the existing matrix** — the finished 38 folders predate the Envoy collector; only new runs produce `envoy_retries_*.csv`. See PHASE7-DATA-GAPS.md Gap 3.

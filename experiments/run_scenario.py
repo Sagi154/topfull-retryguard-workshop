@@ -402,6 +402,7 @@ def start_master_stack(cfg: dict):
         "pkill -9 -f '[d]eploy_rl.py' 2>/dev/null; "
         "pkill -9 -f '[m]etric_collector.py' 2>/dev/null; "
         "pkill -9 -f '[e]nvoy_retry_collector.py' 2>/dev/null; "
+        "pkill -9 -f '[r]esource_usage_collector.py' 2>/dev/null; "
         "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
         "tmux kill-server 2>/dev/null; "
         "sleep 2; true",
@@ -583,6 +584,50 @@ def start_envoy_retry_collector(cfg: dict):
 
 
 # --------------------------------------------------------------------------- #
+#  Resource usage collector (Layer 2 — CPU/memory per service)
+# --------------------------------------------------------------------------- #
+
+def start_resource_usage_collector(cfg: dict):
+    """
+    Start the kubelet stats/summary scraper on master.
+
+    Independent of RetryGuard: must run in both baseline and RetryGuard arms.
+    """
+    ruc_cfg = cfg.get("resource_usage_collector", {})
+    if not ruc_cfg.get("enabled", False):
+        return
+
+    banner("Starting resource usage collector")
+    master = cfg["infra"]["master_ssh_host"]
+    venv = cfg["infra"]["venv_activate"]
+    script = cfg["infra"].get(
+        "resource_usage_collector_script",
+        "/home/idozacharia/experiments/resource_usage_collector.py",
+    )
+
+    params = {
+        "poll_interval_seconds": int(ruc_cfg.get("poll_interval_seconds", 5)),
+    }
+    if "services" in ruc_cfg:
+        params["services"] = ruc_cfg["services"]
+
+    write_remote_json(master, "/tmp/resource_usage_params.json", params)
+    step(f"Uploaded resource usage collector params: "
+         f"poll_interval={params['poll_interval_seconds']}s")
+
+    start_script = (
+        f"#!/bin/bash\n"
+        f"source {venv}\n"
+        f"python3 {script} --params /tmp/resource_usage_params.json\n"
+    )
+    write_remote_script(master, "/tmp/rg_resource_usage.sh", start_script)
+    ssh(master, "tmux new-session -d -s resourceusage /tmp/rg_resource_usage.sh")
+    step(f"Started: resource usage collector "
+         f"(tmux session: resourceusage, script: {script})")
+    wait_with_progress(3, "Resource usage collector init")
+
+
+# --------------------------------------------------------------------------- #
 #  Locust
 # --------------------------------------------------------------------------- #
 
@@ -664,7 +709,7 @@ def stop_locust(cfg: dict):
 def stop_master_stack(cfg: dict):
     master = cfg["infra"]["master_ssh_host"]
     step("Stopping master processes (metric_collector, deploy_rl, proxy, "
-         "RetryGuard, Envoy retry collector, Ray)...")
+         "RetryGuard, Envoy retry collector, resource usage collector, Ray)...")
     # Bracket trick avoids pkill matching this ssh/bash -c line itself.
     ssh(master,
         "pkill -f '[m]etric_collector.py' 2>/dev/null; "
@@ -672,6 +717,7 @@ def stop_master_stack(cfg: dict):
         "pkill -f '[p]roxy_online_boutique' 2>/dev/null; "
         "pkill -f '[r]etryguard.py' 2>/dev/null; "
         "pkill -f '[e]nvoy_retry_collector.py' 2>/dev/null; "
+        "pkill -f '[r]esource_usage_collector.py' 2>/dev/null; "
         "sleep 2; "
         "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
         "tmux kill-server 2>/dev/null; "
@@ -741,6 +787,7 @@ def collect_results(cfg: dict) -> str:
         "duration_seconds": cfg["duration_seconds"],
         "retryguard":    cfg["retryguard"],
         "envoy_retry_collector": cfg.get("envoy_retry_collector", {}),
+        "resource_usage_collector": cfg.get("resource_usage_collector", {}),
         "scale_constraints": cfg.get("scale_constraints", []),
         "log_folder":    log_folder,
         "collected_at":  datetime.utcnow().isoformat() + "Z",
@@ -787,6 +834,11 @@ def run(config_path: str):
     if erc_enabled:
         print(f"    poll_interval  : "
               f"{cfg['envoy_retry_collector'].get('poll_interval_seconds', 5)}s")
+    ruc_enabled = cfg.get("resource_usage_collector", {}).get("enabled", False)
+    print(f"  Resource usage collector: {'ON' if ruc_enabled else 'OFF'}")
+    if ruc_enabled:
+        print(f"    poll_interval  : "
+              f"{cfg['resource_usage_collector'].get('poll_interval_seconds', 5)}s")
     if cfg.get("scale_constraints"):
         print(f"  Constraints:")
         for c in cfg["scale_constraints"]:
@@ -814,6 +866,9 @@ def run(config_path: str):
 
         # Envoy retry collector is independent of RetryGuard — run in both arms.
         start_envoy_retry_collector(cfg)
+
+        # CPU/memory collector — run in both arms (Layer 2).
+        start_resource_usage_collector(cfg)
 
         if rg_enabled:
             start_retryguard(cfg)

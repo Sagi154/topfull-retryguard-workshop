@@ -1,24 +1,30 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Scenario 5 — Re-enable Interval Tuning  |  Interval: 30s (PAPER DEFAULT)
-# re_enable_windows: 3  →  3 × 30s = 90s effective wait
+# Scenario 6 — Forced Recovery  |  Condition: BASELINE (no RetryGuard)
 #
-# Same load as Scenario 6 (forced recovery), NOT Scenario 2. Same RetryGuard
-# params as scenario_6_recovery_retryguard.yaml (canonical S6 pair).
-# Load must stay byte-identical to scenario_6_recovery_{baseline,retryguard}.yaml
-# and the other three scenario_5_interval_*.yaml files. Compare against S6
-# baseline, not S2.
+# NOT Scenario 2. S2 is a 10-minute flat hold at ρ > 1 (deck slide 12).
+# This scenario holds the same peak for 5 minutes (long enough to trigger
+# RetryGuard disable), then DROPS Locust to ~25% of peak for 10 minutes so
+# rejection can fall under 20% and re-enable can fire. Recovery is an input
+# to the load generator, not an outcome of the controllers under overload.
+#
+# Purpose: valid comparison baseline for Scenario 5 (interval tuning) and
+# for the S6 RetryGuard arm. Slide 6 requires identical workload between
+# arms — S5 must NOT be compared to the flat S2 baseline.
+#
+# Load profile must stay byte-identical to scenario_6_recovery_retryguard.yaml
+# and all four scenario_5_interval_*.yaml configs.
 # ─────────────────────────────────────────────────────────────────────────────
 
-scenario_id: 5
-scenario_name: interval_tuning
-condition: retryguard
-run_number: 3
+scenario_id: 6
+scenario_name: forced_recovery
+condition: baseline
+run_number: 1
 description: >
-  Sustained overload 0-300s, then dropped to ~25% load 300-900s so recovery
-  can occur. RetryGuard on, re-enable interval = 30s (paper default,
-  RetryGuard Sec. 6.2). The reference point for all interval comparisons.
+  Peak overload 0-300s, then drop to ~25% load 300-900s. TopFull active,
+  Istio default retries on, RetryGuard OFF. Baseline for Scenario 6 and
+  for all Scenario 5 interval runs.
 
-duration_seconds: 900
+duration_seconds: 900          # 15 minutes: 5 min hold + 10 min recovery window
 
 locust:
   spawn_rate: 90
@@ -44,27 +50,23 @@ locust:
 scale_constraints: []
 
 retryguard:
-  enabled: true
+  enabled: false
   rejection_threshold: 0.20
   window_duration_seconds: 30
   disable_windows: 2
-  re_enable_windows: 3         # ← 3 windows × 30s = 90s effective (PAPER DEFAULT)
+  re_enable_windows: 3
   retry_attempts_on: 3
   retry_attempts_off: 0
 
-# ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
-# Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).
-# Independent of RetryGuard: enabled in both baseline and RetryGuard arms.
 envoy_retry_collector:
   enabled: true
   poll_interval_seconds: 5
 
-# ── Resource usage collector (Layer 2 — CPU/memory per service) ──────────────
 resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
-log_folder: run_topfull_retryguard_interval_30s_run3
+log_folder: baseline_topfull_no_retryguard_forced_recovery_run1
 
 infra:
   master_ssh_host: topfull-master

@@ -58,6 +58,11 @@ envoy_retry_collector:
   enabled: true
   poll_interval_seconds: 5
 
+# ── Resource usage collector (Layer 2 — CPU/memory per service) ──────────────
+resource_usage_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
 log_folder: baseline_topfull_no_retryguard_topology_position_A_run4
 
 infra:
@@ -69,3 +74,4 @@ infra:
   results_base_path: /home/idozacharia/experiments/results
   retryguard_script: /home/idozacharia/experiments/retryguard.py
   envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py
+  resource_usage_collector_script: /home/idozacharia/experiments/resource_usage_collector.py
