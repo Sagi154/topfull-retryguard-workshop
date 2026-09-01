@@ -42,24 +42,26 @@ Then refresh SSH hostnames in `~/.ssh/config` because IPs will have changed.
 
 ## 1. Pick the config file
 
-All 14 config files live in `experiments/configs/`. Each one is a single scenario × condition combination:
+All 16 config files live in `experiments/configs/`. Each one is a single scenario × condition combination:
 
 | File | What it does | Duration |
 |---|---|---|
 | `scenario_1_baseline.yaml` | Normal load, no RetryGuard | 5 min |
 | `scenario_1_retryguard.yaml` | Normal load + RetryGuard | 5 min |
-| `scenario_2_baseline.yaml` | Sustained overload, no RetryGuard | 10 min |
-| `scenario_2_retryguard.yaml` | Sustained overload + RetryGuard | 10 min |
+| `scenario_2_baseline.yaml` | Flat sustained overload, no RetryGuard | 10 min |
+| `scenario_2_retryguard.yaml` | Flat sustained overload + RetryGuard | 10 min |
 | `scenario_3_baseline.yaml` | Checkout CPU-capped, no RetryGuard | 10 min |
 | `scenario_3_retryguard.yaml` | Checkout CPU-capped + RetryGuard | 10 min |
 | `scenario_4a_baseline.yaml` | ProductCatalog CPU-capped, no RetryGuard | 10 min |
 | `scenario_4a_retryguard.yaml` | ProductCatalog CPU-capped + RetryGuard | 10 min |
 | `scenario_4b_baseline.yaml` | Payment CPU-capped, no RetryGuard | 10 min |
 | `scenario_4b_retryguard.yaml` | Payment CPU-capped + RetryGuard | 10 min |
-| `scenario_5_interval_10s.yaml` | Overload + RetryGuard, re-enable=30s | 10 min |
-| `scenario_5_interval_20s.yaml` | Overload + RetryGuard, re-enable=60s | 10 min |
-| `scenario_5_interval_30s.yaml` | Overload + RetryGuard, re-enable=90s | 10 min |
-| `scenario_5_interval_60s.yaml` | Overload + RetryGuard, re-enable=180s | 10 min |
+| `scenario_5_interval_10s.yaml` | S6 load + RetryGuard, re-enable=30s | 15 min |
+| `scenario_5_interval_20s.yaml` | S6 load + RetryGuard, re-enable=60s | 15 min |
+| `scenario_5_interval_30s.yaml` | S6 load + RetryGuard, re-enable=90s | 15 min |
+| `scenario_5_interval_60s.yaml` | S6 load + RetryGuard, re-enable=180s | 15 min |
+| `scenario_6_recovery_baseline.yaml` | Peak then load-drop, no RetryGuard | 15 min |
+| `scenario_6_recovery_retryguard.yaml` | Peak then load-drop + RetryGuard (paper default interval) | 15 min |
 
 **Start with Scenario 1 baseline** if you're not sure — it's only 5 minutes and the safest first run.
 

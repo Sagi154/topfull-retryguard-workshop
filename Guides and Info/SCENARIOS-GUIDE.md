@@ -6,7 +6,7 @@ RetryGuard on TopFull — TAU Communication Networks Workshop
 
 ## Overview
 
-This guide describes the five experiment scenarios we run to measure RetryGuard's impact on the TopFull + Online Boutique stack. Each scenario is run under two conditions:
+This guide describes the experiment scenarios we run to measure RetryGuard's impact on the TopFull + Online Boutique stack. Scenarios 1–5 are the eval-deck matrix. Scenario 6 (Forced Recovery) was added so re-enable can be measured without mutating Scenario 2's load. Each of S1–S4 and S6 is run under two conditions:
 
 - **TopFull only** — TopFull overload control active, Istio default retries on, RetryGuard **off**.
 - **TopFull + RetryGuard** — identical load and topology; only addition is RetryGuard **on**.
@@ -76,7 +76,8 @@ Run each scenario **≥3 times per condition** (≥2 for Scenario 5 intervals). 
 | 3 — Targeted Bottleneck | `scenario_3_baseline.yaml` | `scenario_3_retryguard.yaml` | both→run2 (smoke used run1) |
 | 4A — Topology (ProductCatalog) | `scenario_4a_baseline.yaml` | `scenario_4a_retryguard.yaml` | both→run1 |
 | 4B — Topology (Payment) | `scenario_4b_baseline.yaml` | `scenario_4b_retryguard.yaml` | both→run1 |
-| 5 — Interval tuning | — (no baseline) | `scenario_5_interval_{10,20,30,60}s.yaml` | all→run1 |
+| 5 — Interval tuning | — (use S6 baseline) | `scenario_5_interval_{10,20,30,60}s.yaml` | all→run3 |
+| 6 — Forced Recovery | `scenario_6_recovery_baseline.yaml` | `scenario_6_recovery_retryguard.yaml` | both→run1 |
 
 ---
 
@@ -88,7 +89,8 @@ Run each scenario **≥3 times per condition** (≥2 for Scenario 5 intervals). 
 | 2 | Sustained Overload | Ramp to ρ > 1, hold 5–10 min | Baseline + RetryGuard | System-level gains, topology beneficiaries, chain propagation, controller interaction |
 | 3 | Targeted Bottleneck | Full call-chain + one constrained service | Baseline + RetryGuard | Topology beneficiaries, chain propagation, controller interaction |
 | 4 | Topology Position Comparison | Same as Targeted Bottleneck ×2 (different service) | Baseline + RetryGuard | Topology position sensitivity, topology beneficiaries, chain propagation |
-| 5 | Re-enable Interval Tuning | Sustained Overload × {10s, 20s, 30s, 60s} | RetryGuard only, vary re-enable interval | Interval parameter sensitivity, combined equilibrium |
+| 5 | Re-enable Interval Tuning | Same as Scenario 6 × {10s, 20s, 30s, 60s} | RetryGuard only, vary re-enable interval | Interval parameter sensitivity |
+| 6 | Forced Recovery | Peak 5 min then drop to ~25% for 10 min | Baseline + RetryGuard (paper-default interval) | Combined equilibrium; valid baseline for S5 |
 
 ---
 
@@ -339,7 +341,7 @@ This scenario finds the interval that gives the best combined goodput and stabil
 
 ### Load setup
 
-Same as Scenario 2 (Sustained Overload) — ramp to ρ > 1, hold for 5–10 minutes. Keep load, replica counts, and RetryGuard threshold (~20%) **fixed**. Only the re-enable interval changes between runs.
+Same as Scenario 6 (Forced Recovery) — 300s at peak, then drop to ~25% load for 600s. **Not** the same as Scenario 2's flat 10-minute hold. Keep load, replica counts, and RetryGuard threshold (~20%) **fixed**. Only the re-enable interval changes between runs. Comparison baseline is Scenario 6, not Scenario 2.
 
 ### Intervals to test
 
@@ -352,7 +354,7 @@ Same as Scenario 2 (Sustained Overload) — ramp to ρ > 1, hold for 5–10 minu
 
 ### How to run
 
-The `re_enable_windows` parameter is already set correctly in each config — no manual script editing needed. There is no separate baseline for Scenario 5; use Scenario 2's baseline runs as the comparison.
+The `re_enable_windows` parameter is already set correctly in each config — no manual script editing needed. There is no separate `scenario_5_baseline.yaml`; use **Scenario 6 baseline** as the comparison (same 900s load-drop). Do not compare S5 to Scenario 2 — S2 is a different offered-load shape.
 
 ```powershell
 # 10s effective wait (re_enable_windows: 1) — run1
@@ -384,6 +386,45 @@ After all four intervals are done, compare:
 - Which interval avoids oscillation while allowing the fastest goodput recovery?
 - Does the 30s paper default perform well, or does TopFull's 1s RL loop change the optimal point?
 - Log the exact timestamps of every disable and re-enable event to reconstruct the full cycle timeline.
+
+---
+
+## Scenario 6 — Forced Recovery
+
+### What it tests
+
+Scenario 2 holds ρ > 1 for 10 minutes. Under that hold, RetryGuard disables retries but rejection stays ~75–100%, so re-enable never fires (Gap 1). Scenario 6 keeps the same peak for 5 minutes (enough to trigger disable), then **drops Locust to ~25% of peak** for 10 minutes so rejection can fall under 20% and `re_enable_windows` can accumulate.
+
+Recovery here is an input to the load generator, not a claim that TopFull + RetryGuard found equilibrium while still overloaded. Use this pair as the baseline for Scenario 5. Do not mix S6 folders with S2 folders.
+
+### Open questions answered
+
+- Combined equilibrium (under a load drop, not under continued overload)
+- Interval parameter sensitivity (S5 repeats this load)
+
+### Load setup
+
+- Phase 0 (t=0): same peak user counts as Scenario 2 (100/20/100/100/300, spawn 90)
+- Phase 1 (t=300s): ~25% of peak (25/5/25/25/75)
+- Duration: 900 seconds
+- No topology constraints
+
+### How to run
+
+```powershell
+python experiments/run_scenario.py experiments/configs/scenario_6_recovery_baseline.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_forced_recovery_run1 experiments/results/
+
+python experiments/run_scenario.py experiments/configs/scenario_6_recovery_retryguard.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_forced_recovery_run1 experiments/results/
+```
+
+`scenario_6_recovery_retryguard.yaml` uses `re_enable_windows: 3` — the same experiment as `scenario_5_interval_30s.yaml`. Keep both: S6 is the canonical pair; S5-30s is the default point on the interval sweep.
+
+### What to look for
+
+- At least one `ON→OFF` in 0–300s and at least one `OFF→ON` in 300–900s
+- S6 RetryGuard vs S6 baseline (same load) — not vs S2
 
 ---
 

@@ -33,9 +33,9 @@ Order matters: `deploy_rl.py` requires the proxy to be running. `metric_collecto
 
 ---
 
-## 2. The Five Scenarios
+## 2. The Scenarios
 
-Each scenario is run under two conditions: **baseline** (RetryGuard off) and **RetryGuard** (on). Scenario 5 is RetryGuard-only.
+Each of Scenarios 1–4 and 6 is run under two conditions: **baseline** (RetryGuard off) and **RetryGuard** (on). Scenario 5 is RetryGuard-only and uses Scenario 6's load (not Scenario 2's).
 
 ### Scenario 1 — Normal Operation
 
@@ -47,11 +47,11 @@ Each scenario is run under two conditions: **baseline** (RetryGuard off) and **R
 
 ### Scenario 2 — Sustained Overload (core experiment)
 
-- **Load:** Ramp to ρ > 1, hold for 10 minutes
+- **Load:** Peak user counts from t=0 (operational stand-in for “ramp to ρ > 1”), **hold flat** for 10 minutes. No mid-run drop.
 - **Topology:** No changes — global cluster overload
-- **Duration:** 10 minutes minimum (the disable → recover → re-enable cycle must repeat multiple times)
-- **Goal:** Observe the retry storm under TopFull-only. With RetryGuard on, watch it suppress retries per service and allow goodput to recover.
-- **Why 10 minutes:** RetryGuard only fires after ~2 consecutive 30-second windows above threshold (~60s). The effect (load drops, TopFull RL re-settles, goodput recovers) takes additional time. The full cycle must repeat to prove stable behaviour.
+- **Duration:** 10 minutes (`duration_seconds: 600`)
+- **Goal:** Retry storm under continued overload. Matrix runs 1–3: RetryGuard disables; re-enable does not fire (Gap 1). That is an S2 result. Forced recovery is Scenario 6.
+- **Why 10 minutes:** RetryGuard only fires after ~2 consecutive 30-second windows above threshold (~60s). The remaining hold is the effect window under saturating load.
 
 ### Scenario 3 — Targeted Bottleneck
 
@@ -74,16 +74,23 @@ Two Targeted Bottleneck runs with different services constrained. Same load, sam
 
 ### Scenario 5 — Re-enable Interval Tuning
 
-- **Load:** Same as Scenario 2 (sustained overload)
+- **Load:** Same as Scenario 6 (forced recovery: 300s peak, then ~25% for 600s). **Not** Scenario 2's flat hold.
 - **RetryGuard:** Always on. Only `re_enable_windows` changes across runs.
-- **No separate baseline needed** — Scenario 2 baseline already serves as comparison.
+- **Comparison baseline:** Scenario 6 baseline (`scenario_6_recovery_baseline.yaml`). Do not use Scenario 2 baseline — different offered load.
 
 | Config | `re_enable_windows` | Effective wait | Risk |
 |--------|--------------------|-----------------|----|
 | `interval_10s` | 1 | 30s | Oscillation — retries re-enabled before bottleneck clears |
 | `interval_20s` | 2 | 60s | Below paper default |
-| `interval_30s` | 3 | 90s | **Paper default** (RetryGuard Sec. 6.2) |
+| `interval_30s` | 3 | 90s | **Paper default** (RetryGuard Sec. 6.2); same params as S6 RetryGuard |
 | `interval_60s` | 6 | 180s | Goodput suppressed too long after recovery |
+
+### Scenario 6 — Forced Recovery
+
+- **Load:** Peak 0–300s, drop to ~25% of peak 300–900s (`locust.phases`)
+- **Topology:** No changes
+- **Duration:** 15 minutes
+- **Goal:** Elicit `OFF→ON` by reducing offered load after disable has fired. Canonical baseline for Scenario 5. `scenario_6_recovery_retryguard.yaml` uses paper-default `re_enable_windows: 3`.
 
 ---
 
@@ -93,9 +100,9 @@ There are exactly **three knobs** — everything else (cluster, VMs, pods, stack
 
 | Knob | Controlled by | Scenarios affected |
 |------|---------------|--------------------|
-| **Load intensity** (user counts) | `locust.user_counts` in config | All (low for S1, high for S2/5, medium for S3/4) |
+| **Load intensity** (user counts / phases) | `locust.user_counts` or `locust.phases` | All (low for S1, high flat for S2/S3/S4, high then drop for S5/S6) |
 | **Topology constraint** | `scale_constraints` in config → `kubectl scale` or `kubectl patch` cpu_limit | S3, S4A, S4B only |
-| **RetryGuard re-enable interval** | `retryguard.re_enable_windows` in config | S5 only |
+| **RetryGuard re-enable interval** | `retryguard.re_enable_windows` in config | S5 only (S6 RetryGuard uses paper default = 3) |
 
 Between every run you must:
 1. Stop Locust (runner does this automatically)
@@ -126,10 +133,11 @@ The collection tools are identical for every run. What changes is which metrics 
 | Scenario | Focus metric |
 |----------|-------------|
 | 1 Normal Op | RetryGuard log — confirm **zero** patches |
-| 2 Sustained Overload | Goodput over time + retries/request |
+| 2 Sustained Overload | Goodput over time + retries/request (flat hold) |
 | 3 Targeted Bottleneck | Rejection rate at constrained service + upstream callers |
 | 4A/4B Topology | Same as S3, **compared across positions A and B** |
-| 5 Interval Tuning | Toggle event count (oscillation) + time-to-recovery |
+| 5 Interval Tuning | Toggle event count (oscillation) + time-to-recovery vs **S6 baseline** |
+| 6 Forced Recovery | `OFF→ON` after the t=300s load drop; S5's comparison pair |
 
 ---
 
@@ -139,7 +147,7 @@ The collection tools are identical for every run. What changes is which metrics 
 
 ```
 experiments/
-  configs/                         # 14 scenario YAML files
+  configs/                         # 16 scenario YAML files
     scenario_1_baseline.yaml
     scenario_1_retryguard.yaml
     scenario_2_baseline.yaml
@@ -154,6 +162,8 @@ experiments/
     scenario_5_interval_20s.yaml
     scenario_5_interval_30s.yaml
     scenario_5_interval_60s.yaml
+    scenario_6_recovery_baseline.yaml
+    scenario_6_recovery_retryguard.yaml
   run_scenario.py                  # orchestrator — runs on Windows, controls VMs over SSH
   README.md                        # quick-start usage
 ```
@@ -222,10 +232,10 @@ locust:
   scripts:
     - online_boutique_create.sh
     - online_boutique_create2.sh
-  # Optional: mid-run load changes (added for the recovery-phase fix, see
-  # PHASE7-DATA-GAPS.md Gap 1). If present, this REPLACES user_counts above
+  # Optional: mid-run load changes (Scenario 6 / S5 forced recovery). If present, this REPLACES user_counts above
   # (the two are mutually exclusive — resolve_locust_phases() raises a
   # ConfigError if both are set). phases[0].at_seconds must be 0.
+  # Used by scenario_6_recovery_*.yaml and scenario_5_interval_*.yaml — NOT by S2.
   # phases:
   #   - at_seconds: 0
   #     user_counts: {getproduct: 100, postcheckout: 20, getcart: 100, postcart: 100, emptycart: 300}

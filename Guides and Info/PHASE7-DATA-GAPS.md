@@ -49,9 +49,9 @@ Example (`run_topfull_retryguard_interval_60s_run1`):
 
 **Status (implementation):** The generic mechanism exists — `experiments/run_scenario.py` supports an optional `locust.phases` list (see `PHASE5-EXPERIMENTS-GUIDE.md` §"YAML config schema") that changes offered load mid-run by killing and relaunching Locust at a new level. It is covered by unit tests in `experiments/test_run_scenario.py`.
 
-**Configs updated (2026-08-20), not yet run.** `scenario_2_baseline.yaml`, `scenario_2_retryguard.yaml`, and all four `scenario_5_interval_{10,20,30,60}s.yaml` now carry an identical two-phase load profile — hold the original peak load for 300s (long enough to trigger disable, per the matrix data), then drop to ~25% of peak for the remaining 600s of an extended 900s run (`duration_seconds: 600 → 900`) so rejection can fall under threshold and `re_enable_windows` gets exercised. The phase schedule is byte-identical across all six files (S3/S4 were left untouched — their objectives per `Evaluating_RetryGuard_on_TopFull.md` slides 13–14 don't depend on a recover→re-enable cycle). `retryguard:` block settings (threshold, `disable_windows`, per-config `re_enable_windows`) are unchanged so the four S5 configs stay comparable and S2's baseline/RetryGuard pair stays comparable.
+**Configs (2026-09-01 split).** The 2026-08-20 edit put the 900s load-drop onto Scenario 2, which diverged from the deck's 10-minute hold. That is undone: **S2 is again a flat 600s peak** (same shape as matrix runs 1–3; `run_number: 4` is the next S2 repeat, with collectors on). The load-drop profile is **Scenario 6** (`scenario_6_recovery_{baseline,retryguard}.yaml`, `run_number: 1`) and all four S5 interval configs (already `run_number: 3`). S5 compares against **S6 baseline**, not S2. S3/S4 were never given a recovery phase.
 
-**How to actually run these.** `scenario_2_baseline.yaml`/`scenario_2_retryguard.yaml` were bumped to `run_number: 4` (runs 1–3 already exist on disk); the four S5 configs stayed at `run_number: 3` (their next unused slot). Run each manually — `python experiments/run_scenario.py experiments/configs/scenario_2_baseline.yaml` etc. — **do not** invoke these six via `run_all_scenarios.py`'s batch matrix: `build_matrix()` is hardcoded to target `run1–3` (S2) / `run1–2` (S5) and `patch_config()` rewrites `run_number`/`log_folder` back to those slots before each run, which would silently overwrite the already-collected flat-overload data at those slots with the new 900s/recovery-phase data under the same folder names.
+**How to actually run these.** Run S6 + S5 individually — see [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md) Tier 1. **Do not** use `run_all_scenarios.py`: `build_matrix()` is hardcoded to S2 `run1–3` / S5 `run1–2` and would overwrite finished matrix folders. S6 is not in that matrix at all.
 
 ---
 
@@ -87,7 +87,7 @@ So `Latency95` — which is real and responsive across the matrix (roughly 570�
 
 **Remediation.** Envoy exposes retry counters per upstream cluster (`upstream_rq_retry`, `upstream_rq_retry_success` and related) on the *caller's* outbound stats. Scraping those from the sidecars during a run gives a true retries-per-request series (derived at analysis time by differencing consecutive cumulative rows). This needs new runs.
 
-**Status (implementation):** The collector exists — [`experiments/envoy_retry_collector.py`](../experiments/envoy_retry_collector.py). It scrapes `frontend` and `checkoutservice` sidecars via `kubectl exec … -c istio-proxy -- curl localhost:15000/stats` every `poll_interval_seconds` (default 5), extracts outbound counters for `cartservice` / `checkoutservice` / `productcatalogservice` / `paymentservice`, and writes `envoy_retries_{caller}.csv` into the same `record_path` that `collect_results()` already copies. Covered by unit tests in `experiments/test_envoy_retry_collector.py` and mocked-SSH wiring tests in `experiments/test_run_scenario.py`. Wired into `run_scenario.py` as tmux session `envoyretry` (independent of RetryGuard — both arms). All 14 scenario YAMLs enable it by default. Schema and file layout documented in [PHASE5-EXPERIMENTS-GUIDE.md](PHASE5-EXPERIMENTS-GUIDE.md) and [METRICS-COLLECTION-GUIDE.md](METRICS-COLLECTION-GUIDE.md) §5.
+**Status (implementation):** The collector exists — [`experiments/envoy_retry_collector.py`](../experiments/envoy_retry_collector.py). It scrapes `frontend` and `checkoutservice` sidecars via `kubectl exec … -c istio-proxy -- curl localhost:15000/stats` every `poll_interval_seconds` (default 5), extracts outbound counters for `cartservice` / `checkoutservice` / `productcatalogservice` / `paymentservice`, and writes `envoy_retries_{caller}.csv` into the same `record_path` that `collect_results()` already copies. Covered by unit tests in `experiments/test_envoy_retry_collector.py` and mocked-SSH wiring tests in `experiments/test_run_scenario.py`. Wired into `run_scenario.py` as tmux session `envoyretry` (independent of RetryGuard — both arms). All 16 scenario YAMLs enable it by default. Schema and file layout documented in [PHASE5-EXPERIMENTS-GUIDE.md](PHASE5-EXPERIMENTS-GUIDE.md) and [METRICS-COLLECTION-GUIDE.md](METRICS-COLLECTION-GUIDE.md) §5.
 
 **Blocking issue found and fixed during live validation (2026-08-20).** Istio's default `proxyStatsMatcher` strips detailed per-cluster counters (including all `upstream_rq_retry*` stats) from the Envoy admin `/stats` endpoint to reduce memory overhead — confirmed live: `kubectl exec frontend-… -c istio-proxy -- curl localhost:15000/stats` returned zero `cluster.outbound.*` lines at all (only `cluster.xds-grpc`), even though `/clusters` showed the outbound clusters were correctly configured. Without a fix, `envoy_retry_collector.py` would run forever and produce syntactically valid but **permanently all-zero** CSVs — a silent failure mode that unit tests alone could not catch (they mock the kubectl layer). Fix: patch the `frontend` and `checkoutservice` Deployments' pod template with annotation `sidecar.istio.io/statsInclusionRegexps: cluster\.outbound.*upstream_rq.*`, which triggers one rollout restart and thereafter exposes the counters. Verified live end-to-end on `topfull-master`/`topfull-worker1`: after patching, `upstream_rq_retry`/`upstream_rq_total` lines appear for `cartservice`, `productcatalogservice`, `checkoutservice` (from `frontend`) and `paymentservice` (from `checkoutservice`); a direct smoke run of `envoy_retry_collector.py` on master wrote correctly-formatted `envoy_retries_{frontend,checkoutservice}.csv` rows.
 
@@ -110,10 +110,11 @@ These were documented before this audit and are listed here so the Layer 1–3 p
 | Scenario | Status |
 |---|---|
 | 1 — Normal Operation | **Full.** Zero toggles in all 3 RetryGuard runs, `Fail=0`. Sanity check passes. |
-| 2 — Sustained Overload | **Partial.** Goodput/rejection comparison and disable events are solid; no recover→re-enable cycle in the existing flat-overload runs (Gap 1 configs updated, not yet re-run); no retry counts in the existing matrix (Gap 3 collector built, not yet re-run). |
+| 2 — Sustained Overload | **Partial.** Goodput/rejection comparison and disable events are solid on the flat 600s matrix; recover→re-enable under *continued* overload did not happen (Gap 1). S2 YAML is that same flat hold again (`run4` adds collectors). Forced recovery is Scenario 6, not S2. |
 | 3 — Targeted Bottleneck | **Full** for goodput/rejection. Retry counts available only after re-runs with the Envoy collector. |
 | 4A / 4B — Topology Position | **Full** for goodput/rejection, with the shallow-topology caveat the deck already states on slide 14. Retry counts after re-runs. |
-| 5 — Interval Tuning | **None.** See Gap 1. |
+| 5 — Interval Tuning | **None** on the existing 8 flat runs. Unblocked only by running S5 on Scenario 6's load (not S2). |
+| 6 — Forced Recovery | **Not yet run.** Configs exist; this is the Gap 1 load-drop experiment. |
 
 | Open question (slides 8–9) | Status |
 |---|---|
@@ -122,7 +123,7 @@ These were documented before this audit and are listed here so the Layer 1–3 p
 | Chain Propagation | Answerable, coarse — only 5 Locust endpoints as observation points |
 | Controller Interaction | Partial — admitted `RPS` as proxy; no `num_agent` state |
 | Topology Position Sensitivity | Answerable — S4A vs S4B |
-| Interval Parameter Sensitivity | Blocked — see Gap 1 |
+| Interval Parameter Sensitivity | Blocked until S6/S5 recovery-profile runs — see Gap 1 |
 
 **Usable for Phase 7 analysis: 30 of 38 runs** (all but the 8 Scenario 5 runs, which document only that overload was too deep for recovery to occur).
 

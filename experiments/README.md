@@ -61,10 +61,12 @@ The runner will:
 | `scenario_4a_retryguard.yaml` | Topology Position A (productcatalog) | RetryGuard on | 10 min |
 | `scenario_4b_baseline.yaml` | Topology Position B (payment) | baseline | 10 min |
 | `scenario_4b_retryguard.yaml` | Topology Position B (payment) | RetryGuard on | 10 min |
-| `scenario_5_interval_10s.yaml` | Interval Tuning — 10s | RetryGuard on | 10 min |
-| `scenario_5_interval_20s.yaml` | Interval Tuning — 20s | RetryGuard on | 10 min |
-| `scenario_5_interval_30s.yaml` | Interval Tuning — 30s (paper default) | RetryGuard on | 10 min |
-| `scenario_5_interval_60s.yaml` | Interval Tuning — 60s | RetryGuard on | 10 min |
+| `scenario_5_interval_10s.yaml` | Interval Tuning — 10s label (30s wait); **S6 load** | RetryGuard on | 15 min |
+| `scenario_5_interval_20s.yaml` | Interval Tuning — 20s label (60s wait); **S6 load** | RetryGuard on | 15 min |
+| `scenario_5_interval_30s.yaml` | Interval Tuning — 30s label (90s wait); **S6 load** | RetryGuard on | 15 min |
+| `scenario_5_interval_60s.yaml` | Interval Tuning — 60s label (180s wait); **S6 load** | RetryGuard on | 15 min |
+| `scenario_6_recovery_baseline.yaml` | Forced Recovery | baseline | 15 min |
+| `scenario_6_recovery_retryguard.yaml` | Forced Recovery | RetryGuard on | 15 min |
 
 ---
 
@@ -93,7 +95,7 @@ scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `scenario_id` | int | 1–5 |
+| `scenario_id` | int | 1–6 |
 | `scenario_name` | string | Human-readable name |
 | `condition` | string | `baseline` or `retryguard` |
 | `run_number` | int | Repeat index (increment per run) |

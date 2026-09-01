@@ -8,7 +8,7 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 
 ## 1. What gets collected and by what tool
 
-Every run produces output from up to five sources. API performance and the run manifest are always present; RetryGuard decisions only when RetryGuard is on; Envoy retry counters and CPU/memory when their collectors are enabled (default in all 14 scenario configs).
+Every run produces output from up to five sources. API performance and the run manifest are always present; RetryGuard decisions only when RetryGuard is on; Envoy retry counters and CPU/memory when their collectors are enabled (default in all 16 scenario configs).
 
 | Source | Written by | Format | Always collected? |
 |--------|-----------|--------|------------------|

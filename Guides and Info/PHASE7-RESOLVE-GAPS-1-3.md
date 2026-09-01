@@ -21,7 +21,7 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 | **Layer 2** — CPU/Memory limits | ❌ Missing in all 38 runs | ✅ **Closed** for whichever scenarios you re-run (collector enabled by default) | ❌ Stays missing |
 | **Layer 2** — Pod instance counts | N/A by design (all services fixed at 1 replica, slide 6) | N/A | N/A |
 | **Layer 3** — Per-service toggle timing | ✅ Have it (`retryguard.log` `ON→OFF`/`OFF→ON`) | ✅ Same | ✅ Same |
-| **Layer 3** — Time-to-recovery intervals | ❌ No `OFF→ON` events exist to measure from | ✅ **Closed** for S2/S5 (§3, Tier 1) | ❌ Stays missing |
+| **Layer 3** — Time-to-recovery intervals | ❌ No `OFF→ON` events exist to measure from | ✅ **Closed** for S6/S5 (§3, Tier 1) | ❌ Stays missing |
 
 **Layer 2 (CPU/Memory) is now instrumented for new runs.** `resource_usage_collector.py` writes `resource_usage.csv` (CPU millicores + memory working set per service). The existing 38 matrix folders still lack it — same pattern as Gap 3. Pod replica counts in the CSV will be flat at `1` (fixed-replica design); autoscaling/over-scaling charts remain N/A.
 
@@ -29,15 +29,15 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 
 | Open question | Status today | Status after Tier 1 (§3) | Status after Tier 1 + Tier 2 (§3) |
 |---|---|---|---|
-| System-Level Gains | Answerable (goodput, P95, rejection) | Same, now also with direct retry evidence for S2 | Same, across all scenarios |
+| System-Level Gains | Answerable (goodput, P95, rejection) | Same, now also with direct retry evidence for **S6** | Same, across all scenarios |
 | Topology Beneficiaries | Answerable (per-endpoint) | Same | Enriched — retry counts per service, not just goodput |
-| Chain Propagation | Answerable, coarse (5 Locust endpoints only) | Enriched for S2 — Envoy CSVs show retries at `checkoutservice`'s *own* outbound calls to `cartservice`/`productcatalogservice`, a second observation point beyond the Locust endpoints | Enriched for S3/S4 too |
-| Controller Interaction | Partial (`RPS` proxy; `num_agent.csv` empty — **stays partial**, out of scope) | Partial, but now has real recovery data for S2 | Same |
+| Chain Propagation | Answerable, coarse (5 Locust endpoints only) | Enriched for S6 — Envoy CSVs show retries at `checkoutservice`'s *own* outbound calls | Enriched for S3/S4 too |
+| Controller Interaction | Partial (`RPS` proxy; `num_agent.csv` empty — **stays partial**, out of scope) | Partial, but now has recovery-cycle data for **S6** (load drop), not for flat S2 | Same |
 | Topology Position Sensitivity | Answerable (S4A vs S4B goodput/rejection) | Same | Enriched — retry-count comparison between shallow (S4A) and deep (S4B) bottlenecks |
-| Interval Parameter Sensitivity | **Blocked** (Gap 1 — zero `OFF→ON` events) | **Unblocked** — this is the entire point of Tier 1 | Same |
-| Combined Equilibrium | Weakened (no recovery phase ever reached) | Answerable for S2 — the full disable→recover→re-enable cycle can now be inspected | Same |
+| Interval Parameter Sensitivity | **Blocked** (Gap 1 — zero `OFF→ON` events) | **Unblocked** — this is the entire point of Tier 1 (S6 + S5) | Same |
+| Combined Equilibrium | Weakened (no recovery phase ever reached under continued overload) | Answerable for **S6** — disable→recover→re-enable after a Locust load drop | Same |
 
-**Conclusion: running Tier 1 (§3) is necessary and sufficient to unblock the two open questions that were previously blocked (Interval Parameter Sensitivity, Combined Equilibrium) and to get the headline Layer 1 retry-storm evidence for the scenario the deck cares about most (Scenario 2, slide 12). Tier 2 is optional polish — it gets the same retry-storm evidence for the other four scenarios, at the cost of ~8 more runs, but doesn't unblock anything that's currently blocked.**
+**Conclusion: running Tier 1 (§3) is necessary and sufficient to unblock Interval Parameter Sensitivity and Combined Equilibrium (via Scenario 6's load-drop, not by changing Scenario 2) and to get Layer 1 retry-storm evidence for the recovery profile. Scenario 2 stays the deck's 10-minute hold — re-run it in Tier 2 if you want Envoy/resource CSVs on that shape. Tier 2 is optional polish for S1/S2/S3/S4 collectors.**
 
 ### 1c. A blocking issue was found and fixed while verifying this (2026-08-20)
 
@@ -94,27 +94,27 @@ Pull results after each run (the runner prints the exact command, but for refere
 scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/
 ```
 
-### Tier 1 — Required (closes Gap 1 fully; gives retry-storm evidence for Scenario 2 and Scenario 5)
+### Tier 1 — Required (closes Gap 1 fully; retry-storm evidence for Scenario 6 and Scenario 5)
 
-These 6 configs already carry the recovery-phase load profile (peak load 0–300s, dropped to ~25% 300–900s, `duration_seconds: 900`) **and** `envoy_retry_collector.enabled: true`. Their `run_number`/`log_folder` are already bumped to free slots — **no config edits needed**, just run them.
+These 6 configs carry the **Scenario 6** recovery-phase load (peak 0–300s, ~25% 300–900s, `duration_seconds: 900`) **and** collectors enabled. Scenario 2 is **not** in this list — S2 is the flat 600s hold again.
 
 | # | Config | Slot | Duration | Closes |
 |---|---|---|---|---|
-| 1 | `scenario_2_baseline.yaml` | run4 (free) | 900s (~17 min incl. overhead) | Scenario 2's disable→recover→re-enable objective (baseline half) |
-| 2 | `scenario_2_retryguard.yaml` | run4 (free) | 900s | Scenario 2's disable→recover→re-enable objective (RetryGuard half); retries-per-request for S2 |
+| 1 | `scenario_6_recovery_baseline.yaml` | run1 (new) | 900s (~17 min incl. overhead) | S6 / S5 comparison baseline |
+| 2 | `scenario_6_recovery_retryguard.yaml` | run1 (new) | 900s | S6 RetryGuard arm (paper-default interval); retries-per-request |
 | 3 | `scenario_5_interval_10s.yaml` | run3 (free) | 900s | Interval sensitivity, interval=10s |
 | 4 | `scenario_5_interval_20s.yaml` | run3 (free) | 900s | Interval sensitivity, interval=20s |
-| 5 | `scenario_5_interval_30s.yaml` | run3 (free) | 900s | Interval sensitivity, interval=30s (paper default) |
+| 5 | `scenario_5_interval_30s.yaml` | run3 (free) | 900s | Interval sensitivity, interval=30s (same params as S6 RetryGuard) |
 | 6 | `scenario_5_interval_60s.yaml` | run3 (free) | 900s | Interval sensitivity, interval=60s |
 
 Total: ~6 × 17 min ≈ **1.7 hours sequential VM time**.
 
 ```powershell
-python experiments/run_scenario.py experiments/configs/scenario_2_baseline.yaml
-scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run4 experiments/results/
+python experiments/run_scenario.py experiments/configs/scenario_6_recovery_baseline.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_forced_recovery_run1 experiments/results/
 
-python experiments/run_scenario.py experiments/configs/scenario_2_retryguard.yaml
-scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_sustained_overload_run4 experiments/results/
+python experiments/run_scenario.py experiments/configs/scenario_6_recovery_retryguard.yaml
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_forced_recovery_run1 experiments/results/
 
 python experiments/run_scenario.py experiments/configs/scenario_5_interval_10s.yaml
 scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_10s_run3 experiments/results/
@@ -131,9 +131,9 @@ scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retrygua
 
 > **This is not guaranteed to trigger `OFF→ON` on the first try.** The recovery phase drops load to ~25% of peak, which *should* pull rejection back under RetryGuard's 20% threshold, but real system behavior can surprise you. **After each run, check immediately** (§4) before moving to the next one — if `OFF→ON` never fires even during the 300–900s recovery window, stop and re-read [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 1 remediation option 2 (soften the load further) rather than burning VM-hours on 5 more runs with the same problem.
 
-### Tier 2 — Recommended, not required (retries-per-request evidence for Scenarios 1, 3, 4A, 4B)
+### Tier 2 — Recommended, not required (retries-per-request evidence for Scenarios 1, 2, 3, 4A, 4B)
 
-These configs do **not** need the recovery-phase fix (their objectives per slides 11/13/14 don't depend on a recover→re-enable cycle) — they only need the Envoy collector, which is already enabled in all 14 configs. `scenario_3_*`/`scenario_4*_*` are already sitting on a free slot (`run4`); `scenario_1_*` is **not** (its `run3` matches an already-completed folder) and needs a one-line bump first.
+These configs do **not** need the recovery-phase load (S2 is the deck's flat hold). They need the Envoy + resource collectors, already enabled. `scenario_2_*`/`scenario_3_*`/`scenario_4*_*` sit on free `run4`; `scenario_1_*` needs a one-line bump first.
 
 **Step A — bump Scenario 1 configs (required before running them, skip for S3/S4A/S4B):**
 
@@ -147,24 +147,28 @@ run_number: 4                                                    # was 3
 log_folder: run_topfull_retryguard_normal_op_run4                 # was run3
 ```
 
-**Step B — run all 8:**
+**Step B — run all 10:**
 
 | # | Config | Slot | Duration | Closes |
 |---|---|---|---|---|
 | 7 | `scenario_1_baseline.yaml` | run4 (after bump) | 300s | Retry-count parity for the sanity-check scenario (expect near-zero retries both arms) |
 | 8 | `scenario_1_retryguard.yaml` | run4 (after bump) | 300s | Same, RetryGuard arm |
-| 9 | `scenario_3_baseline.yaml` | run4 (free, as-is) | 600s | Retries-per-request at the targeted bottleneck |
-| 10 | `scenario_3_retryguard.yaml` | run4 (free, as-is) | 600s | Same, RetryGuard arm |
-| 11 | `scenario_4a_baseline.yaml` | run4 (free, as-is) | 600s | Retries-per-request, gateway-adjacent bottleneck |
-| 12 | `scenario_4a_retryguard.yaml` | run4 (free, as-is) | 600s | Same, RetryGuard arm |
-| 13 | `scenario_4b_baseline.yaml` | run4 (free, as-is) | 600s | Retries-per-request, deep-leaf bottleneck |
-| 14 | `scenario_4b_retryguard.yaml` | run4 (free, as-is) | 600s | Same, RetryGuard arm |
+| 9 | `scenario_2_baseline.yaml` | run4 (free) | 600s | Retries-per-request on the **flat** S2 hold (deck intent) |
+| 10 | `scenario_2_retryguard.yaml` | run4 (free) | 600s | Same, RetryGuard arm |
+| 11 | `scenario_3_baseline.yaml` | run4 (free, as-is) | 600s | Retries-per-request at the targeted bottleneck |
+| 12 | `scenario_3_retryguard.yaml` | run4 (free, as-is) | 600s | Same, RetryGuard arm |
+| 13 | `scenario_4a_baseline.yaml` | run4 (free, as-is) | 600s | Retries-per-request, gateway-adjacent bottleneck |
+| 14 | `scenario_4a_retryguard.yaml` | run4 (free, as-is) | 600s | Same, RetryGuard arm |
+| 15 | `scenario_4b_baseline.yaml` | run4 (free, as-is) | 600s | Retries-per-request, deep-leaf bottleneck |
+| 16 | `scenario_4b_retryguard.yaml` | run4 (free, as-is) | 600s | Same, RetryGuard arm |
 
-Total: ~2×~7min + 6×~11.5min ≈ **1.3 hours sequential VM time**.
+Total: ~2×~7min + 8×~11.5min ≈ **1.8 hours sequential VM time**.
 
 ```powershell
 python experiments/run_scenario.py experiments/configs/scenario_1_baseline.yaml
 python experiments/run_scenario.py experiments/configs/scenario_1_retryguard.yaml
+python experiments/run_scenario.py experiments/configs/scenario_2_baseline.yaml
+python experiments/run_scenario.py experiments/configs/scenario_2_retryguard.yaml
 python experiments/run_scenario.py experiments/configs/scenario_3_baseline.yaml
 python experiments/run_scenario.py experiments/configs/scenario_3_retryguard.yaml
 python experiments/run_scenario.py experiments/configs/scenario_4a_baseline.yaml
@@ -174,7 +178,7 @@ python experiments/run_scenario.py experiments/configs/scenario_4b_retryguard.ya
 # Pull each with scp as shown in Tier 1, using the log_folder from each config.
 ```
 
-> These 8 runs are a genuinely new 4th repeat for scenarios that already have 3 solid repeats — they don't replace or invalidate the existing run1–3 goodput/rejection data, they add a retry-count dimension the earlier 3 repeats can't have (they predate the collector). It's fine — and expected — for goodput numbers in this run4 to differ slightly from run1–3 due to Locust's inherent randomness; only use run4 for the retry-count analysis, keep using run1–3 (or run1-3 + run4 pooled) for goodput/latency/rejection.
+> These 10 runs are a genuinely new 4th repeat for scenarios that already have 3 solid repeats — they don't replace or invalidate the existing run1–3 goodput/rejection data, they add a retry-count dimension the earlier 3 repeats can't have (they predate the collector). It's fine — and expected — for goodput numbers in this run4 to differ slightly from run1–3 due to Locust's inherent randomness; only use run4 for the retry-count analysis, keep using run1–3 (or run1-3 + run4 pooled) for goodput/latency/rejection.
 
 ---
 
@@ -210,7 +214,7 @@ for f in ['envoy_retries_frontend.csv', 'envoy_retries_checkoutservice.csv']:
 ## 5. After all runs are pulled down
 
 1. Update [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md): move Gap 1 and Gap 3 from "configs updated, not yet run" to closed, with the new run folder names and a summary of what the `OFF→ON` events / retry CSVs actually showed.
-2. Update the "What remains answerable" table in that same doc — Scenario 5 should move from **None** to **Full** (or partial, if some interval configs still didn't recover); Scenario 2 should move from **Partial** to **Full**.
+2. Update the "What remains answerable" table in that same doc — Scenario 5 should move from **None** to **Full** (or partial, if some interval configs still didn't recover); Scenario 6 should appear as the recovery-cycle pair. Scenario 2 stays **Partial** unless a later run shows re-enable under a *flat* hold.
 3. Update `AGENTS.md` §4 "Current status" — the matrix is no longer "38 runs" once these land; note the new total and that it now includes recovery-phase and retry-count data.
 4. Commit the new `experiments/results/<log_folder>/` folders the same way the original 38 were committed.
 
