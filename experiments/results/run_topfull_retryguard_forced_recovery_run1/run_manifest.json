@@ -1,0 +1,27 @@
+{
+  "scenario_id": 6,
+  "scenario_name": "forced_recovery",
+  "condition": "retryguard",
+  "run_number": 1,
+  "duration_seconds": 900,
+  "retryguard": {
+    "enabled": true,
+    "rejection_threshold": 0.2,
+    "window_duration_seconds": 30,
+    "disable_windows": 2,
+    "re_enable_windows": 3,
+    "retry_attempts_on": 3,
+    "retry_attempts_off": 0
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "scale_constraints": [],
+  "log_folder": "run_topfull_retryguard_forced_recovery_run1",
+  "collected_at": "2026-09-04T10:55:25.482686Z"
+}

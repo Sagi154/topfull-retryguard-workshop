@@ -1,0 +1,103 @@
+2026-09-04T10:39:28Z  WAITING  for metric_collector CSVs under /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs (timeout=60s)
+2026-09-04T10:39:28Z  READY  found getproduct.csv
+2026-09-04T10:39:28Z  START  threshold=0.20 window=30s disable_windows=2 re_enable_windows=3 services=['cartservice', 'checkoutservice', 'productcatalogservice']
+2026-09-04T10:39:58Z  OBSERVE  cartservice  rejection=0.0249  low=1 high=0  state=ON
+2026-09-04T10:39:58Z  OBSERVE  checkoutservice  rejection=0.4663  low=0 high=1  state=ON
+2026-09-04T10:39:58Z  OBSERVE  productcatalogservice  rejection=0.0069  low=1 high=0  state=ON
+2026-09-04T10:40:28Z  OBSERVE  cartservice  rejection=0.3527  low=0 high=1  state=ON
+2026-09-04T10:40:28Z  OBSERVE  checkoutservice  rejection=0.9730  low=0 high=2  state=ON
+2026-09-04T10:40:28Z  checkoutservice  ON→OFF   rejection=0.97  consecutive_high=2  attempts=0
+2026-09-04T10:40:28Z  OBSERVE  productcatalogservice  rejection=0.3214  low=0 high=1  state=ON
+2026-09-04T10:40:58Z  OBSERVE  cartservice  rejection=0.6747  low=0 high=2  state=ON
+2026-09-04T10:40:58Z  cartservice  ON→OFF   rejection=0.67  consecutive_high=2  attempts=0
+2026-09-04T10:40:58Z  OBSERVE  checkoutservice  rejection=0.9683  low=0 high=3  state=OFF
+2026-09-04T10:40:58Z  OBSERVE  productcatalogservice  rejection=0.6189  low=0 high=2  state=ON
+2026-09-04T10:40:58Z  productcatalogservice  ON→OFF   rejection=0.62  consecutive_high=2  attempts=0
+2026-09-04T10:41:28Z  OBSERVE  cartservice  rejection=0.6350  low=0 high=3  state=OFF
+2026-09-04T10:41:28Z  OBSERVE  checkoutservice  rejection=0.9903  low=0 high=4  state=OFF
+2026-09-04T10:41:28Z  OBSERVE  productcatalogservice  rejection=0.5719  low=0 high=3  state=OFF
+2026-09-04T10:41:58Z  OBSERVE  cartservice  rejection=0.6729  low=0 high=4  state=OFF
+2026-09-04T10:41:58Z  OBSERVE  checkoutservice  rejection=0.9812  low=0 high=5  state=OFF
+2026-09-04T10:41:58Z  OBSERVE  productcatalogservice  rejection=0.7821  low=0 high=4  state=OFF
+2026-09-04T10:42:28Z  OBSERVE  cartservice  rejection=0.6859  low=0 high=5  state=OFF
+2026-09-04T10:42:28Z  OBSERVE  checkoutservice  rejection=0.9876  low=0 high=6  state=OFF
+2026-09-04T10:42:28Z  OBSERVE  productcatalogservice  rejection=0.8119  low=0 high=5  state=OFF
+2026-09-04T10:42:58Z  OBSERVE  cartservice  rejection=0.7146  low=0 high=6  state=OFF
+2026-09-04T10:42:58Z  OBSERVE  checkoutservice  rejection=0.9868  low=0 high=7  state=OFF
+2026-09-04T10:42:58Z  OBSERVE  productcatalogservice  rejection=0.8354  low=0 high=6  state=OFF
+2026-09-04T10:43:28Z  OBSERVE  cartservice  rejection=0.6960  low=0 high=7  state=OFF
+2026-09-04T10:43:28Z  OBSERVE  checkoutservice  rejection=0.9079  low=0 high=8  state=OFF
+2026-09-04T10:43:28Z  OBSERVE  productcatalogservice  rejection=0.8452  low=0 high=7  state=OFF
+2026-09-04T10:43:58Z  OBSERVE  cartservice  rejection=0.7404  low=0 high=8  state=OFF
+2026-09-04T10:43:58Z  OBSERVE  checkoutservice  rejection=0.9924  low=0 high=9  state=OFF
+2026-09-04T10:43:58Z  OBSERVE  productcatalogservice  rejection=0.8760  low=0 high=8  state=OFF
+2026-09-04T10:44:28Z  OBSERVE  cartservice  rejection=0.8316  low=0 high=9  state=OFF
+2026-09-04T10:44:28Z  OBSERVE  checkoutservice  rejection=0.9571  low=0 high=10  state=OFF
+2026-09-04T10:44:28Z  OBSERVE  productcatalogservice  rejection=0.9024  low=0 high=9  state=OFF
+2026-09-04T10:44:58Z  OBSERVE  cartservice  rejection=0.9981  low=0 high=10  state=OFF
+2026-09-04T10:44:58Z  OBSERVE  checkoutservice  rejection=0.9667  low=0 high=11  state=OFF
+2026-09-04T10:44:58Z  OBSERVE  productcatalogservice  rejection=1.0000  low=0 high=10  state=OFF
+2026-09-04T10:45:28Z  OBSERVE  cartservice  rejection=0.3667  low=0 high=11  state=OFF
+2026-09-04T10:45:28Z  OBSERVE  checkoutservice  rejection=0.6958  low=0 high=12  state=OFF
+2026-09-04T10:45:28Z  OBSERVE  productcatalogservice  rejection=0.3667  low=0 high=11  state=OFF
+2026-09-04T10:45:58Z  OBSERVE  cartservice  rejection=0.0000  low=1 high=0  state=OFF
+2026-09-04T10:45:58Z  OBSERVE  checkoutservice  rejection=0.7709  low=0 high=13  state=OFF
+2026-09-04T10:45:58Z  OBSERVE  productcatalogservice  rejection=0.0000  low=1 high=0  state=OFF
+2026-09-04T10:46:28Z  OBSERVE  cartservice  rejection=0.0000  low=2 high=0  state=OFF
+2026-09-04T10:46:28Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=14  state=OFF
+2026-09-04T10:46:28Z  OBSERVE  productcatalogservice  rejection=0.0000  low=2 high=0  state=OFF
+2026-09-04T10:46:58Z  OBSERVE  cartservice  rejection=0.0000  low=3 high=0  state=OFF
+2026-09-04T10:46:58Z  cartservice  OFF→ON   rejection=0.00  consecutive_low=3  attempts=3
+2026-09-04T10:46:58Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=15  state=OFF
+2026-09-04T10:46:58Z  OBSERVE  productcatalogservice  rejection=0.0000  low=3 high=0  state=OFF
+2026-09-04T10:46:58Z  productcatalogservice  OFF→ON   rejection=0.00  consecutive_low=3  attempts=3
+2026-09-04T10:47:28Z  OBSERVE  cartservice  rejection=0.0000  low=4 high=0  state=ON
+2026-09-04T10:47:28Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=16  state=OFF
+2026-09-04T10:47:28Z  OBSERVE  productcatalogservice  rejection=0.0000  low=4 high=0  state=ON
+2026-09-04T10:47:58Z  OBSERVE  cartservice  rejection=0.0000  low=5 high=0  state=ON
+2026-09-04T10:47:58Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=17  state=OFF
+2026-09-04T10:47:58Z  OBSERVE  productcatalogservice  rejection=0.0000  low=5 high=0  state=ON
+2026-09-04T10:48:28Z  OBSERVE  cartservice  rejection=0.0000  low=6 high=0  state=ON
+2026-09-04T10:48:28Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=18  state=OFF
+2026-09-04T10:48:28Z  OBSERVE  productcatalogservice  rejection=0.0000  low=6 high=0  state=ON
+2026-09-04T10:48:58Z  OBSERVE  cartservice  rejection=0.0000  low=7 high=0  state=ON
+2026-09-04T10:48:58Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=19  state=OFF
+2026-09-04T10:48:58Z  OBSERVE  productcatalogservice  rejection=0.0000  low=7 high=0  state=ON
+2026-09-04T10:49:28Z  OBSERVE  cartservice  rejection=0.0000  low=8 high=0  state=ON
+2026-09-04T10:49:28Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=20  state=OFF
+2026-09-04T10:49:28Z  OBSERVE  productcatalogservice  rejection=0.0000  low=8 high=0  state=ON
+2026-09-04T10:49:58Z  OBSERVE  cartservice  rejection=0.0000  low=9 high=0  state=ON
+2026-09-04T10:49:58Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=21  state=OFF
+2026-09-04T10:49:58Z  OBSERVE  productcatalogservice  rejection=0.0000  low=9 high=0  state=ON
+2026-09-04T10:50:28Z  OBSERVE  cartservice  rejection=0.0000  low=10 high=0  state=ON
+2026-09-04T10:50:28Z  OBSERVE  checkoutservice  rejection=1.0000  low=0 high=22  state=OFF
+2026-09-04T10:50:28Z  OBSERVE  productcatalogservice  rejection=0.0000  low=10 high=0  state=ON
+2026-09-04T10:50:58Z  OBSERVE  cartservice  rejection=0.0000  low=11 high=0  state=ON
+2026-09-04T10:50:58Z  OBSERVE  checkoutservice  rejection=0.8222  low=0 high=23  state=OFF
+2026-09-04T10:50:58Z  OBSERVE  productcatalogservice  rejection=0.0000  low=11 high=0  state=ON
+2026-09-04T10:51:28Z  OBSERVE  cartservice  rejection=0.0000  low=12 high=0  state=ON
+2026-09-04T10:51:28Z  OBSERVE  checkoutservice  rejection=0.0000  low=1 high=0  state=OFF
+2026-09-04T10:51:28Z  OBSERVE  productcatalogservice  rejection=0.0000  low=12 high=0  state=ON
+2026-09-04T10:51:59Z  OBSERVE  cartservice  rejection=0.0000  low=13 high=0  state=ON
+2026-09-04T10:51:59Z  OBSERVE  checkoutservice  rejection=0.0000  low=2 high=0  state=OFF
+2026-09-04T10:51:59Z  OBSERVE  productcatalogservice  rejection=0.0000  low=13 high=0  state=ON
+2026-09-04T10:52:29Z  OBSERVE  cartservice  rejection=0.0000  low=14 high=0  state=ON
+2026-09-04T10:52:29Z  OBSERVE  checkoutservice  rejection=0.0000  low=3 high=0  state=OFF
+2026-09-04T10:52:29Z  checkoutservice  OFF→ON   rejection=0.00  consecutive_low=3  attempts=3
+2026-09-04T10:52:29Z  OBSERVE  productcatalogservice  rejection=0.0000  low=14 high=0  state=ON
+2026-09-04T10:52:59Z  OBSERVE  cartservice  rejection=0.0000  low=15 high=0  state=ON
+2026-09-04T10:52:59Z  OBSERVE  checkoutservice  rejection=0.0000  low=4 high=0  state=ON
+2026-09-04T10:52:59Z  OBSERVE  productcatalogservice  rejection=0.0000  low=15 high=0  state=ON
+2026-09-04T10:53:29Z  OBSERVE  cartservice  rejection=0.0000  low=16 high=0  state=ON
+2026-09-04T10:53:29Z  OBSERVE  checkoutservice  rejection=0.0000  low=5 high=0  state=ON
+2026-09-04T10:53:29Z  OBSERVE  productcatalogservice  rejection=0.0000  low=16 high=0  state=ON
+2026-09-04T10:53:59Z  OBSERVE  cartservice  rejection=0.0000  low=17 high=0  state=ON
+2026-09-04T10:53:59Z  OBSERVE  checkoutservice  rejection=0.0000  low=6 high=0  state=ON
+2026-09-04T10:53:59Z  OBSERVE  productcatalogservice  rejection=0.0000  low=17 high=0  state=ON
+2026-09-04T10:54:29Z  OBSERVE  cartservice  rejection=0.0000  low=18 high=0  state=ON
+2026-09-04T10:54:29Z  OBSERVE  checkoutservice  rejection=0.0000  low=7 high=0  state=ON
+2026-09-04T10:54:29Z  OBSERVE  productcatalogservice  rejection=0.0000  low=18 high=0  state=ON
+2026-09-04T10:54:59Z  OBSERVE  cartservice  rejection=0.0000  low=19 high=0  state=ON
+2026-09-04T10:54:59Z  OBSERVE  checkoutservice  rejection=0.0167  low=8 high=0  state=ON
+2026-09-04T10:54:59Z  OBSERVE  productcatalogservice  rejection=0.0000  low=19 high=0  state=ON
+2026-09-04T10:55:19Z  SHUTDOWN  signal=15
