@@ -93,13 +93,22 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 - **Eval deck transcribed** — `context/Evaluating_RetryGuard_on_TopFull.md` (from the PDF). Replaces the older project-plan pptx files.
 - **Envoy retry collector (Gap 3, 2026-08-20)** — scrapes caller-side Envoy outbound retry counters via `kubectl exec` into `istio-proxy`; writes `envoy_retries_{frontend,checkoutservice}.csv`. **Live-validated end-to-end** on the real cluster: found and fixed a real blocker (Istio's default stats reduction hides `upstream_rq_retry*`; `run_scenario.py` now self-heals it via `ensure_envoy_stats_enabled()`), deployed the script to master, and smoke-tested it producing correctly-formatted CSVs. Not present in the existing 38 results folders — needs fresh runs, see [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md).
 - **Resource usage collector (Layer 2)** — `experiments/resource_usage_collector.py` scrapes per-service CPU/memory via kubelet `stats/summary`; wired into `run_scenario.py`, enabled in all scenario YAMLs, unit-tested. Deploy to master before runs (same as Envoy collector). Not in the existing 38 results folders.
+- **Pre-campaign metric verification PASSED (2026-09-04)** — S6 baseline + RetryGuard run1 with traffic. Folders: `baseline_topfull_no_retryguard_forced_recovery_run1`, `run_topfull_retryguard_forced_recovery_run1`. Confirmed: Locust 1s CSVs; Envoy `max_retry>0` on baseline frontend; `resource_usage.csv`; 3× `ON→OFF` then 3× `OFF→ON` on RetryGuard (Gap 1 signal live). See [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md) §3b. S6 YAMLs bumped to run2 for the next repeats.
 
 ### ❌ Not done yet — remaining work
 
-1. **Paper-grade 48-run campaign** (not yet started) — [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md). Gate on S6 RetryGuard run1 producing `OFF→ON` before the rest. Never `run_all_scenarios.py`.
-2. **Phase 7 — evaluation + report.** Time-series charts and written report on the open questions (§8), using the **campaign** as the primary dataset once it lands. The August 30 usable runs remain a historical goodput/P95/rejection set. **Read [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md) first.**
+> **Next session — do this first:** continue the paper-grade campaign from [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md) §3a. The §3b metric gate already **passed** (S6 run1 baseline + RetryGuard). **2 of 48** campaign folders are done; **46 remain**. Never use `run_all_scenarios.py`.
 
-**Recommended order:** cluster health (§7) → campaign §2 prerequisites → S6 run1 pair with §4 verify → rest of the 48 → analysis per [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md).
+**Exact next runs (in order):**
+
+1. `scenario_6_recovery_baseline.yaml` → run2 (YAML already at run2)
+2. `scenario_6_recovery_retryguard.yaml` → run2
+3. Same pair at run3, then S5 intervals run3–5, then S1–S4 run4–6 (bump S1 YAMLs from run3→run4 before first S1).
+4. After each run: pull with `scp`, §4 verify, bump `run_number`/`log_folder`.
+
+Then: Phase 7 analysis/report on the campaign dataset ([PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md), [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md)).
+
+**Recommended order:** §2 cluster health → **S6 run2** (next) → finish §3a → analysis.
 
 ### ⚠️ Live infra caveat (check before assuming the cluster is healthy)
 
@@ -183,7 +192,7 @@ Full config schema, `scale_constraints` methods, and troubleshooting: [PHASE5-EX
 - **Chain propagation** — does relief at a bottleneck propagate upstream to callers? — **answerable**, coarse (only 5 Locust endpoints).
 - **Controller interaction** — how do TopFull's RL loop (1s) and RetryGuard (30s windows) interact/oscillate? — **partial** until the campaign (`RPS` as proxy; `num_agent.csv` is empty). Recover→re-enable is the S6 load-drop, not flat S2.
 - **Topology position sensitivity** — does RetryGuard help more where TopFull's entry-level signal is weaker (Checkout-mediated Payment vs direct ProductCatalog)? — **answerable** (S4A vs S4B).
-- **Interval sensitivity** — does the paper's 30s default hold up when running alongside TopFull's 1s RL loop? — **blocked** on the August matrix (zero `OFF→ON`). Unblocked by the 48-run campaign (S6 + S5 ×3).
+- **Interval sensitivity** — does the paper's 30s default hold up when running alongside TopFull's 1s RL loop? — **unblocked** by S6 run1 (2026-09-04, first `OFF→ON` events). Still needs S5 ×3 on the recovery load for the interval sweep.
 
 ---
 

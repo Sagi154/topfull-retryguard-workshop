@@ -116,7 +116,7 @@ Then bump `run_number` and `log_folder` in that YAML **before** the next repeat 
 
 | Scenario | Configs | New slots | Repeats | Duration | Count |
 |---|---|---|---|---|---|
-| 6 Forced Recovery | `scenario_6_recovery_{baseline,retryguard}.yaml` | run1–3 (never existed) | ×3 both arms | 900s | 6 |
+| 6 Forced Recovery | `scenario_6_recovery_{baseline,retryguard}.yaml` | run1–3 (**run1 done 2026-09-04**; YAML now at run2) | ×3 both arms | 900s | 6 |
 | 5 Interval Tuning | `scenario_5_interval_{10,20,30,60}s.yaml` | run3–5 (run1–2 are the old flat S5 — do not reuse) | ×3, RetryGuard only | 900s | 12 |
 | 1 Normal Operation | `scenario_1_{baseline,retryguard}.yaml` | run4–6 (**bump from run3 before the first S1 run**) | ×3 both arms | 300s | 6 |
 | 2 Sustained Overload | `scenario_2_{baseline,retryguard}.yaml` | run4–6 (YAML already at run4) | ×3 both arms | 600s | 6 |
@@ -126,7 +126,7 @@ Then bump `run_number` and `log_folder` in that YAML **before** the next repeat 
 
 **Total: 48 runs** (S1 + S2 + S3 + S4A + S4B + S6 = 6 two-arm shapes × 2 × 3 = 36; S5 = 4 intervals × 3 = 12). Sequential VM time ≈ **10–11 hours** (startup overhead ~90s on top of `duration_seconds`). S5 compares against **S6 baseline**, not S2.
 
-YAML state as of 2026-09-04: S1 still points at last-completed `run3` — bump both S1 files to `run4` before touching them. S2/S3/S4 already point at `run4`. S5 already points at `run3`. S6 already points at `run1`.
+YAML state as of 2026-09-04: S1 still points at last-completed `run3` — bump both S1 files to `run4` before touching them. S2/S3/S4 already point at `run4`. S5 already points at `run3`. S6 points at `run2` (run1 gate pair complete).
 
 ```yaml
 # experiments/configs/scenario_1_baseline.yaml  — do this before any S1 campaign run
@@ -138,25 +138,63 @@ run_number: 4
 log_folder: run_topfull_retryguard_normal_op_run4
 ```
 
-### 3b. Execution order (gate on `OFF→ON` before burning S5)
+### 3b. Pre-campaign metric verification (do this before the other 46)
 
-1. **S6 baseline run1, then S6 RetryGuard run1.** Verify §4 immediately on the RetryGuard folder.
-2. **If `OFF→ON` did not fire** during the 300–900s recovery window: **stop.** Do not run the remaining 46. Re-read [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 1 remediation option 2 (soften the recovery-phase load) rather than repeating a profile that cannot exercise re-enable.
-3. **If it did fire:** finish S6 (both arms, run2–3), then S5 (four intervals × run3–5), then S1–S4 (each arm × run4–6). After every run: pull, §4 checks, bump YAML.
+These two S6 `run1` folders are the **first two of the 48**, not extra smoke. They are the only two-run set that exercises every old metric and every new collector, including `OFF→ON`.
 
-Example for the first two (repeat the pattern; substitute the `log_folder` from the YAML you just ran):
+**Do not substitute other scenarios for this gate:**
+
+- **Not Scenario 1.** Under normal load retries are near zero, so all-zero Envoy CSVs look exactly like the Istio stats-inclusion bug (§1c) — a silent false pass.
+- **Not Scenario 2.** Flat overload can show retries, but it will not produce `OFF→ON`. That leaves Gap 1 unchecked.
+
+**Procedure:**
+
+1. Complete §2 (cluster healthy, stats-inclusion annotation present, local unit tests green). Refresh SSH `HostName` if the VMs were restarted.
+2. Run **S6 baseline run1** only:
 
 ```powershell
 python experiments/run_scenario.py experiments/configs/scenario_6_recovery_baseline.yaml
 scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_forced_recovery_run1 experiments/results/
+```
 
+3. Immediately run §4 on that folder: Locust CSVs populated; `envoy_retries_*.csv` with `max_total` **and** `max_retry` well above zero (Istio retries stay on in baseline — this proves the stats fix under traffic); `resource_usage.csv` has rows.
+4. Run **S6 RetryGuard run1**:
+
+```powershell
 python experiments/run_scenario.py experiments/configs/scenario_6_recovery_retryguard.yaml
 scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_forced_recovery_run1 experiments/results/
 ```
 
-> The recovery phase drops load to ~25% of peak, which *should* pull rejection under RetryGuard's 20% threshold. Real system behavior can surprise you — that is why step 2 is a hard gate, not a note at the end.
+5. Immediately run §4 on that folder: at least one `ON→OFF` (0–300s) **and** at least one `OFF→ON` (300–900s); Envoy + resource files present.
+6. **If step 5 has no `OFF→ON`: stop.** Do not run the remaining 46. Soften the recovery-phase load ([PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 1 remediation option 2). Document the failure before burning more VM time.
+7. **If both runs pass:** the campaign metrics path is live. Continue with S6 run2–3, then S5, then S1–S4 (§3a). After every later run: pull, §4, bump YAML.
 
----
+> The recovery phase drops load to ~25% of peak, which *should* pull rejection under RetryGuard's 20% threshold. Real system behavior can surprise you — that is why step 6 is a hard gate, not a note at the end.
+
+**Gate outcome (2026-09-04): PASSED.** Folders `baseline_topfull_no_retryguard_forced_recovery_run1` and `run_topfull_retryguard_forced_recovery_run1` are local under `experiments/results/`.
+
+- Baseline: Locust ~810 rows/endpoint; `envoy_retries_frontend.csv` `max_total=739010`, `max_retry=120` (stats-inclusion live under traffic); `resource_usage.csv` ~1964 rows.
+- RetryGuard: 3× `ON→OFF` (cart / checkout / productcatalog during peak) then 3× `OFF→ON` after the load drop (`cartservice` and `productcatalogservice` first, `checkoutservice` later once rejection hit 0); Envoy + resource CSVs present. Campaign metrics path is live — continue §3a (bump S6 YAMLs to run2 before the next S6 repeat).
+
+### 3c. What to run next (session resume)
+
+**Progress: 2 / 48 campaign runs done** (S6 run1 both arms). Gate §3b is closed — do not re-run it unless those folders are lost.
+
+**Next concrete commands:**
+
+```powershell
+# §2 first if VMs were stopped/started (IPs ephemeral)
+ssh topfull-master "kubectl get nodes; kubectl get pods -n default"
+
+python experiments/run_scenario.py experiments/configs/scenario_6_recovery_baseline.yaml
+# pull the log_folder printed at the end (expect ..._forced_recovery_run2)
+# §4 verify, then bump YAML to run3
+
+python experiments/run_scenario.py experiments/configs/scenario_6_recovery_retryguard.yaml
+# same: pull, §4 (need OFF→ON again), bump YAML
+```
+
+After S6 run2–3: S5 `scenario_5_interval_{10,20,30,60}s.yaml` at run3–5; then S1 (bump to run4 first) and S2/S3/S4A/S4B at run4–6. Full slot table: §3a.
 
 ## 4. Verifying each run actually produced what you need
 
@@ -167,7 +205,7 @@ Get-Content "experiments\results\<log_folder>\retryguard.log" |
   Where-Object { $_ -match 'OFF→ON|ON→OFF' }
 ```
 
-You want at least one `ON→OFF` (during 0–300s, expected) **and at least one `OFF→ON`** (during 300–900s — this is the Gap 1 signal). If you see zero `OFF→ON` lines, the recovery phase did not pull rejection under threshold — see §3b step 2.
+You want at least one `ON→OFF` (during 0–300s, expected) **and at least one `OFF→ON`** (during 300–900s — this is the Gap 1 signal). If you see zero `OFF→ON` lines, the recovery phase did not pull rejection under threshold — see §3b step 6.
 
 **After every run — check the Envoy CSVs are non-trivial:**
 

@@ -31,6 +31,8 @@ Every scenario is run **multiple times** (≥3 per condition) because Locust gen
 
 Order matters: `deploy_rl.py` requires the proxy to be running. `metric_collector.py` needs Locust traffic to be flowing or it crashes on a `KeyError` (the proxy has no metrics for endpoints with zero requests yet). The Envoy retry collector is independent of RetryGuard and starts in both baseline and RetryGuard arms (see [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 3).
 
+Before steps 4–6, the runner copies `envoy_retry_collector.py`, `resource_usage_collector.py`, and `retryguard.py` from this repo onto master (plain `cp`, then `sudo cp` if the dest file is owned by another user). Do not assume a previous manual `scp` is current. Proxy / RL / `metric_collector.py` still run from `infra.topfull_src_path` on the VM — those are TopFull's, not this repo.
+
 ---
 
 ## 2. The Scenarios

@@ -53,6 +53,8 @@ Example (`run_topfull_retryguard_interval_60s_run1`):
 
 **How to actually run these (decision 2026-09-04).** Paper-grade **48-run campaign** — new slots, all collectors on, ×3 repeats including S5 — not a replay of the August 38 and not a 16-run add-on. See [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md). **Do not** use `run_all_scenarios.py`: `build_matrix()` is hardcoded to S2 `run1–3` / S5 `run1–2` and would overwrite finished matrix folders. S6 is not in that matrix at all.
 
+**Pre-campaign gate (2026-09-04): PASSED on S6 run1.** `baseline_topfull_no_retryguard_forced_recovery_run1` and `run_topfull_retryguard_forced_recovery_run1` produced Locust time series, non-zero Envoy `upstream_rq_retry` under baseline traffic, `resource_usage.csv`, and — for the first time — 3× `OFF→ON` after the load drop (`cartservice`, `productcatalogservice`, then `checkoutservice`). Gap 1 is no longer blocked at the mechanism level; finish the campaign for ×3 / S5 coverage. Details: [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md) §3b.
+
 ---
 
 ## Gap 2 — P99 latency was never collected (RESOLVED — dropped, P95 is the metric of record)
@@ -95,6 +97,8 @@ This is now **self-healing**: `run_scenario.py`'s `start_envoy_retry_collector()
 
 **Configs updated (2026-08-20), collector live-validated; runner now deploys the `.py` each run.** `run_scenario.py` copies `experiments/envoy_retry_collector.py` to `infra.envoy_retry_collector_script` before starting the tmux session. The existing 38 result folders still predate the collector and the stats fix — only a fresh scenario run produces `envoy_retries_*.csv`. The chosen close-out is the 48-run campaign in [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md), not a bolt-on 4th repeat mixed with August goodput.
 
+**First live-with-traffic Envoy + resource CSVs (2026-09-04):** S6 baseline/RetryGuard run1 folders above. Baseline frontend `max_retry=120` (stats-inclusion confirmed under load); RetryGuard arm also wrote Envoy + `resource_usage.csv`. Gap 3 instrumentation is proven; remaining campaign runs still needed for ×3 / other scenarios.
+
 ### Related series also absent (already known)
 
 These were documented before this audit and are listed here so the Layer 1–3 picture is in one place:
@@ -113,8 +117,8 @@ These were documented before this audit and are listed here so the Layer 1–3 p
 | 2 — Sustained Overload | **Partial.** Goodput/rejection comparison and disable events are solid on the flat 600s August matrix; recover→re-enable under *continued* overload did not happen (Gap 1). Campaign S2 is that same flat hold again (run4–6, collectors on). Forced recovery is Scenario 6, not S2. |
 | 3 — Targeted Bottleneck | **Full** for goodput/rejection. Retry counts available only after re-runs with the Envoy collector. |
 | 4A / 4B — Topology Position | **Full** for goodput/rejection, with the shallow-topology caveat the deck already states on slide 14. Retry counts after re-runs. |
-| 5 — Interval Tuning | **None** on the existing 8 flat runs. Unblocked only by running S5 on Scenario 6's load (not S2). |
-| 6 — Forced Recovery | **Not yet run.** Configs exist; this is the Gap 1 load-drop experiment. |
+| 5 — Interval Tuning | **None** on the existing 8 flat runs. **Unblocked** — S6 run1 proved `OFF→ON` under the recovery load; run S5 on that same load (campaign run3–5). |
+| 6 — Forced Recovery | **Partial (run1 pair done 2026-09-04).** Baseline + RetryGuard run1 local with collectors; 3 disables + 3 re-enables on RG arm. Need run2–3 for ×3. |
 
 | Open question (slides 8–9) | Status |
 |---|---|
@@ -123,7 +127,7 @@ These were documented before this audit and are listed here so the Layer 1–3 p
 | Chain Propagation | Answerable, coarse — only 5 Locust endpoints as observation points |
 | Controller Interaction | Partial — admitted `RPS` as proxy; no `num_agent` state |
 | Topology Position Sensitivity | Answerable — S4A vs S4B |
-| Interval Parameter Sensitivity | Blocked on the August matrix until the 48-run campaign (S6/S5 recovery-profile, ×3) — see Gap 1 |
+| Interval Parameter Sensitivity | Unblocked by S6 run1 `OFF→ON` (2026-09-04); still needs S5 campaign ×3 — see Gap 1 |
 
 **Usable for Phase 7 analysis today: 30 of 38 August runs** (all but the 8 Scenario 5 runs, which document only that overload was too deep for recovery to occur). **Chosen close-out (2026-09-04):** replace that as the *primary* dataset with a new 48-run campaign (same-run goodput + retries + CPU/memory, plus S6/S5 recovery). The August 38 stays in git as historical. See [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md).
 

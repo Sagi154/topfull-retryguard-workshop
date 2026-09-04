@@ -14,7 +14,7 @@
 scenario_id: 6
 scenario_name: forced_recovery
 condition: retryguard
-run_number: 1
+run_number: 2
 description: >
   Peak overload 0-300s, then drop to ~25% load 300-900s. TopFull + RetryGuard
   both active, re-enable interval = paper default (3 windows × 30s = 90s).
@@ -62,7 +62,7 @@ resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
-log_folder: run_topfull_retryguard_forced_recovery_run1
+log_folder: run_topfull_retryguard_forced_recovery_run2
 
 infra:
   master_ssh_host: topfull-master

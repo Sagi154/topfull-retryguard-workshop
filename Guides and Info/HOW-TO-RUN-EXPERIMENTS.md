@@ -6,6 +6,8 @@ TAU Deepness Lab Workshop — TopFull + RetryGuard
 > Read this once before your first run. The whole flow takes about 15 minutes for a 5-minute scenario, 25 minutes for a 10-minute one.
 >
 > **Phase 7 close-out (2026-09-04):** do not replay the August 38 and do not mix old goodput with a one-off collector run. The plan of record is a **paper-grade 48-run campaign** (new `log_folder` slots, all collectors on, ×3 including S5). Slots, order, and the `OFF→ON` gate: [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md). Never `run_all_scenarios.py` for that campaign.
+>
+> **Progress:** §3b gate **passed** (S6 run1 both arms). **Next:** §3c / §3a — S6 run2 (YAMLs already bumped), then the remaining 46. See also [AGENTS.md](../AGENTS.md) §4 "Not done yet".
 
 ---
 
