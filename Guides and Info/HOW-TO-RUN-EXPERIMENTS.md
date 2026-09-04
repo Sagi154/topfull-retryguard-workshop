@@ -4,6 +4,8 @@ TAU Deepness Lab Workshop — TopFull + RetryGuard
 
 > **Who this is for:** Anyone on the team running a scenario manually, without an AI agent.
 > Read this once before your first run. The whole flow takes about 15 minutes for a 5-minute scenario, 25 minutes for a 10-minute one.
+>
+> **Phase 7 close-out (2026-09-04):** do not replay the August 38 and do not mix old goodput with a one-off collector run. The plan of record is a **paper-grade 48-run campaign** (new `log_folder` slots, all collectors on, ×3 including S5). Slots, order, and the `OFF→ON` gate: [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md). Never `run_all_scenarios.py` for that campaign.
 
 ---
 
@@ -367,7 +369,7 @@ print(f'Delta    : goodput {(r[\"goodput\"]-b[\"goodput\"])/b[\"goodput\"]*100:+
 | `deploy_rl.py did not start` | Ray startup failed or port collision | `ssh topfull-master "tmux attach -t toprl"` — read the Python traceback; usually gone after a clean kill + retry |
 | `UnicodeEncodeError: charmap` | Windows console encoding | Add `$env:PYTHONUTF8='1'` before running |
 | `cpu_limit patch failed` | Already logged; runner now handles this correctly | If it still fails, check `kubectl describe deployment <svc>` for resource constraints |
-| `PATCH_FAIL http=400 reason=Bad Request` | RetryGuard bug or VS in unexpected state | Old retryguard.py pre-fix — make sure master has the latest version: `scp experiments/retryguard.py topfull-master:/tmp/rg.py && ssh topfull-master "sudo cp /tmp/rg.py /home/idozacharia/experiments/retryguard.py"` |
+| `PATCH_FAIL http=400 reason=Bad Request` | RetryGuard bug or VS in unexpected state | The runner deploys `experiments/retryguard.py` from this repo at the start of every RetryGuard run. If a run was started outside the runner, copy it once: `scp experiments/retryguard.py topfull-master:/tmp/rg.py && ssh topfull-master "sudo cp /tmp/rg.py /home/idozacharia/experiments/retryguard.py"` |
 | RetryGuard never fires `ON→OFF` | Load too light, or threshold too high | Run Scenario 3 (deterministic CPU cap) — overload is guaranteed. Scenario 2 requires the right load level. |
 | CSV files are empty | Locust didn't start, or metric_collector died | Check `ssh topfull-master "tmux attach -t metrics"` for errors; check `pgrep -c locust` on loadgen |
 | Run took much longer than expected | Normal — `actual` includes startup overhead | Startup adds ~80–90s on top of `duration_seconds`; plan accordingly |
@@ -376,10 +378,13 @@ print(f'Delta    : goodput {(r[\"goodput\"]-b[\"goodput\"])/b[\"goodput\"]*100:+
 
 ## 11. What next run numbers to use
 
-| Config | Last smoke run | **Start real matrix at** |
+§11 used to list **smoke** next-slots (stale). For anything that will go in the report, use the **paper-grade campaign** slots in [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md) §3a:
+
+| Config group | Do **not** use (August matrix) | Campaign slots |
 |---|---|---|
-| `scenario_1_baseline` | run2 | **run3** |
-| `scenario_1_retryguard` | run1 | **run2** |
-| `scenario_3_baseline` | run1 | **run2** |
-| `scenario_3_retryguard` | run1 | **run2** |
-| All other configs | — | **run1** (never been run) |
+| S1 baseline / RetryGuard | run1–3 | **run4–6** (bump YAML from run3 first) |
+| S2 / S3 / S4A / S4B | run1–3 | **run4–6** |
+| S5 intervals | run1–2 (flat hold, no re-enable) | **run3–5** |
+| S6 recovery | — (never run) | **run1–3** |
+
+Bump `run_number` and `log_folder` after **every** run. A 48-run checklist and the S6 `OFF→ON` gate are in that same runbook.

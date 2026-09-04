@@ -51,7 +51,7 @@ Example (`run_topfull_retryguard_interval_60s_run1`):
 
 **Configs (2026-09-01 split).** The 2026-08-20 edit put the 900s load-drop onto Scenario 2, which diverged from the deck's 10-minute hold. That is undone: **S2 is again a flat 600s peak** (same shape as matrix runs 1–3; `run_number: 4` is the next S2 repeat, with collectors on). The load-drop profile is **Scenario 6** (`scenario_6_recovery_{baseline,retryguard}.yaml`, `run_number: 1`) and all four S5 interval configs (already `run_number: 3`). S5 compares against **S6 baseline**, not S2. S3/S4 were never given a recovery phase.
 
-**How to actually run these.** Run S6 + S5 individually — see [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md) Tier 1. **Do not** use `run_all_scenarios.py`: `build_matrix()` is hardcoded to S2 `run1–3` / S5 `run1–2` and would overwrite finished matrix folders. S6 is not in that matrix at all.
+**How to actually run these (decision 2026-09-04).** Paper-grade **48-run campaign** — new slots, all collectors on, ×3 repeats including S5 — not a replay of the August 38 and not a 16-run add-on. See [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md). **Do not** use `run_all_scenarios.py`: `build_matrix()` is hardcoded to S2 `run1–3` / S5 `run1–2` and would overwrite finished matrix folders. S6 is not in that matrix at all.
 
 ---
 
@@ -93,7 +93,7 @@ So `Latency95` — which is real and responsive across the matrix (roughly 570�
 
 This is now **self-healing**: `run_scenario.py`'s `start_envoy_retry_collector()` calls a new `ensure_envoy_stats_enabled()` before every run, which applies this same patch idempotently (a no-op, no restart, once already applied) so a future cluster rebuild or fresh Online Boutique deploy doesn't silently reintroduce all-zero data. Covered by unit tests (`test_ensure_envoy_stats_enabled_patches_each_caller`, `test_ensure_envoy_stats_enabled_warns_but_continues_on_patch_failure` in `experiments/test_run_scenario.py`). The live patch has also already been applied directly to the cluster's `frontend`/`checkoutservice` Deployments as of 2026-08-20, so it does not need to be reapplied for the very next run — `run_scenario.py` will simply no-op it.
 
-**Configs updated (2026-08-20), collector deployed and live-validated, no scenario run yet.** `envoy_retry_collector.py` has been `scp`'d to master at `/home/idozacharia/experiments/envoy_retry_collector.py` (matches `infra.envoy_retry_collector_script` default in all 14 configs). The existing 38 result folders still predate the collector and the stats fix — only a fresh scenario run produces `envoy_retries_*.csv`. See [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md) for the exact runbook.
+**Configs updated (2026-08-20), collector live-validated; runner now deploys the `.py` each run.** `run_scenario.py` copies `experiments/envoy_retry_collector.py` to `infra.envoy_retry_collector_script` before starting the tmux session. The existing 38 result folders still predate the collector and the stats fix — only a fresh scenario run produces `envoy_retries_*.csv`. The chosen close-out is the 48-run campaign in [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md), not a bolt-on 4th repeat mixed with August goodput.
 
 ### Related series also absent (already known)
 
@@ -110,7 +110,7 @@ These were documented before this audit and are listed here so the Layer 1–3 p
 | Scenario | Status |
 |---|---|
 | 1 — Normal Operation | **Full.** Zero toggles in all 3 RetryGuard runs, `Fail=0`. Sanity check passes. |
-| 2 — Sustained Overload | **Partial.** Goodput/rejection comparison and disable events are solid on the flat 600s matrix; recover→re-enable under *continued* overload did not happen (Gap 1). S2 YAML is that same flat hold again (`run4` adds collectors). Forced recovery is Scenario 6, not S2. |
+| 2 — Sustained Overload | **Partial.** Goodput/rejection comparison and disable events are solid on the flat 600s August matrix; recover→re-enable under *continued* overload did not happen (Gap 1). Campaign S2 is that same flat hold again (run4–6, collectors on). Forced recovery is Scenario 6, not S2. |
 | 3 — Targeted Bottleneck | **Full** for goodput/rejection. Retry counts available only after re-runs with the Envoy collector. |
 | 4A / 4B — Topology Position | **Full** for goodput/rejection, with the shallow-topology caveat the deck already states on slide 14. Retry counts after re-runs. |
 | 5 — Interval Tuning | **None** on the existing 8 flat runs. Unblocked only by running S5 on Scenario 6's load (not S2). |
@@ -123,9 +123,9 @@ These were documented before this audit and are listed here so the Layer 1–3 p
 | Chain Propagation | Answerable, coarse — only 5 Locust endpoints as observation points |
 | Controller Interaction | Partial — admitted `RPS` as proxy; no `num_agent` state |
 | Topology Position Sensitivity | Answerable — S4A vs S4B |
-| Interval Parameter Sensitivity | Blocked until S6/S5 recovery-profile runs — see Gap 1 |
+| Interval Parameter Sensitivity | Blocked on the August matrix until the 48-run campaign (S6/S5 recovery-profile, ×3) — see Gap 1 |
 
-**Usable for Phase 7 analysis: 30 of 38 runs** (all but the 8 Scenario 5 runs, which document only that overload was too deep for recovery to occur).
+**Usable for Phase 7 analysis today: 30 of 38 August runs** (all but the 8 Scenario 5 runs, which document only that overload was too deep for recovery to occur). **Chosen close-out (2026-09-04):** replace that as the *primary* dataset with a new 48-run campaign (same-run goodput + retries + CPU/memory, plus S6/S5 recovery). The August 38 stays in git as historical. See [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md).
 
 ---
 

@@ -81,6 +81,8 @@ log_folder: baseline_topfull_no_retryguard_sustained_overload_run2
 
 Aim for **3 runs minimum** per scenario/condition. Compare using averages/medians.
 
+**Phase 7 campaign (2026-09-04):** the next 3 repeats are a new 48-run matrix on free slots (S1/S2/S3/S4A/S4B/S6 × both arms × 3, plus S5 × 4 intervals × 3), not a replay of `run1–3`. See [PHASE7-RESOLVE-GAPS-1-3.md](../Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md). Do not use `run_all_scenarios.py` for this — it would overwrite the August folders.
+
 ---
 
 ## Pulling results to your PC
@@ -147,6 +149,4 @@ The runner removes the cpu limit after the run via a JSON Patch.
 
 ## Known limitations / TODOs
 
-- **Envoy retry collector on master** — `envoy_retry_collector.py` must be present on the master at `infra.envoy_retry_collector_script` (default `/home/idozacharia/experiments/envoy_retry_collector.py`) before any run with `envoy_retry_collector.enabled: true`. Deploy with `scp` the same way as `retryguard.py`.
-- **Resource usage collector on master** — `resource_usage_collector.py` must be present at `infra.resource_usage_collector_script` (default `/home/idozacharia/experiments/resource_usage_collector.py`) before any run with `resource_usage_collector.enabled: true`. Deploy with `scp` the same way.
-- **Retries-per-request in the existing matrix** — the finished 38 folders predate the Envoy collector; only new runs produce `envoy_retries_*.csv`. See PHASE7-DATA-GAPS.md Gap 3.
+- **Retries-per-request in the existing matrix** — the finished 38 folders predate the Envoy collector; only new runs produce `envoy_retries_*.csv`. Close this with the 48-run campaign, not by mixing datasets. See PHASE7-DATA-GAPS.md Gap 3 and PHASE7-RESOLVE-GAPS-1-3.md.
