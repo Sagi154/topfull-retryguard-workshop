@@ -8,7 +8,7 @@ Reads a scenario YAML config and orchestrates the full experiment:
   1. Pre-flight cluster health check
   2. Apply topology constraints (kubectl scale / cpu_limit)
   3. Start master stack (proxy -> deploy_rl -> metric_collector)
-  4. Optionally start RetryGuard
+  4. Deploy this repo's RetryGuard / Envoy / resource collectors onto master, then start them
   5. Start Locust on the load-gen VM
   6. Wait for the configured duration
   7. Stop everything cleanly
@@ -94,6 +94,44 @@ def write_remote_json(host: str, remote_path: str, data: dict):
         scp_to(tmp, host, remote_path)
     finally:
         os.unlink(tmp)
+
+
+EXPERIMENTS_DIR = Path(__file__).resolve().parent
+
+
+def deploy_repo_script(host: str, filename: str, remote_path: str) -> None:
+    """
+    Copy a Python file from this repo's experiments/ directory to master.
+
+    The runner used to upload only params JSON and assume the .py already
+    lived at infra.*_script. That silently ran a stale or missing master
+    copy. Staging via /tmp then cp/sudo cp handles: /tmp sticky-bit leftovers,
+    and dest files owned by another user (directory is o+w, the file may not be).
+    """
+    local = EXPERIMENTS_DIR / filename
+    if not local.is_file():
+        print(f"[ERROR] Local script missing: {local}")
+        sys.exit(1)
+
+    tmp = f"/tmp/rg_deploy_{filename}"
+    ssh(host, f"sudo rm -f {tmp}", check=False)
+    scp_to(str(local), host, tmp)
+
+    r = ssh(host, f"cp {tmp} {remote_path} && chmod a+r {remote_path}", check=False)
+    if r.returncode != 0:
+        r = ssh(
+            host,
+            f"sudo cp {tmp} {remote_path} && sudo chmod a+r {remote_path}",
+            check=False,
+        )
+    if r.returncode != 0:
+        err = (r.stderr or r.stdout or "").strip()
+        print(f"[ERROR] Could not deploy {filename} to {host}:{remote_path}")
+        if err:
+            print(f"  {err}")
+        print("  Need write access to the dest path (or passwordless sudo).")
+        sys.exit(1)
+    step(f"Deployed {filename} -> {remote_path}")
 
 
 # --------------------------------------------------------------------------- #
@@ -470,6 +508,7 @@ def start_retryguard(cfg: dict):
         "retryguard_script",
         "/home/idozacharia/experiments/retryguard.py"
     )
+    deploy_repo_script(master, "retryguard.py", rg_script)
 
     # Upload RetryGuard runtime parameters as JSON
     params = {
@@ -555,6 +594,7 @@ def start_envoy_retry_collector(cfg: dict):
         "envoy_retry_collector_script",
         "/home/idozacharia/experiments/envoy_retry_collector.py",
     )
+    deploy_repo_script(master, "envoy_retry_collector.py", script)
 
     caller_pods = list(erc_cfg.get(
         "caller_target_map", {"frontend": [], "checkoutservice": []}
@@ -604,6 +644,7 @@ def start_resource_usage_collector(cfg: dict):
         "resource_usage_collector_script",
         "/home/idozacharia/experiments/resource_usage_collector.py",
     )
+    deploy_repo_script(master, "resource_usage_collector.py", script)
 
     params = {
         "poll_interval_seconds": int(ruc_cfg.get("poll_interval_seconds", 5)),

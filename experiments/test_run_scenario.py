@@ -218,6 +218,44 @@ class TestLaunchLocustWiring(unittest.TestCase):
         mock_launch.assert_called_once_with(cfg, {"getproduct": 25}, 20)
 
 
+class TestStartRetryGuardWiring(unittest.TestCase):
+    def _cfg(self, enabled=True):
+        return {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "venv_activate": "/home/idozacharia/TopFull/venv/bin/activate",
+                "retryguard_script": "/home/idozacharia/experiments/retryguard.py",
+            },
+            "retryguard": {
+                "enabled": enabled,
+                "rejection_threshold": 0.20,
+                "window_duration_seconds": 30,
+                "disable_windows": 2,
+                "re_enable_windows": 3,
+                "retry_attempts_on": 3,
+                "retry_attempts_off": 0,
+            },
+        }
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_start_deploys_retryguard_py(self, mock_deploy, mock_ssh, mock_json, mock_script, mock_wait):
+        run_scenario.start_retryguard(self._cfg(enabled=True))
+        mock_deploy.assert_called_once_with(
+            "topfull-master",
+            "retryguard.py",
+            "/home/idozacharia/experiments/retryguard.py",
+        )
+
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_start_noop_when_disabled(self, mock_deploy):
+        run_scenario.start_retryguard(self._cfg(enabled=False))
+        mock_deploy.assert_not_called()
+
+
 class TestEnvoyRetryCollectorWiring(unittest.TestCase):
     def _cfg(self, enabled=True):
         return {
@@ -237,11 +275,17 @@ class TestEnvoyRetryCollectorWiring(unittest.TestCase):
     @mock.patch("run_scenario.write_remote_script")
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
     def test_start_uploads_params_and_launches_tmux(
-        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+        self, mock_deploy, mock_ssh, mock_write_json, mock_write_script, mock_wait
     ):
         cfg = self._cfg(enabled=True)
         run_scenario.start_envoy_retry_collector(cfg)
+        mock_deploy.assert_called_once_with(
+            "topfull-master",
+            "envoy_retry_collector.py",
+            "/home/idozacharia/experiments/envoy_retry_collector.py",
+        )
 
         json_path, params = mock_write_json.call_args[0][1:3]
         self.assertEqual(json_path, "/tmp/envoy_retry_params.json")
@@ -276,8 +320,9 @@ class TestEnvoyRetryCollectorWiring(unittest.TestCase):
     @mock.patch("run_scenario.write_remote_script")
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
     def test_start_passes_caller_target_map_override(
-        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+        self, mock_deploy, mock_ssh, mock_write_json, mock_write_script, mock_wait
     ):
         cfg = self._cfg(enabled=True)
         cfg["envoy_retry_collector"]["caller_target_map"] = {
@@ -348,8 +393,9 @@ class TestEnvoyRetryCollectorWiring(unittest.TestCase):
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ensure_envoy_stats_enabled")
     @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
     def test_start_envoy_retry_collector_calls_ensure_stats_first(
-        self, mock_ssh, mock_ensure, mock_write_json, mock_write_script, mock_wait
+        self, mock_deploy, mock_ssh, mock_ensure, mock_write_json, mock_write_script, mock_wait
     ):
         cfg = self._cfg(enabled=True)
         run_scenario.start_envoy_retry_collector(cfg)
@@ -377,11 +423,17 @@ class TestResourceUsageCollectorWiring(unittest.TestCase):
     @mock.patch("run_scenario.write_remote_script")
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
     def test_start_uploads_params_and_launches_tmux(
-        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+        self, mock_deploy, mock_ssh, mock_write_json, mock_write_script, mock_wait
     ):
         cfg = self._cfg(enabled=True)
         run_scenario.start_resource_usage_collector(cfg)
+        mock_deploy.assert_called_once_with(
+            "topfull-master",
+            "resource_usage_collector.py",
+            "/home/idozacharia/experiments/resource_usage_collector.py",
+        )
 
         json_path, params = mock_write_json.call_args[0][1:3]
         self.assertEqual(json_path, "/tmp/resource_usage_params.json")
@@ -425,14 +477,75 @@ class TestResourceUsageCollectorWiring(unittest.TestCase):
     @mock.patch("run_scenario.write_remote_script")
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
     def test_start_passes_services_override(
-        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+        self, mock_deploy, mock_ssh, mock_write_json, mock_write_script, mock_wait
     ):
         cfg = self._cfg(enabled=True)
         cfg["resource_usage_collector"]["services"] = ["frontend", "checkoutservice"]
         run_scenario.start_resource_usage_collector(cfg)
         params = mock_write_json.call_args[0][2]
         self.assertEqual(params["services"], ["frontend", "checkoutservice"])
+
+
+class TestDeployRepoScript(unittest.TestCase):
+    def test_missing_local_file_exits(self):
+        with mock.patch.object(run_scenario, "EXPERIMENTS_DIR", Path("/no/such/dir")):
+            with self.assertRaises(SystemExit):
+                run_scenario.deploy_repo_script(
+                    "topfull-master", "retryguard.py",
+                    "/home/idozacharia/experiments/retryguard.py",
+                )
+
+    @mock.patch("run_scenario.step")
+    @mock.patch("run_scenario.scp_to")
+    @mock.patch("run_scenario.ssh")
+    def test_plain_cp_when_dest_writable(self, mock_ssh, mock_scp, mock_step):
+        mock_ssh.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
+        run_scenario.deploy_repo_script(
+            "topfull-master", "retryguard.py",
+            "/home/idozacharia/experiments/retryguard.py",
+        )
+        mock_scp.assert_called_once()
+        self.assertEqual(mock_scp.call_args[0][2], "/tmp/rg_deploy_retryguard.py")
+        dest_copies = [
+            c.args[1] for c in mock_ssh.call_args_list
+            if "experiments/retryguard.py" in c.args[1]
+        ]
+        self.assertTrue(any(cmd.startswith("cp ") for cmd in dest_copies))
+        self.assertFalse(any("sudo cp" in cmd for cmd in dest_copies))
+
+    @mock.patch("run_scenario.step")
+    @mock.patch("run_scenario.scp_to")
+    @mock.patch("run_scenario.ssh")
+    def test_sudo_cp_fallback_when_plain_cp_fails(self, mock_ssh, mock_scp, mock_step):
+        def ssh_side_effect(host, cmd, check=True):
+            if cmd.startswith("cp "):
+                return SimpleNamespace(returncode=1, stdout="", stderr="Permission denied")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        mock_ssh.side_effect = ssh_side_effect
+        run_scenario.deploy_repo_script(
+            "topfull-master", "envoy_retry_collector.py",
+            "/home/idozacharia/experiments/envoy_retry_collector.py",
+        )
+        sudo_copies = [
+            c.args[1] for c in mock_ssh.call_args_list
+            if "sudo cp" in c.args[1]
+        ]
+        self.assertEqual(len(sudo_copies), 1)
+
+    @mock.patch("run_scenario.scp_to")
+    @mock.patch("run_scenario.ssh")
+    def test_both_cp_paths_fail_exits(self, mock_ssh, mock_scp):
+        mock_ssh.return_value = SimpleNamespace(
+            returncode=1, stdout="", stderr="Permission denied"
+        )
+        with self.assertRaises(SystemExit):
+            run_scenario.deploy_repo_script(
+                "topfull-master", "retryguard.py",
+                "/home/idozacharia/experiments/retryguard.py",
+            )
 
 
 if __name__ == "__main__":
