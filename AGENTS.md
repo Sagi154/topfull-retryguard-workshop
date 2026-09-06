@@ -103,7 +103,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 > **Next session — do this first:** Phase 7 analysis/report on **`experiments/results/campaign_48/`** ([PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md), [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md)). Commit `campaign_48/` (and the results split) when ready; do not overwrite `august_38/`.
 >
-> A standalone mentor progress-update doc (infra, Online Boutique, scenarios, dry per-scenario charts) is at [Guides and Info/mentor-update/MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md).
+> A standalone mentor progress-update doc (infra, Online Boutique, scenarios, dry per-scenario charts) is at [Guides and Info/mentor-update/MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md). Chart-pipeline caveats (collector clocks, missing toggle overlays, Locust gallery = curated) are in [Guides and Info/mentor-update/README.md](Guides%20and%20Info/mentor-update/README.md).
 >
 > **Do not re-run Scenario 6 until the YAMLs are bumped.** Both `experiments/configs/scenario_6_recovery_{baseline,retryguard}.yaml` still point at completed **`run3`**. Launching them as-is overwrites that folder **on master**. Bump `run_number` and `log_folder` to **run4** first. S1–S5 already sit on the next free slot (run7 / S5 run6).
 
