@@ -55,7 +55,79 @@ Same treatment for Envoy and resource series after you put them on a time axis (
 
 ---
 
-## 3. What's inside every run folder
+## 3. What each CSV actually measures
+
+There are three kinds of file in every run folder. This section explains what the numbers mean, in plain terms, using real rows pulled from `S1_normal_op/run_topfull_retryguard_normal_op_run4/`.
+
+### 3a. Locust CSVs — `getproduct.csv`, `postcheckout.csv`, `getcart.csv`, `postcart.csv`, `emptycart.csv`, `total.csv`
+
+Each file tracks **one Locust endpoint** (one simulated user action); `total.csv` is the sum of all five. **One row = one second** of the run. Columns:
+
+```
+RPS,Fail,Goodput,Latency95,Latency99
+50.0,0.0,50.0,270.0,0
+```
+
+| Column | What it is | How to read the number |
+|---|---|---|
+| `RPS` | Requests **sent** to this endpoint in that second (offered load) | `RPS = 50.0` → Locust fired ~50 requests/sec at this endpoint. This is *demand*, not success — it goes up because we told Locust to, not because the system is doing well. |
+| `Fail` | Of those, how many **failed** (5xx / timeout) that second | `Fail = 0.0` → none failed. `Fail = 19.6` (out of `RPS = 20.1`, an overloaded example) → almost every request that second failed. |
+| `Goodput` | `RPS − Fail` — requests that **succeeded** that second | This is the headline health number. `Goodput = 50.0` with `RPS = 50.0` means 100% of offered load succeeded (healthy). If `Goodput` drops far below `RPS` while `RPS` stays flat, the system is rejecting requests, not just responding slowly. |
+| `Latency95` | 95th-percentile response time (ms) for requests **in that second** | `Latency95 = 270` means 95% of that second's requests came back in ≤270ms (and up to 5% took longer). Bigger = slower for the tail of users. Compare it to a "feels fine" number like 300–500ms for this stack, and note when it spikes into the thousands (queueing/overload) vs stays flat (healthy). |
+| `Latency99` | Always `0` in every row — **do not use** (hardcoded/unused upstream; see [METRICS-COLLECTION-GUIDE.md](../../../Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) Gap 2) | — |
+
+**Derived (not a column, but the metric you'll actually report):** rejection rate = `Fail / RPS` for rows where `RPS > 0`. A rejection rate near `0` is healthy; the RetryGuard/scenario threshold for "overloaded" is **~20%**.
+
+Worked read of the row above: at that second, Locust sent 50 requests/sec to this endpoint, all 50 succeeded (`Goodput = RPS`), and the slowest 5% of those requests took over 270ms.
+
+### 3b. Envoy retry CSVs — `envoy_retries_frontend.csv`, `envoy_retries_checkoutservice.csv`
+
+Each row is a **snapshot poll** (every ~5s) of the calling service's sidecar, reporting outbound-retry counters **per target service it calls**. These counters are **cumulative since the pod started** — they only ever go up within a run, so a single row's raw value is not itself a rate.
+
+```
+timestamp,target_service,upstream_rq_total,upstream_rq_retry,upstream_rq_retry_success,upstream_rq_retry_limit_exceeded
+2026-09-05T16:51:25Z,checkoutservice,110002,370,12,158
+```
+
+| Column | What it is | How to read the number |
+|---|---|---|
+| `timestamp` | UTC time of this poll | Use to align with the Locust CSVs' second-by-second rows and with `retryguard.log` toggle times. |
+| `target_service` | Which downstream service these counters are about (e.g. `frontend`'s sidecar reports on `cartservice`, `productcatalogservice`, `checkoutservice`) | Tells you *whose* retries you're looking at, not the caller's. |
+| `upstream_rq_total` | Total requests `frontend` has sent to `target_service` since pod start | `110002` at this poll — this keeps climbing as the run goes on; not itself interesting, it's the denominator for the rate below. |
+| `upstream_rq_retry` | Total retry attempts issued to `target_service` since pod start | `370` retries issued so far. Also cumulative — a flat value across consecutive polls means **no new retries happened** in that interval (as in this example: `checkoutservice` stays at 370 across three straight 5s polls → zero retries during that window). |
+| `upstream_rq_retry_success` | Of those retries, how many eventually succeeded | `12` — informational; rarely needed for the headline analysis. |
+| `upstream_rq_retry_limit_exceeded` | Retries that hit Istio's `attempts:3` cap and still failed | `158` — informational. |
+
+**Derived (this is the number you actually want — "retries per request"):** diff consecutive rows for the same `target_service`:
+```
+Δretry  = row_n.upstream_rq_retry  - row_{n-1}.upstream_rq_retry
+Δtotal  = row_n.upstream_rq_total  - row_{n-1}.upstream_rq_total
+retries_per_request = Δretry / Δtotal    (0 if Δtotal == 0)
+```
+A `retries_per_request` of `0` means the retry storm isn't happening on that service at that moment; a value that drops toward `0` right after an `ON→OFF` line in `retryguard.log` is the "RetryGuard actually suppressed retries" evidence.
+
+### 3c. Resource usage CSV — `resource_usage.csv`
+
+One row per **service per poll** (every ~5s), reporting that service's actual CPU and memory consumption on the worker node (app container only, sidecar excluded).
+
+```
+timestamp,service,cpu_millicores,memory_working_set_bytes,replica_count
+2026-09-05T16:51:52Z,cartservice,4,81047552,1
+```
+
+| Column | What it is | How to read the number |
+|---|---|---|
+| `timestamp` | UTC time of this poll | Align with Locust/Envoy timestamps and `retryguard.log`. |
+| `service` | Which Online Boutique deployment this row is about | One row per service per poll — filter to the service you care about (e.g. the bottlenecked one in S3/S4). |
+| `cpu_millicores` | CPU actually used, in millicores (1000m = 1 full core) | `4` = using 0.4% of one core — essentially idle (S1 is light load). Under S3's bottleneck, expect this to climb toward the CPU limit (`100m` there) as the service saturates. |
+| `memory_working_set_bytes` | Working-set memory in bytes | `81047552` ≈ 81 MB. Compare across time for the same service — a drop after RetryGuard disables retries on a downstream bottleneck is the "resource savings" evidence for Layer 2. |
+| `replica_count` | Ready replica count from the Deployment | Always `1` in this workshop (fixed single replica) — not informative here. |
+
+Divide `memory_working_set_bytes` by `1024*1024` to read it as MB, or by `1e6` for MB (decimal) — either is fine as long as you're consistent across the comparison.
+
+---
+
+## 4. What's inside every run folder
 
 All 48 run folders (two levels down, e.g. `campaign_48/S1_normal_op/baseline_topfull_no_retryguard_normal_op_run4/`) have the same 13 files (baseline folders are missing only `retryguard.log`, since RetryGuard isn't running):
 
@@ -98,7 +170,7 @@ All 48 run folders (two levels down, e.g. `campaign_48/S1_normal_op/baseline_top
 
 ---
 
-## 4. Quick recipes
+## 5. Quick recipes
 
 **"Did RetryGuard actually toggle in this run?"**
 ```powershell
