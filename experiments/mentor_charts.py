@@ -203,12 +203,14 @@ def generate_retries_and_resources(
 
     for column, label in (
         ("cpu_millicores", "CPU (millicores)"),
-        ("memory_working_set_bytes", "Memory (bytes)"),
+        ("memory_working_set_bytes", "Memory (MiB)"),
     ):
         per_repeat = [mcd.resource_usage_series(run_dir, column) for run_dir in rg_dirs]
         averaged = mcd.downsample_series(
             mcd.average_dataframes(per_repeat), COLLECTOR_PLOT_STEP_SECONDS
         )
+        if column == "memory_working_set_bytes" and not averaged.empty:
+            averaged = averaged / (1024 ** 2)
         for target_dir in (curated_dir, gallery_dir):
             mcp.plot_multi_line(
                 averaged,
