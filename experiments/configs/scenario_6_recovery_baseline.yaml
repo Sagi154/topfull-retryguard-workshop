@@ -13,12 +13,16 @@
 #
 # Load profile must stay byte-identical to scenario_6_recovery_retryguard.yaml
 # and all four scenario_5_interval_*.yaml configs.
+#
+# OVERWRITE RISK: run_number / log_folder still name completed campaign run3.
+# Bump both to run4 before any extra S6 run, or master overwrites
+# baseline_topfull_no_retryguard_forced_recovery_run3.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 6
 scenario_name: forced_recovery
 condition: baseline
-run_number: 2
+run_number: 3                  # COMPLETED campaign slot — bump to 4 before re-running
 description: >
   Peak overload 0-300s, then drop to ~25% load 300-900s. TopFull active,
   Istio default retries on, RetryGuard OFF. Baseline for Scenario 6 and
@@ -66,7 +70,7 @@ resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
-log_folder: baseline_topfull_no_retryguard_forced_recovery_run2
+log_folder: baseline_topfull_no_retryguard_forced_recovery_run3   # completed; next free is _run4
 
 infra:
   master_ssh_host: topfull-master

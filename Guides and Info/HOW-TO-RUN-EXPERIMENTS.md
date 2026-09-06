@@ -5,9 +5,9 @@ TAU Deepness Lab Workshop — TopFull + RetryGuard
 > **Who this is for:** Anyone on the team running a scenario manually, without an AI agent.
 > Read this once before your first run. The whole flow takes about 15 minutes for a 5-minute scenario, 25 minutes for a 10-minute one.
 >
-> **Phase 7 close-out (2026-09-04):** do not replay the August 38 and do not mix old goodput with a one-off collector run. The plan of record is a **paper-grade 48-run campaign** (new `log_folder` slots, all collectors on, ×3 including S5). Slots, order, and the `OFF→ON` gate: [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md). Never `run_all_scenarios.py` for that campaign.
+> **Phase 7 close-out:** the paper-grade **48-run campaign is complete** (2026-09-06). Analyse `experiments/results/campaign_48/`. Historical August 38: `experiments/results/august_38/`. Runbook (now a record of what was run): [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md). Never `run_all_scenarios.py` against those slots.
 >
-> **Progress:** §3b gate **passed** (S6 run1 both arms). **Next:** §3c / §3a — S6 run2 (YAMLs already bumped), then the remaining 46. See also [AGENTS.md](../AGENTS.md) §4 "Not done yet".
+> **Progress:** 48 / 48 pulled and verified. Next is the Phase 7 writeup, not more campaign runs. See [AGENTS.md](../AGENTS.md) §4.
 
 ---
 
@@ -192,12 +192,14 @@ ssh topfull-master "kubectl get virtualservice checkoutservice -o jsonpath='{.sp
 After the run completes, copy the results folder from master:
 
 ```powershell
-# Replace the folder name with the actual log_folder from your config:
-scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_normal_op_run3 `
-    experiments\results\
+# Campaign / new runs (Phase 7 primary):
+scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> `
+    experiments\results\campaign_48\
+
+# August historical folders already live under experiments\results\august_38\
 ```
 
-This creates `experiments/results/<log_folder>/` on your PC.
+This creates `experiments/results/campaign_48/<log_folder>/` on your PC. Master is still a flat tree.
 
 ---
 
@@ -262,7 +264,7 @@ Example:
 # Open PowerShell, go to repo root, use the venv python:
 experiments\.venv\Scripts\python -c @"
 import csv, pathlib, json
-base = pathlib.Path('experiments/results/baseline_topfull_no_retryguard_normal_op_run3')
+base = pathlib.Path('experiments/results/august_38/baseline_topfull_no_retryguard_normal_op_run3')
 print(json.loads((base/'run_manifest.json').read_text())['log_folder'])
 for name in ['total.csv','postcheckout.csv','getproduct.csv']:
     rows = list(csv.DictReader((base/name).open()))
@@ -280,7 +282,7 @@ Replace the folder name to match your run.
 What you expect to see:
 - **Scenario 1 (normal op):** `Fail` near 0, rejection near 0%
 - **Scenario 2/3/4 baseline (overload):** elevated `Fail`, rejection 20–100% at the bottleneck
-- **Scenario 1 RetryGuard:** numbers nearly identical to baseline (RetryGuard must be a no-op)
+- **Scenario 1 RetryGuard:** August runs were a near no-op vs baseline. Campaign RG run4–6 each had one checkout `ON→OFF` — check `retryguard.log` before treating S1 as silent.
 
 ### Check for RetryGuard toggles
 ```powershell
@@ -305,7 +307,7 @@ A quick way to find the right region: scan `postcheckout.csv` for where `Goodput
 experiments\.venv\Scripts\python -c @"
 import csv, pathlib
 rows = list(csv.DictReader(
-    pathlib.Path('experiments/results/run_topfull_retryguard_targeted_bottleneck_run2/postcheckout.csv').open()
+    pathlib.Path('experiments/results/august_38/run_topfull_retryguard_targeted_bottleneck_run2/postcheckout.csv').open()
 ))
 for i, r in enumerate(rows):
     rps = float(r['RPS']); fail = float(r['Fail']); good = float(r['Goodput'])
@@ -335,8 +337,8 @@ def stats(path, endpoint='postcheckout.csv'):
     rej  = [f/r if r>0 else 0 for r,f in zip(rps, fail)]
     return dict(goodput=sum(good)/len(good), rej=sum(rej)/len(rej)*100, n=len(rows))
 
-b = stats(pathlib.Path('experiments/results/baseline_topfull_no_retryguard_targeted_bottleneck_run2'))
-r = stats(pathlib.Path('experiments/results/run_topfull_retryguard_targeted_bottleneck_run2'))
+b = stats(pathlib.Path('experiments/results/august_38/baseline_topfull_no_retryguard_targeted_bottleneck_run2'))
+r = stats(pathlib.Path('experiments/results/august_38/run_topfull_retryguard_targeted_bottleneck_run2'))
 print(f'Baseline : goodput={b[\"goodput\"]:.2f}  rejection={b[\"rej\"]:.1f}%')
 print(f'RetryGuard: goodput={r[\"goodput\"]:.2f}  rejection={r[\"rej\"]:.1f}%')
 print(f'Delta    : goodput {(r[\"goodput\"]-b[\"goodput\"])/b[\"goodput\"]*100:+.1f}%  rejection {r[\"rej\"]-b[\"rej\"]:+.1f}pp')

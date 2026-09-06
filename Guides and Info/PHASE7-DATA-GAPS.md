@@ -6,7 +6,7 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 >
 > All 38 run folders are present locally and structurally valid — five endpoint CSVs, `total.csv`, `num_agent.csv`, `run_manifest.json`, plus `retryguard.log` on RetryGuard runs. See [PHASE5-PHASE6-RUNLIST.md](PHASE5-PHASE6-RUNLIST.md) for the inventory. The gaps below are about *which metrics those files contain*, not about missing folders.
 >
-> **Bottom line:** 30 of 38 runs support the analysis as designed for goodput / P95 / rejection. The 8 Scenario 5 runs do not (Gap 1). Retries-per-request (Gap 3) is instrumented going forward but absent from the existing matrix; P99 latency (Gap 2) is no longer considered required.
+> **Bottom line (2026-09-06):** Primary Phase 7 analysis uses the **48-run campaign** in `experiments/results/campaign_48/` — Gaps 1 and 3 are **closed** on that dataset (S6/S5 re-enabled; every folder has Envoy + `resource_usage.csv`). The August 38 in `experiments/results/august_38/` remains historical: 30 of 38 support goodput / P95 / rejection; its 8 Scenario 5 runs never re-enabled; it has no retries-per-request or CPU/memory series. P99 (Gap 2) is dropped; report P95.
 
 ---
 
@@ -53,7 +53,20 @@ Example (`run_topfull_retryguard_interval_60s_run1`):
 
 **How to actually run these (decision 2026-09-04).** Paper-grade **48-run campaign** — new slots, all collectors on, ×3 repeats including S5 — not a replay of the August 38 and not a 16-run add-on. See [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md). **Do not** use `run_all_scenarios.py`: `build_matrix()` is hardcoded to S2 `run1–3` / S5 `run1–2` and would overwrite finished matrix folders. S6 is not in that matrix at all.
 
-**Pre-campaign gate (2026-09-04): PASSED on S6 run1.** `baseline_topfull_no_retryguard_forced_recovery_run1` and `run_topfull_retryguard_forced_recovery_run1` produced Locust time series, non-zero Envoy `upstream_rq_retry` under baseline traffic, `resource_usage.csv`, and — for the first time — 3× `OFF→ON` after the load drop (`cartservice`, `productcatalogservice`, then `checkoutservice`). Gap 1 is no longer blocked at the mechanism level; finish the campaign for ×3 / S5 coverage. Details: [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md) §3b.
+**Pre-campaign gate (2026-09-04): PASSED on S6 run1.** `baseline_topfull_no_retryguard_forced_recovery_run1` and `run_topfull_retryguard_forced_recovery_run1` (now under `experiments/results/campaign_48/`) produced Locust time series, non-zero Envoy `upstream_rq_retry` under baseline traffic, `resource_usage.csv`, and — for the first time — 3× `OFF→ON` after the load drop (`cartservice`, `productcatalogservice`, then `checkoutservice`).
+
+**Campaign outcome (2026-09-06): CLOSED for Gap 1 on the recovery load.** All 48 campaign folders are in `experiments/results/campaign_48/`. Toggle counts (`consecutive_high` / `consecutive_low`):
+
+| Run group | Repeats | Disables per run | Re-enables per run |
+|---|---|---|---|
+| S6 Forced Recovery RG | 3 | 3 | **3** |
+| S5 interval 20/30/60s | 9 | 3 | **3** |
+| S5 interval 10s | 3 | 3, 3, **5** (run3 oscillated) | 3, 3, **5** |
+| S2 / S3 / S4A RG (flat / CPU-limit hold) | 9 | 3 | **0** (expected) |
+| S4B RG | 3 | 1, 1, 4 | 0, 0, **1** (run6 `cartservice`) |
+| S1 RG (normal op) | 3 | **1** (checkout) | 0 |
+
+August 38 (`august_38/`) is unchanged: 60 disables, zero re-enables. That remains a valid negative result under saturating flat overload. Scenario 5 is answerable **only** on campaign S5 vs S6 baseline — not on the August interval folders.
 
 ---
 
@@ -97,7 +110,9 @@ This is now **self-healing**: `run_scenario.py`'s `start_envoy_retry_collector()
 
 **Configs updated (2026-08-20), collector live-validated; runner now deploys the `.py` each run.** `run_scenario.py` copies `experiments/envoy_retry_collector.py` to `infra.envoy_retry_collector_script` before starting the tmux session. The existing 38 result folders still predate the collector and the stats fix — only a fresh scenario run produces `envoy_retries_*.csv`. The chosen close-out is the 48-run campaign in [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md), not a bolt-on 4th repeat mixed with August goodput.
 
-**First live-with-traffic Envoy + resource CSVs (2026-09-04):** S6 baseline/RetryGuard run1 folders above. Baseline frontend `max_retry=120` (stats-inclusion confirmed under load); RetryGuard arm also wrote Envoy + `resource_usage.csv`. Gap 3 instrumentation is proven; remaining campaign runs still needed for ×3 / other scenarios.
+**First live-with-traffic Envoy + resource CSVs (2026-09-04):** S6 baseline/RetryGuard run1. Baseline frontend `max_retry=120` (stats-inclusion confirmed under load).
+
+**Campaign outcome (2026-09-06): CLOSED for Gap 3 on `campaign_48/`.** All 48 folders have `envoy_retries_frontend.csv`, `envoy_retries_checkoutservice.csv`, and `resource_usage.csv`. Frontend `max_retry > 0` on baseline overload runs (stats-inclusion proof). Checkout sidecar `max_retry` is often 0 (few outbound retries on that caller). Counters are **cumulative across the campaign** on the cluster — differencing within a run is the analysis method, not comparing raw `max_total` across folders. August 38 (`august_38/`) still has no Envoy / resource series.
 
 ### Related series also absent (already known)
 
@@ -111,37 +126,40 @@ These were documented before this audit and are listed here so the Layer 1–3 p
 
 ## What remains answerable
 
+Primary dataset: `experiments/results/campaign_48/`. August figures below are historical (`august_38/`).
+
 | Scenario | Status |
 |---|---|
-| 1 — Normal Operation | **Full.** Zero toggles in all 3 RetryGuard runs, `Fail=0`. Sanity check passes. |
-| 2 — Sustained Overload | **Partial.** Goodput/rejection comparison and disable events are solid on the flat 600s August matrix; recover→re-enable under *continued* overload did not happen (Gap 1). Campaign S2 is that same flat hold again (run4–6, collectors on). Forced recovery is Scenario 6, not S2. |
-| 3 — Targeted Bottleneck | **Full** for goodput/rejection. Retry counts available only after re-runs with the Envoy collector. |
-| 4A / 4B — Topology Position | **Full** for goodput/rejection, with the shallow-topology caveat the deck already states on slide 14. Retry counts after re-runs. |
-| 5 — Interval Tuning | **None** on the existing 8 flat runs. **Unblocked** — S6 run1 proved `OFF→ON` under the recovery load; run S5 on that same load (campaign run3–5). |
-| 6 — Forced Recovery | **Partial (run1 pair done 2026-09-04).** Baseline + RetryGuard run1 local with collectors; 3 disables + 3 re-enables on RG arm. Need run2–3 for ×3. |
+| 1 — Normal Operation | **Full**, with a finding: August RG runs had zero toggles; **campaign RG run4–6 each had one checkout `ON→OFF`** (no re-enable). Sanity check is no longer “silent S1”. |
+| 2 — Sustained Overload | **Partial** on re-enable-under-flat-hold (campaign run4–6: 3× disable, 0× re-enable — same shape as August). Goodput / P95 / rejection / retries / CPU are complete on the campaign. Forced recovery is Scenario 6, not S2. |
+| 3 — Targeted Bottleneck | **Full** on the campaign (goodput / P95 / rejection / retries / CPU). Flat-hold re-enable did not fire (3× disable, 0× re-enable). |
+| 4A / 4B — Topology Position | **Full** on the campaign, with the shallow-topology caveat on slide 14. S4A: 3× disable, 0× re-enable. S4B: often checkout-only disable; run6 also had one cart `OFF→ON`. |
+| 5 — Interval Tuning | **Full** on campaign run3–5 (all 12 recovered). Compare against **S6 baseline**, not S2. August’s 8 flat S5 runs stay a negative result (never re-enabled). 10s run3 oscillated (5 disable / 5 re-enable). |
+| 6 — Forced Recovery | **Full** (run1–3 both arms). Every RG repeat: 3× `ON→OFF` then 3× `OFF→ON`. |
 
 | Open question (slides 8–9) | Status |
 |---|---|
-| System-Level Gains | Answerable — goodput, P95, rejection rate |
-| Topology Beneficiaries | Answerable — per-endpoint breakdown |
-| Chain Propagation | Answerable, coarse — only 5 Locust endpoints as observation points |
-| Controller Interaction | Partial — admitted `RPS` as proxy; no `num_agent` state |
-| Topology Position Sensitivity | Answerable — S4A vs S4B |
-| Interval Parameter Sensitivity | Unblocked by S6 run1 `OFF→ON` (2026-09-04); still needs S5 campaign ×3 — see Gap 1 |
+| System-Level Gains | Answerable — goodput, P95, rejection, plus same-run retries and CPU/memory on the campaign |
+| Topology Beneficiaries | Answerable — per-endpoint + Envoy retry counts |
+| Chain Propagation | Answerable, coarse — 5 Locust endpoints; Envoy adds checkout outbound retries |
+| Controller Interaction | Partial — admitted `RPS` as proxy; no `num_agent` state. S6 has a full disable→recover→re-enable cycle |
+| Topology Position Sensitivity | Answerable — S4A vs S4B on the campaign |
+| Interval Parameter Sensitivity | **Answerable** — campaign S5 ×3 on the recovery load |
 
-**Usable for Phase 7 analysis today: 30 of 38 August runs** (all but the 8 Scenario 5 runs, which document only that overload was too deep for recovery to occur). **Chosen close-out (2026-09-04):** replace that as the *primary* dataset with a new 48-run campaign (same-run goodput + retries + CPU/memory, plus S6/S5 recovery). The August 38 stays in git as historical. See [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md).
+**Usable for Phase 7 analysis: all 48 campaign runs** in `campaign_48/`. The August 38 in `august_38/` stays historical (30 usable for goodput/P95/rejection; 8 flat S5 as negative evidence). See [PHASE7-RESOLVE-GAPS-1-3.md](PHASE7-RESOLVE-GAPS-1-3.md).
 
 ---
 
 ## Reproducing this audit
 
 ```powershell
-# Gap 1 — disable vs re-enable event counts per run
-Get-ChildItem experiments\results -Directory | ForEach-Object {
+# Gap 1 — disable vs re-enable event counts per run (campaign = primary)
+Get-ChildItem experiments\results\campaign_48, experiments\results\august_38 -Directory | ForEach-Object {
   $log = Join-Path $_.FullName 'retryguard.log'
   if (Test-Path $log) {
     $c = Get-Content $log -Encoding UTF8
     [pscustomobject]@{
+      Set       = $_.Parent.Name
       Run       = $_.Name
       Disables  = @($c | Select-String -SimpleMatch 'consecutive_high').Count
       Reenables = @($c | Select-String -SimpleMatch 'consecutive_low').Count
@@ -150,9 +168,9 @@ Get-ChildItem experiments\results -Directory | ForEach-Object {
 } | Format-Table -AutoSize
 
 # Gap 2 — count non-zero Latency99 rows (expect 0 everywhere)
-Get-ChildItem experiments\results -Directory | ForEach-Object {
+Get-ChildItem experiments\results\campaign_48, experiments\results\august_38 -Directory | ForEach-Object {
   $v = @(Import-Csv (Join-Path $_.FullName 'total.csv') | ForEach-Object { [double]$_.Latency99 })
-  "{0}: {1} non-zero of {2}" -f $_.Name, @($v | Where-Object { $_ -gt 0 }).Count, $v.Count
+  "{0}/{1}: {2} non-zero of {3}" -f $_.Parent.Name, $_.Name, @($v | Where-Object { $_ -gt 0 }).Count, $v.Count
 }
 ```
 

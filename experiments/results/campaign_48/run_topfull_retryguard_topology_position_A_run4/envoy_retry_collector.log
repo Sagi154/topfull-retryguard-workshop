@@ -1,0 +1,3 @@
+2026-09-05T20:49:20Z  START  poll_interval=5s callers=['checkoutservice', 'frontend']
+2026-09-05T21:01:27Z  SHUTDOWN  signal=15
+2026-09-05T21:01:28Z  EXIT

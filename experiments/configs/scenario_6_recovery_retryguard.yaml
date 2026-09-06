@@ -9,12 +9,16 @@
 # Load profile must stay byte-identical to scenario_6_recovery_baseline.yaml
 # and all four scenario_5_interval_*.yaml configs. Only retryguard.enabled
 # / condition / log_folder differ vs the S6 baseline.
+#
+# OVERWRITE RISK: run_number / log_folder still name completed campaign run3.
+# Bump both to run4 before any extra S6 run, or master overwrites
+# run_topfull_retryguard_forced_recovery_run3.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 6
 scenario_name: forced_recovery
 condition: retryguard
-run_number: 2
+run_number: 3                  # COMPLETED campaign slot — bump to 4 before re-running
 description: >
   Peak overload 0-300s, then drop to ~25% load 300-900s. TopFull + RetryGuard
   both active, re-enable interval = paper default (3 windows × 30s = 90s).
@@ -62,7 +66,7 @@ resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
-log_folder: run_topfull_retryguard_forced_recovery_run2
+log_folder: run_topfull_retryguard_forced_recovery_run3   # completed; next free is _run4
 
 infra:
   master_ssh_host: topfull-master

@@ -1,0 +1,27 @@
+{
+  "scenario_id": 5,
+  "scenario_name": "interval_tuning",
+  "condition": "retryguard",
+  "run_number": 3,
+  "duration_seconds": 900,
+  "retryguard": {
+    "enabled": true,
+    "rejection_threshold": 0.2,
+    "window_duration_seconds": 30,
+    "disable_windows": 2,
+    "re_enable_windows": 2,
+    "retry_attempts_on": 3,
+    "retry_attempts_off": 0
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "scale_constraints": [],
+  "log_folder": "run_topfull_retryguard_interval_20s_run3",
+  "collected_at": "2026-09-05T13:19:52.012103Z"
+}

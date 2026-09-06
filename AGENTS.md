@@ -17,7 +17,7 @@ Two experimental conditions, same load each time:
 | **Baseline** (Phase 5) | TopFull | Istio default (`attempts: 3`, RetryGuard off) |
 | **Primary** (Phase 6) | TopFull | RetryGuard dynamically toggles retries per service |
 
-We run **6 scenarios** (see §5): the eval-deck five plus Scenario 6 (forced recovery, so re-enable can be measured without changing S2's load). S1–S4 and S6 run under both conditions, ≥3 repeats each (Locust traffic is non-deterministic); S5 is RetryGuard-only and uses **S6's load**, compared against S6 baseline — not S2. Then compare goodput / P95 latency / rejection rate / retries-per-request / CPU/memory / RetryGuard toggle events. The finished August **38-run matrix** has goodput/P95/rejection but not retries or CPU/memory, and its 8 S5 runs never re-enabled. **Phase 7 close-out is a paper-grade 48-run campaign** (new slots, all collectors on, ×3 including S5) — see [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md). P99 was dropped as a target metric (P95 fully satisfies both source papers and the eval deck) — see [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md).
+We run **6 scenarios** (see §5): the eval-deck five plus Scenario 6 (forced recovery, so re-enable can be measured without changing S2's load). S1–S4 and S6 run under both conditions, ≥3 repeats each (Locust traffic is non-deterministic); S5 is RetryGuard-only and uses **S6's load**, compared against S6 baseline — not S2. Then compare goodput / P95 latency / rejection rate / retries-per-request / CPU/memory / RetryGuard toggle events. The finished August **38-run matrix** has goodput/P95/rejection but not retries or CPU/memory, and its 8 S5 runs never re-enabled. **Phase 7 close-out is a completed paper-grade 48-run campaign** (new slots, all collectors on, ×3 including S5) — see [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md). P99 was dropped as a target metric (P95 fully satisfies both source papers and the eval deck) — see [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md).
 
 This is a workshop deliverable: a presentation (project plan) + eventually a written report with the above comparison.
 
@@ -35,7 +35,9 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   resource_usage_collector.py ← Layer 2: scrapes CPU/memory per service via kubelet stats/summary (deployed to master)
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
-  results/           ← all 38 Phase 5/6 matrix folders (local and in git as of 2026-08-20)
+  results/           ← local results only (master still uses a flat `/home/idozacharia/experiments/results/`)
+    campaign_48/     ← **primary Phase 7 dataset** — 48-run campaign (2026-09-05 → 2026-09-06)
+    august_38/       ← historical August 38-run matrix (git-tracked; do not delete)
 TopFull/             ← git submodule, upstream https://github.com/kaist-ina/TopFull (read locally; also cloned separately on the VMs)
 context/             ← papers/decks: RetryGuard.pdf, TopFull.pdf, Evaluating_RetryGuard_on_TopFull.{pdf,md} (current eval deck + transcription)
 canvases/            ← interactive workplan canvas for Cursor (topfull-retryguard-workplan.canvas.tsx)
@@ -64,8 +66,8 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | **[PHASE5-PHASE6-RUNLIST.md](Guides%20and%20Info/PHASE5-PHASE6-RUNLIST.md)** | **Matrix checklist.** All 38 runs done as of 2026-08-15; all 38 folders are local and in git. The “where results live” header in that file is stale |
 | [EXPERIMENT-READINESS-WORKPLAN.md](Guides%20and%20Info/EXPERIMENT-READINESS-WORKPLAN.md) | Historical smoke-validation checklist (Steps 1–8 passed 2026-08-07). Do not mix smoke folders into Phase 7 analysis |
 | [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) | What each run produces, how to pull/verify, how to load for charts |
-| **[PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md)** | **Read before analysing.** Three gaps found in the finished matrix (no re-enable events → S5 unanswerable; no P99 — resolved by dropping it, use P95; no retries-per-request) and what is still answerable |
-| **[PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md)** | **Runbook.** Paper-grade 48-run campaign (decision 2026-09-04): all collectors on, ×3 repeats, new slots so the August 38 is not overwritten. Closes Gap 1 and Gap 3. Do not use `run_all_scenarios.py`. |
+| **[PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md)** | **Read before analysing.** August-38 audit plus campaign close-out: Gap 1/3 **closed** on `campaign_48/`; Gap 2 dropped P99 (use P95). |
+| **[PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md)** | **Runbook.** Paper-grade 48-run campaign — **COMPLETE** (2026-09-06). Primary analysis is `experiments/results/campaign_48/`. Do not use `run_all_scenarios.py`. |
 | [Evaluating_RetryGuard_on_TopFull.md](context/Evaluating_RetryGuard_on_TopFull.md) | **Eval plan deck** (transcription of the PDF). Slides 8–9 open questions, 11–15 scenario objectives, 16 measurement layers — source of truth for what Phase 7 is supposed to answer |
 | [SCENARIOS-GUIDE.md](Guides%20and%20Info/SCENARIOS-GUIDE.md) | Understand each of the 5 scenarios in detail: what it tests, load setup, manual step-by-step (pre-dates `run_scenario.py` automation, but good for *why*) |
 | [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md) | Understand exactly how `experiments/retryguard.py` maps to paper Algorithm 1, its metric source, endpoint→service map, VS patch mechanics, log format |
@@ -75,7 +77,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-09-04)
+## 4. Current status (as of 2026-09-06)
 
 ### ✅ Done
 
@@ -86,29 +88,24 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
   - Slots 1–9 (S1 base×3, S1 RG×3, S2 base×3): run 2026-08-11 (Ido).
   - Slots 10–38: resumed with `run_all_scenarios.py --yes --resume 9` on 2026-08-15 (~7h); slot 17 (S3 RG run2) re-run after a permission failure on a stale master folder.
   - Batch runner bumped touched configs to next free `run_number` (typically 4 for ×3 scenarios, 3 for S5).
-- **Results consolidated** — all 38 matrix folders are on this laptop in `experiments/results/` **and tracked in git** (`90c43c9` on 2026-08-20 added S1×6 and S2 baseline×3). Older “S1 on Ido’s machine / S2 baseline on master only / 29 local folders” notes are stale.
+- **Results consolidated** — August 38 live locally under `experiments/results/august_38/` **and tracked in git** (`90c43c9` on 2026-08-20 added S1×6 and S2 baseline×3). Older “S1 on Ido’s machine / S2 baseline on master only / 29 local folders” notes are stale.
 - **Results audit (2026-08-20)** — [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md). **30 of 38 runs are usable** (all except the 8 Scenario 5 interval runs). Three gaps found: (a) **zero `OFF→ON` events in all 23 RetryGuard runs**, so S5 has no signal and S2 never completed disable→recover→re-enable under a flat hold; (b) **`Latency99` is 0 in every row** — **resolved: P99 dropped**, report P95; (c) **no retries-per-request series** in the finished matrix — collector built, needs re-runs. Layer 2 CPU/mem was unwired in the 38-run matrix — **now instrumented** via `resource_usage_collector.py`.
 - **S2 vs S6 split (2026-09-01)** — a 2026-08-20 edit had put the 900s load-drop onto S2, diverging from the deck. **S2 is again a flat 600s hold** (`run_number: 4`). The load-drop is **Scenario 6** (`scenario_6_recovery_{baseline,retryguard}.yaml`). S5 stays on S6's load and compares against **S6 baseline**, not S2. See [SCENARIOS-GUIDE.md](Guides%20and%20Info/SCENARIOS-GUIDE.md) Scenario 6.
 - **Paper-grade campaign chosen (2026-09-04)** — close Gaps 1 and 3 with a **new 48-run matrix**, not a replay of the August 38 and not a 16-run collector add-on. S1, S2, S3, S4A, S4B, S6 × both arms × 3 (36) plus S5 × 4 intervals × 3 (12). All collectors on, next free `log_folder` slots. Primary Phase 7 analysis uses that campaign; the August 38 stays historical. Exact slots, gate on first S6 `OFF→ON`, and verification: [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md).
 - **Eval deck transcribed** — `context/Evaluating_RetryGuard_on_TopFull.md` (from the PDF). Replaces the older project-plan pptx files.
-- **Envoy retry collector (Gap 3, 2026-08-20)** — scrapes caller-side Envoy outbound retry counters via `kubectl exec` into `istio-proxy`; writes `envoy_retries_{frontend,checkoutservice}.csv`. **Live-validated end-to-end** on the real cluster: found and fixed a real blocker (Istio's default stats reduction hides `upstream_rq_retry*`; `run_scenario.py` now self-heals it via `ensure_envoy_stats_enabled()`), deployed the script to master, and smoke-tested it producing correctly-formatted CSVs. Not present in the existing 38 results folders — needs fresh runs, see [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md).
-- **Resource usage collector (Layer 2)** — `experiments/resource_usage_collector.py` scrapes per-service CPU/memory via kubelet `stats/summary`; wired into `run_scenario.py`, enabled in all scenario YAMLs, unit-tested. Deploy to master before runs (same as Envoy collector). Not in the existing 38 results folders.
-- **Pre-campaign metric verification PASSED (2026-09-04)** — S6 baseline + RetryGuard run1 with traffic. Folders: `baseline_topfull_no_retryguard_forced_recovery_run1`, `run_topfull_retryguard_forced_recovery_run1`. Confirmed: Locust 1s CSVs; Envoy `max_retry>0` on baseline frontend; `resource_usage.csv`; 3× `ON→OFF` then 3× `OFF→ON` on RetryGuard (Gap 1 signal live). See [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md) §3b. S6 YAMLs bumped to run2 for the next repeats.
+- **Envoy retry collector (Gap 3, 2026-08-20)** — scrapes caller-side Envoy outbound retry counters via `kubectl exec` into `istio-proxy`; writes `envoy_retries_{frontend,checkoutservice}.csv`. Present in all 48 `campaign_48/` folders; **absent** from `august_38/`.
+- **Resource usage collector (Layer 2)** — `experiments/resource_usage_collector.py` scrapes per-service CPU/memory via kubelet `stats/summary`; wired into `run_scenario.py`. Present in all 48 `campaign_48/` folders; **absent** from `august_38/`.
+- **Pre-campaign metric verification PASSED (2026-09-04)** — S6 baseline + RetryGuard run1 with traffic. Folders: `baseline_topfull_no_retryguard_forced_recovery_run1`, `run_topfull_retryguard_forced_recovery_run1`. Confirmed: Locust 1s CSVs; Envoy `max_retry>0` on baseline frontend; `resource_usage.csv`; 3× `ON→OFF` then 3× `OFF→ON` on RetryGuard (Gap 1 signal live). See [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md) §3b.
+- **Paper-grade 48-run campaign COMPLETE (2026-09-05 → 2026-09-06)** — all 48 slots local under `experiments/results/campaign_48/`: S6 run1–3 both arms; S5 intervals run3–5 (×4); S1–S4A/S4B run4–6 both arms. Every run pulled and §4-verified (Locust + Envoy + `resource_usage`; RetryGuard toggles where applicable). S6/S5 produced `OFF→ON`; flat S2/S3/S4 typically disable-only. S1 RG showed unexpected checkout `ON→OFF` on all 3 repeats. August 38 is `experiments/results/august_38/`. Primary Phase 7 analysis uses the campaign. Gaps 1 and 3 **closed** on that dataset — [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md).
+- **Local results layout (2026-09-06)** — `experiments/results/campaign_48/` vs `experiments/results/august_38/`. Master still uses a flat `/home/idozacharia/experiments/results/<log_folder>/`. See [experiments/results/README.md](experiments/results/README.md).
 
 ### ❌ Not done yet — remaining work
 
-> **Next session — do this first:** continue the paper-grade campaign from [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md) §3a. The §3b metric gate already **passed** (S6 run1 baseline + RetryGuard). **2 of 48** campaign folders are done; **46 remain**. Never use `run_all_scenarios.py`.
+> **Next session — do this first:** Phase 7 analysis/report on **`experiments/results/campaign_48/`** ([PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md), [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md)). Commit `campaign_48/` (and the results split) when ready; do not overwrite `august_38/`.
+>
+> **Do not re-run Scenario 6 until the YAMLs are bumped.** Both `experiments/configs/scenario_6_recovery_{baseline,retryguard}.yaml` still point at completed **`run3`**. Launching them as-is overwrites that folder **on master**. Bump `run_number` and `log_folder` to **run4** first. S1–S5 already sit on the next free slot (run7 / S5 run6).
 
-**Exact next runs (in order):**
-
-1. `scenario_6_recovery_baseline.yaml` → run2 (YAML already at run2)
-2. `scenario_6_recovery_retryguard.yaml` → run2
-3. Same pair at run3, then S5 intervals run3–5, then S1–S4 run4–6 (bump S1 YAMLs from run3→run4 before first S1).
-4. After each run: pull with `scp`, §4 verify, bump `run_number`/`log_folder`.
-
-Then: Phase 7 analysis/report on the campaign dataset ([PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md), [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md)).
-
-**Recommended order:** §2 cluster health → **S6 run2** (next) → finish §3a → analysis.
+Optional: stop the 3 VMs when not analysing (`gcloud compute instances stop …`) to save cost.
 
 ### ⚠️ Live infra caveat (check before assuming the cluster is healthy)
 
@@ -133,7 +130,7 @@ If it doesn't recover within a few minutes, follow the troubleshooting table in 
 | 5 | Re-enable Interval Tuning | Same load as S6; `re_enable_windows` = 1/2/3/6 | 15 min | `scenario_5_interval_{10,20,30,60}s.yaml` |
 | 6 | Forced Recovery | Peak 5 min, then ~25% load for 10 min | 15 min | `scenario_6_recovery_{baseline,retryguard}.yaml` |
 
-Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit` (kubectl patch), not replica scaling. Scenario 5's existing 8 August matrix runs have **no re-enable events** (they used a flat hold). Campaign S5 uses S6's load and compares against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical sustained-overload evidence; campaign S2 run4–6 is the primary flat-hold dataset once it lands.
+Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit` (kubectl patch), not replica scaling. Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
 
 ---
 
@@ -153,10 +150,10 @@ python experiments/run_scenario.py experiments/configs/scenario_1_baseline.yaml
 The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, and `resource_usage_collector.py` from this repo onto master before those processes start. Results go to `results_base_path/<log_folder>/` **on master**. Pull them down with:
 
 ```powershell
-scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/
+scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/campaign_48/
 ```
 
-**Before repeating a scenario:** bump `run_number` and change `log_folder` in the YAML (e.g. `..._run1` → `..._run2`), or the new run will overwrite/mix with the old one. For the paper-grade campaign, use the **next free** slots in [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md) §3a — never `run1–3` for S1–S4 or `run1–2` for S5.
+**Before repeating a scenario:** bump `run_number` and change `log_folder` in the YAML, or the new run will overwrite the folder **on master**. Completed campaign slots are run4–6 (S1–S4), run3–5 (S5), run1–3 (S6). S1–S5 YAMLs already point at the next free slot (run7 / S5 run6); **S6 YAMLs still point at completed run3 — bump to run4 before any extra S6 run.** Never reuse August `run1–3` (S1–S4) or S5 `run1–2`.
 
 Full config schema, `scale_constraints` methods, and troubleshooting: [PHASE5-EXPERIMENTS-GUIDE.md](Guides%20and%20Info/PHASE5-EXPERIMENTS-GUIDE.md) §5 and [experiments/README.md](experiments/README.md).
 
@@ -190,9 +187,9 @@ Full config schema, `scale_constraints` methods, and troubleshooting: [PHASE5-EX
 - Does RetryGuard help at the **system level**, the **per-microservice level**, or both? (Mentors expect system-level gain may be small (~0.2%) while specific services improve a lot (~30%).) — **answerable** (goodput, P95, rejection).
 - **Topology beneficiaries** — which services gain most from suppressed retries? — **answerable** (per-endpoint CSVs).
 - **Chain propagation** — does relief at a bottleneck propagate upstream to callers? — **answerable**, coarse (only 5 Locust endpoints).
-- **Controller interaction** — how do TopFull's RL loop (1s) and RetryGuard (30s windows) interact/oscillate? — **partial** until the campaign (`RPS` as proxy; `num_agent.csv` is empty). Recover→re-enable is the S6 load-drop, not flat S2.
+- **Controller interaction** — how do TopFull's RL loop (1s) and RetryGuard (30s windows) interact/oscillate? — **partial** (`RPS` as proxy; `num_agent.csv` is empty). Recover→re-enable is the S6 load-drop (campaign complete), not flat S2.
 - **Topology position sensitivity** — does RetryGuard help more where TopFull's entry-level signal is weaker (Checkout-mediated Payment vs direct ProductCatalog)? — **answerable** (S4A vs S4B).
-- **Interval sensitivity** — does the paper's 30s default hold up when running alongside TopFull's 1s RL loop? — **unblocked** by S6 run1 (2026-09-04, first `OFF→ON` events). Still needs S5 ×3 on the recovery load for the interval sweep.
+- **Interval sensitivity** — does the paper's 30s default hold up when running alongside TopFull's 1s RL loop? — **answerable** on campaign S5 ×3 (`campaign_48/`, recovery load). August S5 remains a negative result (flat hold, never re-enabled).
 
 ---
 

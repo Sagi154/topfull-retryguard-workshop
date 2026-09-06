@@ -837,7 +837,7 @@ def collect_results(cfg: dict) -> str:
 
     step(f"Results saved to (on master): {dest}")
     step("To pull results to your PC:")
-    print(f"    scp -r topfull-master:{dest} experiments/results/")
+    print(f"    scp -r topfull-master:{dest} experiments/results/campaign_48/")
     return dest
 
 

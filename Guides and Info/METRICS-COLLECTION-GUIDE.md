@@ -264,25 +264,28 @@ This makes each folder self-describing — you don't need to look up the YAML to
 After each run completes (the runner prints the `scp` command for you):
 
 ```powershell
-# Pull one run folder
-scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/
-
-# Pull all results at once (after multiple runs)
-scp -r topfull-master:/home/idozacharia/experiments/results/ experiments/results/
+# Pull one run folder into the campaign tree (Phase 7 primary)
+scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/campaign_48/
 ```
 
-Local layout after pulling:
+Master still stores a flat `/home/idozacharia/experiments/results/<log_folder>/`. **Do not** `scp -r` the entire remote `results/` tree onto the laptop — that would dump campaign and August folders into one mix again.
+
+Local layout:
 
 ```
 experiments/results/
-  baseline_topfull_no_retryguard_sustained_overload_run1/
-    getproduct.csv
-    postcheckout.csv
-    ...
-    run_manifest.json
-  baseline_topfull_no_retryguard_sustained_overload_run2/
-    ...
+  campaign_48/          ← 48-run Phase 7 campaign (primary analysis)
+    baseline_topfull_no_retryguard_forced_recovery_run1/
+      getproduct.csv
+      postcheckout.csv
+      envoy_retries_frontend.csv
+      resource_usage.csv
+      ...
+      run_manifest.json
+  august_38/            ← historical August 38 (goodput/P95/rejection only)
 ```
+
+See [experiments/results/README.md](../experiments/results/README.md).
 
 ---
 
@@ -320,7 +323,7 @@ Each run folder is independent. For Phase 7, you'll load all runs for a given sc
 import pandas as pd
 from pathlib import Path
 
-results = Path("experiments/results")
+results = Path("experiments/results/campaign_48")
 
 # Load all baseline runs for Scenario 2, postcheckout endpoint
 runs = sorted(results.glob("baseline_topfull_no_retryguard_sustained_overload_run*/postcheckout.csv"))

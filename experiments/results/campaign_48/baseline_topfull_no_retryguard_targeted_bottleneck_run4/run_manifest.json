@@ -1,0 +1,35 @@
+{
+  "scenario_id": 3,
+  "scenario_name": "targeted_bottleneck",
+  "condition": "baseline",
+  "run_number": 4,
+  "duration_seconds": 600,
+  "retryguard": {
+    "enabled": false,
+    "rejection_threshold": 0.2,
+    "window_duration_seconds": 30,
+    "disable_windows": 2,
+    "re_enable_windows": 3,
+    "retry_attempts_on": 3,
+    "retry_attempts_off": 0
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "scale_constraints": [
+    {
+      "deployment": "checkoutservice",
+      "namespace": "default",
+      "method": "cpu_limit",
+      "cpu_limit": "100m",
+      "container": "server"
+    }
+  ],
+  "log_folder": "baseline_topfull_no_retryguard_targeted_bottleneck_run4",
+  "collected_at": "2026-09-05T19:13:55.928449Z"
+}

@@ -81,14 +81,14 @@ log_folder: baseline_topfull_no_retryguard_sustained_overload_run2
 
 Aim for **3 runs minimum** per scenario/condition. Compare using averages/medians.
 
-**Phase 7 campaign (2026-09-04):** the next 3 repeats are a new 48-run matrix on free slots (S1/S2/S3/S4A/S4B/S6 × both arms × 3, plus S5 × 4 intervals × 3), not a replay of `run1–3`. See [PHASE7-RESOLVE-GAPS-1-3.md](../Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md). Do not use `run_all_scenarios.py` for this — it would overwrite the August folders.
+**Phase 7 campaign (COMPLETE 2026-09-06):** 48-run matrix on free slots, all collectors on. Local copies: `experiments/results/campaign_48/`. Historical August 38: `experiments/results/august_38/`. See [PHASE7-RESOLVE-GAPS-1-3.md](../Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md). Do not use `run_all_scenarios.py` — it would overwrite the August folders **on master**.
 
 ---
 
 ## Pulling results to your PC
 
 ```powershell
-scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1 experiments/results/
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1 experiments/results/campaign_48/
 ```
 
 ---

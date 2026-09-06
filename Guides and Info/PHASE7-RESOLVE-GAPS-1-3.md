@@ -2,9 +2,9 @@
 
 TopFull + RetryGuard Workshop — TAU Deepness Lab
 
-> **Purpose:** A runbook for closing [Gap 1](PHASE7-DATA-GAPS.md#gap-1--no-re-enable-events-in-any-run-blocks-scenario-5) (no re-enable events, blocks Scenario 5) and [Gap 3](PHASE7-DATA-GAPS.md#gap-3--no-direct-retry-storm-evidence-retries-per-request) (no retries-per-request evidence) — the two gaps in [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) that still require **new scenario runs** (Gap 2/P99 was resolved by dropping the metric, no runs needed). This doc assumes the mechanisms for both gaps are already built and tested (recovery-phase `locust.phases`, `envoy_retry_collector.py`) — it's the "what to actually execute" checklist.
+> **Purpose:** Runbook for closing [Gap 1](PHASE7-DATA-GAPS.md#gap-1--no-re-enable-events-in-any-run-blocks-scenario-5) and [Gap 3](PHASE7-DATA-GAPS.md#gap-3--no-direct-retry-storm-evidence-retries-per-request). **The campaign is complete (48/48, 2026-09-06)** — this file is now the record of what was run, how to verify a folder, and what stays open. Analysis uses `experiments/results/campaign_48/`.
 >
-> **Decision (2026-09-04): paper-grade single campaign — 48 new runs, all collectors on, 3 repeats.** Do **not** replay the old 38 (eight of those slots are flat-hold S5, which cannot answer interval sensitivity). Do **not** bolt collectors onto a 16-run add-on and mix August goodput with September retries. Primary Phase 7 analysis uses this campaign; the August 38 folders stay in git as historical data. See §3.
+> **Decision (2026-09-04): paper-grade single campaign — 48 new runs, all collectors on, 3 repeats.** Do **not** replay the old 38 (eight of those slots are flat-hold S5, which cannot answer interval sensitivity). Do **not** bolt collectors onto a 16-run add-on and mix August goodput with September retries. Primary Phase 7 analysis uses this campaign (`experiments/results/campaign_48/`); the August 38 folders stay as `experiments/results/august_38/`. **Campaign COMPLETE 2026-09-06 (48/48).** See §3c.
 >
 > **Before you run anything, read §1** — it verifies we actually have all the metrics the eval deck ([`Evaluating_RetryGuard_on_TopFull.md`](../context/Evaluating_RetryGuard_on_TopFull.md)) requires once these runs complete, and is honest about what stays open regardless.
 
@@ -104,38 +104,34 @@ Keep the August 38 folders in git. Do not delete them and do not overwrite them.
 python experiments/run_scenario.py experiments/configs/<file>.yaml
 ```
 
-Pull after each run (the runner prints the exact command):
+Pull after each run (the runner prints the exact command). Locally, campaign folders live under `experiments/results/campaign_48/`:
 
 ```powershell
-scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/
+scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/campaign_48/
 ```
 
 Then bump `run_number` and `log_folder` in that YAML **before** the next repeat of the same config.
 
-### 3a. Matrix — 48 new folders on the next free slots
+### 3a. Matrix — 48 new folders on the next free slots — **COMPLETE (2026-09-06)**
 
-| Scenario | Configs | New slots | Repeats | Duration | Count |
-|---|---|---|---|---|---|
-| 6 Forced Recovery | `scenario_6_recovery_{baseline,retryguard}.yaml` | run1–3 (**run1 done 2026-09-04**; YAML now at run2) | ×3 both arms | 900s | 6 |
-| 5 Interval Tuning | `scenario_5_interval_{10,20,30,60}s.yaml` | run3–5 (run1–2 are the old flat S5 — do not reuse) | ×3, RetryGuard only | 900s | 12 |
-| 1 Normal Operation | `scenario_1_{baseline,retryguard}.yaml` | run4–6 (**bump from run3 before the first S1 run**) | ×3 both arms | 300s | 6 |
-| 2 Sustained Overload | `scenario_2_{baseline,retryguard}.yaml` | run4–6 (YAML already at run4) | ×3 both arms | 600s | 6 |
-| 3 Targeted Bottleneck | `scenario_3_{baseline,retryguard}.yaml` | run4–6 (YAML already at run4) | ×3 both arms | 600s | 6 |
-| 4A Topology A | `scenario_4a_{baseline,retryguard}.yaml` | run4–6 (YAML already at run4) | ×3 both arms | 600s | 6 |
-| 4B Topology B | `scenario_4b_{baseline,retryguard}.yaml` | run4–6 (YAML already at run4) | ×3 both arms | 600s | 6 |
+| Scenario | Configs | Slots used | Repeats | Duration | Count | Status |
+|---|---|---|---|---|---|---|
+| 6 Forced Recovery | `scenario_6_recovery_{baseline,retryguard}.yaml` | run1–3 | ×3 both arms | 900s | 6 | Done |
+| 5 Interval Tuning | `scenario_5_interval_{10,20,30,60}s.yaml` | run3–5 (run1–2 are the old flat S5 in `august_38/`) | ×3, RetryGuard only | 900s | 12 | Done |
+| 1 Normal Operation | `scenario_1_{baseline,retryguard}.yaml` | run4–6 | ×3 both arms | 300s | 6 | Done |
+| 2 Sustained Overload | `scenario_2_{baseline,retryguard}.yaml` | run4–6 | ×3 both arms | 600s | 6 | Done |
+| 3 Targeted Bottleneck | `scenario_3_{baseline,retryguard}.yaml` | run4–6 | ×3 both arms | 600s | 6 | Done |
+| 4A Topology A | `scenario_4a_{baseline,retryguard}.yaml` | run4–6 | ×3 both arms | 600s | 6 | Done |
+| 4B Topology B | `scenario_4b_{baseline,retryguard}.yaml` | run4–6 | ×3 both arms | 600s | 6 | Done |
 
-**Total: 48 runs** (S1 + S2 + S3 + S4A + S4B + S6 = 6 two-arm shapes × 2 × 3 = 36; S5 = 4 intervals × 3 = 12). Sequential VM time ≈ **10–11 hours** (startup overhead ~90s on top of `duration_seconds`). S5 compares against **S6 baseline**, not S2.
+**Total: 48 / 48.** All folders local under `experiments/results/campaign_48/`. S5 compares against **S6 baseline**, not S2.
 
-YAML state as of 2026-09-04: S1 still points at last-completed `run3` — bump both S1 files to `run4` before touching them. S2/S3/S4 already point at `run4`. S5 already points at `run3`. S6 points at `run2` (run1 gate pair complete).
+**YAML state as of 2026-09-06:** S1–S4 point at run7; S5 at run6. **S6 YAMLs still point at completed run3** — bump both S6 files to run4 before any extra S6 run, or they will overwrite on master.
 
 ```yaml
-# experiments/configs/scenario_1_baseline.yaml  — do this before any S1 campaign run
+# experiments/configs/scenario_6_recovery_baseline.yaml  — bump before any extra S6 run
 run_number: 4
-log_folder: baseline_topfull_no_retryguard_normal_op_run4
-
-# experiments/configs/scenario_1_retryguard.yaml
-run_number: 4
-log_folder: run_topfull_retryguard_normal_op_run4
+log_folder: baseline_topfull_no_retryguard_forced_recovery_run4
 ```
 
 ### 3b. Pre-campaign metric verification (do this before the other 46)
@@ -154,7 +150,7 @@ These two S6 `run1` folders are the **first two of the 48**, not extra smoke. Th
 
 ```powershell
 python experiments/run_scenario.py experiments/configs/scenario_6_recovery_baseline.yaml
-scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_forced_recovery_run1 experiments/results/
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_forced_recovery_run1 experiments/results/campaign_48/
 ```
 
 3. Immediately run §4 on that folder: Locust CSVs populated; `envoy_retries_*.csv` with `max_total` **and** `max_retry` well above zero (Istio retries stay on in baseline — this proves the stats fix under traffic); `resource_usage.csv` has rows.
@@ -162,7 +158,7 @@ scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_
 
 ```powershell
 python experiments/run_scenario.py experiments/configs/scenario_6_recovery_retryguard.yaml
-scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_forced_recovery_run1 experiments/results/
+scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_forced_recovery_run1 experiments/results/campaign_48/
 ```
 
 5. Immediately run §4 on that folder: at least one `ON→OFF` (0–300s) **and** at least one `OFF→ON` (300–900s); Envoy + resource files present.
@@ -171,37 +167,23 @@ scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retrygua
 
 > The recovery phase drops load to ~25% of peak, which *should* pull rejection under RetryGuard's 20% threshold. Real system behavior can surprise you — that is why step 6 is a hard gate, not a note at the end.
 
-**Gate outcome (2026-09-04): PASSED.** Folders `baseline_topfull_no_retryguard_forced_recovery_run1` and `run_topfull_retryguard_forced_recovery_run1` are local under `experiments/results/`.
+**Gate outcome (2026-09-04): PASSED.** Folders `baseline_topfull_no_retryguard_forced_recovery_run1` and `run_topfull_retryguard_forced_recovery_run1` are local under `experiments/results/campaign_48/`.
 
 - Baseline: Locust ~810 rows/endpoint; `envoy_retries_frontend.csv` `max_total=739010`, `max_retry=120` (stats-inclusion live under traffic); `resource_usage.csv` ~1964 rows.
-- RetryGuard: 3× `ON→OFF` (cart / checkout / productcatalog during peak) then 3× `OFF→ON` after the load drop (`cartservice` and `productcatalogservice` first, `checkoutservice` later once rejection hit 0); Envoy + resource CSVs present. Campaign metrics path is live — continue §3a (bump S6 YAMLs to run2 before the next S6 repeat).
+- RetryGuard: 3× `ON→OFF` (cart / checkout / productcatalog during peak) then 3× `OFF→ON` after the load drop (`cartservice` and `productcatalogservice` first, `checkoutservice` later once rejection hit 0); Envoy + resource CSVs present. Campaign metrics path is live. Campaign later finished through run3; **S6 YAMLs were left at run3** — bump to run4 before any extra S6 run (§3a).
 
-### 3c. What to run next (session resume)
+### 3c. Campaign complete (2026-09-06)
 
-**Progress: 2 / 48 campaign runs done** (S6 run1 both arms). Gate §3b is closed — do not re-run it unless those folders are lost.
+**Progress: 48 / 48.** Gate §3b stayed closed; every later run was pulled into `experiments/results/campaign_48/` and §4-verified.
 
-**Next concrete commands:**
-
-```powershell
-# §2 first if VMs were stopped/started (IPs ephemeral)
-ssh topfull-master "kubectl get nodes; kubectl get pods -n default"
-
-python experiments/run_scenario.py experiments/configs/scenario_6_recovery_baseline.yaml
-# pull the log_folder printed at the end (expect ..._forced_recovery_run2)
-# §4 verify, then bump YAML to run3
-
-python experiments/run_scenario.py experiments/configs/scenario_6_recovery_retryguard.yaml
-# same: pull, §4 (need OFF→ON again), bump YAML
-```
-
-After S6 run2–3: S5 `scenario_5_interval_{10,20,30,60}s.yaml` at run3–5; then S1 (bump to run4 first) and S2/S3/S4A/S4B at run4–6. Full slot table: §3a.
+Do not re-run this matrix. Next work is Phase 7 analysis on `campaign_48/` (see §5). Extra runs, if any, must use the next free YAML slots (S1–S4 run7, S5 run6; **bump S6 off run3 first**).
 
 ## 4. Verifying each run actually produced what you need
 
 **Immediately after each S6 / S5 RetryGuard run — check for `OFF→ON`:**
 
 ```powershell
-Get-Content "experiments\results\<log_folder>\retryguard.log" |
+Get-Content "experiments\results\campaign_48\<log_folder>\retryguard.log" |
   Where-Object { $_ -match 'OFF→ON|ON→OFF' }
 ```
 
@@ -212,7 +194,7 @@ You want at least one `ON→OFF` (during 0–300s, expected) **and at least one 
 ```powershell
 python -c "
 import csv, pathlib
-p = pathlib.Path('experiments/results/<log_folder>')
+p = pathlib.Path('experiments/results/campaign_48/<log_folder>')
 for f in ['envoy_retries_frontend.csv', 'envoy_retries_checkoutservice.csv']:
     rows = list(csv.DictReader((p/f).open()))
     totals = [int(r['upstream_rq_total']) for r in rows]
@@ -229,16 +211,16 @@ for f in ['envoy_retries_frontend.csv', 'envoy_retries_checkoutservice.csv']:
 
 ## 5. After all runs are pulled down
 
-1. Update [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md): move Gap 1 and Gap 3 from "configs updated, not yet run" to closed, with the new run folder names and a summary of what the `OFF→ON` events / retry CSVs actually showed.
-2. Update the "What remains answerable" table in that same doc — Scenario 5 should move from **None** to **Full** (or partial, if some interval configs still didn't recover); Scenario 6 should appear as the recovery-cycle pair. Scenario 2 stays **Partial** on re-enable-under-flat-hold unless a later run shows it (not expected; not a campaign goal).
-3. Update `AGENTS.md` §4 "Current status" — note the 48-run campaign is in, that Phase 7 analysis uses it as the primary dataset, and that the August 38 remains historical.
-4. Commit the new `experiments/results/<log_folder>/` folders the same way the original 38 were committed. Do not replace or delete the August folders.
+1. ~~Update [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md): move Gap 1 and Gap 3 to closed~~ **Done (2026-09-06).** Campaign `OFF→ON` / Envoy summary is in that doc.
+2. ~~Update the "What remains answerable" table~~ **Done.** S5 is Full on the campaign (recovery load); S6 is Full ×3; S2 stays Partial on re-enable-under-flat-hold.
+3. ~~Update `AGENTS.md` §4~~ **Done.** Campaign is the primary dataset; August 38 is `august_38/`.
+4. **Still open:** commit `experiments/results/campaign_48/` (and the `git mv` of August folders into `august_38/`) the same way the original 38 were committed. Do not replace or delete `august_38/`.
 
 ---
 
 ## 6. What stays open even after this (be upfront about it)
 
-- **August 38 still lack Envoy / resource CSVs.** That is expected. Do not back-fill them; the campaign replaces them as the analysis dataset.
+- **August 38 still lack Envoy / resource CSVs.** That is expected. They live under `experiments/results/august_38/`. Do not back-fill them; `campaign_48/` is the analysis dataset.
 - **Layer 2 — pod instance counts.** Replica-count time series remains N/A (all services fixed at 1 replica).
 - **`num_agent.csv` still empty.** TopFull's internal admission state remains unrecorded; Controller Interaction stays "Partial" even after Gaps 1 & 3 close. `RPS` from the endpoint CSVs remains the best available proxy.
 - **Shallow-topology caveat (slide 14) is unchanged** — S4A/S4B retry-count data will be genuinely useful, but the deck's own caveat about this being a small topology still applies to any conclusions drawn from it.

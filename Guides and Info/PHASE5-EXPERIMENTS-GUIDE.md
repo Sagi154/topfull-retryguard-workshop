@@ -196,8 +196,8 @@ pip install pyyaml
 # Run a scenario from the repo root
 python experiments/run_scenario.py experiments/configs/scenario_2_baseline.yaml
 
-# Pull results to your PC after the run
-scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1 experiments/results/
+# Pull results to your PC after the run (campaign tree locally; master is still flat)
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1 experiments/results/campaign_48/
 ```
 
 ### Repeating runs

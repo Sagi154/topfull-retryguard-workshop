@@ -8,10 +8,9 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 >
 > **Progress (2026-08-15):** Full 38-slot matrix finished via `experiments/run_all_scenarios.py --yes --resume 9` (slots 10–38) plus a one-off re-run of **slot 17** (S3 RetryGuard run2; earlier collect failed on a stale `idozacharia`-owned folder). Soft verify warnings about `retryguard.log` missing `START` are false positives (timestamped `START` lines are present).
 >
-> **Where results live:**
-> - **Local (`experiments/results/`):** S2 RG×3, S3 base+RG×3, S4A/B base+RG×3, S5×8 (29 folders).
-> - **Master only (not yet on this laptop):** S2 baseline×3 — pull with `scp`.
-> - **On Ido’s machine (slots 1–9):** S1 baseline×3, S1 RetryGuard×3 (and originally S2 baseline×3). Copy those over before Phase 7.
+> **Where results live (local, as of 2026-09-06):**
+> - **Campaign (Phase 7 primary):** `experiments/results/campaign_48/`
+> - **This August 38 matrix (historical):** `experiments/results/august_38/` — all 38 folders, including S1×6 and S2 baseline×3 that used to live only on Ido’s machine / master.
 
 ---
 

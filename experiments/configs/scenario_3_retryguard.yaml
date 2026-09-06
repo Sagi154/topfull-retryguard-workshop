@@ -15,7 +15,7 @@
 scenario_id: 3
 scenario_name: targeted_bottleneck
 condition: retryguard
-run_number: 4
+run_number: 7
 description: >
   Moderate load, checkoutservice CPU-constrained. TopFull + RetryGuard active.
   RetryGuard suppresses retries directly at the bottleneck service.
@@ -62,7 +62,7 @@ resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
-log_folder: run_topfull_retryguard_targeted_bottleneck_run4
+log_folder: run_topfull_retryguard_targeted_bottleneck_run7
 
 infra:
   master_ssh_host: topfull-master

@@ -1,0 +1,35 @@
+{
+  "scenario_id": 4,
+  "scenario_name": "topology_position_B",
+  "condition": "baseline",
+  "run_number": 5,
+  "duration_seconds": 600,
+  "retryguard": {
+    "enabled": false,
+    "rejection_threshold": 0.2,
+    "window_duration_seconds": 30,
+    "disable_windows": 2,
+    "re_enable_windows": 3,
+    "retry_attempts_on": 3,
+    "retry_attempts_off": 0
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "scale_constraints": [
+    {
+      "deployment": "paymentservice",
+      "namespace": "default",
+      "method": "cpu_limit",
+      "cpu_limit": "100m",
+      "container": "server"
+    }
+  ],
+  "log_folder": "baseline_topfull_no_retryguard_topology_position_B_run5",
+  "collected_at": "2026-09-05T22:46:08.123758Z"
+}

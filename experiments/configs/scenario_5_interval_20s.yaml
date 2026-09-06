@@ -11,7 +11,7 @@
 scenario_id: 5
 scenario_name: interval_tuning
 condition: retryguard
-run_number: 3
+run_number: 6
 description: >
   Sustained overload 0-300s, then dropped to ~25% load 300-900s so recovery
   can occur. RetryGuard on, re-enable interval = 20s. Below the paper
@@ -64,7 +64,7 @@ resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
-log_folder: run_topfull_retryguard_interval_20s_run3
+log_folder: run_topfull_retryguard_interval_20s_run6
 
 infra:
   master_ssh_host: topfull-master

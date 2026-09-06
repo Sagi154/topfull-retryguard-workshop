@@ -9,7 +9,7 @@
 scenario_id: 1
 scenario_name: normal_operation
 condition: retryguard
-run_number: 3
+run_number: 7
 description: >
   Flat RPS well within cluster capacity. TopFull + RetryGuard both active.
   RetryGuard must remain completely silent (zero VirtualService patches).
@@ -51,7 +51,7 @@ resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
-log_folder: run_topfull_retryguard_normal_op_run3
+log_folder: run_topfull_retryguard_normal_op_run7
 
 infra:
   master_ssh_host: topfull-master

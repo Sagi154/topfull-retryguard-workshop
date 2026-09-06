@@ -16,7 +16,7 @@
 scenario_id: 4
 scenario_name: topology_position_B
 condition: baseline
-run_number: 4
+run_number: 7
 description: >
   paymentservice constrained (Checkout-mediated, indirect position).
   TopFull active, RetryGuard OFF. TopFull signal is attenuated through Checkout.
@@ -63,7 +63,7 @@ resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
 
-log_folder: baseline_topfull_no_retryguard_topology_position_B_run4
+log_folder: baseline_topfull_no_retryguard_topology_position_B_run7
 
 infra:
   master_ssh_host: topfull-master
