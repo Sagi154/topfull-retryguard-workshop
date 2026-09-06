@@ -167,5 +167,40 @@ class TestGenerateRetriesAndResources(unittest.TestCase):
             )
 
 
+class TestGenerateS5S6Merge(unittest.TestCase):
+    def test_writes_overlay_charts_and_toggle_timeline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            campaign_root = Path(tmp) / "campaign_48"
+            s6_dir = campaign_root / "S6_forced_recovery"
+            s5_dir = campaign_root / "S5_interval_tuning"
+            for n in (1, 2, 3):
+                _write_run_folder(
+                    s6_dir / f"baseline_topfull_no_retryguard_forced_recovery_run{n}",
+                    [50.0] * 5, with_retryguard_log=False,
+                )
+                _write_run_folder(
+                    s6_dir / f"run_topfull_retryguard_forced_recovery_run{n}",
+                    [50.0] * 5, with_retryguard_log=True,
+                )
+            for interval in ("10s", "20s", "30s", "60s"):
+                for n in (3, 4, 5):
+                    _write_run_folder(
+                        s5_dir / f"run_topfull_retryguard_interval_{interval}_run{n}",
+                        [50.0] * 5, with_retryguard_log=True,
+                    )
+
+            curated_dir = Path(tmp) / "charts"
+            gallery_dir = Path(tmp) / "charts_gallery"
+            goodput_path, rejection_path = mc.generate_s5_s6_merge(
+                campaign_root, curated_dir, gallery_dir
+            )
+
+            self.assertTrue(goodput_path.exists())
+            self.assertTrue(rejection_path.exists())
+            timeline_path = curated_dir / "S6_forced_recovery" / "s5_toggle_timeline.md"
+            self.assertTrue(timeline_path.exists())
+            self.assertIn("10s", timeline_path.read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()

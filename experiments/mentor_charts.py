@@ -14,6 +14,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import pandas as pd
+
 import mentor_charts_data as mcd
 import mentor_charts_plots as mcp
 
@@ -226,6 +228,70 @@ def generate_s4_combined(campaign_root: Path, curated_dir: Path, gallery_dir: Pa
                 label_b="S4B: Payment constrained",
                 out_path=target_dir / "S4_topology_position" / f"total_{metric}.png",
             )
+
+
+_S5_INTERVALS = ("10s", "20s", "30s", "60s")
+
+
+def generate_s5_s6_merge(
+    campaign_root: Path, curated_dir: Path, gallery_dir: Path
+) -> tuple[Path, Path]:
+    """Generate the S6 recovery-phase Goodput/Rejection overlay charts
+    with 6 lines (baseline, RetryGuard, and the 4 S5 interval variants),
+    plus a disable/re-enable toggle-timeline markdown table comparing
+    all six run groups. Returns (goodput_chart_path, rejection_chart_path)."""
+    s6_config = SCENARIOS["S6_forced_recovery"]
+    s6_dir = campaign_root / "S6_forced_recovery"
+    s5_dir = campaign_root / "S5_interval_tuning"
+
+    groups: dict[str, list[Path]] = {
+        "Baseline (S6)": mcd.find_run_dirs(s6_dir, s6_config["baseline_prefix"]),
+        "RetryGuard (S6, 30s default)": mcd.find_run_dirs(s6_dir, s6_config["rg_prefix"]),
+    }
+    for interval in _S5_INTERVALS:
+        groups[f"RetryGuard interval {interval}"] = mcd.find_run_dirs(
+            s5_dir, f"run_topfull_retryguard_interval_{interval}"
+        )
+
+    chart_paths = {}
+    for metric, ylabel in (("goodput", _METRIC_LABELS["goodput"]), ("rejection_rate", _METRIC_LABELS["rejection_rate"])):
+        fig_columns = {}
+        for label, run_dirs in groups.items():
+            if not run_dirs:
+                continue
+            avg = _load_group_average(run_dirs, "total.csv", metric)
+            if not avg.empty:
+                fig_columns[label] = avg["mean"]
+        combined = pd.DataFrame(fig_columns)
+        for target_dir in (curated_dir, gallery_dir):
+            out_path = target_dir / "S6_forced_recovery" / f"s5_s6_{metric}_by_interval.png"
+            mcp.plot_multi_line(
+                combined,
+                title=f"S6 recovery load — {ylabel} by re-enable interval",
+                ylabel=ylabel,
+                out_path=out_path,
+            )
+            if target_dir is curated_dir:
+                chart_paths[metric] = out_path
+
+    timeline_rows = ["| Run group | Toggle events (elapsed s, service, direction) |", "|---|---|"]
+    for label, run_dirs in groups.items():
+        events_by_run = []
+        for run_dir in run_dirs:
+            log_path = run_dir / "retryguard.log"
+            if log_path.exists():
+                events = mcd.parse_toggle_events(log_path)
+                formatted = "; ".join(
+                    f"{e['elapsed_seconds']:.0f}s {e['service']} {e['direction']}" for e in events
+                )
+                events_by_run.append(f"{run_dir.name}: {formatted or 'none'}")
+        timeline_rows.append(f"| {label} | {' <br> '.join(events_by_run) or 'n/a'} |")
+
+    timeline_path = curated_dir / "S6_forced_recovery" / "s5_toggle_timeline.md"
+    timeline_path.parent.mkdir(parents=True, exist_ok=True)
+    timeline_path.write_text("\n".join(timeline_rows) + "\n", encoding="utf-8")
+
+    return chart_paths["goodput"], chart_paths["rejection_rate"]
 
 
 def main() -> None:
