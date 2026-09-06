@@ -67,7 +67,12 @@ def _load_group_average(run_dirs: list[Path], csv_name: str, metric: str) -> "pd
     else:
         column = {"goodput": "Goodput", "p95_latency": "Latency95"}[metric]
         series_list = mcd.load_metric_column(run_dirs, csv_name, column)
-    return mcd.average_series(series_list)
+    averaged = mcd.average_series(series_list)
+    # Real Locust CSVs have RPS=0 rows; rejection_rate_series uses pd.NA there,
+    # so mean/min/max can be object dtype and matplotlib fill_between raises.
+    if not averaged.empty:
+        averaged = averaged.astype("float64")
+    return averaged
 
 
 def _first_toggle_events(run_dirs: list[Path]) -> list[dict]:
@@ -295,9 +300,28 @@ def generate_s5_s6_merge(
 
 
 def main() -> None:
-    for scenario_key in ("S1_normal_op", "S2_sustained_overload", "S6_forced_recovery"):
+    simple_scenarios = ("S1_normal_op", "S2_sustained_overload", "S6_forced_recovery")
+    bottleneck_scenarios = ("S3_targeted_bottleneck", "S4A_topology_position_A", "S4B_topology_position_B")
+
+    for scenario_key in simple_scenarios:
         generate_simple_scenario(scenario_key, CAMPAIGN_ROOT, CURATED_ROOT, GALLERY_ROOT)
-        print(f"Generated charts for {scenario_key}")
+        print(f"Generated system-wide charts for {scenario_key}")
+
+    for scenario_key in bottleneck_scenarios:
+        generate_bottleneck_scenario(scenario_key, CAMPAIGN_ROOT, CURATED_ROOT, GALLERY_ROOT)
+        print(f"Generated system-wide + bottleneck-endpoint charts for {scenario_key}")
+
+    for scenario_key in simple_scenarios + bottleneck_scenarios:
+        generate_retries_and_resources(
+            scenario_key, SCENARIOS[scenario_key], CAMPAIGN_ROOT, CURATED_ROOT, GALLERY_ROOT
+        )
+        print(f"Generated retries/resource charts for {scenario_key}")
+
+    generate_s4_combined(CAMPAIGN_ROOT, CURATED_ROOT, GALLERY_ROOT)
+    print("Generated S4 combined side-by-side charts")
+
+    generate_s5_s6_merge(CAMPAIGN_ROOT, CURATED_ROOT, GALLERY_ROOT)
+    print("Generated S5 interval sweep merged into S6")
 
 
 if __name__ == "__main__":
