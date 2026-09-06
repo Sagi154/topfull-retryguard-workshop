@@ -58,9 +58,9 @@ ssh topfull-master "kubectl get nodes; kubectl get pods -n default"
 # 2. Run a scenario (runner handles everything end-to-end)
 python experiments/run_scenario.py experiments/configs/<config_file>.yaml
 
-# 3. Pull results to your PC after the run completes
-#    Campaign / new runs → campaign_48/; August historical folders → august_38/
-scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/campaign_48/
+# 3. Pull results to your PC after the run completes (runner prints the exact command)
+#    Campaign / new runs → campaign_48/<Sx_scenario_name>/; August historical folders → august_38/
+scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/campaign_48/<Sx_scenario_name>/
 
 # 4. To repeat: bump run_number and log_folder in the YAML before the next run
 #    e.g. run_number: 1 → 2, log_folder: ...run1 → ...run2

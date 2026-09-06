@@ -36,8 +36,8 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
   results/           ← local results only (master still uses a flat `/home/idozacharia/experiments/results/`)
-    campaign_48/     ← **primary Phase 7 dataset** — 48-run campaign (2026-09-05 → 2026-09-06)
-    august_38/       ← historical August 38-run matrix (git-tracked; do not delete)
+    campaign_48/     ← **primary Phase 7 dataset** — 48-run campaign (2026-09-05 → 2026-09-06), organized into 7 scenario subfolders (`S1_normal_op/` … `S6_forced_recovery/`) — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md)
+    august_38/       ← historical August 38-run matrix (git-tracked; do not delete; still a flat list of run folders, not reorganized)
 TopFull/             ← git submodule, upstream https://github.com/kaist-ina/TopFull (read locally; also cloned separately on the VMs)
 context/             ← papers/decks: RetryGuard.pdf, TopFull.pdf, Evaluating_RetryGuard_on_TopFull.{pdf,md} (current eval deck + transcription)
 canvases/            ← interactive workplan canvas for Cursor (topfull-retryguard-workplan.canvas.tsx)
@@ -147,11 +147,7 @@ ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp
 python experiments/run_scenario.py experiments/configs/scenario_1_baseline.yaml
 ```
 
-The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, and `resource_usage_collector.py` from this repo onto master before those processes start. Results go to `results_base_path/<log_folder>/` **on master**. Pull them down with:
-
-```powershell
-scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/campaign_48/
-```
+The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, and `resource_usage_collector.py` from this repo onto master before those processes start. Results go to `results_base_path/<log_folder>/` **on master**. The runner's printed `scp` command already routes to the correct `campaign_48/<scenario_subfolder>/` (e.g. `S2_sustained_overload/`) based on the scenario — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md).
 
 **Before repeating a scenario:** bump `run_number` and change `log_folder` in the YAML, or the new run will overwrite the folder **on master**. Completed campaign slots are run4–6 (S1–S4), run3–5 (S5), run1–3 (S6). S1–S5 YAMLs already point at the next free slot (run7 / S5 run6); **S6 YAMLs still point at completed run3 — bump to run4 before any extra S6 run.** Never reuse August `run1–3` (S1–S4) or S5 `run1–2`.
 

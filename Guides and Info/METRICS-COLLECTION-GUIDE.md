@@ -261,31 +261,38 @@ This makes each folder self-describing — you don't need to look up the YAML to
 
 ## 8. How to pull results to your PC
 
-After each run completes (the runner prints the `scp` command for you):
+After each run completes, the runner prints the `scp` command for you — it already resolves the correct scenario subfolder (e.g. `S2_sustained_overload/`) from the run's `scenario_id`/`scenario_name`:
 
 ```powershell
-# Pull one run folder into the campaign tree (Phase 7 primary)
-scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/campaign_48/
+# Pull one run folder into the campaign tree (Phase 7 primary), routed into its scenario subfolder
+scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> experiments/results/campaign_48/<Sx_scenario_name>/
 ```
 
 Master still stores a flat `/home/idozacharia/experiments/results/<log_folder>/`. **Do not** `scp -r` the entire remote `results/` tree onto the laptop — that would dump campaign and August folders into one mix again.
 
-Local layout:
+Local layout — `campaign_48/` is organized into one subfolder per scenario, each holding that scenario's baseline + RetryGuard run folders (S5 is RetryGuard-only):
 
 ```
 experiments/results/
-  campaign_48/          ← 48-run Phase 7 campaign (primary analysis)
-    baseline_topfull_no_retryguard_forced_recovery_run1/
-      getproduct.csv
-      postcheckout.csv
-      envoy_retries_frontend.csv
-      resource_usage.csv
-      ...
-      run_manifest.json
-  august_38/            ← historical August 38 (goodput/P95/rejection only)
+  campaign_48/                          ← 48-run Phase 7 campaign (primary analysis)
+    S1_normal_op/
+    S2_sustained_overload/
+    S3_targeted_bottleneck/
+    S4A_topology_position_A/
+    S4B_topology_position_B/
+    S5_interval_tuning/
+    S6_forced_recovery/
+      baseline_topfull_no_retryguard_forced_recovery_run1/
+        getproduct.csv
+        postcheckout.csv
+        envoy_retries_frontend.csv
+        resource_usage.csv
+        ...
+        run_manifest.json
+  august_38/            ← historical August 38 (goodput/P95/rejection only, still flat — not reorganized)
 ```
 
-See [experiments/results/README.md](../experiments/results/README.md).
+See [experiments/results/README.md](../experiments/results/README.md) and [experiments/results/campaign_48/README.md](../experiments/results/campaign_48/README.md) for the full scenario→folder map.
 
 ---
 
@@ -323,7 +330,7 @@ Each run folder is independent. For Phase 7, you'll load all runs for a given sc
 import pandas as pd
 from pathlib import Path
 
-results = Path("experiments/results/campaign_48")
+results = Path("experiments/results/campaign_48/S2_sustained_overload")
 
 # Load all baseline runs for Scenario 2, postcheckout endpoint
 runs = sorted(results.glob("baseline_topfull_no_retryguard_sustained_overload_run*/postcheckout.csv"))

@@ -807,6 +807,26 @@ def restore_virtualservice_retries(cfg: dict):
 #  Results collection
 # --------------------------------------------------------------------------- #
 
+def scenario_dir_name(cfg: dict) -> str:
+    """Map a run's scenario_id/scenario_name to its campaign_48/ scenario subfolder
+    (e.g. S1_normal_op). Keep in sync with experiments/results/campaign_48/README.md."""
+    sid = cfg.get("scenario_id")
+    name = cfg.get("scenario_name", "")
+    if sid == 1:
+        return "S1_normal_op"
+    if sid == 2:
+        return "S2_sustained_overload"
+    if sid == 3:
+        return "S3_targeted_bottleneck"
+    if sid == 4:
+        return "S4A_topology_position_A" if name.endswith("_A") else "S4B_topology_position_B"
+    if sid == 5:
+        return "S5_interval_tuning"
+    if sid == 6:
+        return "S6_forced_recovery"
+    return ""  # unknown scenario_id — fall back to no subfolder
+
+
 def collect_results(cfg: dict) -> str:
     banner("Collecting results")
     master = cfg["infra"]["master_ssh_host"]
@@ -837,7 +857,9 @@ def collect_results(cfg: dict) -> str:
 
     step(f"Results saved to (on master): {dest}")
     step("To pull results to your PC:")
-    print(f"    scp -r topfull-master:{dest} experiments/results/campaign_48/")
+    scen_dir = scenario_dir_name(cfg)
+    local_dest = f"experiments/results/campaign_48/{scen_dir}/" if scen_dir else "experiments/results/campaign_48/"
+    print(f"    scp -r topfull-master:{dest} {local_dest}")
     return dest
 
 

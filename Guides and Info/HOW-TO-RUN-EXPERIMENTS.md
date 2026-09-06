@@ -189,17 +189,17 @@ ssh topfull-master "kubectl get virtualservice checkoutservice -o jsonpath='{.sp
 
 ## 5. Pull results to your PC
 
-After the run completes, copy the results folder from master:
+After the run completes, copy the results folder from master. The runner prints the exact `scp` command, already pointed at the right scenario subfolder (e.g. `S2_sustained_overload/`):
 
 ```powershell
-# Campaign / new runs (Phase 7 primary):
+# Campaign / new runs (Phase 7 primary) — route into the matching scenario subfolder:
 scp -r topfull-master:/home/idozacharia/experiments/results/<log_folder> `
-    experiments\results\campaign_48\
+    experiments\results\campaign_48\<Sx_scenario_name>\
 
-# August historical folders already live under experiments\results\august_38\
+# August historical folders already live under experiments\results\august_38\ (flat, not reorganized)
 ```
 
-This creates `experiments/results/campaign_48/<log_folder>/` on your PC. Master is still a flat tree.
+This creates `experiments/results/campaign_48/<Sx_scenario_name>/<log_folder>/` on your PC — see [experiments/results/campaign_48/README.md](../experiments/results/campaign_48/README.md) for the scenario→subfolder map. Master is still a flat tree.
 
 ---
 

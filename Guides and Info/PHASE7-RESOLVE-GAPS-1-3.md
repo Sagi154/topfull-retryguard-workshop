@@ -6,6 +6,8 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 >
 > **Decision (2026-09-04): paper-grade single campaign — 48 new runs, all collectors on, 3 repeats.** Do **not** replay the old 38 (eight of those slots are flat-hold S5, which cannot answer interval sensitivity). Do **not** bolt collectors onto a 16-run add-on and mix August goodput with September retries. Primary Phase 7 analysis uses this campaign (`experiments/results/campaign_48/`); the August 38 folders stay as `experiments/results/august_38/`. **Campaign COMPLETE 2026-09-06 (48/48).** See §3c.
 >
+> **Post-campaign reorg (2026-09-06):** all 48 run folders below were later nested one level deeper, into a scenario subfolder each (`S1_normal_op/`, `S2_sustained_overload/`, `S3_targeted_bottleneck/`, `S4A_topology_position_A/`, `S4B_topology_position_B/`, `S5_interval_tuning/`, `S6_forced_recovery/`). The `scp` commands and paths quoted in this runbook predate that move — when following them today, add the matching scenario subfolder to the local destination (e.g. `experiments/results/campaign_48/S6_forced_recovery/`). See [experiments/results/campaign_48/README.md](../experiments/results/campaign_48/README.md) for the full map.
+>
 > **Before you run anything, read §1** — it verifies we actually have all the metrics the eval deck ([`Evaluating_RetryGuard_on_TopFull.md`](../context/Evaluating_RetryGuard_on_TopFull.md)) requires once these runs complete, and is honest about what stays open regardless.
 
 ---

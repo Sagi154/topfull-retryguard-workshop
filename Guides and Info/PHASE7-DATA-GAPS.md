@@ -152,14 +152,19 @@ Primary dataset: `experiments/results/campaign_48/`. August figures below are hi
 
 ## Reproducing this audit
 
+> **Note (2026-09-06):** `campaign_48/` is nested one level deeper than `august_38/` — each run folder sits under a scenario subfolder (`S1_normal_op/`, `S2_sustained_overload/`, etc.), so it needs `-Recurse` plus a filter (presence of `run_manifest.json` marks a leaf run folder, not a scenario folder). `august_38/` is still flat. The snippets below handle both.
+
 ```powershell
 # Gap 1 — disable vs re-enable event counts per run (campaign = primary)
-Get-ChildItem experiments\results\campaign_48, experiments\results\august_38 -Directory | ForEach-Object {
+$campaignRuns = Get-ChildItem experiments\results\campaign_48 -Recurse -Directory |
+  Where-Object { Test-Path (Join-Path $_.FullName 'run_manifest.json') }
+$augustRuns = Get-ChildItem experiments\results\august_38 -Directory
+($campaignRuns + $augustRuns) | ForEach-Object {
   $log = Join-Path $_.FullName 'retryguard.log'
   if (Test-Path $log) {
     $c = Get-Content $log -Encoding UTF8
     [pscustomobject]@{
-      Set       = $_.Parent.Name
+      Set       = $_.Parent.Name   # scenario subfolder for campaign_48, or "august_38"
       Run       = $_.Name
       Disables  = @($c | Select-String -SimpleMatch 'consecutive_high').Count
       Reenables = @($c | Select-String -SimpleMatch 'consecutive_low').Count
@@ -168,7 +173,7 @@ Get-ChildItem experiments\results\campaign_48, experiments\results\august_38 -Di
 } | Format-Table -AutoSize
 
 # Gap 2 — count non-zero Latency99 rows (expect 0 everywhere)
-Get-ChildItem experiments\results\campaign_48, experiments\results\august_38 -Directory | ForEach-Object {
+($campaignRuns + $augustRuns) | ForEach-Object {
   $v = @(Import-Csv (Join-Path $_.FullName 'total.csv') | ForEach-Object { [double]$_.Latency99 })
   "{0}/{1}: {2} non-zero of {3}" -f $_.Parent.Name, $_.Name, @($v | Where-Object { $_ -gt 0 }).Count, $v.Count
 }

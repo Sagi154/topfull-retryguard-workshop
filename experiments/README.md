@@ -81,14 +81,16 @@ log_folder: baseline_topfull_no_retryguard_sustained_overload_run2
 
 Aim for **3 runs minimum** per scenario/condition. Compare using averages/medians.
 
-**Phase 7 campaign (COMPLETE 2026-09-06):** 48-run matrix on free slots, all collectors on. Local copies: `experiments/results/campaign_48/`. Historical August 38: `experiments/results/august_38/`. See [PHASE7-RESOLVE-GAPS-1-3.md](../Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md). Do not use `run_all_scenarios.py` — it would overwrite the August folders **on master**.
+**Phase 7 campaign (COMPLETE 2026-09-06):** 48-run matrix on free slots, all collectors on. Local copies: `experiments/results/campaign_48/`, organized into 7 scenario subfolders (`S1_normal_op/` … `S6_forced_recovery/` — see [experiments/results/campaign_48/README.md](results/campaign_48/README.md)). Historical August 38: `experiments/results/august_38/` (still flat). See [PHASE7-RESOLVE-GAPS-1-3.md](../Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md). Do not use `run_all_scenarios.py` — it would overwrite the August folders **on master**.
 
 ---
 
 ## Pulling results to your PC
 
+The runner prints the exact `scp` command after each run, already pointed at the correct scenario subfolder:
+
 ```powershell
-scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1 experiments/results/campaign_48/
+scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1 experiments/results/campaign_48/S2_sustained_overload/
 ```
 
 ---
