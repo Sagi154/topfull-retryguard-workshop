@@ -112,3 +112,41 @@ def envoy_retries_per_request(run_dir: Path, csv_name: str) -> pd.DataFrame:
         (d_retry_total / d_total_total.replace(0, pd.NA)).fillna(0.0).to_numpy()
     )
     return result
+
+
+def resource_usage_series(run_dir: Path, column: str) -> pd.DataFrame:
+    """Read resource_usage.csv from run_dir; return a DataFrame indexed by
+    elapsed_seconds (relative to the file's earliest timestamp) with one
+    column per service, containing the requested numeric column."""
+    df = pd.read_csv(run_dir / "resource_usage.csv")
+    df["timestamp"] = df["timestamp"].map(_parse_ts)
+    t0 = df["timestamp"].min()
+    df["elapsed_seconds"] = (df["timestamp"] - t0).dt.total_seconds()
+
+    columns: dict[str, pd.Series] = {}
+    for service, group in df.groupby("service", sort=True):
+        group = group.sort_values("elapsed_seconds")
+        columns[service] = pd.Series(
+            group[column].to_numpy(), index=group["elapsed_seconds"].to_numpy()
+        )
+    return pd.DataFrame(columns).sort_index()
+
+
+def average_dataframes(dfs: list[pd.DataFrame]) -> pd.DataFrame:
+    """Positionally average a list of DataFrames (as produced by
+    envoy_retries_per_request / resource_usage_series for different
+    repeats of the same run group): truncate to the shortest row count,
+    keep only columns present in every input, reset each to a plain
+    row-number index, and return the pointwise mean."""
+    if not dfs:
+        return pd.DataFrame()
+    common_columns = set(dfs[0].columns)
+    for df in dfs[1:]:
+        common_columns &= set(df.columns)
+    common_columns = sorted(common_columns)
+    min_len = min(len(df) for df in dfs)
+    truncated = [
+        df[common_columns].iloc[:min_len].reset_index(drop=True) for df in dfs
+    ]
+    stacked = pd.concat(truncated, axis=0, keys=range(len(truncated)))
+    return stacked.groupby(level=1).mean()

@@ -132,5 +132,44 @@ class TestEnvoyRetriesPerRequest(unittest.TestCase):
             self.assertAlmostEqual(result.loc[5.0, "total"], 0.025)
 
 
+class TestResourceUsageSeries(unittest.TestCase):
+    def test_pivots_by_service_indexed_by_elapsed_seconds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "run_a"
+            run_dir.mkdir()
+            rows = [
+                ("2026-09-05T16:51:52Z", "frontend", 10, 1000),
+                ("2026-09-05T16:51:52Z", "cartservice", 5, 2000),
+                ("2026-09-05T16:51:57Z", "frontend", 12, 1100),
+                ("2026-09-05T16:51:57Z", "cartservice", 6, 2100),
+            ]
+            pd.DataFrame(
+                rows,
+                columns=["timestamp", "service", "cpu_millicores", "memory_working_set_bytes"],
+            ).assign(replica_count=1).to_csv(run_dir / "resource_usage.csv", index=False)
+
+            result = mcd.resource_usage_series(run_dir, "cpu_millicores")
+
+            self.assertEqual(list(result.index), [0.0, 5.0])
+            self.assertEqual(list(result["frontend"]), [10, 12])
+            self.assertEqual(list(result["cartservice"]), [5, 6])
+
+
+class TestAverageDataFrames(unittest.TestCase):
+    def test_averages_common_columns_positionally(self):
+        df_a = pd.DataFrame({"x": [1.0, 2.0, 3.0], "y": [10.0, 20.0, 30.0]})
+        df_b = pd.DataFrame({"x": [3.0, 4.0], "z": [100.0, 200.0]})
+
+        result = mcd.average_dataframes([df_a, df_b])
+
+        # only 'x' is common to both; shortest length is 2
+        self.assertEqual(list(result.columns), ["x"])
+        self.assertEqual(list(result["x"]), [2.0, 3.0])
+
+    def test_empty_list_returns_empty_dataframe(self):
+        result = mcd.average_dataframes([])
+        self.assertTrue(result.empty)
+
+
 if __name__ == "__main__":
     unittest.main()
