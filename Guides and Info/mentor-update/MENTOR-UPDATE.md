@@ -91,6 +91,9 @@ Sanity check: under light load, both conditions should behave (almost) identical
 ![S1 Goodput](charts/S1_normal_op/total_goodput.png)
 ![S1 P95 latency](charts/S1_normal_op/total_p95_latency.png)
 ![S1 Rejection rate](charts/S1_normal_op/total_rejection_rate.png)
+![S1 Retries/request — frontend, per target](charts/S1_normal_op/envoy_retries_frontend_per_target.png)
+![S1 CPU per service](charts/S1_normal_op/resource_cpu_millicores.png)
+![S1 Memory per service](charts/S1_normal_op/resource_memory_working_set_bytes.png)
 
 **What we observe:**
 - Baseline and RetryGuard system-wide goodput overlap around ~400 req/s after a shared ramp in the first ~50s, and neither line steps at the 60s marker.
@@ -122,10 +125,13 @@ Additional endpoint-level and per-target charts: `charts_gallery/S2_sustained_ov
 Only `checkoutservice` is CPU-limited; the system-wide view and the checkout-specific view are shown separately since only checkout-routed traffic is directly affected.
 
 ![S3 Goodput (system-wide)](charts/S3_targeted_bottleneck/total_goodput.png)
+![S3 P95 latency (system-wide)](charts/S3_targeted_bottleneck/total_p95_latency.png)
+![S3 Rejection rate (system-wide)](charts/S3_targeted_bottleneck/total_rejection_rate.png)
 ![S3 Goodput (checkout endpoint)](charts/S3_targeted_bottleneck/postcheckout_goodput.png)
 ![S3 Rejection rate (checkout endpoint)](charts/S3_targeted_bottleneck/postcheckout_rejection_rate.png)
 ![S3 Retries/request — frontend, per target](charts/S3_targeted_bottleneck/envoy_retries_frontend_per_target.png)
 ![S3 CPU per service](charts/S3_targeted_bottleneck/resource_cpu_millicores.png)
+![S3 Memory per service](charts/S3_targeted_bottleneck/resource_memory_working_set_bytes.png)
 
 **What we observe:**
 - The checkout-endpoint (`postcheckout`) goodput collapses to near zero for both conditions after an initial ~5s spike (later bursts still <1 req/s), and postcheckout rejection sits near 1.0 in both. The conditions separate on the system-wide chart, not the checkout-endpoint chart: after the ~60s `ON→OFF`, RetryGuard mean goodput stays above baseline (often ~250–450 vs ~180–300 req/s).
@@ -139,7 +145,14 @@ Additional endpoint-level charts: `charts_gallery/S3_targeted_bottleneck/`.
 Same constraint method, different position in the call graph — A is gateway-adjacent (Frontend calls it directly), B is Checkout-mediated (Frontend → Checkout → Payment).
 
 ![S4 Goodput, A vs B side-by-side](charts/S4_topology_position/total_goodput.png)
+![S4 P95 latency, A vs B side-by-side](charts/S4_topology_position/total_p95_latency.png)
 ![S4 Rejection rate, A vs B side-by-side](charts/S4_topology_position/total_rejection_rate.png)
+![S4A Retries/request — frontend, per target](charts/S4A_topology_position_A/envoy_retries_frontend_per_target.png)
+![S4B Retries/request — frontend, per target](charts/S4B_topology_position_B/envoy_retries_frontend_per_target.png)
+![S4A CPU per service](charts/S4A_topology_position_A/resource_cpu_millicores.png)
+![S4B CPU per service](charts/S4B_topology_position_B/resource_cpu_millicores.png)
+![S4A Memory per service](charts/S4A_topology_position_A/resource_memory_working_set_bytes.png)
+![S4B Memory per service](charts/S4B_topology_position_B/resource_memory_working_set_bytes.png)
 
 Per-position bottleneck-endpoint detail:
 
@@ -158,8 +171,11 @@ Additional endpoint-level charts: `charts_gallery/S4A_topology_position_A/` and 
 Peak load for 5 minutes (enough to trigger disable), then dropped to ~25% for 10 minutes so rejection can fall and RetryGuard can re-enable. Scenario 5 reruns this same load shape while sweeping RetryGuard's re-enable window (10/20/30/60s) — it has no baseline of its own, so it's shown here against S6.
 
 ![S6 Goodput](charts/S6_forced_recovery/total_goodput.png)
+![S6 P95 latency](charts/S6_forced_recovery/total_p95_latency.png)
 ![S6 Rejection rate](charts/S6_forced_recovery/total_rejection_rate.png)
+![S6 Retries/request — frontend, per target](charts/S6_forced_recovery/envoy_retries_frontend_per_target.png)
 ![S6 CPU per service](charts/S6_forced_recovery/resource_cpu_millicores.png)
+![S6 Memory per service](charts/S6_forced_recovery/resource_memory_working_set_bytes.png)
 
 **Interval sensitivity (Scenario 5, same load as S6):**
 
