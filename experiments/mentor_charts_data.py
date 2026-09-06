@@ -61,6 +61,22 @@ def average_series(series_list: list[pd.Series]) -> pd.DataFrame:
     )
 
 
+def downsample_series(df: pd.DataFrame, step_seconds: int) -> pd.DataFrame:
+    """Keep the first row in each `step_seconds` elapsed-time bin.
+    Works for Locust (index 0, 1, 2, ...) and collector series (index
+    ~0, 5, 10, ...). step_seconds <= 1 or an empty frame is unchanged."""
+    if df.empty or step_seconds <= 1:
+        return df
+    keep: list[int] = []
+    last_bin: int | None = None
+    for i, elapsed in enumerate(df.index):
+        bin_id = int(elapsed // step_seconds)
+        if last_bin is None or bin_id != last_bin:
+            keep.append(i)
+            last_bin = bin_id
+    return df.iloc[keep]
+
+
 def _parse_ts(ts: str) -> datetime:
     return datetime.strptime(ts.strip(), "%Y-%m-%dT%H:%M:%SZ").replace(
         tzinfo=timezone.utc

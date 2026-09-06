@@ -60,6 +60,12 @@ _METRIC_LABELS = {
     "rejection_rate": "Rejection rate",
 }
 
+# Locust CSVs are 1 row/second; plot every Nth second so comparison
+# charts are less dense. Envoy/resource charts poll ~5s — downsample
+# those to one point per COLLECTOR_PLOT_STEP_SECONDS of elapsed time.
+LOCUST_PLOT_STEP_SECONDS = 10
+COLLECTOR_PLOT_STEP_SECONDS = 20
+
 
 def _load_group_average(run_dirs: list[Path], csv_name: str, metric: str) -> "pd.DataFrame":
     if metric == "rejection_rate":
@@ -72,7 +78,7 @@ def _load_group_average(run_dirs: list[Path], csv_name: str, metric: str) -> "pd
     # so mean/min/max can be object dtype and matplotlib fill_between raises.
     if not averaged.empty:
         averaged = averaged.astype("float64")
-    return averaged
+    return mcd.downsample_series(averaged, LOCUST_PLOT_STEP_SECONDS)
 
 
 def _collect_toggle_events(run_dirs: list[Path]) -> list[dict]:
@@ -177,7 +183,9 @@ def generate_retries_and_resources(
         ]
         if not per_repeat:
             continue
-        averaged = mcd.average_dataframes(per_repeat)
+        averaged = mcd.downsample_series(
+            mcd.average_dataframes(per_repeat), COLLECTOR_PLOT_STEP_SECONDS
+        )
         per_target_columns = [c for c in averaged.columns if c != "total"]
         for target_dir in (curated_dir, gallery_dir):
             mcp.plot_multi_line(
@@ -198,7 +206,9 @@ def generate_retries_and_resources(
         ("memory_working_set_bytes", "Memory (bytes)"),
     ):
         per_repeat = [mcd.resource_usage_series(run_dir, column) for run_dir in rg_dirs]
-        averaged = mcd.average_dataframes(per_repeat)
+        averaged = mcd.downsample_series(
+            mcd.average_dataframes(per_repeat), COLLECTOR_PLOT_STEP_SECONDS
+        )
         for target_dir in (curated_dir, gallery_dir):
             mcp.plot_multi_line(
                 averaged,

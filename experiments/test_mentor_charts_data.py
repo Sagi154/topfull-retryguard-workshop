@@ -83,6 +83,34 @@ class TestAverageSeries(unittest.TestCase):
         self.assertEqual(list(result.columns), ["mean", "min", "max"])
 
 
+class TestDownsampleSeries(unittest.TestCase):
+    def test_keeps_every_nth_second(self):
+        df = pd.DataFrame(
+            {"mean": [10.0, 11.0, 12.0, 13.0, 14.0], "min": [9.0] * 5, "max": [15.0] * 5}
+        )
+        result = mcd.downsample_series(df, step_seconds=2)
+        self.assertEqual(list(result.index), [0, 2, 4])
+        self.assertEqual(list(result["mean"]), [10.0, 12.0, 14.0])
+
+    def test_step_one_returns_unchanged(self):
+        df = pd.DataFrame({"mean": [10.0, 11.0, 12.0]})
+        result = mcd.downsample_series(df, step_seconds=1)
+        pd.testing.assert_frame_equal(result, df)
+
+    def test_empty_dataframe_returns_empty(self):
+        result = mcd.downsample_series(pd.DataFrame(), step_seconds=2)
+        self.assertTrue(result.empty)
+
+    def test_five_second_index_keeps_one_point_per_ten_seconds(self):
+        df = pd.DataFrame(
+            {"frontend": [1.0, 2.0, 3.0, 4.0, 5.0]},
+            index=[0.0, 5.0, 10.0, 15.0, 20.0],
+        )
+        result = mcd.downsample_series(df, step_seconds=10)
+        self.assertEqual(list(result.index), [0.0, 10.0, 20.0])
+        self.assertEqual(list(result["frontend"]), [1.0, 3.0, 5.0])
+
+
 class TestRejectionRateSeries(unittest.TestCase):
     def test_computes_fail_over_rps_with_zero_rps_guard(self):
         with tempfile.TemporaryDirectory() as tmp:
