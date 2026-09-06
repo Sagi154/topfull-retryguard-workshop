@@ -1,0 +1,87 @@
+"""
+test_mentor_charts_data.py — Unit tests for mentor_charts_data.py (pure
+data loading/aggregation, no plotting, no network access).
+
+Run:
+    python experiments/test_mentor_charts_data.py
+"""
+from __future__ import annotations
+
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import mentor_charts_data as mcd
+
+
+class TestFindRunDirs(unittest.TestCase):
+    def test_finds_and_sorts_matching_run_dirs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            scenario_dir = Path(tmp)
+            (scenario_dir / "baseline_foo_run5").mkdir()
+            (scenario_dir / "baseline_foo_run4").mkdir()
+            (scenario_dir / "baseline_foo_run6").mkdir()
+            (scenario_dir / "run_topfull_retryguard_foo_run4").mkdir()
+            (scenario_dir / "not_a_match").mkdir()
+
+            result = mcd.find_run_dirs(scenario_dir, "baseline_foo")
+
+            self.assertEqual(
+                [p.name for p in result],
+                ["baseline_foo_run4", "baseline_foo_run5", "baseline_foo_run6"],
+            )
+
+    def test_returns_empty_list_when_no_match(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = mcd.find_run_dirs(Path(tmp), "baseline_foo")
+            self.assertEqual(result, [])
+
+
+class TestLoadMetricColumn(unittest.TestCase):
+    def test_reads_column_from_each_run_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_a = Path(tmp) / "run_a"
+            run_b = Path(tmp) / "run_b"
+            run_a.mkdir()
+            run_b.mkdir()
+            pd.DataFrame({"RPS": [1.0, 2.0], "Goodput": [1.0, 2.0]}).to_csv(
+                run_a / "total.csv", index=False
+            )
+            pd.DataFrame({"RPS": [3.0, 4.0, 5.0], "Goodput": [3.0, 4.0, 5.0]}).to_csv(
+                run_b / "total.csv", index=False
+            )
+
+            result = mcd.load_metric_column([run_a, run_b], "total.csv", "Goodput")
+
+            self.assertEqual(len(result), 2)
+            self.assertEqual(list(result[0]), [1.0, 2.0])
+            self.assertEqual(list(result[1]), [3.0, 4.0, 5.0])
+
+
+class TestAverageSeries(unittest.TestCase):
+    def test_truncates_to_shortest_and_averages_pointwise(self):
+        series_list = [
+            pd.Series([10.0, 20.0, 30.0]),
+            pd.Series([0.0, 10.0]),
+        ]
+
+        result = mcd.average_series(series_list)
+
+        self.assertEqual(list(result.index), [0, 1])
+        self.assertEqual(list(result["mean"]), [5.0, 15.0])
+        self.assertEqual(list(result["min"]), [0.0, 10.0])
+        self.assertEqual(list(result["max"]), [10.0, 20.0])
+
+    def test_empty_input_returns_empty_dataframe(self):
+        result = mcd.average_series([])
+        self.assertTrue(result.empty)
+        self.assertEqual(list(result.columns), ["mean", "min", "max"])
+
+
+if __name__ == "__main__":
+    unittest.main()
