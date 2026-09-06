@@ -112,7 +112,7 @@ Peak load held flat for 10 minutes — the core "does suppressing retries help u
 
 **What we observe:**
 - After the first ~30s, RetryGuard mean goodput sits above baseline for most of the hold (often ~250–480 vs ~200–350 req/s, with a wider RetryGuard band) and the means converge again after ~450s. Rejection is lower on RetryGuard early (~0.2–0.45 vs ~0.4–0.6) then both remain high (~0.35–0.6) through the rest of the 10-minute hold.
-- Three red `ON→OFF` markers sit at ~60s, ~90s, and ~120s. On the frontend retries chart (first ~125s) only `checkoutservice` shows retries — two brief spikes of ~0.12 retries/request at ~25s and ~76s, then zero — while `cartservice` and `productcatalogservice` stay at 0. The CPU overlay (RetryGuard run, ~125s) plateaus after ~15s (frontend ~720–740 millicores) with no lasting step-down at those markers; `checkoutservice` shows only brief dips near the retry spikes. Memory per service is flat after ~20s.
+- Three red `ON→OFF` markers sit at ~60s, ~90s, and ~120s. On the frontend retries chart (~680s window) only `checkoutservice` shows retries — two brief spikes of ~0.12 retries/request at ~135s and ~413s — while `cartservice` and `productcatalogservice` stay at 0. The CPU overlay (RetryGuard run, ~650s) stays near zero until ~50s, then plateaus (frontend ~710–740 millicores) with no lasting step-down; `checkoutservice` shows only brief dips near those retry spikes. Memory per service is mostly flat after a ~50s jump on `frontend`/`checkoutservice`.
 - No green `OFF→ON` appears. System-wide rejection stays elevated in both conditions for the whole flat hold, matching the campaign finding of disables without re-enable.
 
 Additional endpoint-level and per-target charts: `charts_gallery/S2_sustained_overload/`.
@@ -129,8 +129,8 @@ Only `checkoutservice` is CPU-limited; the system-wide view and the checkout-spe
 
 **What we observe:**
 - The checkout-endpoint (`postcheckout`) goodput collapses to near zero for both conditions after an initial ~5s spike (later bursts still <1 req/s), and postcheckout rejection sits near 1.0 in both. The conditions separate on the system-wide chart, not the checkout-endpoint chart: after the ~60s `ON→OFF`, RetryGuard mean goodput stays above baseline (often ~250–450 vs ~180–300 req/s) with a wider band.
-- `checkoutservice` CPU on the RetryGuard overlay (first ~125s) holds at an ~90 millicore plateau (the 100m limit) with brief dips, not a sustained drop after the first `ON→OFF`. Checkout-as-caller retries/request to `cartservice`, `paymentservice`, and `productcatalogservice` are flat at 0 for that window.
-- Frontend retries/request are zero for `cartservice` and `productcatalogservice`. Only the `checkoutservice` target spikes (four peaks ~0.12–0.22 between ~21s and ~65s) and then stays at 0 after ~65s, i.e. after the first red `ON→OFF` at ~60s.
+- `checkoutservice` CPU on the RetryGuard overlay (~650s) holds at an ~90 millicore plateau (the 100m limit) after a ~50s ramp, with brief dips, not a sustained drop. Checkout-as-caller retries/request to `cartservice`, `paymentservice`, and `productcatalogservice` are flat at 0 for the full ~680s window.
+- Frontend retries/request are zero for `cartservice` and `productcatalogservice`. Only the `checkoutservice` target spikes (four peaks ~0.12–0.22 at ~113s, ~157s, ~282s, and ~353s) and then stays at 0 after ~353s.
 
 Additional endpoint-level charts: `charts_gallery/S3_targeted_bottleneck/`.
 
