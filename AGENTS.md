@@ -27,16 +27,18 @@ This is a workshop deliverable: a presentation (project plan) + eventually a wri
 
 ```
 Guides and Info/     ← all human-facing docs (see §3 — start here for "why")
+  mentor-update/     ← mentor-facing dry-results doc + curated/gallery PNGs ([MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md))
 experiments/         ← the actual tooling: runner, scenario configs, RetryGuard + Envoy retry collectors
   configs/           ← 16 scenario YAML files (S1–S4 baseline/RG, S5×4 intervals, S6 recovery baseline/RG)
   run_scenario.py    ← orchestrator, runs on Windows, drives everything over SSH
   retryguard.py      ← RetryGuard controller (deployed to master)
   envoy_retry_collector.py ← Gap 3: scrapes Envoy sidecar outbound retry counters (deployed to master)
   resource_usage_collector.py ← Layer 2: scrapes CPU/memory per service via kubelet stats/summary (deployed to master)
+  mentor_charts.py / mentor_charts_data.py / mentor_charts_plots.py ← regenerate mentor-update PNGs from `campaign_48/` (`python experiments/mentor_charts.py`)
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
   results/           ← local results only (master still uses a flat `/home/idozacharia/experiments/results/`)
-    campaign_48/     ← **primary Phase 7 dataset** — 48-run campaign (2026-09-05 → 2026-09-06), organized into 7 scenario subfolders (`S1_normal_op/` … `S6_forced_recovery/`) — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md)
+    campaign_48/     ← **primary Phase 7 dataset** — 48-run campaign (2026-09-05 → 2026-09-06), in git, organized into 7 scenario subfolders (`S1_normal_op/` … `S6_forced_recovery/`) — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md)
     august_38/       ← historical August 38-run matrix (git-tracked; do not delete; still a flat list of run folders, not reorganized)
 TopFull/             ← git submodule, upstream https://github.com/kaist-ina/TopFull (read locally; also cloned separately on the VMs)
 context/             ← papers/decks: RetryGuard.pdf, TopFull.pdf, Evaluating_RetryGuard_on_TopFull.{pdf,md} (current eval deck + transcription)
@@ -58,7 +60,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 |---|---|
 | [PREREQUISITES.md](Guides%20and%20Info/PREREQUISITES.md) | Understand what should be true before any cloud work (mostly historical now — VMs already exist) |
 | [MENTOR-COORDINATION.md](Guides%20and%20Info/MENTOR-COORDINATION.md) | Understand decisions mentors already made (GCP, Istio-based RetryGuard integration, eval strategy) |
-| [WORKPLAN.md](Guides%20and%20Info/WORKPLAN.md) | See the full Phase 0–7 plan with Why/How/Done-when for each step (Phases 0–6 done; Phase 7 remaining) |
+| [WORKPLAN.md](Guides%20and%20Info/WORKPLAN.md) | See the full Phase 0–7 plan with Why/How/Done-when for each step (Phases 0–6 done; Phase 7 campaign data complete; 7a/7b eval + written report remaining) |
 | [SETUP-GUIDE.md](Guides%20and%20Info/SETUP-GUIDE.md) | Get exact commands for cluster/Istio/dependency setup, if something needs to be rebuilt |
 | [MANAGED-KUBERNETES.md](Guides%20and%20Info/MANAGED-KUBERNETES.md) | Understand why we used self-managed `kubeadm` K8s instead of GKE (decision already made — not adopted) |
 | [CONNECT-VMS.md](Guides%20and%20Info/CONNECT-VMS.md) | **SSH into the VMs.** Canonical playbook — also mirrored in `.cursor/rules/topfull-ssh.mdc` (always-applied) |
@@ -69,7 +71,8 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | **[PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md)** | **Read before analysing.** August-38 audit plus campaign close-out: Gap 1/3 **closed** on `campaign_48/`; Gap 2 dropped P99 (use P95). |
 | **[PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md)** | **Runbook.** Paper-grade 48-run campaign — **COMPLETE** (2026-09-06). Primary analysis is `experiments/results/campaign_48/`. Do not use `run_all_scenarios.py`. |
 | [Evaluating_RetryGuard_on_TopFull.md](context/Evaluating_RetryGuard_on_TopFull.md) | **Eval plan deck** (transcription of the PDF). Slides 8–9 open questions, 11–15 scenario objectives, 16 measurement layers — source of truth for what Phase 7 is supposed to answer |
-| [SCENARIOS-GUIDE.md](Guides%20and%20Info/SCENARIOS-GUIDE.md) | Understand each of the 5 scenarios in detail: what it tests, load setup, manual step-by-step (pre-dates `run_scenario.py` automation, but good for *why*) |
+| [SCENARIOS-GUIDE.md](Guides%20and%20Info/SCENARIOS-GUIDE.md) | Understand each of the 6 scenarios in detail: what it tests, load setup, manual step-by-step (pre-dates `run_scenario.py` automation, but good for *why*) |
+| **[MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md)** | **Mentor-facing dry results** (infra, Online Boutique, scenarios, per-scenario charts + observations). Pipeline / leftover caveats: [mentor-update/README.md](Guides%20and%20Info/mentor-update/README.md) |
 | [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md) | Understand exactly how `experiments/retryguard.py` maps to paper Algorithm 1, its metric source, endpoint→service map, VS patch mechanics, log format |
 | [NEXT-PHASES-PLAN.md](Guides%20and%20Info/NEXT-PHASES-PLAN.md) | See the presentation-track vs lab-track split and near-term suggested order |
 | [PRESENTATION-GUIDE.md](Guides%20and%20Info/PRESENTATION-GUIDE.md), [PRESENTATION-ACTION-ITEMS.md](Guides%20and%20Info/PRESENTATION-ACTION-ITEMS.md), [NOTEBOOKLM-PROMPT.md](Guides%20and%20Info/NOTEBOOKLM-PROMPT.md) | Work on the slide deck / presentation track (separate from the lab track) |
@@ -77,7 +80,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-09-06)
+## 4. Current status (as of 2026-09-07)
 
 ### ✅ Done
 
@@ -97,13 +100,12 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 - **Resource usage collector (Layer 2)** — `experiments/resource_usage_collector.py` scrapes per-service CPU/memory via kubelet `stats/summary`; wired into `run_scenario.py`. Present in all 48 `campaign_48/` folders; **absent** from `august_38/`.
 - **Pre-campaign metric verification PASSED (2026-09-04)** — S6 baseline + RetryGuard run1 with traffic. Folders: `baseline_topfull_no_retryguard_forced_recovery_run1`, `run_topfull_retryguard_forced_recovery_run1`. Confirmed: Locust 1s CSVs; Envoy `max_retry>0` on baseline frontend; `resource_usage.csv`; 3× `ON→OFF` then 3× `OFF→ON` on RetryGuard (Gap 1 signal live). See [PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md) §3b.
 - **Paper-grade 48-run campaign COMPLETE (2026-09-05 → 2026-09-06)** — all 48 slots local under `experiments/results/campaign_48/`: S6 run1–3 both arms; S5 intervals run3–5 (×4); S1–S4A/S4B run4–6 both arms. Every run pulled and §4-verified (Locust + Envoy + `resource_usage`; RetryGuard toggles where applicable). S6/S5 produced `OFF→ON`; flat S2/S3/S4 typically disable-only. S1 RG showed unexpected checkout `ON→OFF` on all 3 repeats. August 38 is `experiments/results/august_38/`. Primary Phase 7 analysis uses the campaign. Gaps 1 and 3 **closed** on that dataset — [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md).
-- **Local results layout (2026-09-06)** — `experiments/results/campaign_48/` vs `experiments/results/august_38/`. Master still uses a flat `/home/idozacharia/experiments/results/<log_folder>/`. See [experiments/results/README.md](experiments/results/README.md).
+- **Local results layout (2026-09-06)** — `experiments/results/campaign_48/` vs `experiments/results/august_38/`. Both are in git. Master still uses a flat `/home/idozacharia/experiments/results/<log_folder>/`. See [experiments/results/README.md](experiments/results/README.md).
+- **Mentor update doc (2026-09-06 → 2026-09-07)** — [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md) is the dry Phase 7 readout (infra, Online Boutique, scenarios, per-scenario charts with factual observations, no conclusions). Charts come from `campaign_48/` via `python experiments/mentor_charts.py`: Locust comparison plots are **mean-only** (no min/max bands), downsampled to **5 s** steps, with `ON→OFF` / `OFF→ON` overlays from **every** RetryGuard repeat; every scenario section embeds the S2-style set (goodput / P95 / rejection / frontend retries-per-target / CPU / memory). Pipeline leftovers (collector clocks ≠ Locust t0; no toggle overlays on CPU/retries multi-line charts; Locust `charts_gallery/` = curated) live in [mentor-update/README.md](Guides%20and%20Info/mentor-update/README.md) — not in the mentor doc.
 
 ### ❌ Not done yet — remaining work
 
-> **Next session — do this first:** Phase 7 analysis/report on **`experiments/results/campaign_48/`** ([PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md), [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md)). Commit `campaign_48/` (and the results split) when ready; do not overwrite `august_38/`.
->
-> A standalone mentor progress-update doc (infra, Online Boutique, scenarios, dry per-scenario charts) is at [Guides and Info/mentor-update/MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md). Chart-pipeline caveats (collector clocks, missing toggle overlays, Locust gallery = curated) are in [Guides and Info/mentor-update/README.md](Guides%20and%20Info/mentor-update/README.md).
+> **Next session — do this first:** Share [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md) with mentors, then write the Phase 7 evaluation/report on **`experiments/results/campaign_48/`** once they say what's sufficient ([PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md), [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md)). Do not overwrite `august_38/`. Chart-pipeline leftovers stay in [mentor-update/README.md](Guides%20and%20Info/mentor-update/README.md).
 >
 > **Do not re-run Scenario 6 until the YAMLs are bumped.** Both `experiments/configs/scenario_6_recovery_{baseline,retryguard}.yaml` still point at completed **`run3`**. Launching them as-is overwrites that folder **on master**. Bump `run_number` and `log_folder` to **run4** first. S1–S5 already sit on the next free slot (run7 / S5 run6).
 
