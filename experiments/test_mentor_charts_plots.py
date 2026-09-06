@@ -50,6 +50,17 @@ class TestPlotTimeseriesComparison(unittest.TestCase):
             self.assertTrue(out_path.exists())
             self.assertGreater(out_path.stat().st_size, 0)
 
+    def test_plots_mean_only_dataframe_without_minmax_columns(self):
+        baseline_avg = pd.DataFrame({"mean": [10.0, 12.0, 11.0]})
+        rg_avg = pd.DataFrame({"mean": [10.0, 20.0, 25.0]})
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = Path(tmp) / "chart.png"
+            mcp.plot_timeseries_comparison(
+                baseline_avg, rg_avg, title="Test", ylabel="Goodput", out_path=out_path
+            )
+            self.assertTrue(out_path.exists())
+            self.assertGreater(out_path.stat().st_size, 0)
+
 
 class TestPlotMultiLine(unittest.TestCase):
     def test_writes_nonempty_png_with_one_line_per_column(self):
@@ -86,6 +97,23 @@ class TestPlotSideBySideComparison(unittest.TestCase):
                 ylabel="Goodput",
                 label_a="S4A: ProductCatalog",
                 label_b="S4B: Payment",
+                out_path=out_path,
+            )
+            self.assertTrue(out_path.exists())
+            self.assertGreater(out_path.stat().st_size, 0)
+
+    def test_side_by_side_accepts_mean_only_dataframes(self):
+        mean_a = pd.DataFrame({"mean": [10.0, 11.0]})
+        mean_b = pd.DataFrame({"mean": [8.0, 9.0]})
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = Path(tmp) / "chart.png"
+            mcp.plot_side_by_side_comparison(
+                pair_a=(mean_a, mean_a),
+                pair_b=(mean_b, mean_b),
+                title="Test",
+                ylabel="Goodput",
+                label_a="S4A",
+                label_b="S4B",
                 out_path=out_path,
             )
             self.assertTrue(out_path.exists())
