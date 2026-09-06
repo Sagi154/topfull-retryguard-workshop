@@ -5,6 +5,7 @@ Thumbs.db
 canvases/node_modules/
 /temp
 experiments/.venv/
+scripts/.venv/
 __pycache__/
 *.pyc
 .cursor/
