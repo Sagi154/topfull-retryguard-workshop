@@ -75,12 +75,21 @@ def _load_group_average(run_dirs: list[Path], csv_name: str, metric: str) -> "pd
     return averaged
 
 
-def _first_toggle_events(run_dirs: list[Path]) -> list[dict]:
+def _collect_toggle_events(run_dirs: list[Path]) -> list[dict]:
+    collected: list[dict] = []
+    seen: set[tuple[str, str, int]] = set()
     for run_dir in run_dirs:
         log_path = run_dir / "retryguard.log"
-        if log_path.exists():
-            return mcd.parse_toggle_events(log_path)
-    return []
+        if not log_path.exists():
+            continue
+        for event in mcd.parse_toggle_events(log_path):
+            key = (event["service"], event["direction"], round(event["elapsed_seconds"]))
+            if key in seen:
+                continue
+            seen.add(key)
+            collected.append(event)
+    collected.sort(key=lambda e: e["elapsed_seconds"])
+    return collected
 
 
 def generate_simple_scenario(
@@ -95,7 +104,7 @@ def generate_simple_scenario(
     scenario_dir = campaign_root / scenario_key
     baseline_dirs = mcd.find_run_dirs(scenario_dir, config["baseline_prefix"])
     rg_dirs = mcd.find_run_dirs(scenario_dir, config["rg_prefix"])
-    toggle_events = _first_toggle_events(rg_dirs)
+    toggle_events = _collect_toggle_events(rg_dirs)
 
     for metric, ylabel in _METRIC_LABELS.items():
         baseline_avg = _load_group_average(baseline_dirs, "total.csv", metric)
@@ -125,7 +134,7 @@ def generate_bottleneck_scenario(
     scenario_dir = campaign_root / scenario_key
     baseline_dirs = mcd.find_run_dirs(scenario_dir, config["baseline_prefix"])
     rg_dirs = mcd.find_run_dirs(scenario_dir, config["rg_prefix"])
-    toggle_events = _first_toggle_events(rg_dirs)
+    toggle_events = _collect_toggle_events(rg_dirs)
 
     for metric, ylabel in _METRIC_LABELS.items():
         baseline_avg = _load_group_average(baseline_dirs, bottleneck_csv, metric)

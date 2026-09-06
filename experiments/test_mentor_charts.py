@@ -202,5 +202,75 @@ class TestGenerateS5S6Merge(unittest.TestCase):
             self.assertIn("10s", timeline_path.read_text(encoding="utf-8"))
 
 
+def _write_retryguard_log(
+    run_dir: Path,
+    events: list[tuple[str, str, str]],
+) -> None:
+    """Write a parseable retryguard.log.
+
+    ``events`` is a list of (iso_timestamp, service, direction) after a
+    START line. Pass an empty list for a START-only log.
+    """
+    run_dir.mkdir(parents=True, exist_ok=True)
+    lines = ["2026-09-05T16:52:18Z  START  threshold=0.20\n"]
+    for ts, service, direction in events:
+        extra = (
+            "rejection=0.60  consecutive_high=2  attempts=0"
+            if direction == "ON→OFF"
+            else "rejection=0.05  consecutive_low=3  attempts=3"
+        )
+        lines.append(f"{ts}  {service}  {direction}   {extra}\n")
+    (run_dir / "retryguard.log").write_text("".join(lines), encoding="utf-8")
+
+
+class TestCollectToggleEvents(unittest.TestCase):
+    def test_includes_off_to_on_from_later_repeat(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run1 = Path(tmp) / "run1"
+            run2 = Path(tmp) / "run2"
+            _write_retryguard_log(
+                run1,
+                [("2026-09-05T16:53:18Z", "checkoutservice", "ON→OFF")],
+            )
+            _write_retryguard_log(
+                run2,
+                [("2026-09-05T16:58:18Z", "cartservice", "OFF→ON")],
+            )
+
+            events = mc._collect_toggle_events([run1, run2])
+
+            directions = {(e["service"], e["direction"]) for e in events}
+            self.assertIn(("checkoutservice", "ON→OFF"), directions)
+            self.assertIn(("cartservice", "OFF→ON"), directions)
+            elapsed = [e["elapsed_seconds"] for e in events]
+            self.assertEqual(elapsed, sorted(elapsed))
+
+    def test_deduplicates_same_service_direction_elapsed_across_repeats(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dirs = []
+            for n in (1, 2, 3):
+                run_dir = Path(tmp) / f"run{n}"
+                _write_retryguard_log(
+                    run_dir,
+                    [("2026-09-05T16:53:18Z", "checkoutservice", "ON→OFF")],
+                )
+                run_dirs.append(run_dir)
+
+            events = mc._collect_toggle_events(run_dirs)
+
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["service"], "checkoutservice")
+            self.assertEqual(events[0]["direction"], "ON→OFF")
+            self.assertAlmostEqual(events[0]["elapsed_seconds"], 60.0)
+
+    def test_returns_empty_list_when_no_logs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dirs = [Path(tmp) / "run1", Path(tmp) / "run2"]
+            for run_dir in run_dirs:
+                run_dir.mkdir()
+
+            self.assertEqual(mc._collect_toggle_events(run_dirs), [])
+
+
 if __name__ == "__main__":
     unittest.main()

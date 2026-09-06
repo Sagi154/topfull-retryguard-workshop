@@ -149,7 +149,7 @@ Per-position bottleneck-endpoint detail:
 **What we observe:**
 - On system-wide goodput and rejection, the baseline–RetryGuard gap is larger in B than in A. A both hold ~200 req/s / ~0.65 rejection (RetryGuard smoother; baseline has periodic dips to ~150 req/s). B has RetryGuard holding ~480–530 req/s with rejection ~0.05–0.15, while baseline sags after ~200s (wide min/max band) and rejection ~0.1–0.25.
 - S4A charts show a red `ON→OFF` at ~60s; every S4A RetryGuard repeat disables `cartservice`, `checkoutservice`, and `productcatalogservice` together. S4B charts also show a red `ON→OFF` at ~60s; run4 and run5 disable `checkoutservice` only, while run6 also disables `cartservice` and `productcatalogservice`.
-- Neither S4 overlay shows a green `OFF→ON`. S4A logs have no re-enable on any repeat. S4B run6 logs one `cartservice` `OFF→ON` (then `cartservice` `ON→OFF` again) under this flat hold.
+- The side-by-side S4 PNG has no toggle overlays (that plot does not draw them). S4A endpoint charts have no green `OFF→ON` — S4A logs have no re-enable on any repeat. S4B endpoint charts show a green `cartservice` `OFF→ON` from run6 (then `cartservice` `ON→OFF` again) under this flat hold.
 
 Additional endpoint-level charts: `charts_gallery/S4A_topology_position_A/` and `charts_gallery/S4B_topology_position_B/`.
 
