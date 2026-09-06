@@ -63,8 +63,8 @@ _METRIC_LABELS = {
 # Locust CSVs are 1 row/second; plot every Nth second so comparison
 # charts are less dense. Envoy/resource charts poll ~5s — downsample
 # those to one point per COLLECTOR_PLOT_STEP_SECONDS of elapsed time.
-LOCUST_PLOT_STEP_SECONDS = 10
-COLLECTOR_PLOT_STEP_SECONDS = 20
+LOCUST_PLOT_STEP_SECONDS = 5
+COLLECTOR_PLOT_STEP_SECONDS = 5
 
 
 def _load_group_average(run_dirs: list[Path], csv_name: str, metric: str) -> "pd.DataFrame":
