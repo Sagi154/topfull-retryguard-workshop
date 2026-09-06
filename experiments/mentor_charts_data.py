@@ -150,3 +150,46 @@ def average_dataframes(dfs: list[pd.DataFrame]) -> pd.DataFrame:
     ]
     stacked = pd.concat(truncated, axis=0, keys=range(len(truncated)))
     return stacked.groupby(level=1).mean()
+
+
+TOGGLE_PATTERN = re.compile(
+    r"^(?P<ts>\S+)\s+(?P<service>\S+)\s+(?P<direction>ON→OFF|OFF→ON)\b"
+)
+
+
+def parse_toggle_events(log_path: Path) -> list[dict]:
+    """Parse a retryguard.log file's ON→OFF / OFF→ON lines. Returns a
+    list of {'elapsed_seconds', 'service', 'direction'} dicts, with
+    elapsed_seconds relative to the log's earliest timestamped line."""
+    lines = log_path.read_text(encoding="utf-8").splitlines()
+    timestamps: list[datetime] = []
+    raw_events: list[dict] = []
+    for line in lines:
+        parts = line.split(None, 1)
+        if not parts:
+            continue
+        try:
+            ts = _parse_ts(parts[0])
+        except ValueError:
+            continue
+        timestamps.append(ts)
+        match = TOGGLE_PATTERN.match(line)
+        if match:
+            raw_events.append(
+                {
+                    "timestamp": ts,
+                    "service": match.group("service"),
+                    "direction": match.group("direction"),
+                }
+            )
+    if not timestamps:
+        return []
+    t0 = min(timestamps)
+    return [
+        {
+            "elapsed_seconds": (e["timestamp"] - t0).total_seconds(),
+            "service": e["service"],
+            "direction": e["direction"],
+        }
+        for e in raw_events
+    ]

@@ -171,5 +171,32 @@ class TestAverageDataFrames(unittest.TestCase):
         self.assertTrue(result.empty)
 
 
+class TestParseToggleEvents(unittest.TestCase):
+    def test_extracts_toggle_events_relative_to_first_timestamp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / "retryguard.log"
+            log_path.write_text(
+                "2026-09-05T16:52:18Z  START  threshold=0.20\n"
+                "2026-09-05T16:52:48Z  OBSERVE  checkoutservice  rejection=0.3773  low=0 high=1  state=ON\n"
+                "2026-09-05T16:53:18Z  checkoutservice  ON→OFF   rejection=0.60  consecutive_high=2  attempts=0\n"
+                "2026-09-05T16:58:18Z  checkoutservice  OFF→ON   rejection=0.05  consecutive_low=3  attempts=3\n",
+                encoding="utf-8",
+            )
+
+            events = mcd.parse_toggle_events(log_path)
+
+            self.assertEqual(len(events), 2)
+            self.assertEqual(events[0]["service"], "checkoutservice")
+            self.assertEqual(events[0]["direction"], "ON→OFF")
+            self.assertAlmostEqual(events[0]["elapsed_seconds"], 60.0)
+            self.assertEqual(events[1]["direction"], "OFF→ON")
+            self.assertAlmostEqual(events[1]["elapsed_seconds"], 360.0)
+
+    def test_returns_empty_list_for_baseline_run_with_no_log(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / "missing.log"
+            self.assertFalse(log_path.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
