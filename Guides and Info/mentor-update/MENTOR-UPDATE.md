@@ -182,4 +182,4 @@ Toggle-event timeline (disable/re-enable timestamps per run group):
 - Extra disable/re-enable pairs appear on the 10s interval run3 (5 `ON→OFF` and 5 `OFF→ON`, including a second `cartservice`/`productcatalogservice` disable–re-enable cycle before checkout re-enables at 391s). Other 10/20/60s repeats and S6 RetryGuard are one disable then re-enable per service; 30s run3 also toggles `cartservice` twice (3 `ON→OFF` / 3 `OFF→ON` total).
 - After the drop, all six series sit on top of each other at ~100 req/s goodput and ~0 rejection; the 30s paper-default is not separated from 10s/20s/60s in that recovery window. During the peak window the S5 30s mean sits higher than the other interval lines; S6’s own 30s RetryGuard line does not.
 
-Additional endpoint-level charts: `charts_gallery/S6_forced_recovery/` and `charts_gallery/S5_interval_tuning/`.
+Additional endpoint-level charts: `charts_gallery/S6_forced_recovery/` (includes S5 interval-sensitivity overlays).
