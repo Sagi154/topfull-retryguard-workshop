@@ -161,6 +161,8 @@ def parse_toggle_events(log_path: Path) -> list[dict]:
     """Parse a retryguard.log file's ON→OFF / OFF→ON lines. Returns a
     list of {'elapsed_seconds', 'service', 'direction'} dicts, with
     elapsed_seconds relative to the log's earliest timestamped line."""
+    if not log_path.exists():
+        return []
     lines = log_path.read_text(encoding="utf-8").splitlines()
     timestamps: list[datetime] = []
     raw_events: list[dict] = []

@@ -196,6 +196,7 @@ class TestParseToggleEvents(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             log_path = Path(tmp) / "missing.log"
             self.assertFalse(log_path.exists())
+            self.assertEqual(mcd.parse_toggle_events(log_path), [])
 
 
 if __name__ == "__main__":
