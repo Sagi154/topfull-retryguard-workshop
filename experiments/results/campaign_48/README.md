@@ -43,7 +43,19 @@ Counting: 5 scenarios (S1–S4B) × 2 conditions × 3 runs = 30, plus S6 × 2 co
 
 ---
 
-## 2. What's inside every run folder
+## 2. Why three repeats, and how to plot them
+
+Locust's simulated users pick paths at random, so two otherwise identical runs are not the same traffic. A single folder is too noisy to treat as "the" baseline or "the" RetryGuard result — that is why every arm has **three repeats** (eval deck: repeated trials to remove load-generation noise).
+
+The quantity we care about is still the metric **as a function of time during the run** (when Fail climbs, when RetryGuard toggles, whether goodput recovers after the load drop). Do **not** collapse a run into one mean for the whole folder — that erases the scenario.
+
+**How we combine the three repeats (decision):** align by second (Locust row index ≈ elapsed seconds; truncate to the shortest of the three) and average the three curves **pointwise**. That gives **one baseline line and one RetryGuard line**. Optionally draw a band around each line (min/max or std across the three repeats) so Locust spread is visible. Overlay `ON→OFF` / `OFF→ON` timestamps from `retryguard.log` on the same x-axis — those are events, not a third curve to average.
+
+Same treatment for Envoy and resource series after you put them on a time axis (they poll every 5s; Envoy counters must be differenced first). S5: one averaged curve per interval (`10/20/30/60s`), each from that interval's three repeats, compared against S6's averaged baseline (and S6 RetryGuard) lines.
+
+---
+
+## 3. What's inside every run folder
 
 All 48 run folders (two levels down, e.g. `campaign_48/S1_normal_op/baseline_topfull_no_retryguard_normal_op_run4/`) have the same 13 files (baseline folders are missing only `retryguard.log`, since RetryGuard isn't running):
 
@@ -86,21 +98,26 @@ All 48 run folders (two levels down, e.g. `campaign_48/S1_normal_op/baseline_top
 
 ---
 
-## 3. Quick recipes
+## 4. Quick recipes
 
 **"Did RetryGuard actually toggle in this run?"**
 ```powershell
 Select-String -Path "S1_normal_op\run_topfull_retryguard_normal_op_run4\retryguard.log" -Pattern "ON->OFF|OFF->ON|ON→OFF|OFF→ON"
 ```
 
-**"Compare baseline vs RetryGuard goodput for a scenario"** — load `total.csv` (or the relevant endpoint CSV) from all `S<N>_.../baseline_...run4-6` folders and all `S<N>_.../run_topfull_retryguard_...run4-6` folders under that scenario's subfolder, average `Goodput` across the 3 repeats each side.
+**"Compare baseline vs RetryGuard goodput for a scenario"** — load `total.csv` (or the relevant endpoint CSV) from the three baseline folders and the three RetryGuard folders under that scenario. Align by row (second), average the three `Goodput` series pointwise, plot two lines (optional band). See §2.
 
-**"Does S5's interval choice change recovery speed?"** — for each `S5_interval_tuning/run_topfull_retryguard_interval_{10,20,30,60}s_run*` folder, find the first `OFF→ON` timestamp in `retryguard.log`, then look at how quickly `postcheckout.csv`'s `Goodput`/`Fail` recover afterward. Compare across the 4 interval folders (using their `run3/4/5` repeats).
+**"Does S5's interval choice change recovery speed?"** — for each interval, average the three `postcheckout.csv` curves as in §2, find `OFF→ON` times in each `retryguard.log`, and compare recovery after the load drop across the four interval lines vs S6 baseline.
 
 **"Load all runs for a scenario in Python"**
 ```python
 from pathlib import Path
-runs = sorted(Path("experiments/results/campaign_48/S2_sustained_overload").glob("*/postcheckout.csv"))
+import pandas as pd
+
+scenario = Path("experiments/results/campaign_48/S2_sustained_overload")
+dfs = [pd.read_csv(p) for p in sorted(scenario.glob("baseline_*/total.csv"))]
+min_len = min(len(df) for df in dfs)
+baseline_mean = pd.concat([df["Goodput"].iloc[:min_len] for df in dfs], axis=1).mean(axis=1)
 ```
 
 ---
