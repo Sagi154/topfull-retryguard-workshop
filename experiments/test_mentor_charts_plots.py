@@ -71,5 +71,26 @@ class TestPlotMultiLine(unittest.TestCase):
             self.assertTrue(out_path.exists())
 
 
+class TestPlotSideBySideComparison(unittest.TestCase):
+    def test_writes_nonempty_png_with_two_panels(self):
+        baseline_a = pd.DataFrame({"mean": [10.0, 11.0], "min": [9.0, 10.0], "max": [11.0, 12.0]})
+        rg_a = pd.DataFrame({"mean": [10.0, 15.0], "min": [9.0, 14.0], "max": [11.0, 16.0]})
+        baseline_b = pd.DataFrame({"mean": [8.0, 9.0], "min": [7.0, 8.0], "max": [9.0, 10.0]})
+        rg_b = pd.DataFrame({"mean": [8.0, 12.0], "min": [7.0, 11.0], "max": [9.0, 13.0]})
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = Path(tmp) / "chart.png"
+            mcp.plot_side_by_side_comparison(
+                pair_a=(baseline_a, rg_a),
+                pair_b=(baseline_b, rg_b),
+                title="Test",
+                ylabel="Goodput",
+                label_a="S4A: ProductCatalog",
+                label_b="S4B: Payment",
+                out_path=out_path,
+            )
+            self.assertTrue(out_path.exists())
+            self.assertGreater(out_path.stat().st_size, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

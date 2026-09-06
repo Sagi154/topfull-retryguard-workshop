@@ -70,3 +70,38 @@ def plot_multi_line(df: pd.DataFrame, title: str, ylabel: str, out_path: Path) -
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=120)
     plt.close(fig)
+
+
+def _draw_comparison_panel(ax, baseline_avg: pd.DataFrame, rg_avg: pd.DataFrame, subtitle: str, ylabel: str) -> None:
+    if not baseline_avg.empty:
+        ax.plot(baseline_avg.index, baseline_avg["mean"], label="Baseline", color="tab:blue")
+        ax.fill_between(baseline_avg.index, baseline_avg["min"], baseline_avg["max"], color="tab:blue", alpha=0.15)
+    if not rg_avg.empty:
+        ax.plot(rg_avg.index, rg_avg["mean"], label="RetryGuard", color="tab:orange")
+        ax.fill_between(rg_avg.index, rg_avg["min"], rg_avg["max"], color="tab:orange", alpha=0.15)
+    ax.set_title(subtitle)
+    ax.set_xlabel("Elapsed seconds")
+    ax.set_ylabel(ylabel)
+    ax.legend(loc="best", fontsize="small")
+
+
+def plot_side_by_side_comparison(
+    pair_a: tuple[pd.DataFrame, pd.DataFrame],
+    pair_b: tuple[pd.DataFrame, pd.DataFrame],
+    title: str,
+    ylabel: str,
+    label_a: str,
+    label_b: str,
+    out_path: Path,
+) -> None:
+    """Draw a two-panel figure: left panel is pair_a's baseline-vs-RG
+    comparison (S4A), right panel is pair_b's (S4B), sharing the y-axis
+    scale so the two positions are visually comparable."""
+    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(13, 4.5), sharey=True)
+    _draw_comparison_panel(ax_a, pair_a[0], pair_a[1], label_a, ylabel)
+    _draw_comparison_panel(ax_b, pair_b[0], pair_b[1], label_b, ylabel)
+    fig.suptitle(title)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
