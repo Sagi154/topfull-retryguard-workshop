@@ -76,3 +76,39 @@ def rejection_rate_series(run_dirs: list[Path], csv_name: str) -> list[pd.Series
         rate = (df["Fail"] / df["RPS"].replace(0, pd.NA)).fillna(0.0)
         series_list.append(rate.reset_index(drop=True))
     return series_list
+
+
+def envoy_retries_per_request(run_dir: Path, csv_name: str) -> pd.DataFrame:
+    """Read an envoy_retries_*.csv file and compute retries-per-request
+    per target_service by differencing consecutive cumulative rows.
+    Returns a DataFrame indexed by elapsed_seconds (relative to the
+    file's earliest timestamp) with one column per target_service plus
+    a 'total' column (summed retry/total diffs across target services
+    at each poll, then divided)."""
+    df = pd.read_csv(run_dir / csv_name)
+    df["timestamp"] = df["timestamp"].map(_parse_ts)
+    t0 = df["timestamp"].min()
+    df["elapsed_seconds"] = (df["timestamp"] - t0).dt.total_seconds()
+
+    columns: dict[str, pd.Series] = {}
+    for target, group in df.groupby("target_service", sort=True):
+        group = group.sort_values("elapsed_seconds").reset_index(drop=True)
+        d_retry = group["upstream_rq_retry"].diff().fillna(0.0)
+        d_total = group["upstream_rq_total"].diff().fillna(0.0)
+        rate = (d_retry / d_total.replace(0, pd.NA)).fillna(0.0)
+        columns[target] = pd.Series(
+            rate.to_numpy(), index=group["elapsed_seconds"].to_numpy()
+        )
+    result = pd.DataFrame(columns).sort_index()
+
+    totals = (
+        df.groupby("elapsed_seconds")[["upstream_rq_retry", "upstream_rq_total"]]
+        .sum()
+        .sort_index()
+    )
+    d_retry_total = totals["upstream_rq_retry"].diff().fillna(0.0)
+    d_total_total = totals["upstream_rq_total"].diff().fillna(0.0)
+    result["total"] = (
+        (d_retry_total / d_total_total.replace(0, pd.NA)).fillna(0.0).to_numpy()
+    )
+    return result

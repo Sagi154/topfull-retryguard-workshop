@@ -101,5 +101,36 @@ class TestRejectionRateSeries(unittest.TestCase):
             self.assertAlmostEqual(values[2], 0.98)
 
 
+class TestEnvoyRetriesPerRequest(unittest.TestCase):
+    def test_diffs_cumulative_counters_per_target_and_total(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "run_a"
+            run_dir.mkdir()
+            rows = [
+                # t=0: baseline poll, diffs are 0 (first row per target)
+                ("2026-09-05T16:51:25Z", "cartservice", 1000, 0),
+                ("2026-09-05T16:51:25Z", "checkoutservice", 2000, 10),
+                # t=5: cartservice gets 100 new requests, 5 retries;
+                #      checkoutservice gets 100 new requests, 0 new retries
+                ("2026-09-05T16:51:30Z", "cartservice", 1100, 5),
+                ("2026-09-05T16:51:30Z", "checkoutservice", 2100, 10),
+            ]
+            pd.DataFrame(
+                rows,
+                columns=["timestamp", "target_service", "upstream_rq_total", "upstream_rq_retry"],
+            ).assign(upstream_rq_retry_success=0, upstream_rq_retry_limit_exceeded=0).to_csv(
+                run_dir / "envoy_retries_frontend.csv", index=False
+            )
+
+            result = mcd.envoy_retries_per_request(run_dir, "envoy_retries_frontend.csv")
+
+            self.assertEqual(list(result.index), [0.0, 5.0])
+            self.assertAlmostEqual(result.loc[0.0, "cartservice"], 0.0)
+            self.assertAlmostEqual(result.loc[5.0, "cartservice"], 0.05)
+            self.assertAlmostEqual(result.loc[5.0, "checkoutservice"], 0.0)
+            # total: (5 + 0) retries over (100 + 100) requests = 0.025
+            self.assertAlmostEqual(result.loc[5.0, "total"], 0.025)
+
+
 if __name__ == "__main__":
     unittest.main()
