@@ -82,7 +82,7 @@ Section 4 walks through the dry results for each of these, grouping Scenario 5 i
 
 ## 4. Results — Per-Scenario Deep Dive
 
-All charts below plot **Baseline** (mean of 3 repeats, shaded min/max band) against **RetryGuard** (mean of 3 repeats, shaded min/max band), x-axis in elapsed seconds. Where RetryGuard fired, vertical dashed lines mark disable (`ON→OFF`, red) and re-enable (`OFF→ON`, green) events. Additional per-endpoint/per-service charts not shown here are in `charts_gallery/<scenario>/`.
+All charts below plot **Baseline** (mean of 3 repeats) against **RetryGuard** (mean of 3 repeats), x-axis in elapsed seconds. Where RetryGuard fired, vertical dashed lines mark disable (`ON→OFF`, red) and re-enable (`OFF→ON`, green) events. Additional per-endpoint/per-service charts not shown here are in `charts_gallery/<scenario>/`.
 
 ### 4.1 Scenario 1 — Normal Operation
 
@@ -93,8 +93,8 @@ Sanity check: under light load, both conditions should behave (almost) identical
 ![S1 Rejection rate](charts/S1_normal_op/total_rejection_rate.png)
 
 **What we observe:**
-- Baseline and RetryGuard system-wide goodput overlap around ~400 req/s after a shared ramp in the first ~50s; the min/max bands overlap for the full ~265s, and neither line steps at the 60s marker.
-- Rejection is not identically near zero in both conditions. RetryGuard stays in a narrow ~0.01–0.02 band, while baseline is mostly low but shows several spikes (mean ~0.04–0.09, with the last spike’s max band exceeding 0.25).
+- Baseline and RetryGuard system-wide goodput overlap around ~400 req/s after a shared ramp in the first ~50s, and neither line steps at the 60s marker.
+- Rejection is not identically near zero in both conditions. RetryGuard stays in a narrow ~0.01–0.02 range, while baseline is mostly low but shows several spikes (mean ~0.04–0.09).
 - A single red `ON→OFF` marker sits at ~60s on the S1 charts; there is no green `OFF→ON`. That matches the campaign logs: one `checkoutservice` `ON→OFF` on each RetryGuard repeat and no re-enable.
 
 Additional endpoint-level charts: `charts_gallery/S1_normal_op/`.
@@ -111,7 +111,7 @@ Peak load held flat for 10 minutes — the core "does suppressing retries help u
 ![S2 Memory per service](charts/S2_sustained_overload/resource_memory_working_set_bytes.png)
 
 **What we observe:**
-- After the first ~30s, RetryGuard mean goodput sits above baseline for most of the hold (often ~250–480 vs ~200–350 req/s, with a wider RetryGuard band) and the means converge again after ~450s. Rejection is lower on RetryGuard early (~0.2–0.45 vs ~0.4–0.6) then both remain high (~0.35–0.6) through the rest of the 10-minute hold.
+- After the first ~30s, RetryGuard mean goodput sits above baseline for most of the hold (often ~250–480 vs ~200–350 req/s) and the means converge again after ~450s. Rejection is lower on RetryGuard early (~0.2–0.45 vs ~0.4–0.6) then both remain high (~0.35–0.6) through the rest of the 10-minute hold.
 - Three red `ON→OFF` markers sit at ~60s, ~90s, and ~120s. On the frontend retries chart (~680s window) only `checkoutservice` shows retries — two brief spikes of ~0.12 retries/request at ~135s and ~413s — while `cartservice` and `productcatalogservice` stay at 0. The CPU overlay (RetryGuard run, ~650s) stays near zero until ~50s, then plateaus (frontend ~710–740 millicores) with no lasting step-down; `checkoutservice` shows only brief dips near those retry spikes. Memory per service is mostly flat after a ~50s jump on `frontend`/`checkoutservice`.
 - No green `OFF→ON` appears. System-wide rejection stays elevated in both conditions for the whole flat hold, matching the campaign finding of disables without re-enable.
 
@@ -128,7 +128,7 @@ Only `checkoutservice` is CPU-limited; the system-wide view and the checkout-spe
 ![S3 CPU per service](charts/S3_targeted_bottleneck/resource_cpu_millicores.png)
 
 **What we observe:**
-- The checkout-endpoint (`postcheckout`) goodput collapses to near zero for both conditions after an initial ~5s spike (later bursts still <1 req/s), and postcheckout rejection sits near 1.0 in both. The conditions separate on the system-wide chart, not the checkout-endpoint chart: after the ~60s `ON→OFF`, RetryGuard mean goodput stays above baseline (often ~250–450 vs ~180–300 req/s) with a wider band.
+- The checkout-endpoint (`postcheckout`) goodput collapses to near zero for both conditions after an initial ~5s spike (later bursts still <1 req/s), and postcheckout rejection sits near 1.0 in both. The conditions separate on the system-wide chart, not the checkout-endpoint chart: after the ~60s `ON→OFF`, RetryGuard mean goodput stays above baseline (often ~250–450 vs ~180–300 req/s).
 - `checkoutservice` CPU on the RetryGuard overlay (~650s) holds at an ~90 millicore plateau (the 100m limit) after a ~50s ramp, with brief dips, not a sustained drop. Checkout-as-caller retries/request to `cartservice`, `paymentservice`, and `productcatalogservice` are flat at 0 for the full ~680s window.
 - Frontend retries/request are zero for `cartservice` and `productcatalogservice`. Only the `checkoutservice` target spikes (four peaks ~0.12–0.22 at ~113s, ~157s, ~282s, and ~353s) and then stays at 0 after ~353s.
 
@@ -147,7 +147,7 @@ Per-position bottleneck-endpoint detail:
 ![S4B Goodput (postcheckout endpoint)](charts/S4B_topology_position_B/postcheckout_goodput.png)
 
 **What we observe:**
-- On system-wide goodput and rejection, the baseline–RetryGuard gap is larger in B than in A. A both hold ~200 req/s / ~0.65 rejection (RetryGuard smoother; baseline has periodic dips to ~150 req/s). B has RetryGuard holding ~480–530 req/s with rejection ~0.05–0.15, while baseline sags after ~200s (wide min/max band) and rejection ~0.1–0.25.
+- On system-wide goodput and rejection, the baseline–RetryGuard gap is larger in B than in A. A both hold ~200 req/s / ~0.65 rejection (RetryGuard smoother; baseline has periodic dips to ~150 req/s). B has RetryGuard holding ~480–530 req/s with rejection ~0.05–0.15, while baseline sags after ~200s and rejection ~0.1–0.25.
 - S4A charts show a red `ON→OFF` at ~60s; every S4A RetryGuard repeat disables `cartservice`, `checkoutservice`, and `productcatalogservice` together. S4B charts also show a red `ON→OFF` at ~60s; run4 and run5 disable `checkoutservice` only, while run6 also disables `cartservice` and `productcatalogservice`.
 - The side-by-side S4 PNG has no toggle overlays (that plot does not draw them). S4A endpoint charts have no green `OFF→ON` — S4A logs have no re-enable on any repeat. S4B endpoint charts show a green `cartservice` `OFF→ON` from run6 (then `cartservice` `ON→OFF` again) under this flat hold.
 
