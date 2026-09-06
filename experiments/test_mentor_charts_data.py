@@ -157,14 +157,25 @@ class TestResourceUsageSeries(unittest.TestCase):
 
 class TestAverageDataFrames(unittest.TestCase):
     def test_averages_common_columns_positionally(self):
-        df_a = pd.DataFrame({"x": [1.0, 2.0, 3.0], "y": [10.0, 20.0, 30.0]})
-        df_b = pd.DataFrame({"x": [3.0, 4.0], "z": [100.0, 200.0]})
+        df_a = pd.DataFrame(
+            {"x": [1.0, 2.0, 3.0], "y": [10.0, 20.0, 30.0]},
+            index=[0.0, 5.0, 10.0],
+        )
+        df_b = pd.DataFrame(
+            {"x": [3.0, 4.0], "z": [100.0, 200.0]},
+            index=[0.0, 5.0],
+        )
 
         result = mcd.average_dataframes([df_a, df_b])
 
         # only 'x' is common to both; shortest length is 2
         self.assertEqual(list(result.columns), ["x"])
         self.assertEqual(list(result["x"]), [2.0, 3.0])
+        # index is the pointwise mean of the truncated input indexes
+        # (elapsed seconds), not a 0-based row number
+        self.assertEqual(len(result.index), 2)
+        self.assertAlmostEqual(float(result.index[0]), 0.0)
+        self.assertAlmostEqual(float(result.index[1]), 5.0)
 
     def test_empty_list_returns_empty_dataframe(self):
         result = mcd.average_dataframes([])

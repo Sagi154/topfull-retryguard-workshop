@@ -136,8 +136,10 @@ def average_dataframes(dfs: list[pd.DataFrame]) -> pd.DataFrame:
     """Positionally average a list of DataFrames (as produced by
     envoy_retries_per_request / resource_usage_series for different
     repeats of the same run group): truncate to the shortest row count,
-    keep only columns present in every input, reset each to a plain
-    row-number index, and return the pointwise mean."""
+    keep only columns present in every input, and return the pointwise
+    mean of values. The returned index is the pointwise mean of the
+    truncated input indexes (elapsed seconds), not a 0-based row number.
+    """
     if not dfs:
         return pd.DataFrame()
     common_columns = set(dfs[0].columns)
@@ -145,11 +147,19 @@ def average_dataframes(dfs: list[pd.DataFrame]) -> pd.DataFrame:
         common_columns &= set(df.columns)
     common_columns = sorted(common_columns)
     min_len = min(len(df) for df in dfs)
-    truncated = [
-        df[common_columns].iloc[:min_len].reset_index(drop=True) for df in dfs
-    ]
-    stacked = pd.concat(truncated, axis=0, keys=range(len(truncated)))
-    return stacked.groupby(level=1).mean()
+    truncated = [df[common_columns].iloc[:min_len] for df in dfs]
+    stacked = pd.concat(
+        [t.reset_index(drop=True) for t in truncated],
+        axis=0,
+        keys=range(len(truncated)),
+    )
+    result = stacked.groupby(level=1).mean()
+    index_mean = pd.concat(
+        [pd.Series(t.index.to_numpy()) for t in truncated],
+        axis=1,
+    ).mean(axis=1)
+    result.index = index_mean.to_numpy()
+    return result
 
 
 TOGGLE_PATTERN = re.compile(
