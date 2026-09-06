@@ -83,5 +83,23 @@ class TestAverageSeries(unittest.TestCase):
         self.assertEqual(list(result.columns), ["mean", "min", "max"])
 
 
+class TestRejectionRateSeries(unittest.TestCase):
+    def test_computes_fail_over_rps_with_zero_rps_guard(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "run_a"
+            run_dir.mkdir()
+            pd.DataFrame(
+                {"RPS": [0.0, 50.0, 20.0], "Fail": [0.0, 0.0, 19.6]}
+            ).to_csv(run_dir / "total.csv", index=False)
+
+            result = mcd.rejection_rate_series([run_dir], "total.csv")
+
+            self.assertEqual(len(result), 1)
+            values = list(result[0])
+            self.assertAlmostEqual(values[0], 0.0)
+            self.assertAlmostEqual(values[1], 0.0)
+            self.assertAlmostEqual(values[2], 0.98)
+
+
 if __name__ == "__main__":
     unittest.main()

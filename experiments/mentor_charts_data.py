@@ -65,3 +65,14 @@ def _parse_ts(ts: str) -> datetime:
     return datetime.strptime(ts.strip(), "%Y-%m-%dT%H:%M:%SZ").replace(
         tzinfo=timezone.utc
     )
+
+
+def rejection_rate_series(run_dirs: list[Path], csv_name: str) -> list[pd.Series]:
+    """Compute Fail/RPS per row for each run dir's csv_name (0.0 where
+    RPS == 0, since there was no offered load to reject)."""
+    series_list = []
+    for run_dir in run_dirs:
+        df = pd.read_csv(run_dir / csv_name)
+        rate = (df["Fail"] / df["RPS"].replace(0, pd.NA)).fillna(0.0)
+        series_list.append(rate.reset_index(drop=True))
+    return series_list
