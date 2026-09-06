@@ -50,3 +50,23 @@ def plot_timeseries_comparison(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=120)
     plt.close(fig)
+
+
+def plot_multi_line(df: pd.DataFrame, title: str, ylabel: str, out_path: Path) -> None:
+    """Plot one line per column of df against its index (elapsed seconds
+    or row number). Used for CPU/memory-per-service overlays and
+    retries-per-target-service overlays. Handles an empty DataFrame by
+    still writing an (empty) chart, so orchestration code never has to
+    special-case missing data."""
+    fig, ax = plt.subplots(figsize=(9, 4.5))
+    for column in df.columns:
+        ax.plot(df.index, df[column], label=str(column))
+    ax.set_title(title)
+    ax.set_xlabel("Elapsed seconds")
+    ax.set_ylabel(ylabel)
+    if not df.empty:
+        ax.legend(loc="best", fontsize="small")
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)

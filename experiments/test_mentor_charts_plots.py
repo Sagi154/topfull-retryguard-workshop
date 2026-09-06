@@ -51,5 +51,25 @@ class TestPlotTimeseriesComparison(unittest.TestCase):
             self.assertGreater(out_path.stat().st_size, 0)
 
 
+class TestPlotMultiLine(unittest.TestCase):
+    def test_writes_nonempty_png_with_one_line_per_column(self):
+        df = pd.DataFrame(
+            {"frontend": [10.0, 12.0, 11.0], "cartservice": [5.0, 6.0, 7.0]},
+            index=[0.0, 5.0, 10.0],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = Path(tmp) / "chart.png"
+            mcp.plot_multi_line(df, title="Test", ylabel="CPU (millicores)", out_path=out_path)
+            self.assertTrue(out_path.exists())
+            self.assertGreater(out_path.stat().st_size, 0)
+
+    def test_handles_empty_dataframe_without_raising(self):
+        df = pd.DataFrame()
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = Path(tmp) / "chart.png"
+            mcp.plot_multi_line(df, title="Test", ylabel="CPU", out_path=out_path)
+            self.assertTrue(out_path.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
