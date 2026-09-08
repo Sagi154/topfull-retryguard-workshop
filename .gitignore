@@ -9,3 +9,4 @@ scripts/.venv/
 __pycache__/
 *.pyc
 .cursor/
+.worktrees/
