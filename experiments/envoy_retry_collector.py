@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-envoy_retry_collector.py — Scrapes Envoy sidecar outbound retry counters.
+envoy_retry_collector.py — Scrapes Envoy sidecar stats for all Boutique services.
 
 Usage (on master, with venv active):
     python3 envoy_retry_collector.py --params /tmp/envoy_retry_params.json
 
-Envoy records retry stats on the *caller's* outbound cluster, not the callee.
-This collector scrapes frontend and checkoutservice sidecars via:
+Every poll scrapes each service's istio-proxy sidecar via:
 
     kubectl exec <pod> -c istio-proxy -- curl -s http://localhost:15000/stats
 
-and writes cumulative counters to:
-    {record_path}/envoy_retries_{caller}.csv
+and appends rows to two shared CSVs under {record_path}/:
+    service_edges.csv   — outbound upstream_rq_* per (caller, target)
+    service_inbound.csv — inbound downstream_rq_* per service
 
-Retries-per-request is derived at analysis time by differencing consecutive rows.
+Retries-per-request and offered-load deltas are derived at analysis time.
 """
 from __future__ import annotations
 
@@ -327,46 +327,54 @@ def fetch_stats_text(
 
 
 # --------------------------------------------------------------------------- #
-#  Poll loop
+#  Service list / poll loop
 # --------------------------------------------------------------------------- #
+
+def resolve_services(params: dict) -> List[str]:
+    override = params.get("services")
+    if override:
+        return list(override)
+    return list(ALL_SERVICES)
+
 
 def poll_once(
     record_path: Path,
-    caller_map: Dict[str, List[str]],
+    services: List[str],
     timestamp: str,
     run_cmd: Optional[CommandRunner] = None,
     pod_cache: Optional[Dict[str, str]] = None,
 ) -> None:
     """
-    One scrape of every caller sidecar. Writes rows into
-    envoy_retries_{caller}.csv. Survives per-caller failures.
+    One scrape of every service's sidecar. Writes rows into
+    service_edges.csv and service_inbound.csv. Survives per-service
+    failures (a failed exec just skips that service this poll).
     """
     if pod_cache is None:
         pod_cache = {}
     runner = run_cmd or default_run_cmd
 
-    for caller, targets in sorted(caller_map.items()):
-        pod = pod_cache.get(caller)
+    edges_path = record_path / "service_edges.csv"
+    inbound_path = record_path / "service_inbound.csv"
+
+    for service in sorted(services):
+        pod = pod_cache.get(service)
         if not pod:
-            pod = discover_pod_name(caller, run_cmd=runner)
+            pod = discover_pod_name(service, run_cmd=runner)
             if pod:
-                pod_cache[caller] = pod
+                pod_cache[service] = pod
             else:
-                log.warning(
-                    "%s  WARNING  no pod for caller=%s", utc_now(), caller
-                )
+                log.warning("%s  WARNING  no pod for service=%s", utc_now(), service)
                 continue
 
         stats_text = fetch_stats_text(pod, run_cmd=runner)
         if stats_text is None:
-            # Pod may have restarted — drop cache so next poll rediscovers.
-            pod_cache.pop(caller, None)
+            pod_cache.pop(service, None)
             continue
 
-        parsed = parse_retry_stats(stats_text, targets)
-        csv_path = record_path / f"envoy_retries_{caller}.csv"
-        for target in targets:
-            write_csv_row(csv_path, timestamp, target, parsed[target])
+        edges = parse_edges(stats_text)
+        inbound = parse_inbound(stats_text)
+        write_edges_csv(edges_path, timestamp, service, edges)
+        write_inbound_csv(inbound_path, timestamp, service, inbound)
 
 
 def run_collector(
@@ -379,32 +387,23 @@ def run_collector(
     Main loop. Sleeps poll_interval_seconds between scrapes until SIGTERM
     or max_polls (used by tests).
     """
-    caller_map = resolve_caller_map(params)
+    services = resolve_services(params)
     interval = int(params.get("poll_interval_seconds", DEFAULT_POLL_INTERVAL_SECONDS))
     pod_cache: Dict[str, str] = {}
 
     log.info(
-        "%s  START  poll_interval=%ss callers=%s",
-        utc_now(),
-        interval,
-        sorted(caller_map.keys()),
+        "%s  START  poll_interval=%ss services=%d",
+        utc_now(), interval, len(services),
     )
 
     polls = 0
     while not _shutdown:
         if max_polls is not None and polls >= max_polls:
             break
-        poll_once(
-            record_path,
-            caller_map,
-            timestamp=utc_now(),
-            run_cmd=run_cmd,
-            pod_cache=pod_cache,
-        )
+        poll_once(record_path, services, timestamp=utc_now(), run_cmd=run_cmd, pod_cache=pod_cache)
         polls += 1
         if max_polls is not None and polls >= max_polls:
             break
-        # Sleep in 1s slices so SIGTERM is noticed promptly.
         for _ in range(interval):
             if _shutdown:
                 break
@@ -425,7 +424,7 @@ def main() -> None:
         "--params",
         required=True,
         help="Path to collector params JSON "
-        "(poll_interval_seconds, optional caller_target_map)",
+        "(poll_interval_seconds, optional services list)",
     )
     args = parser.parse_args()
 

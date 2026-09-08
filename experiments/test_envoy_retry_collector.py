@@ -173,10 +173,10 @@ class TestFetchStatsText(unittest.TestCase):
 
         def runner(cmd):
             calls.append(cmd)
-            return SimpleNamespace(returncode=0, stdout=SAMPLE_STATS, stderr="")
+            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
 
         text = erc.fetch_stats_text("frontend-abc123", run_cmd=runner)
-        self.assertEqual(text, SAMPLE_STATS)
+        self.assertEqual(text, SAMPLE_MESH_STATS)
         cmd = calls[0]
         self.assertEqual(cmd[:3], ["kubectl", "exec", "frontend-abc123"])
         self.assertIn("-c", cmd)
@@ -197,108 +197,87 @@ class TestFetchStatsText(unittest.TestCase):
 
 
 class TestPollOnce(unittest.TestCase):
-    def test_writes_rows_for_both_callers(self):
+    def test_writes_edges_and_inbound_for_every_service(self):
         import tempfile
 
         with tempfile.TemporaryDirectory() as td:
             record_path = Path(td)
-            caller_map = {
-                "frontend": ["cartservice", "productcatalogservice"],
-                "checkoutservice": ["paymentservice"],
-            }
+            services = ["frontend", "checkoutservice"]
 
             def run_cmd(cmd):
                 joined = " ".join(cmd)
                 if "get pods" in joined and "app=frontend" in joined:
-                    return SimpleNamespace(
-                        returncode=0, stdout="frontend-1\n", stderr=""
-                    )
+                    return SimpleNamespace(returncode=0, stdout="frontend-1\n", stderr="")
                 if "get pods" in joined and "app=checkoutservice" in joined:
-                    return SimpleNamespace(
-                        returncode=0, stdout="checkout-1\n", stderr=""
-                    )
+                    return SimpleNamespace(returncode=0, stdout="checkout-1\n", stderr="")
                 if "exec" in cmd and "frontend-1" in cmd:
-                    return SimpleNamespace(
-                        returncode=0, stdout=SAMPLE_STATS, stderr=""
-                    )
+                    return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
                 if "exec" in cmd and "checkout-1" in cmd:
-                    # paymentservice total only
                     stats = (
                         "cluster.outbound|50051||paymentservice.default."
                         "svc.cluster.local.upstream_rq_total: 7\n"
-                        "cluster.outbound|50051||paymentservice.default."
-                        "svc.cluster.local.upstream_rq_retry: 1\n"
+                        "http.inbound_0.0.0.0_8080.downstream_rq_total: 30\n"
                     )
                     return SimpleNamespace(returncode=0, stdout=stats, stderr="")
                 return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
 
             erc.poll_once(
-                record_path,
-                caller_map,
-                timestamp="2026-08-20T12:00:00Z",
-                run_cmd=run_cmd,
-                pod_cache={},
+                record_path, services,
+                timestamp="2026-09-08T12:00:00Z",
+                run_cmd=run_cmd, pod_cache={},
             )
 
-            with open(record_path / "envoy_retries_frontend.csv", newline="") as f:
-                fe = list(csv.DictReader(f))
-            with open(
-                record_path / "envoy_retries_checkoutservice.csv", newline=""
-            ) as f:
-                co = list(csv.DictReader(f))
+            with open(record_path / "service_edges.csv", newline="") as f:
+                edges_rows = list(csv.DictReader(f))
+            with open(record_path / "service_inbound.csv", newline="") as f:
+                inbound_rows = list(csv.DictReader(f))
+
             self.assertEqual(
-                {r["target_service"] for r in fe},
-                {"cartservice", "productcatalogservice"},
+                {(r["caller"], r["target"]) for r in edges_rows},
+                {("frontend", "cartservice"), ("frontend", "productcatalogservice"),
+                 ("checkoutservice", "paymentservice")},
             )
-            self.assertEqual(co[0]["target_service"], "paymentservice")
-            self.assertEqual(co[0]["upstream_rq_retry"], "1")
+            self.assertEqual(
+                {r["service"] for r in inbound_rows},
+                {"frontend", "checkoutservice"},
+            )
+            checkout_inbound = next(r for r in inbound_rows if r["service"] == "checkoutservice")
+            self.assertEqual(checkout_inbound["total"], "30")
 
-    def test_survives_one_caller_fetch_failure(self):
+    def test_survives_one_service_fetch_failure(self):
         import tempfile
 
         with tempfile.TemporaryDirectory() as td:
             record_path = Path(td)
-            caller_map = {
-                "frontend": ["cartservice"],
-                "checkoutservice": ["paymentservice"],
-            }
+            services = ["frontend", "checkoutservice"]
 
             def run_cmd(cmd):
                 joined = " ".join(cmd)
                 if "get pods" in joined and "app=frontend" in joined:
-                    return SimpleNamespace(
-                        returncode=0, stdout="frontend-1\n", stderr=""
-                    )
+                    return SimpleNamespace(returncode=0, stdout="frontend-1\n", stderr="")
                 if "get pods" in joined and "app=checkoutservice" in joined:
-                    return SimpleNamespace(
-                        returncode=0, stdout="checkout-1\n", stderr=""
-                    )
+                    return SimpleNamespace(returncode=0, stdout="checkout-1\n", stderr="")
                 if "exec" in cmd and "frontend-1" in cmd:
                     return SimpleNamespace(returncode=1, stdout="", stderr="fail")
                 if "exec" in cmd and "checkout-1" in cmd:
-                    stats = (
-                        "cluster.outbound|50051||paymentservice.default."
-                        "svc.cluster.local.upstream_rq_total: 7\n"
+                    return SimpleNamespace(
+                        returncode=0,
+                        stdout="http.inbound_0.0.0.0_8080.downstream_rq_total: 30\n",
+                        stderr="",
                     )
-                    return SimpleNamespace(returncode=0, stdout=stats, stderr="")
                 return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
 
-            # Must not raise
+            # Must not raise.
             erc.poll_once(
-                record_path,
-                caller_map,
-                timestamp="2026-08-20T12:00:00Z",
-                run_cmd=run_cmd,
-                pod_cache={},
+                record_path, services,
+                timestamp="2026-09-08T12:00:00Z",
+                run_cmd=run_cmd, pod_cache={},
             )
-            self.assertFalse(
-                (record_path / "envoy_retries_frontend.csv").exists()
-            )
-            with open(
-                record_path / "envoy_retries_checkoutservice.csv", newline=""
-            ) as f:
-                co = list(csv.DictReader(f))
-            self.assertEqual(len(co), 1)
+            self.assertFalse((record_path / "service_edges.csv").exists())
+            with open(record_path / "service_inbound.csv", newline="") as f:
+                rows = list(csv.DictReader(f))
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["service"], "checkoutservice")
 
 
 class TestRunCollector(unittest.TestCase):
@@ -311,24 +290,29 @@ class TestRunCollector(unittest.TestCase):
             def run_cmd(cmd):
                 joined = " ".join(cmd)
                 if "get pods" in joined:
-                    caller = "frontend" if "app=frontend" in joined else "checkoutservice"
-                    return SimpleNamespace(
-                        returncode=0, stdout=f"{caller}-1\n", stderr=""
-                    )
-                return SimpleNamespace(returncode=0, stdout=SAMPLE_STATS, stderr="")
+                    svc = "frontend" if "app=frontend" in joined else "checkoutservice"
+                    return SimpleNamespace(returncode=0, stdout=f"{svc}-1\n", stderr="")
+                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
 
             erc.run_collector(
-                {"poll_interval_seconds": 1},
+                {"poll_interval_seconds": 1, "services": ["frontend", "checkoutservice"]},
                 record_path,
                 run_cmd=run_cmd,
                 max_polls=1,
             )
-            self.assertTrue(
-                (record_path / "envoy_retries_frontend.csv").exists()
-            )
-            self.assertTrue(
-                (record_path / "envoy_retries_checkoutservice.csv").exists()
-            )
+            self.assertTrue((record_path / "service_edges.csv").exists())
+            self.assertTrue((record_path / "service_inbound.csv").exists())
+
+
+class TestResolveServices(unittest.TestCase):
+    def test_defaults_to_all_services(self):
+        self.assertEqual(erc.resolve_services({}), erc.ALL_SERVICES)
+
+    def test_override_via_params(self):
+        self.assertEqual(
+            erc.resolve_services({"services": ["frontend", "cartservice"]}),
+            ["frontend", "cartservice"],
+        )
 
 
 if __name__ == "__main__":
