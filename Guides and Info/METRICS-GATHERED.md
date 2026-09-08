@@ -125,10 +125,12 @@ timestamp, caller, target, total, 2xx, 4xx, 5xx, retry
 |---|---|
 | `caller` | Service whose sidecar issued the outbound request |
 | `target` | Callee service (parsed from `cluster.outbound\|...\|<target>`) |
-| `total` / `2xx` / `4xx` / `5xx` | Outbound request counts by status |
+| `total` / `2xx` / `4xx` / `5xx` | Outbound request counts by status (see live caveat below) |
 | `retry` | Outbound retry attempts to that target |
 
-Use for outgoing retries/goodput **and** for incoming retries at a service: sum `retry` (or `Δretry`) over all rows where `target = <service>` — Envoy has no inbound retry counter.
+Use for outgoing retries **and** for incoming retries at a service: sum `retry` (or `Δretry`) over all rows where `target = <service>` — Envoy has no inbound retry counter.
+
+**Live outbound class-counter gap (2026-09-08 smoke):** on our Istio/Envoy sidecars, live `cluster.outbound|…upstream_rq_*` exposes `total` and `retry` but **not** `2xx` / `4xx` / `5xx`. The collector parser defaults missing metrics to 0, so `service_edges.csv` class columns stay 0 even under load. For outgoing volume and retries, use edges `total` / `retry` (and their diffs). For per-hop goodput by status, use `service_inbound.csv` `2xx` / `4xx` / `5xx` on the callee's side — do **not** treat edges class columns as live goodput.
 
 ### `service_inbound.csv` — inbound per service
 

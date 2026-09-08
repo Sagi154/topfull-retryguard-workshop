@@ -123,6 +123,14 @@ service's original CPU limit/request/replica count into
 retries only, no inbound, no capacity snapshot). A **new run** is required to
 get `service_edges.csv` / `service_inbound.csv` / `service_capacity.json`.
 
+**Live outbound class-counter gap (2026-09-08 smoke):** live Istio/Envoy
+outbound `cluster.outbound|…upstream_rq_*` exposes `total` and `retry` but not
+`2xx` / `4xx` / `5xx`. The parser defaults missing metrics to 0, so
+`service_edges.csv` class columns stay 0 even under load. Use edges
+`total` / `retry` for outgoing volume/retries; use `service_inbound.csv`
+`2xx` / `4xx` / `5xx` for hop goodput — do not treat edges class columns as
+live goodput.
+
 **Follow-up (not done here):** `experiments/mentor_charts.py` /
 `mentor_charts_data.py` still only read the legacy
 `envoy_retries_{caller}.csv` shape for chart generation. Wiring them to also
