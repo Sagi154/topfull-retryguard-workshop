@@ -308,6 +308,53 @@ def clear_logs(cfg: dict):
 #  Topology constraints
 # --------------------------------------------------------------------------- #
 
+def parse_cpu_to_millicores(cpu_str):
+    """Convert a Kubernetes CPU quantity ('100m', '1', '0.5') to millicores."""
+    if not cpu_str:
+        return None
+    s = str(cpu_str).strip()
+    if not s:
+        return None
+    if s.endswith("m"):
+        return int(s[:-1])
+    return int(float(s) * 1000)
+
+
+def capture_service_capacity(cfg: dict, services: list) -> dict:
+    """
+    Snapshot each service's *original* CPU limit/request and declared
+    replica count, before any scale_constraints are applied.
+
+    Returns {service: {cpu_limit_millicores, cpu_request_millicores,
+    replica_count}}. Missing/unparseable CPU values are None. Services
+    with no matching Deployment (or on any kubectl/JSON failure) are
+    simply omitted.
+    """
+    master = cfg["infra"]["master_ssh_host"]
+    r = ssh(master, "kubectl get deploy -n default -o json", check=False)
+    try:
+        data = json.loads(r.stdout or "{}")
+    except json.JSONDecodeError:
+        data = {}
+
+    capacity = {}
+    for item in data.get("items", []):
+        name = (item.get("metadata") or {}).get("name")
+        if name not in services:
+            continue
+        spec = item.get("spec") or {}
+        containers = ((spec.get("template") or {}).get("spec") or {}).get("containers", [])
+        resources = containers[0].get("resources", {}) if containers else {}
+        limits = resources.get("limits", {}) or {}
+        requests = resources.get("requests", {}) or {}
+        capacity[name] = {
+            "cpu_limit_millicores": parse_cpu_to_millicores(limits.get("cpu")),
+            "cpu_request_millicores": parse_cpu_to_millicores(requests.get("cpu")),
+            "replica_count": int(spec.get("replicas", 1)),
+        }
+    return capacity
+
+
 def apply_constraints(cfg: dict) -> list:
     """
     Apply kubectl scale or CPU limit constraints.
@@ -849,7 +896,7 @@ def scenario_dir_name(cfg: dict) -> str:
     return ""  # unknown scenario_id — fall back to no subfolder
 
 
-def collect_results(cfg: dict) -> str:
+def collect_results(cfg: dict, capacity: dict | None = None) -> str:
     banner("Collecting results")
     master = cfg["infra"]["master_ssh_host"]
     src = cfg["infra"]["topfull_src_path"]
@@ -876,6 +923,7 @@ def collect_results(cfg: dict) -> str:
         "collected_at":  datetime.utcnow().isoformat() + "Z",
     }
     write_remote_json(master, f"{dest}/run_manifest.json", manifest)
+    write_remote_json(master, f"{dest}/service_capacity.json", capacity or {})
 
     step(f"Results saved to (on master): {dest}")
     step("To pull results to your PC:")
@@ -940,11 +988,13 @@ def run(config_path: str):
     print(f"{'='*60}")
 
     restore_records = []
+    capacity = {}
     start_ts = datetime.now()
 
     try:
         preflight(cfg)
         clear_logs(cfg)
+        capacity = capture_service_capacity(cfg, ALL_BOUTIQUE_SERVICES)
         restore_records = apply_constraints(cfg)
 
         start_master_stack(cfg)
@@ -991,7 +1041,7 @@ def run(config_path: str):
         stop_locust(cfg)
         stop_master_stack(cfg)
 
-        collect_results(cfg)
+        collect_results(cfg, capacity)
 
         if restore_records:
             restore_constraints(cfg, restore_records)

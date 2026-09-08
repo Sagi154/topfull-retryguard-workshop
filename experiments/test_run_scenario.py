@@ -6,6 +6,7 @@ launch wiring (_launch_locust). No network access; all SSH calls are mocked.
 Run:
     python experiments/test_run_scenario.py
 """
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -559,6 +560,120 @@ class TestDeployRepoScript(unittest.TestCase):
                 "topfull-master", "retryguard.py",
                 "/home/idozacharia/experiments/retryguard.py",
             )
+
+
+class TestServiceCapacity(unittest.TestCase):
+    def test_parse_cpu_to_millicores_variants(self):
+        self.assertEqual(run_scenario.parse_cpu_to_millicores("100m"), 100)
+        self.assertEqual(run_scenario.parse_cpu_to_millicores("1"), 1000)
+        self.assertEqual(run_scenario.parse_cpu_to_millicores("0.5"), 500)
+        self.assertIsNone(run_scenario.parse_cpu_to_millicores(None))
+        self.assertIsNone(run_scenario.parse_cpu_to_millicores(""))
+
+    @mock.patch("run_scenario.ssh")
+    def test_capture_service_capacity_parses_deployment_json(self, mock_ssh):
+        deploy_json = json.dumps({
+            "items": [
+                {
+                    "metadata": {"name": "checkoutservice"},
+                    "spec": {
+                        "replicas": 1,
+                        "template": {"spec": {"containers": [
+                            {"name": "server", "resources": {
+                                "limits": {"cpu": "100m"},
+                                "requests": {"cpu": "100m"},
+                            }},
+                        ]}},
+                    },
+                },
+                {
+                    "metadata": {"name": "frontend"},
+                    "spec": {
+                        "replicas": 1,
+                        "template": {"spec": {"containers": [
+                            {"name": "server", "resources": {
+                                "limits": {"cpu": "300m"},
+                                "requests": {"cpu": "200m"},
+                            }},
+                        ]}},
+                    },
+                },
+                {
+                    "metadata": {"name": "not-requested-service"},
+                    "spec": {"replicas": 1, "template": {"spec": {"containers": []}}},
+                },
+            ],
+        })
+        mock_ssh.return_value = SimpleNamespace(returncode=0, stdout=deploy_json, stderr="")
+        cfg = {"infra": {"master_ssh_host": "topfull-master"}}
+
+        capacity = run_scenario.capture_service_capacity(
+            cfg, ["checkoutservice", "frontend"]
+        )
+
+        self.assertEqual(set(capacity.keys()), {"checkoutservice", "frontend"})
+        self.assertEqual(capacity["checkoutservice"], {
+            "cpu_limit_millicores": 100,
+            "cpu_request_millicores": 100,
+            "replica_count": 1,
+        })
+        self.assertEqual(capacity["frontend"]["cpu_limit_millicores"], 300)
+        self.assertEqual(capacity["frontend"]["cpu_request_millicores"], 200)
+
+    @mock.patch("run_scenario.ssh")
+    def test_capture_service_capacity_handles_bad_json(self, mock_ssh):
+        mock_ssh.return_value = SimpleNamespace(returncode=1, stdout="", stderr="boom")
+        cfg = {"infra": {"master_ssh_host": "topfull-master"}}
+        capacity = run_scenario.capture_service_capacity(cfg, ["frontend"])
+        self.assertEqual(capacity, {})
+
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_collect_results_writes_service_capacity_json(self, mock_ssh, mock_write_json):
+        mock_ssh.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
+        cfg = {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "topfull_src_path": "/home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src",
+                "results_base_path": "/home/idozacharia/experiments/results",
+            },
+            "scenario_id": 1, "scenario_name": "scenario_1_baseline",
+            "condition": "baseline", "run_number": 7, "duration_seconds": 300,
+            "retryguard": {"enabled": False},
+            "log_folder": "test_run",
+        }
+        capacity = {"frontend": {"cpu_limit_millicores": 300, "cpu_request_millicores": 200, "replica_count": 1}}
+
+        run_scenario.collect_results(cfg, capacity)
+
+        capacity_calls = [
+            c for c in mock_write_json.call_args_list
+            if c.args[1].endswith("service_capacity.json")
+        ]
+        self.assertEqual(len(capacity_calls), 1)
+        self.assertEqual(capacity_calls[0].args[2], capacity)
+
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_collect_results_writes_empty_dict_when_capacity_omitted(self, mock_ssh, mock_write_json):
+        mock_ssh.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
+        cfg = {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "topfull_src_path": "/home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src",
+                "results_base_path": "/home/idozacharia/experiments/results",
+            },
+            "scenario_id": 1, "scenario_name": "scenario_1_baseline",
+            "condition": "baseline", "run_number": 7, "duration_seconds": 300,
+            "retryguard": {"enabled": False},
+            "log_folder": "test_run",
+        }
+        run_scenario.collect_results(cfg)
+        capacity_calls = [
+            c for c in mock_write_json.call_args_list
+            if c.args[1].endswith("service_capacity.json")
+        ]
+        self.assertEqual(capacity_calls[0].args[2], {})
 
 
 if __name__ == "__main__":
