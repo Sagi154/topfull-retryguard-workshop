@@ -538,12 +538,32 @@ def start_retryguard(cfg: dict):
 #  Envoy retry-stats collector (Gap 3 — retries per request)
 # --------------------------------------------------------------------------- #
 
-# Istio's default proxyStatsMatcher strips detailed per-cluster stats (including
-# upstream_rq_retry*) from the Envoy admin /stats endpoint to save memory. Without
-# this annotation, envoy_retry_collector.py silently gets all-zero data forever —
-# confirmed live on 2026-08-20 (PHASE7-DATA-GAPS.md Gap 3). Applying it via
-# kubectl patch is idempotent: a no-op (no pod restart) once already applied.
-STATS_INCLUSION_REGEX = r"cluster\.outbound.*upstream_rq.*"
+# Istio's default proxyStatsMatcher strips detailed per-cluster/listener stats
+# (both outbound upstream_rq_* and inbound downstream_rq_*) from the Envoy
+# admin /stats endpoint to save memory. Without this annotation, the mesh
+# collector silently gets all-zero data forever — confirmed live on
+# 2026-08-20 (PHASE7-DATA-GAPS.md Gap 3) for the outbound-only case.
+# Applying it via kubectl patch is idempotent: a no-op (no pod restart)
+# once already applied with the same value.
+STATS_INCLUSION_REGEX = r"(cluster\.outbound.*upstream_rq.*)|(http\.inbound.*downstream_rq.*)"
+
+# All 11 Boutique Deployments — the full mesh collector scrapes every one of
+# these every poll (see PER-SERVICE-MESH-COLLECTOR-DESIGN.md). Keep this list
+# in sync with envoy_retry_collector.ALL_SERVICES and
+# resource_usage_collector.DEFAULT_SERVICES.
+ALL_BOUTIQUE_SERVICES = [
+    "frontend",
+    "cartservice",
+    "checkoutservice",
+    "productcatalogservice",
+    "paymentservice",
+    "recommendationservice",
+    "shippingservice",
+    "currencyservice",
+    "emailservice",
+    "adservice",
+    "redis-cart",
+]
 
 
 def ensure_envoy_stats_enabled(cfg: dict, caller_pods: list):
@@ -578,16 +598,19 @@ def ensure_envoy_stats_enabled(cfg: dict, caller_pods: list):
 
 def start_envoy_retry_collector(cfg: dict):
     """
-    Start the Envoy sidecar retry-stats scraper on master.
+    Start the full-mesh Envoy sidecar collector on master.
 
-    Independent of RetryGuard: must run in both baseline and RetryGuard
-    conditions so retry volume is comparable across arms.
+    Scrapes every Boutique pod (not just frontend/checkoutservice) for
+    outbound (upstream_rq_*) and inbound (downstream_rq_*) stats, writing
+    service_edges.csv / service_inbound.csv. Independent of RetryGuard:
+    must run in both baseline and RetryGuard conditions so retry volume
+    is comparable across arms.
     """
     erc_cfg = cfg.get("envoy_retry_collector", {})
     if not erc_cfg.get("enabled", False):
         return
 
-    banner("Starting Envoy retry collector")
+    banner("Starting Envoy mesh collector")
     master = cfg["infra"]["master_ssh_host"]
     venv = cfg["infra"]["venv_activate"]
     script = cfg["infra"].get(
@@ -596,20 +619,19 @@ def start_envoy_retry_collector(cfg: dict):
     )
     deploy_repo_script(master, "envoy_retry_collector.py", script)
 
-    caller_pods = list(erc_cfg.get(
-        "caller_target_map", {"frontend": [], "checkoutservice": []}
-    ).keys())
-    ensure_envoy_stats_enabled(cfg, caller_pods)
+    services = list(erc_cfg.get("services", ALL_BOUTIQUE_SERVICES))
+    ensure_envoy_stats_enabled(cfg, services)
 
     params = {
         "poll_interval_seconds": int(erc_cfg.get("poll_interval_seconds", 5)),
     }
-    if "caller_target_map" in erc_cfg:
-        params["caller_target_map"] = erc_cfg["caller_target_map"]
+    if "services" in erc_cfg:
+        params["services"] = erc_cfg["services"]
 
     write_remote_json(master, "/tmp/envoy_retry_params.json", params)
-    step(f"Uploaded Envoy retry collector params: "
-         f"poll_interval={params['poll_interval_seconds']}s")
+    step(f"Uploaded Envoy mesh collector params: "
+         f"poll_interval={params['poll_interval_seconds']}s "
+         f"services={len(services)}")
 
     start_script = (
         f"#!/bin/bash\n"
@@ -618,9 +640,9 @@ def start_envoy_retry_collector(cfg: dict):
     )
     write_remote_script(master, "/tmp/rg_envoy_retry.sh", start_script)
     ssh(master, "tmux new-session -d -s envoyretry /tmp/rg_envoy_retry.sh")
-    step(f"Started: Envoy retry collector "
+    step(f"Started: Envoy mesh collector "
          f"(tmux session: envoyretry, script: {script})")
-    wait_with_progress(3, "Envoy retry collector init")
+    wait_with_progress(3, "Envoy mesh collector init")
 
 
 # --------------------------------------------------------------------------- #

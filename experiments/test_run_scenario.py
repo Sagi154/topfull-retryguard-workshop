@@ -290,7 +290,7 @@ class TestEnvoyRetryCollectorWiring(unittest.TestCase):
         json_path, params = mock_write_json.call_args[0][1:3]
         self.assertEqual(json_path, "/tmp/envoy_retry_params.json")
         self.assertEqual(params["poll_interval_seconds"], 5)
-        self.assertNotIn("caller_target_map", params)
+        self.assertNotIn("services", params)
 
         script_path, script_body = mock_write_script.call_args[0][1:3]
         self.assertEqual(script_path, "/tmp/rg_envoy_retry.sh")
@@ -321,16 +321,14 @@ class TestEnvoyRetryCollectorWiring(unittest.TestCase):
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ssh")
     @mock.patch("run_scenario.deploy_repo_script")
-    def test_start_passes_caller_target_map_override(
+    def test_start_passes_services_override(
         self, mock_deploy, mock_ssh, mock_write_json, mock_write_script, mock_wait
     ):
         cfg = self._cfg(enabled=True)
-        cfg["envoy_retry_collector"]["caller_target_map"] = {
-            "frontend": ["cartservice"],
-        }
+        cfg["envoy_retry_collector"]["services"] = ["frontend", "cartservice"]
         run_scenario.start_envoy_retry_collector(cfg)
         params = mock_write_json.call_args[0][2]
-        self.assertEqual(params["caller_target_map"], {"frontend": ["cartservice"]})
+        self.assertEqual(params["services"], ["frontend", "cartservice"])
 
     @mock.patch("run_scenario.ssh")
     def test_stop_master_stack_pkills_envoy_collector(self, mock_ssh):
@@ -370,6 +368,9 @@ class TestEnvoyRetryCollectorWiring(unittest.TestCase):
             ["sidecar.istio.io/statsInclusionRegexps"],
             run_scenario.STATS_INCLUSION_REGEX,
         )
+        # Regex must now also cover inbound listener stats, not just outbound.
+        self.assertIn("downstream_rq", run_scenario.STATS_INCLUSION_REGEX)
+        self.assertIn("upstream_rq", run_scenario.STATS_INCLUSION_REGEX)
 
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ssh")
@@ -394,14 +395,26 @@ class TestEnvoyRetryCollectorWiring(unittest.TestCase):
     @mock.patch("run_scenario.ensure_envoy_stats_enabled")
     @mock.patch("run_scenario.ssh")
     @mock.patch("run_scenario.deploy_repo_script")
-    def test_start_envoy_retry_collector_calls_ensure_stats_first(
+    def test_start_envoy_retry_collector_patches_all_services_by_default(
         self, mock_deploy, mock_ssh, mock_ensure, mock_write_json, mock_write_script, mock_wait
     ):
         cfg = self._cfg(enabled=True)
         run_scenario.start_envoy_retry_collector(cfg)
-        mock_ensure.assert_called_once_with(
-            cfg, ["frontend", "checkoutservice"]
-        )
+        mock_ensure.assert_called_once_with(cfg, run_scenario.ALL_BOUTIQUE_SERVICES)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ensure_envoy_stats_enabled")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_start_envoy_retry_collector_patches_service_override(
+        self, mock_deploy, mock_ssh, mock_ensure, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(enabled=True)
+        cfg["envoy_retry_collector"]["services"] = ["frontend"]
+        run_scenario.start_envoy_retry_collector(cfg)
+        mock_ensure.assert_called_once_with(cfg, ["frontend"])
 
 
 class TestResourceUsageCollectorWiring(unittest.TestCase):
