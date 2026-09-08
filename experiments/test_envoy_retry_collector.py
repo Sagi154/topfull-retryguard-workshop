@@ -20,99 +20,124 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import envoy_retry_collector as erc
 
 
-SAMPLE_STATS = """\
-cluster.inbound|8080||.upstream_rq_total: 999
+SAMPLE_MESH_STATS = """\
 cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_total: 100
+cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_2xx: 90
+cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_4xx: 8
+cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_5xx: 2
 cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_retry: 12
-cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_retry_success: 8
-cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_retry_limit_exceeded: 1
 cluster.outbound|9555||productcatalogservice.default.svc.cluster.local.upstream_rq_total: 50
 cluster.outbound|9555||productcatalogservice.default.svc.cluster.local.upstream_rq_retry: 3
-cluster.outbound|50051||paymentservice.default.svc.cluster.local.upstream_rq_total: 20
-cluster.outbound|50051||emailservice.default.svc.cluster.local.upstream_rq_total: 5
-cluster.outbound|50051||emailservice.default.svc.cluster.local.upstream_rq_retry: 2
+http.inbound_0.0.0.0_8080.downstream_rq_total: 200
+http.inbound_0.0.0.0_8080.downstream_rq_2xx: 180
+http.inbound_0.0.0.0_8080.downstream_rq_4xx: 15
+http.inbound_0.0.0.0_8080.downstream_rq_5xx: 5
 """
 
 
-class TestParseRetryStats(unittest.TestCase):
-    def test_extracts_only_requested_targets(self):
-        result = erc.parse_retry_stats(
-            SAMPLE_STATS,
-            ["cartservice", "productcatalogservice", "paymentservice"],
-        )
-        self.assertEqual(
-            set(result.keys()),
-            {"cartservice", "productcatalogservice", "paymentservice"},
-        )
-        self.assertNotIn("emailservice", result)
+class TestParseEdges(unittest.TestCase):
+    def test_extracts_every_target_seen(self):
+        edges = erc.parse_edges(SAMPLE_MESH_STATS)
+        self.assertEqual(set(edges.keys()), {"cartservice", "productcatalogservice"})
 
-    def test_cartservice_full_metrics(self):
-        result = erc.parse_retry_stats(SAMPLE_STATS, ["cartservice"])
+    def test_full_metrics_for_cartservice(self):
+        edges = erc.parse_edges(SAMPLE_MESH_STATS)
         self.assertEqual(
-            result["cartservice"],
-            {
-                "upstream_rq_total": 100,
-                "upstream_rq_retry": 12,
-                "upstream_rq_retry_success": 8,
-                "upstream_rq_retry_limit_exceeded": 1,
-            },
+            edges["cartservice"],
+            {"total": 100, "2xx": 90, "4xx": 8, "5xx": 2, "retry": 12},
         )
 
     def test_missing_metrics_default_to_zero(self):
-        result = erc.parse_retry_stats(SAMPLE_STATS, ["paymentservice"])
+        edges = erc.parse_edges(SAMPLE_MESH_STATS)
         self.assertEqual(
-            result["paymentservice"],
-            {
-                "upstream_rq_total": 20,
-                "upstream_rq_retry": 0,
-                "upstream_rq_retry_success": 0,
-                "upstream_rq_retry_limit_exceeded": 0,
-            },
+            edges["productcatalogservice"],
+            {"total": 50, "2xx": 0, "4xx": 0, "5xx": 0, "retry": 3},
         )
 
-    def test_target_absent_from_stats_still_emitted_with_zeros(self):
-        result = erc.parse_retry_stats(SAMPLE_STATS, ["checkoutservice"])
+    def test_target_never_seen_is_absent_not_zero_filled(self):
+        edges = erc.parse_edges(SAMPLE_MESH_STATS)
+        self.assertNotIn("paymentservice", edges)
+
+    def test_empty_stats_text_returns_empty_dict(self):
+        self.assertEqual(erc.parse_edges(""), {})
+
+
+class TestParseInbound(unittest.TestCase):
+    def test_extracts_all_four_metrics(self):
+        inbound = erc.parse_inbound(SAMPLE_MESH_STATS)
         self.assertEqual(
-            result["checkoutservice"],
-            {
-                "upstream_rq_total": 0,
-                "upstream_rq_retry": 0,
-                "upstream_rq_retry_success": 0,
-                "upstream_rq_retry_limit_exceeded": 0,
-            },
+            inbound, {"total": 200, "2xx": 180, "4xx": 15, "5xx": 5}
         )
 
-    def test_empty_stats_text(self):
-        result = erc.parse_retry_stats("", ["cartservice"])
-        self.assertEqual(result["cartservice"]["upstream_rq_total"], 0)
+    def test_no_inbound_lines_returns_zeros(self):
+        inbound = erc.parse_inbound(
+            "cluster.outbound|80||cartservice.default.svc.cluster.local."
+            "upstream_rq_total: 100\n"
+        )
+        self.assertEqual(inbound, {"total": 0, "2xx": 0, "4xx": 0, "5xx": 0})
+
+    def test_multiple_listener_ports_are_summed(self):
+        text = (
+            "http.inbound_0.0.0.0_8080.downstream_rq_total: 100\n"
+            "http.inbound_0.0.0.0_9090.downstream_rq_total: 50\n"
+        )
+        self.assertEqual(erc.parse_inbound(text)["total"], 150)
 
 
-class TestWriteCsvRow(unittest.TestCase):
-    def test_writes_header_once_then_appends(self, tmp_path=None):
-        # pytest-style tmp_path not available under unittest; use TemporaryDirectory
+class TestWriteEdgesCsv(unittest.TestCase):
+    def test_writes_header_once_then_appends_multiple_targets(self):
         import tempfile
 
         with tempfile.TemporaryDirectory() as td:
-            path = Path(td) / "envoy_retries_frontend.csv"
-            stats = {
-                "upstream_rq_total": 10,
-                "upstream_rq_retry": 2,
-                "upstream_rq_retry_success": 1,
-                "upstream_rq_retry_limit_exceeded": 0,
+            path = Path(td) / "service_edges.csv"
+            edges_t0 = {
+                "cartservice": {"total": 10, "2xx": 9, "4xx": 1, "5xx": 0, "retry": 2},
+                "paymentservice": {"total": 5, "2xx": 5, "4xx": 0, "5xx": 0, "retry": 0},
             }
-            erc.write_csv_row(path, "2026-08-20T12:00:00Z", "cartservice", stats)
-            erc.write_csv_row(path, "2026-08-20T12:00:05Z", "cartservice", {
-                **stats, "upstream_rq_total": 15, "upstream_rq_retry": 3,
-            })
+            erc.write_edges_csv(path, "2026-09-08T12:00:00Z", "checkoutservice", edges_t0)
+            edges_t1 = {
+                "cartservice": {"total": 20, "2xx": 18, "4xx": 2, "5xx": 0, "retry": 3},
+            }
+            erc.write_edges_csv(path, "2026-09-08T12:00:05Z", "checkoutservice", edges_t1)
 
             with open(path, newline="") as f:
                 rows = list(csv.DictReader(f))
+            self.assertEqual(len(rows), 3)
+            self.assertEqual(rows[0]["caller"], "checkoutservice")
+            self.assertEqual(rows[0]["target"], "cartservice")
+            self.assertEqual(rows[0]["retry"], "2")
+            self.assertEqual(rows[1]["target"], "paymentservice")
+            self.assertEqual(rows[2]["total"], "20")
+
+    def test_empty_edges_writes_no_rows_but_no_error(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "service_edges.csv"
+            erc.write_edges_csv(path, "2026-09-08T12:00:00Z", "frontend", {})
+            self.assertFalse(path.exists())
+
+
+class TestWriteInboundCsv(unittest.TestCase):
+    def test_writes_header_once_then_appends(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "service_inbound.csv"
+            erc.write_inbound_csv(
+                path, "2026-09-08T12:00:00Z", "frontend",
+                {"total": 100, "2xx": 90, "4xx": 8, "5xx": 2},
+            )
+            erc.write_inbound_csv(
+                path, "2026-09-08T12:00:05Z", "frontend",
+                {"total": 150, "2xx": 140, "4xx": 8, "5xx": 2},
+            )
+            with open(path, newline="") as f:
+                rows = list(csv.DictReader(f))
             self.assertEqual(len(rows), 2)
-            self.assertEqual(rows[0]["timestamp"], "2026-08-20T12:00:00Z")
-            self.assertEqual(rows[0]["target_service"], "cartservice")
-            self.assertEqual(rows[0]["upstream_rq_retry"], "2")
-            self.assertEqual(rows[1]["upstream_rq_total"], "15")
-            self.assertEqual(rows[1]["upstream_rq_retry"], "3")
+            self.assertEqual(rows[0]["service"], "frontend")
+            self.assertEqual(rows[0]["total"], "100")
+            self.assertEqual(rows[1]["total"], "150")
 
 
 class TestDiscoverPodName(unittest.TestCase):

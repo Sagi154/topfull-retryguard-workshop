@@ -39,45 +39,41 @@ GLOBAL_CONFIG_PATH = (
     "online_boutique_scripts/src/global_config.json"
 )
 
-# Caller deployment (app label) → outbound target services whose retry
-# counters we extract from that caller's Envoy sidecar.
-CALLER_TARGET_MAP: Dict[str, List[str]] = {
-    "frontend": [
-        "cartservice",
-        "productcatalogservice",
-        "checkoutservice",
-    ],
-    "checkoutservice": [
-        "cartservice",
-        "productcatalogservice",
-        "paymentservice",
-    ],
-}
-
-METRIC_NAMES = (
-    "upstream_rq_total",
-    "upstream_rq_retry",
-    "upstream_rq_retry_success",
-    "upstream_rq_retry_limit_exceeded",
-)
-
-CSV_COLUMNS = [
-    "timestamp",
-    "target_service",
-    "upstream_rq_total",
-    "upstream_rq_retry",
-    "upstream_rq_retry_success",
-    "upstream_rq_retry_limit_exceeded",
+# All 11 Boutique Deployments (app label == Kubernetes Service name). Every
+# pod is scraped every poll — no more hardcoded caller/target shortlist.
+ALL_SERVICES: List[str] = [
+    "frontend",
+    "cartservice",
+    "checkoutservice",
+    "productcatalogservice",
+    "paymentservice",
+    "recommendationservice",
+    "shippingservice",
+    "currencyservice",
+    "emailservice",
+    "adservice",
+    "redis-cart",
 ]
 
-# cluster.outbound|<port>||<svc>.default.svc.cluster.local.<metric>: <value>
-STAT_RE = re.compile(
+OUTBOUND_METRICS = ("total", "2xx", "4xx", "5xx", "retry")
+INBOUND_METRICS = ("total", "2xx", "4xx", "5xx")
+
+# cluster.outbound|<port>||<target>.default.svc.cluster.local.upstream_rq_<metric>: <value>
+OUTBOUND_RE = re.compile(
     r"^cluster\.outbound\|[^|]*\|[^|]*\|"
     r"(?P<target>[\w-]+)\.default\.svc\.cluster\.local\."
-    r"(?P<metric>"
-    + "|".join(METRIC_NAMES)
-    + r"): (?P<value>\d+)$"
+    r"upstream_rq_(?P<metric>total|2xx|4xx|5xx|retry): (?P<value>\d+)$"
 )
+
+# http.inbound_<listener-id>.downstream_rq_<metric>: <value>
+# (listener id is typically "<bind-ip>_<port>", e.g. "0.0.0.0_8080")
+INBOUND_RE = re.compile(
+    r"^http\.inbound_(?P<listener>[\w.]+)\.downstream_rq_"
+    r"(?P<metric>total|2xx|4xx|5xx): (?P<value>\d+)$"
+)
+
+EDGES_CSV_COLUMNS = ["timestamp", "caller", "target", "total", "2xx", "4xx", "5xx", "retry"]
+INBOUND_CSV_COLUMNS = ["timestamp", "service", "total", "2xx", "4xx", "5xx"]
 
 DEFAULT_POLL_INTERVAL_SECONDS = 5
 KUBECTL_TIMEOUT_SECONDS = 15
@@ -138,13 +134,6 @@ def load_record_path(global_config_path: str = GLOBAL_CONFIG_PATH) -> Path:
     return Path(gcfg["record_path"])
 
 
-def resolve_caller_map(params: dict) -> Dict[str, List[str]]:
-    override = params.get("caller_target_map")
-    if override:
-        return {str(k): list(v) for k, v in override.items()}
-    return {k: list(v) for k, v in CALLER_TARGET_MAP.items()}
-
-
 # --------------------------------------------------------------------------- #
 #  Default command runner (subprocess)
 # --------------------------------------------------------------------------- #
@@ -179,54 +168,91 @@ class SimpleResult:
 #  Pure parsing / CSV
 # --------------------------------------------------------------------------- #
 
-def _empty_stats() -> Dict[str, int]:
-    return {name: 0 for name in METRIC_NAMES}
-
-
-def parse_retry_stats(
-    stats_text: str, targets: List[str]
-) -> Dict[str, Dict[str, int]]:
+def parse_edges(stats_text: str) -> Dict[str, Dict[str, int]]:
     """
-    Extract outbound retry counters for the given target services.
+    Parse outbound cluster stats into per-target metric dicts.
 
-    Always returns an entry for every target (missing metrics → 0).
+    Only targets that actually appear in stats_text are included — no
+    fixed target list. Every distinct <target> seen in a
+    cluster.outbound|...upstream_rq_* line gets a row, with any metric
+    not present for that target defaulting to 0.
     """
-    result: Dict[str, Dict[str, int]] = {t: _empty_stats() for t in targets}
-    target_set = set(targets)
-
+    edges: Dict[str, Dict[str, int]] = {}
     for line in stats_text.splitlines():
-        m = STAT_RE.match(line.strip())
+        m = OUTBOUND_RE.match(line.strip())
         if not m:
             continue
         target = m.group("target")
-        if target not in target_set:
+        if target not in edges:
+            edges[target] = {k: 0 for k in OUTBOUND_METRICS}
+        edges[target][m.group("metric")] = int(m.group("value"))
+    return edges
+
+
+def parse_inbound(stats_text: str) -> Dict[str, int]:
+    """
+    Parse this pod's own inbound listener stats (downstream_rq_*).
+
+    A pod can have more than one HTTP listener (e.g. separate ports);
+    totals across listeners are summed into one row per pod/service.
+    Always returns all four metrics (missing -> 0).
+    """
+    inbound = {k: 0 for k in INBOUND_METRICS}
+    for line in stats_text.splitlines():
+        m = INBOUND_RE.match(line.strip())
+        if not m:
             continue
-        result[target][m.group("metric")] = int(m.group("value"))
+        inbound[m.group("metric")] += int(m.group("value"))
+    return inbound
 
-    return result
 
-
-def write_csv_row(
+def write_edges_csv(
     csv_path: Path,
     timestamp: str,
-    target: str,
-    stats: Dict[str, int],
+    caller: str,
+    edges: Dict[str, Dict[str, int]],
 ) -> None:
-    """Append one row; write header if the file does not yet exist."""
+    """Append one row per (caller, target) pair; write header if new file."""
+    if not edges:
+        return
     write_header = not csv_path.exists() or csv_path.stat().st_size == 0
     with open(csv_path, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
+        writer = csv.DictWriter(f, fieldnames=EDGES_CSV_COLUMNS)
+        if write_header:
+            writer.writeheader()
+        for target in sorted(edges):
+            m = edges[target]
+            writer.writerow({
+                "timestamp": timestamp,
+                "caller": caller,
+                "target": target,
+                "total": m["total"],
+                "2xx": m["2xx"],
+                "4xx": m["4xx"],
+                "5xx": m["5xx"],
+                "retry": m["retry"],
+            })
+
+
+def write_inbound_csv(
+    csv_path: Path,
+    timestamp: str,
+    service: str,
+    inbound: Dict[str, int],
+) -> None:
+    """Append one row for this service's inbound totals this poll."""
+    write_header = not csv_path.exists() or csv_path.stat().st_size == 0
+    with open(csv_path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=INBOUND_CSV_COLUMNS)
         if write_header:
             writer.writeheader()
         writer.writerow({
             "timestamp": timestamp,
-            "target_service": target,
-            "upstream_rq_total": stats.get("upstream_rq_total", 0),
-            "upstream_rq_retry": stats.get("upstream_rq_retry", 0),
-            "upstream_rq_retry_success": stats.get("upstream_rq_retry_success", 0),
-            "upstream_rq_retry_limit_exceeded": stats.get(
-                "upstream_rq_retry_limit_exceeded", 0
-            ),
+            "service": service,
+            "total": inbound["total"],
+            "2xx": inbound["2xx"],
+            "4xx": inbound["4xx"],
+            "5xx": inbound["5xx"],
         })
 
 
