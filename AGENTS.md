@@ -68,6 +68,10 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | **[PHASE5-PHASE6-RUNLIST.md](Guides%20and%20Info/PHASE5-PHASE6-RUNLIST.md)** | **Matrix checklist.** All 38 runs done as of 2026-08-15; all 38 folders are local and in git. The “where results live” header in that file is stale |
 | [EXPERIMENT-READINESS-WORKPLAN.md](Guides%20and%20Info/EXPERIMENT-READINESS-WORKPLAN.md) | Historical smoke-validation checklist (Steps 1–8 passed 2026-08-07). Do not mix smoke folders into Phase 7 analysis |
 | [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) | What each run produces, how to pull/verify, how to load for charts |
+| **[METRICS-GATHERED.md](Guides%20and%20Info/METRICS-GATHERED.md)** | **Inventory of every metric we actually collect** (Locust CSVs, Envoy retries, CPU/memory, RetryGuard log, empty/`Latency99` caveats, clocks). Start here for “what do we gather?” |
+| [TOPFULL-THROTTLE-METRICS.md](Guides%20and%20Info/TOPFULL-THROTTLE-METRICS.md) | TopFull’s live admission caps (`rate_config/`, `:8090/stats`) — not in campaign CSVs; `num_agent.csv` is empty; how to scrape for future runs |
+| [PER-SERVICE-METRICS.md](Guides%20and%20Info/PER-SERVICE-METRICS.md) | Locust is per **entry API**, not per Kubernetes service. What is already per-service (CPU, some Envoy retries) vs what Envoy inbound could add |
+| [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](Guides%20and%20Info/PER-SERVICE-MESH-COLLECTOR-DESIGN.md) | **Implemented (2026-09-08).** Full-mesh Envoy collector (`service_edges.csv` / `service_inbound.csv`) + `service_capacity.json`; no campaign data yet |
 | **[PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md)** | **Read before analysing.** August-38 audit plus campaign close-out: Gap 1/3 **closed** on `campaign_48/`; Gap 2 dropped P99 (use P95). |
 | **[PHASE7-RESOLVE-GAPS-1-3.md](Guides%20and%20Info/PHASE7-RESOLVE-GAPS-1-3.md)** | **Runbook.** Paper-grade 48-run campaign — **COMPLETE** (2026-09-06). Primary analysis is `experiments/results/campaign_48/`. Do not use `run_all_scenarios.py`. |
 | [Evaluating_RetryGuard_on_TopFull.md](context/Evaluating_RetryGuard_on_TopFull.md) | **Eval plan deck** (transcription of the PDF). Slides 8–9 open questions, 11–15 scenario objectives, 16 measurement layers — source of truth for what Phase 7 is supposed to answer |
@@ -80,7 +84,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-09-07)
+## 4. Current status (as of 2026-09-08)
 
 ### ✅ Done
 
@@ -102,6 +106,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 - **Paper-grade 48-run campaign COMPLETE (2026-09-05 → 2026-09-06)** — all 48 slots local under `experiments/results/campaign_48/`: S6 run1–3 both arms; S5 intervals run3–5 (×4); S1–S4A/S4B run4–6 both arms. Every run pulled and §4-verified (Locust + Envoy + `resource_usage`; RetryGuard toggles where applicable). S6/S5 produced `OFF→ON`; flat S2/S3/S4 typically disable-only. S1 RG showed unexpected checkout `ON→OFF` on all 3 repeats. August 38 is `experiments/results/august_38/`. Primary Phase 7 analysis uses the campaign. Gaps 1 and 3 **closed** on that dataset — [PHASE7-DATA-GAPS.md](Guides%20and%20Info/PHASE7-DATA-GAPS.md).
 - **Local results layout (2026-09-06)** — `experiments/results/campaign_48/` vs `experiments/results/august_38/`. Both are in git. Master still uses a flat `/home/idozacharia/experiments/results/<log_folder>/`. See [experiments/results/README.md](experiments/results/README.md).
 - **Mentor update doc (2026-09-06 → 2026-09-07)** — [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md) is the dry Phase 7 readout (infra, Online Boutique, scenarios, per-scenario charts with factual observations, no conclusions). Charts come from `campaign_48/` via `python experiments/mentor_charts.py`: Locust comparison plots are **mean-only** (no min/max bands), downsampled to **5 s** steps, with `ON→OFF` / `OFF→ON` overlays from **every** RetryGuard repeat; every scenario section embeds the S2-style set (goodput / P95 / rejection / frontend retries-per-target / CPU / memory). Pipeline leftovers (collector clocks ≠ Locust t0; no toggle overlays on CPU/retries multi-line charts; Locust `charts_gallery/` = curated) live in [mentor-update/README.md](Guides%20and%20Info/mentor-update/README.md) — not in the mentor doc.
+- **Full-mesh Envoy collector (2026-09-08)** — `experiments/envoy_retry_collector.py` now writes `service_edges.csv` / `service_inbound.csv` (all 11 Boutique services, outbound + inbound); `run_scenario.py` widens stats-inclusion to all Deployments and snapshots `service_capacity.json` before constraints. **Implemented and unit-tested**; **live cluster smoke (Task 6) not yet run.** No campaign folder has this data yet — `campaign_48/` / `august_38/` still have only legacy `envoy_retries_{frontend,checkoutservice}.csv`. The next new run (not yet scheduled) will be the first with full-mesh outputs. `mentor_charts.py` / `mentor_charts_data.py` still read the legacy CSV shape only (chart wiring is a follow-up).
 
 ### ❌ Not done yet — remaining work
 
