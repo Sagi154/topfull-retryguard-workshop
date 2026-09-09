@@ -284,3 +284,180 @@ def write_detect_csv(
                     "overloaded": metrics["overloaded"],
                 }
             )
+
+
+class SimpleResult:
+    def __init__(self, returncode: int, stdout: str, stderr: str):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def load_params(path: str) -> dict:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_global_config(global_config_path: str = GLOBAL_CONFIG_PATH) -> dict:
+    with open(global_config_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def default_run_cmd(cmd: List[str]) -> SimpleResult:
+    try:
+        completed = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=30, check=False
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError(str(exc)) from exc
+    return SimpleResult(
+        returncode=completed.returncode,
+        stdout=completed.stdout or "",
+        stderr=completed.stderr or "",
+    )
+
+
+def default_fetch_url(url: str, timeout: float = 5.0) -> str:
+    with urlopen(url, timeout=timeout) as resp:
+        return resp.read().decode("utf-8")
+
+
+def _cadvisor_ips(run_cmd: CommandRunner) -> List[str]:
+    r = run_cmd(
+        [
+            "kubectl",
+            "get",
+            "pod",
+            "-n",
+            CADVISOR_NAMESPACE,
+            "-o",
+            "jsonpath={.items[*].status.podIP}",
+        ]
+    )
+    if getattr(r, "returncode", 1) != 0:
+        return []
+    return [p for p in (r.stdout or "").split() if p]
+
+
+def _pod_list(run_cmd: CommandRunner) -> dict:
+    r = run_cmd(["kubectl", "get", "po", "-n", "default", "-o", "json"])
+    if getattr(r, "returncode", 1) != 0:
+        return {}
+    try:
+        return json.loads(r.stdout or "{}")
+    except json.JSONDecodeError:
+        return {}
+
+
+def scrape_cadvisor_cpu(
+    run_cmd: CommandRunner, fetch_url: UrlFetcher
+) -> Dict[str, float]:
+    ips = _cadvisor_ips(run_cmd)
+    ids = container_ids_from_pod_list(_pod_list(run_cmd), DETECT_SERVICES)
+    out: Dict[str, float] = {}
+    for service, cids in ids.items():
+        values: List[float] = []
+        for cid in cids:
+            cpu: Optional[float] = None
+            for ip in ips:
+                url = (
+                    f"http://{ip}:{CADVISOR_PORT}/api/v2.0/summary/"
+                    f"{cid}?type=docker"
+                )
+                try:
+                    cpu = parse_cadvisor_summary(fetch_url(url))
+                except (OSError, URLError, TimeoutError):
+                    cpu = None
+                if cpu is not None:
+                    break
+            if cpu is not None:
+                values.append(cpu)
+        out[service] = aggregate_cpu(values)
+    return out
+
+
+def poll_once(
+    record_path: Path,
+    proxy_dir: Path,
+    stats_url: str,
+    timestamp: str,
+    run_cmd: Optional[CommandRunner] = None,
+    fetch_url: Optional[UrlFetcher] = None,
+) -> None:
+    runner = run_cmd or default_run_cmd
+    fetcher = fetch_url or default_fetch_url
+    thresholds = read_thresholds(proxy_dir)
+    admitted: Dict[str, float] = {}
+    try:
+        admitted = parse_proxy_stats(fetcher(stats_url))
+    except (OSError, URLError, TimeoutError) as exc:
+        log.warning("%s  WARNING  stats fetch failed: %s", timestamp, exc)
+    write_throttle_csv(
+        record_path / "topfull_throttle.csv", timestamp, thresholds, admitted
+    )
+    cpu_by_svc: Dict[str, float] = {}
+    try:
+        cpu_by_svc = scrape_cadvisor_cpu(runner, fetcher)
+    except (OSError, TimeoutError) as exc:
+        log.warning("%s  WARNING  cadvisor scrape failed: %s", timestamp, exc)
+    rows = {
+        svc: detect_metrics(svc, cpu_by_svc.get(svc, 0.0))
+        for svc in DETECT_SERVICES
+    }
+    write_detect_csv(record_path / "topfull_detect.csv", timestamp, rows)
+
+
+def run_collector(
+    params: dict,
+    record_path: Path,
+    proxy_dir: Path,
+    stats_url: str,
+    run_cmd: Optional[CommandRunner] = None,
+    fetch_url: Optional[UrlFetcher] = None,
+    max_polls: Optional[int] = None,
+) -> None:
+    interval = int(params.get("poll_interval_seconds", DEFAULT_POLL_INTERVAL_SECONDS))
+    log.info("%s  START  poll_interval=%ss", utc_now(), interval)
+    polls = 0
+    while not _shutdown:
+        if max_polls is not None and polls >= max_polls:
+            break
+        if max_polls is None:
+            sleep_until_next_tick(interval)
+            if _shutdown:
+                break
+        ts = tick_timestamp(interval)
+        poll_once(
+            record_path,
+            proxy_dir,
+            stats_url,
+            timestamp=ts,
+            run_cmd=run_cmd,
+            fetch_url=fetch_url,
+        )
+        polls += 1
+        if max_polls is not None and polls >= max_polls:
+            break
+    log.info("%s  EXIT", utc_now())
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="TopFull throttle (Layer A) and detector (Layer B) collector."
+    )
+    parser.add_argument("--params", required=True, help="Path to collector params JSON")
+    args = parser.parse_args()
+    params = load_params(args.params)
+    gcfg = load_global_config()
+    record_path = Path(gcfg["record_path"])
+    proxy_dir = Path(gcfg["proxy_dir"])
+    stats_url = gcfg["proxy_url"].rstrip("/") + "/stats"
+    record_path.mkdir(parents=True, exist_ok=True)
+    setup_logging(record_path)
+    signal.signal(signal.SIGTERM, _handle_signal)
+    signal.signal(signal.SIGINT, _handle_signal)
+    run_collector(params, record_path, proxy_dir, stats_url)
+
+
+if __name__ == "__main__":
+    main()

@@ -241,5 +241,115 @@ class TestWriteDetectCsv(unittest.TestCase):
             self.assertEqual(by["frontend"]["cadvisor_cpu"], "0.0")
 
 
+class TestPollOnce(unittest.TestCase):
+    def test_writes_both_csvs_with_shared_timestamp(self):
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+            (proxy_dir / "getproduct").write_text("40\n", encoding="utf-8")
+
+            def run_cmd(cmd):
+                joined = " ".join(cmd)
+                if "cadvisor" in joined and "podIP" in joined:
+                    return SimpleNamespace(returncode=0, stdout="10.0.0.9\n", stderr="")
+                if "get" in cmd and "po" in cmd or "pods" in joined:
+                    return SimpleNamespace(
+                        returncode=0,
+                        stdout=json.dumps(SAMPLE_POD_LIST),
+                        stderr="",
+                    )
+                return SimpleNamespace(returncode=1, stdout="", stderr="no")
+
+            def fetch_url(url: str) -> str:
+                if url.endswith("/stats"):
+                    return SAMPLE_STATS
+                if "deadbeefcheckout" in url:
+                    return SAMPLE_CADVISOR_SUMMARY
+                raise OSError("no such container")
+
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://127.0.0.1:8090/stats",
+                timestamp="2023-11-14T22:13:20Z",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+            )
+            with (record_path / "topfull_throttle.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                throttle = list(csv.DictReader(f))
+            with (record_path / "topfull_detect.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                detect = list(csv.DictReader(f))
+            self.assertTrue(
+                all(r["timestamp"] == "2023-11-14T22:13:20Z" for r in throttle)
+            )
+            self.assertTrue(
+                all(r["timestamp"] == "2023-11-14T22:13:20Z" for r in detect)
+            )
+            by_api = {r["api"]: r for r in throttle}
+            self.assertEqual(by_api["getproduct"]["threshold"], "40.0")
+            self.assertEqual(by_api["getproduct"]["admitted_rps"], "12.5")
+            by_svc = {r["service"]: r for r in detect}
+            self.assertEqual(by_svc["checkoutservice"]["cadvisor_cpu"], "910.0")
+            self.assertEqual(by_svc["checkoutservice"]["overloaded"], "1")
+
+    def test_stats_fetch_failure_still_writes_zero_admitted(self):
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+
+            def run_cmd(_cmd):
+                return SimpleNamespace(returncode=1, stdout="", stderr="fail")
+
+            def fetch_url(_url: str) -> str:
+                raise OSError("proxy down")
+
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://127.0.0.1:8090/stats",
+                timestamp="2023-11-14T22:13:20Z",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+            )
+            with (record_path / "topfull_throttle.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                throttle = list(csv.DictReader(f))
+            self.assertEqual(len(throttle), len(ttc.LOCUST_APIS))
+            self.assertTrue(all(r["admitted_rps"] == "0.0" for r in throttle))
+
+
+class TestRunCollector(unittest.TestCase):
+    def test_max_polls_writes_and_exits(self):
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+
+            def run_cmd(_cmd):
+                return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+            def fetch_url(_url: str) -> str:
+                return SAMPLE_STATS if _url.endswith("/stats") else "{}"
+
+            ttc.run_collector(
+                {"poll_interval_seconds": 1},
+                record_path,
+                proxy_dir,
+                "http://127.0.0.1:8090/stats",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+                max_polls=1,
+            )
+            self.assertTrue((record_path / "topfull_throttle.csv").exists())
+            self.assertTrue((record_path / "topfull_detect.csv").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
