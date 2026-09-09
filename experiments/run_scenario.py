@@ -33,6 +33,8 @@ import yaml
 from pathlib import Path
 from datetime import datetime
 
+import topfull_cpu_quotas
+
 # --------------------------------------------------------------------------- #
 #  SSH / SCP helpers
 # --------------------------------------------------------------------------- #
@@ -390,7 +392,12 @@ def apply_constraints(cfg: dict) -> list:
             })
 
         elif method == "cpu_limit":
-            cpu_limit = c["cpu_limit"]
+            frac = float(c["cpu_limit_fraction"])
+            cpu_limit = topfull_cpu_quotas.kubectl_cpu_quantity(
+                topfull_cpu_quotas.millicores_from_fraction(
+                    topfull_cpu_quotas.paper_limit_for(dep), frac
+                )
+            )
             container = c.get("container", "server")
             # Capture full original resources so restore is exact (requests must
             # also drop: K8s requires request <= limit, and Boutique defaults
@@ -399,7 +406,10 @@ def apply_constraints(cfg: dict) -> list:
                     f"kubectl get deployment {dep} -n {ns} "
                     f"-o jsonpath='{{.spec.template.spec.containers[0].resources}}'")
             original_resources = r.stdout.strip() or "{}"
-            step(f"Applying CPU limit {cpu_limit} to {dep}/{container} ({ns})")
+            step(
+                f"Applying CPU limit {cpu_limit} "
+                f"(fraction={frac}) to {dep}/{container} ({ns})"
+            )
             patch = json.dumps({
                 "spec": {"template": {"spec": {"containers": [
                     {"name": container, "resources": {
@@ -984,6 +994,8 @@ def run(config_path: str):
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
+    topfull_cpu_quotas.validate_scale_constraints(cfg.get("scale_constraints") or [])
+
     scenario    = cfg["scenario_name"]
     condition   = cfg["condition"]
     run_n       = cfg["run_number"]
@@ -1027,7 +1039,17 @@ def run(config_path: str):
             if method == "replicas":
                 print(f"    {c['deployment']}: scale to {c['replicas']} replica(s)")
             elif method == "cpu_limit":
-                print(f"    {c['deployment']}: cpu_limit={c['cpu_limit']}")
+                frac = c.get("cpu_limit_fraction")
+                qty = topfull_cpu_quotas.kubectl_cpu_quantity(
+                    topfull_cpu_quotas.millicores_from_fraction(
+                        topfull_cpu_quotas.paper_limit_for(c["deployment"]),
+                        float(frac),
+                    )
+                )
+                print(
+                    f"    {c['deployment']}: cpu_limit_fraction={frac} "
+                    f"({qty})"
+                )
     if len(phases) > 1:
         print(f"  Load phases:")
         for p in phases:

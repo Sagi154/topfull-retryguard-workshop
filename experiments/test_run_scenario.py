@@ -740,5 +740,33 @@ class TestServiceCapacity(unittest.TestCase):
         self.assertEqual(capacity_calls[0].args[2], {})
 
 
+class TestApplyCpuLimitFraction(unittest.TestCase):
+    def test_patches_catalog_to_50m(self):
+        cfg = {
+            "infra": {"master_ssh_host": "topfull-master"},
+            "scale_constraints": [{
+                "deployment": "productcatalogservice",
+                "namespace": "default",
+                "method": "cpu_limit",
+                "cpu_limit_fraction": 0.1,
+                "container": "server",
+            }],
+        }
+        patches = []
+
+        def fake_ssh(host, cmd, check=True):
+            patches.append(cmd)
+            return SimpleNamespace(stdout="{}", returncode=0)
+
+        with mock.patch.object(run_scenario, "ssh", fake_ssh), \
+             mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "banner", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.apply_constraints(cfg)
+        joined = "\n".join(patches)
+        self.assertIn("50m", joined)
+        self.assertNotIn("100m", joined)
+
+
 if __name__ == "__main__":
     unittest.main()
