@@ -18,9 +18,10 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 from urllib.error import URLError
-from urllib.request import urlopen
+from urllib.parse import urlparse
+from urllib.request import ProxyHandler, build_opener
 
 import topfull_cpu_quotas
 
@@ -38,6 +39,10 @@ LOCUST_APIS: List[str] = [
 ]
 
 DEFAULT_POLL_INTERVAL_SECONDS = 1
+# Keep proxy scrapes well under the 1s tick. A 5s urlopen timeout
+# (the previous default) stalled Layer A+B onto a ~6s grid whenever
+# :8090/stats hung, which is what happened on S2 run7.
+PROXY_FETCH_TIMEOUT_SECONDS = 0.8
 
 THROTTLE_CSV_COLUMNS = ["timestamp", "api", "threshold", "admitted_rps"]
 DETECT_CSV_COLUMNS = [
@@ -144,6 +149,21 @@ def parse_proxy_stats(body: str) -> Dict[str, float]:
     return result
 
 
+def local_proxy_urls(proxy_url: str) -> Tuple[str, str]:
+    """Scrape the Go proxy on localhost, not via `proxy_url`.
+
+    `global_config.json`'s `proxy_url` (e.g. `http://10.128.0.3:8090`) is the
+    *forward-proxy* address Locust sends Boutique traffic through. Hitting
+    `/stats` or `/thresholds` on that host is not a reliable local scrape
+    (S2 run7: HTTP 500 then timeouts). The process listens on `:8090` on
+    master; use loopback and keep the configured port.
+    """
+    parsed = urlparse(proxy_url)
+    port = parsed.port or 8090
+    base = f"http://127.0.0.1:{port}"
+    return f"{base}/stats", f"{base}/thresholds"
+
+
 def read_thresholds(
     proxy_dir: Path, apis: Optional[List[str]] = None
 ) -> Dict[str, float]:
@@ -157,6 +177,29 @@ def read_thresholds(
         except (OSError, ValueError):
             out[api] = 0.0
     return out
+
+
+def read_live_thresholds(
+    proxy_dir: Path,
+    fetch_url: UrlFetcher,
+    thresholds_url: str,
+    apis: Optional[List[str]] = None,
+) -> Dict[str, float]:
+    """Live cap from `GET :8090/thresholds`; fall back to `rate_config/` files.
+
+    The Go proxy consume-deletes each `rate_config/<api>` file after applying
+    it (`changeLimitAbs` + `os.Remove`). Polling the directory therefore
+    almost always sees zeros. `/thresholds` is the in-memory limiter table
+    (default 10000 req/s per API until the RL writes a new cap).
+    """
+    names = list(apis) if apis is not None else list(LOCUST_APIS)
+    try:
+        parsed = parse_proxy_stats(fetch_url(thresholds_url))
+        if parsed:
+            return {api: float(parsed.get(api, 0.0)) for api in names}
+    except Exception:
+        pass
+    return read_thresholds(proxy_dir, apis=names)
 
 
 def write_throttle_csv(
@@ -318,8 +361,12 @@ def default_run_cmd(cmd: List[str]) -> SimpleResult:
     )
 
 
-def default_fetch_url(url: str, timeout: float = 5.0) -> str:
-    with urlopen(url, timeout=timeout) as resp:
+def default_fetch_url(
+    url: str, timeout: float = PROXY_FETCH_TIMEOUT_SECONDS
+) -> str:
+    # Bypass HTTP_PROXY so we don't send :8090 scrapes *through* the Go proxy.
+    opener = build_opener(ProxyHandler({}))
+    with opener.open(url, timeout=timeout) as resp:
         return resp.read().decode("utf-8")
 
 
@@ -390,7 +437,8 @@ def poll_once(
     try:
         runner = run_cmd or default_run_cmd
         fetcher = fetch_url or default_fetch_url
-        thresholds = read_thresholds(proxy_dir)
+        thresh_url = stats_url.rsplit("/", 1)[0] + "/thresholds"
+        thresholds = read_live_thresholds(proxy_dir, fetcher, thresh_url)
         admitted: Dict[str, float] = {}
         try:
             admitted = parse_proxy_stats(fetcher(stats_url))
@@ -463,7 +511,7 @@ def main() -> None:
     gcfg = load_global_config()
     record_path = Path(gcfg["record_path"])
     proxy_dir = Path(gcfg["proxy_dir"])
-    stats_url = gcfg["proxy_url"].rstrip("/") + "/stats"
+    stats_url, _thresholds_url = local_proxy_urls(gcfg["proxy_url"])
     record_path.mkdir(parents=True, exist_ok=True)
     setup_logging(record_path)
     signal.signal(signal.SIGTERM, _handle_signal)

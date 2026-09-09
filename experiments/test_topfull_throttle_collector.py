@@ -59,6 +59,10 @@ class TestSleepUntilNextTick(unittest.TestCase):
 
 
 SAMPLE_STATS = "getproduct=12.5/postcheckout=3.0/getcart=0/postcart=8.25/emptycart=1/"
+SAMPLE_THRESHOLDS = (
+    "getproduct=10000.0/postcheckout=40.0/getcart=80.0/"
+    "postcart=10000.0/emptycart=10000.0/"
+)
 
 
 class TestParseProxyStats(unittest.TestCase):
@@ -96,6 +100,62 @@ class TestReadThresholds(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             got = ttc.read_thresholds(Path(td), apis=["getproduct"])
             self.assertEqual(got["getproduct"], 0.0)
+
+
+class TestLocalProxyUrls(unittest.TestCase):
+    def test_rewrites_gce_internal_proxy_url_to_localhost(self):
+        stats, thresh = ttc.local_proxy_urls("http://10.128.0.3:8090")
+        self.assertEqual(stats, "http://127.0.0.1:8090/stats")
+        self.assertEqual(thresh, "http://127.0.0.1:8090/thresholds")
+
+    def test_keeps_nondefault_port(self):
+        stats, thresh = ttc.local_proxy_urls("http://10.128.0.3:9090")
+        self.assertEqual(stats, "http://127.0.0.1:9090/stats")
+        self.assertEqual(thresh, "http://127.0.0.1:9090/thresholds")
+
+
+class TestReadLiveThresholds(unittest.TestCase):
+    def test_http_wins_when_rate_config_files_are_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            fetched = []
+
+            def fetch(url: str) -> str:
+                fetched.append(url)
+                return SAMPLE_THRESHOLDS
+
+            got = ttc.read_live_thresholds(
+                Path(td), fetch, "http://127.0.0.1:8090/thresholds"
+            )
+            self.assertEqual(fetched, ["http://127.0.0.1:8090/thresholds"])
+            self.assertEqual(got["getproduct"], 10000.0)
+            self.assertEqual(got["getcart"], 80.0)
+            self.assertEqual(got["postcheckout"], 40.0)
+
+    def test_http_overrides_stale_or_racing_files(self):
+        with tempfile.TemporaryDirectory() as td:
+            d = Path(td)
+            (d / "getproduct").write_text("12\n", encoding="utf-8")
+
+            def fetch(_url: str) -> str:
+                return SAMPLE_THRESHOLDS
+
+            got = ttc.read_live_thresholds(
+                d, fetch, "http://127.0.0.1:8090/thresholds"
+            )
+            self.assertEqual(got["getproduct"], 10000.0)
+
+    def test_falls_back_to_files_when_http_fails(self):
+        with tempfile.TemporaryDirectory() as td:
+            d = Path(td)
+            (d / "getproduct").write_text("40\n", encoding="utf-8")
+
+            def fetch(_url: str) -> str:
+                raise OSError("thresholds down")
+
+            got = ttc.read_live_thresholds(
+                d, fetch, "http://127.0.0.1:8090/thresholds"
+            )
+            self.assertEqual(got["getproduct"], 40.0)
 
 
 class TestWriteThrottleCsv(unittest.TestCase):
@@ -315,6 +375,42 @@ class TestPollOnce(unittest.TestCase):
             by_svc = {r["service"]: r for r in detect}
             self.assertEqual(by_svc["checkoutservice"]["cadvisor_cpu"], "910.0")
             self.assertEqual(by_svc["checkoutservice"]["overloaded"], "1")
+
+    def test_empty_rate_config_uses_thresholds_http_for_cap(self):
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+            fetched = []
+
+            def run_cmd(_cmd):
+                return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+            def fetch_url(url: str) -> str:
+                fetched.append(url)
+                if url.endswith("/thresholds"):
+                    return SAMPLE_THRESHOLDS
+                if url.endswith("/stats"):
+                    return SAMPLE_STATS
+                raise OSError("no such container")
+
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://127.0.0.1:8090/stats",
+                timestamp="2023-11-14T22:13:20Z",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+            )
+            self.assertIn("http://127.0.0.1:8090/thresholds", fetched)
+            self.assertIn("http://127.0.0.1:8090/stats", fetched)
+            with (record_path / "topfull_throttle.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                by_api = {r["api"]: r for r in csv.DictReader(f)}
+            self.assertEqual(by_api["getproduct"]["threshold"], "10000.0")
+            self.assertEqual(by_api["getcart"]["threshold"], "80.0")
+            self.assertEqual(by_api["getproduct"]["admitted_rps"], "12.5")
 
     def test_stats_fetch_failure_still_writes_zero_admitted(self):
         with tempfile.TemporaryDirectory() as td:
