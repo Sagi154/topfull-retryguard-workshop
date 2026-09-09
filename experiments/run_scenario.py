@@ -737,6 +737,45 @@ def start_resource_usage_collector(cfg: dict):
     wait_with_progress(3, "Resource usage collector init")
 
 
+def start_topfull_throttle_collector(cfg: dict):
+    """
+    Start the TopFull throttle / detector collector on master.
+
+    Independent of RetryGuard: must run in both baseline and RetryGuard arms.
+    Read-only against rate_config/ and :8090/stats — no teardown.
+    """
+    ttc_cfg = cfg.get("topfull_throttle_collector", {})
+    if not ttc_cfg.get("enabled", False):
+        return
+
+    banner("Starting TopFull throttle collector")
+    master = cfg["infra"]["master_ssh_host"]
+    venv = cfg["infra"]["venv_activate"]
+    script = cfg["infra"].get(
+        "topfull_throttle_collector_script",
+        "/home/idozacharia/experiments/topfull_throttle_collector.py",
+    )
+    deploy_repo_script(master, "topfull_throttle_collector.py", script)
+    params = {
+        "poll_interval_seconds": int(ttc_cfg.get("poll_interval_seconds", 1)),
+    }
+    write_remote_json(master, "/tmp/topfull_throttle_params.json", params)
+    step(
+        "Uploaded TopFull throttle collector params: "
+        f"poll_interval={params['poll_interval_seconds']}s"
+    )
+    start_script = (
+        f"#!/bin/bash\n"
+        f"source {venv}\n"
+        f"python3 {script} --params /tmp/topfull_throttle_params.json\n"
+    )
+    write_remote_script(master, "/tmp/rg_topfull_throttle.sh", start_script)
+    ssh(master, "tmux new-session -d -s throttle /tmp/rg_topfull_throttle.sh")
+    step("Started: TopFull throttle collector "
+         f"(tmux session: throttle, script: {script})")
+    wait_with_progress(3, "TopFull throttle collector init")
+
+
 # --------------------------------------------------------------------------- #
 #  Locust
 # --------------------------------------------------------------------------- #
@@ -918,6 +957,7 @@ def collect_results(cfg: dict, capacity: dict | None = None) -> str:
         "retryguard":    cfg["retryguard"],
         "envoy_retry_collector": cfg.get("envoy_retry_collector", {}),
         "resource_usage_collector": cfg.get("resource_usage_collector", {}),
+        "topfull_throttle_collector": cfg.get("topfull_throttle_collector", {}),
         "scale_constraints": cfg.get("scale_constraints", []),
         "log_folder":    log_folder,
         "collected_at":  datetime.utcnow().isoformat() + "Z",
@@ -972,6 +1012,11 @@ def run(config_path: str):
     if ruc_enabled:
         print(f"    poll_interval  : "
               f"{cfg['resource_usage_collector'].get('poll_interval_seconds', 5)}s")
+    ttc_enabled = cfg.get("topfull_throttle_collector", {}).get("enabled", False)
+    print(f"  TopFull throttle collector: {'ON' if ttc_enabled else 'OFF'}")
+    if ttc_enabled:
+        print(f"    poll_interval  : "
+              f"{cfg['topfull_throttle_collector'].get('poll_interval_seconds', 1)}s")
     if cfg.get("scale_constraints"):
         print(f"  Constraints:")
         for c in cfg["scale_constraints"]:
@@ -1004,6 +1049,8 @@ def run(config_path: str):
 
         # CPU/memory collector — run in both arms (Layer 2).
         start_resource_usage_collector(cfg)
+
+        start_topfull_throttle_collector(cfg)
 
         if rg_enabled:
             start_retryguard(cfg)

@@ -502,6 +502,63 @@ class TestResourceUsageCollectorWiring(unittest.TestCase):
         self.assertEqual(params["services"], ["frontend", "checkoutservice"])
 
 
+class TestTopfullThrottleCollectorWiring(unittest.TestCase):
+    def _cfg(self, enabled=True):
+        return {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "venv_activate": "/home/idozacharia/TopFull/venv/bin/activate",
+                "topfull_throttle_collector_script":
+                    "/home/idozacharia/experiments/topfull_throttle_collector.py",
+            },
+            "topfull_throttle_collector": {
+                "enabled": enabled,
+                "poll_interval_seconds": 1,
+            },
+        }
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_start_uploads_params_and_launches_tmux(
+        self, mock_deploy, mock_ssh, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(enabled=True)
+        run_scenario.start_topfull_throttle_collector(cfg)
+        mock_deploy.assert_called_once_with(
+            "topfull-master",
+            "topfull_throttle_collector.py",
+            "/home/idozacharia/experiments/topfull_throttle_collector.py",
+        )
+        json_path, params = mock_write_json.call_args[0][1:3]
+        self.assertEqual(json_path, "/tmp/topfull_throttle_params.json")
+        self.assertEqual(params["poll_interval_seconds"], 1)
+        script_path, script_body = mock_write_script.call_args[0][1:3]
+        self.assertEqual(script_path, "/tmp/rg_topfull_throttle.sh")
+        self.assertIn(
+            "topfull_throttle_collector.py --params /tmp/topfull_throttle_params.json",
+            script_body,
+        )
+        tmux_calls = [
+            c for c in mock_ssh.call_args_list
+            if "tmux new-session" in c.args[1] and "throttle" in c.args[1]
+        ]
+        self.assertEqual(len(tmux_calls), 1)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_start_noop_when_disabled(
+        self, mock_ssh, mock_write_json, mock_write_script, mock_wait
+    ):
+        run_scenario.start_topfull_throttle_collector(self._cfg(enabled=False))
+        mock_ssh.assert_not_called()
+        mock_write_json.assert_not_called()
+
+
 class TestDeployRepoScript(unittest.TestCase):
     def test_missing_local_file_exits(self):
         with mock.patch.object(run_scenario, "EXPERIMENTS_DIR", Path("/no/such/dir")):
@@ -652,6 +709,13 @@ class TestServiceCapacity(unittest.TestCase):
         ]
         self.assertEqual(len(capacity_calls), 1)
         self.assertEqual(capacity_calls[0].args[2], capacity)
+
+        manifest_calls = [
+            c for c in mock_write_json.call_args_list
+            if c.args[1].endswith("run_manifest.json")
+        ]
+        self.assertEqual(len(manifest_calls), 1)
+        self.assertIn("topfull_throttle_collector", manifest_calls[0].args[2])
 
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ssh")
