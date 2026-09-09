@@ -108,6 +108,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 - **Mentor update doc (2026-09-06 → 2026-09-07)** — [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md) is the dry Phase 7 readout (infra, Online Boutique, scenarios, per-scenario charts with factual observations, no conclusions). Charts come from `campaign_48/` via `python experiments/mentor_charts.py`: Locust comparison plots are **mean-only** (no min/max bands), downsampled to **5 s** steps, with `ON→OFF` / `OFF→ON` overlays from **every** RetryGuard repeat; every scenario section embeds the S2-style set (goodput / P95 / rejection / frontend retries-per-target / CPU / memory). Pipeline leftovers (collector clocks ≠ Locust t0; no toggle overlays on CPU/retries multi-line charts; Locust `charts_gallery/` = curated) live in [mentor-update/README.md](Guides%20and%20Info/mentor-update/README.md) — not in the mentor doc.
 - **Full-mesh Envoy collector (2026-09-08)** — `experiments/envoy_retry_collector.py` now writes `service_edges.csv` / `service_inbound.csv` (all 11 Boutique services, outbound + inbound); `run_scenario.py` widens stats-inclusion to all Deployments and snapshots `service_capacity.json` before constraints. **Implemented, unit-tested, and live-smoked** (Task 6, 2026-09-08). No campaign folder has this data yet — `campaign_48/` / `august_38/` still have only legacy `envoy_retries_{frontend,checkoutservice}.csv`. The next new run (not yet scheduled) will be the first with full-mesh outputs. `mentor_charts.py` / `mentor_charts_data.py` still read the legacy CSV shape only (chart wiring is a follow-up, out of scope).
 - **TopFull throttle collector (2026-09-09)** — `experiments/topfull_throttle_collector.py` writes `topfull_throttle.csv` (Layer A cap/admitted) and `topfull_detect.csv` (Layer B detector reconstruction). Wired into `run_scenario.py` and all 16 scenario YAMLs (`enabled: true`, 1 s). **No campaign data yet** — `campaign_48/` / `august_38/` lack these files. `mentor_charts.py` does not read them.
+- **TopFull quota↔K8s sync (2026-09-10)** — paper CPU table + `cpu_limit_fraction` in S3/S4; runner reconciles K8s to paper, writes `topfull_run_quotas.json`, patches Detector; Layer B uses the same map. Design: `docs/superpowers/specs/2026-09-09-topfull-quota-k8s-sync-design.md`.
 
 ### ❌ Not done yet — remaining work
 
@@ -135,12 +136,12 @@ If it doesn't recover within a few minutes, follow the troubleshooting table in 
 |---|---|---|---|---|
 | 1 | Normal Operation | Flat load, well within capacity | 5 min | `scenario_1_{baseline,retryguard}.yaml` |
 | 2 | Sustained Overload (core) | Peak from t=0, **hold flat** | 10 min | `scenario_2_{baseline,retryguard}.yaml` |
-| 3 | Targeted Bottleneck | `checkoutservice` CPU-limited to `100m` | 10 min | `scenario_3_{baseline,retryguard}.yaml` |
-| 4A/4B | Topology Position | `productcatalogservice` (A) vs `paymentservice` (B) CPU-limited | 10 min | `scenario_4{a,b}_{baseline,retryguard}.yaml` |
+| 3 | Targeted Bottleneck | `checkoutservice` at `cpu_limit_fraction: 0.1` (paper 1000m → **100m**) | 10 min | `scenario_3_{baseline,retryguard}.yaml` |
+| 4A/4B | Topology Position | productcatalog (A → **50m**) vs payment (B → **100m**) at fraction 0.1 | 10 min | `scenario_4{a,b}_{baseline,retryguard}.yaml` |
 | 5 | Re-enable Interval Tuning | Same load as S6; `re_enable_windows` = 1/2/3/6 | 15 min | `scenario_5_interval_{10,20,30,60}s.yaml` |
 | 6 | Forced Recovery | Peak 5 min, then ~25% load for 10 min | 15 min | `scenario_6_recovery_{baseline,retryguard}.yaml` |
 
-Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit` (kubectl patch), not replica scaling. Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
+Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit` + **`cpu_limit_fraction: 0.1`** (not absolute `"100m"`), and the runner reconciles K8s + Detector to paper quotas before/after each run — a leftover checkout `100m` from an older S3/S4 is healed and must not be treated as the S2 baseline. New S4A (**50m**) is not comparable to `campaign_48/` S4A (absolute 100m). Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
 
 ---
 

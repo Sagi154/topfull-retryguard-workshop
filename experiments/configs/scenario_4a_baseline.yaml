@@ -9,6 +9,9 @@
 # Comparison point (vs 4B): does RetryGuard add meaningful value on top of
 # TopFull when TopFull already has a clean, direct signal to act on?
 #
+# Constraint: cpu_limit_fraction: 0.1 × paper productcatalog 500m → 50m
+# (campaign_48 used absolute 100m — new runs are not comparable to that set).
+#
 # Call path: Frontend → ProductCatalog  (also via Checkout → ProductCatalog)
 # Primary affected API: getproduct
 # ─────────────────────────────────────────────────────────────────────────────
@@ -39,7 +42,7 @@ scale_constraints:
   - deployment: productcatalogservice
     namespace: default
     method: cpu_limit
-    cpu_limit: "100m"
+    cpu_limit_fraction: 0.1    # 0.1 × paper 500m → 50m (not comparable to campaign_48 100m)
     container: server
 
 retryguard:

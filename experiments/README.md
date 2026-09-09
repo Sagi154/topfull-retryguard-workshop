@@ -139,16 +139,18 @@ scale_constraints:
 
 ### scale_constraints — method: cpu_limit
 
+Bottlenecks use a **fraction of the TopFull paper CPU quota** (not a hard-coded millicore string). Paper baselines live in `topfull_cpu_quotas.py` (e.g. checkout/payment **1000m**, productcatalog **500m**, default **1000m**). Absolute `cpu_limit: "…"` in YAML is rejected at run start.
+
 ```yaml
 scale_constraints:
   - deployment: checkoutservice
     namespace: default
     method: cpu_limit
-    cpu_limit: "100m"    # applied via kubectl patch
-    container: server    # container name inside the pod
+    cpu_limit_fraction: 0.1   # 0.1 × paper → K8s limit AND Detector quota for this run
+    container: server         # container name inside the pod
 ```
 
-The runner removes the cpu limit after the run via a JSON Patch.
+With fraction `0.1`: S3 checkout → **100m**, S4A productcatalog → **50m** (not comparable to `campaign_48/`’s absolute 100m), S4B payment → **100m**. Before load, the runner reconciles every Boutique service to paper limits, applies the fraction on the bottleneck, writes `topfull_run_quotas.json`, and patches Detector to load it. Teardown deletes the JSON and reconciles K8s back to paper (not “remove the limit”).
 
 ---
 

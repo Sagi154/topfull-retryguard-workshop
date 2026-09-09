@@ -58,7 +58,7 @@ Each of Scenarios 1–4 and 6 is run under two conditions: **baseline** (RetryGu
 ### Scenario 3 — Targeted Bottleneck
 
 - **Load:** Moderate full-chain load (same user counts as Scenario 2)
-- **Topology:** `checkoutservice` constrained with a CPU limit (`100m`) before load starts
+- **Topology:** `checkoutservice` constrained with `cpu_limit_fraction: 0.1` (paper quota 1000m → **100m** K8s + Detector) before load starts
 - **Duration:** 10 minutes
 - **Goal:** Stress a specific known node rather than the whole system. Enables clean attribution — we know exactly which service is the bottleneck. TopFull reacts bluntly (throttles entire entry APIs); RetryGuard acts surgically at the hot spot.
 - **Key question:** Does relief at the bottleneck propagate upstream? (e.g., does Frontend latency also improve?)
@@ -252,11 +252,11 @@ scale_constraints: []        # empty = no manipulation
 #   namespace: default
 #   method: replicas
 #   replicas: 1              # runner auto-detects original count and restores it
-# method: cpu_limit
+# method: cpu_limit (fraction of paper quota — see topfull_cpu_quotas.py)
 # - deployment: checkoutservice
 #   namespace: default
 #   method: cpu_limit
-#   cpu_limit: "100m"        # applied via kubectl patch; removed after run
+#   cpu_limit_fraction: 0.1  # e.g. checkout 1000m → 100m; productcatalog 500m → 50m
 #   container: server
 
 retryguard:
@@ -302,7 +302,7 @@ infra:
 
 ### Constraint methods for Scenarios 3/4
 
-Our setup has all Online Boutique services at **1 replica** (set by `instance_scaling.py`). This means `kubectl scale --replicas=1` would be a no-op. For Scenarios 3 and 4, the configs use `method: cpu_limit` instead — a `100m` CPU cap creates genuine local overload on the target service without touching replica counts.
+Our setup has all Online Boutique services at **1 replica** (set by `instance_scaling.py`). This means `kubectl scale --replicas=1` would be a no-op. For Scenarios 3 and 4, the configs use `method: cpu_limit` with **`cpu_limit_fraction: 0.1`** — a tenth of that service’s TopFull paper quota creates genuine local overload without touching replica counts. Absolute millicore strings (`cpu_limit: "100m"`) are rejected. Effective limits: S3/S4B **100m**, S4A **50m** (paper productcatalog is 500m). New S4A runs are **not** comparable to `campaign_48/` S4A (which used absolute 100m). The runner reconciles the cluster to paper quotas before/after each run and feeds the same effective map into Detector via `topfull_run_quotas.json`.
 
 If you later increase replica counts (e.g. on a bigger worker node), switch to `method: replicas` and set `replicas: 1`.
 

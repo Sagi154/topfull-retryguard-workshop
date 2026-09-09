@@ -6,12 +6,10 @@
 # This isolates the retry storm to a known node in the call chain:
 #   Frontend → Checkout → Cart, Shipping, Currency, ProductCatalog, Email, Payment
 #
-# Constraint method: cpu_limit
-#   Applying a CPU cap is the right approach when the service already runs at
-#   1 replica (scaling to 1 is a no-op). 100m CPU is very restrictive for
-#   checkoutservice and will cause visible latency/rejection spikes.
-#
-#   To restore: the runner removes the cpu limit after the run.
+# Constraint method: cpu_limit with cpu_limit_fraction: 0.1
+#   Paper quota for checkout is 1000m; fraction 0.1 → 100m K8s limit AND
+#   TopFull Detector quota for this run. Runner reconciles both back to paper
+#   after the run.
 #
 # Alternative (if you have >1 replica): change method to "replicas" and set
 #   replicas: 1  (runner auto-detects and restores original count).
@@ -51,7 +49,7 @@ scale_constraints:
   - deployment: checkoutservice
     namespace: default
     method: cpu_limit
-    cpu_limit: "100m"          # very tight CPU cap — forces local overload
+    cpu_limit_fraction: 0.1    # 0.1 × paper 1000m → 100m
     container: server          # container name inside the checkoutservice pod
 
   # Alternative: if checkoutservice currently has >1 replica, use:

@@ -786,6 +786,24 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
         self.assertTrue(any("1000m" in c and "500m" in c for c in checkout_cmds))
 
 
+class TestScenarioYamlsUseFraction(unittest.TestCase):
+    def test_s3_s4_have_no_absolute_cpu_limit(self):
+        import re
+        root = Path(__file__).resolve().parent / "configs"
+        names = [
+            "scenario_3_baseline.yaml", "scenario_3_retryguard.yaml",
+            "scenario_4a_baseline.yaml", "scenario_4a_retryguard.yaml",
+            "scenario_4b_baseline.yaml", "scenario_4b_retryguard.yaml",
+        ]
+        for name in names:
+            text = (root / name).read_text(encoding="utf-8")
+            self.assertIsNone(
+                re.search(r"(?m)^\s*cpu_limit:\s", text),
+                msg=f"{name} still has absolute cpu_limit:",
+            )
+            self.assertIn("cpu_limit_fraction: 0.1", text, msg=name)
+
+
 class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
     def test_skips_when_marker_present(self):
         cfg = {

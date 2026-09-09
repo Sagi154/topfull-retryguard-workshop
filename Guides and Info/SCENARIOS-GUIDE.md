@@ -231,7 +231,7 @@ This scenario is directly analogous to the RetryGuard Bookinfo case study in the
 
 ### How to run
 
-The runner automatically applies the `checkoutservice` CPU limit (`100m`) before load starts and removes it after the run — no manual `kubectl` needed.
+The runner reconciles Boutique CPU limits to TopFull paper quotas, applies `cpu_limit_fraction: 0.1` on `checkoutservice` (1000m → **100m**), syncs Detector via `topfull_run_quotas.json`, then restores paper limits after the run — no manual `kubectl` needed.
 
 ```powershell
 # Baseline — starts at run2 (smoke used run1)
@@ -284,11 +284,11 @@ Two Targeted Bottleneck runs using identical load and the same constraint method
 
 ### Load setup
 
-Same as Scenario 3 — normal-to-moderate Locust load, full call chain exercised.
+Same as Scenario 3 — normal-to-moderate Locust load, full call chain exercised. Both arms use `cpu_limit_fraction: 0.1` of the paper quota: **4A** productcatalog → **50m** (paper 500m; not comparable to `campaign_48/`’s absolute 100m), **4B** payment → **100m** (paper 1000m).
 
 ### How to run
 
-The runner applies and removes the CPU constraint automatically for both 4A and 4B. Finish all runs for one position before starting the other.
+The runner reconciles to paper, applies the fraction on the target service, syncs Detector, and restores paper limits after the run for both 4A and 4B. Finish all runs for one position before starting the other.
 
 **Run 4A — ProductCatalog bottleneck (gateway-adjacent):**
 

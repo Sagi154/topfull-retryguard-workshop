@@ -1,5 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 4A — Topology Position: Gateway-Adjacent  |  RETRYGUARD ON
+#
+# Constraint: cpu_limit_fraction: 0.1 × paper productcatalog 500m → 50m
+# (not comparable to campaign_48 absolute 100m).
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 4
@@ -28,7 +31,7 @@ scale_constraints:
   - deployment: productcatalogservice
     namespace: default
     method: cpu_limit
-    cpu_limit: "100m"
+    cpu_limit_fraction: 0.1    # 0.1 × paper 500m → 50m (not comparable to campaign_48 100m)
     container: server
 
 retryguard:

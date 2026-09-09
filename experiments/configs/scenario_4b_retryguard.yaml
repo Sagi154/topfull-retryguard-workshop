@@ -1,5 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 4B — Topology Position: Checkout-Mediated  |  RETRYGUARD ON
+#
+# Constraint: cpu_limit_fraction: 0.1 × paper payment 1000m → 100m.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 4
@@ -29,7 +31,7 @@ scale_constraints:
   - deployment: paymentservice
     namespace: default
     method: cpu_limit
-    cpu_limit: "100m"
+    cpu_limit_fraction: 0.1    # 0.1 × paper 1000m → 100m
     container: server
 
 retryguard:
