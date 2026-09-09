@@ -488,6 +488,7 @@ def start_master_stack(cfg: dict):
         "pkill -9 -f '[m]etric_collector.py' 2>/dev/null; "
         "pkill -9 -f '[e]nvoy_retry_collector.py' 2>/dev/null; "
         "pkill -9 -f '[r]esource_usage_collector.py' 2>/dev/null; "
+        "pkill -9 -f '[t]opfull_throttle_collector.py' 2>/dev/null; "
         "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
         "tmux kill-server 2>/dev/null; "
         "sleep 2; true",
@@ -858,7 +859,8 @@ def stop_locust(cfg: dict):
 def stop_master_stack(cfg: dict):
     master = cfg["infra"]["master_ssh_host"]
     step("Stopping master processes (metric_collector, deploy_rl, proxy, "
-         "RetryGuard, Envoy retry collector, resource usage collector, Ray)...")
+         "RetryGuard, Envoy retry collector, resource usage collector, "
+         "TopFull throttle collector, Ray)...")
     # Bracket trick avoids pkill matching this ssh/bash -c line itself.
     ssh(master,
         "pkill -f '[m]etric_collector.py' 2>/dev/null; "
@@ -867,6 +869,7 @@ def stop_master_stack(cfg: dict):
         "pkill -f '[r]etryguard.py' 2>/dev/null; "
         "pkill -f '[e]nvoy_retry_collector.py' 2>/dev/null; "
         "pkill -f '[r]esource_usage_collector.py' 2>/dev/null; "
+        "pkill -f '[t]opfull_throttle_collector.py' 2>/dev/null; "
         "sleep 2; "
         "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
         "tmux kill-server 2>/dev/null; "
