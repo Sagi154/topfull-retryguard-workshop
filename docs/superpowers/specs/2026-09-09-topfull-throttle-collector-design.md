@@ -2,7 +2,7 @@
 
 TopFull + RetryGuard Workshop — TAU Deepness Lab
 
-> Design for a new collector that records TopFull's own admission/throttle state (Layer A: cap + admitted RPS; Layer B: overload-detector reconstruction) on the **same wall-clock 1s grid** as the per-service mesh collector ([PER-SERVICE-MESH-COLLECTOR-DESIGN.md](../../../Guides%20and%20Info/PER-SERVICE-MESH-COLLECTOR-DESIGN.md)), so any given second has both a throttle snapshot and a per-service mesh snapshot. Extends [TOPFULL-THROTTLE-METRICS.md](../../../Guides%20and%20Info/TOPFULL-THROTTLE-METRICS.md) (inventory of live sources, Layers A–D) into an implementable spec for Layers A and B only. Not yet implemented — no new runs exist with this data.
+> Design for a new collector that records TopFull's own admission/throttle state (Layer A: cap + admitted RPS; Layer B: overload-detector reconstruction) on the **same wall-clock 1s grid** as the per-service mesh collector ([PER-SERVICE-MESH-COLLECTOR-DESIGN.md](../../../Guides%20and%20Info/PER-SERVICE-MESH-COLLECTOR-DESIGN.md)), so any given second has both a throttle snapshot and a per-service mesh snapshot. Extends [TOPFULL-THROTTLE-METRICS.md](../../../Guides%20and%20Info/TOPFULL-THROTTLE-METRICS.md) (inventory of live sources, Layers A–D) into an implementable spec for Layers A and B only. Implemented (2026-09-09). No campaign folder has this data yet.
 
 ---
 
@@ -152,4 +152,4 @@ def start_topfull_throttle_collector(cfg: dict):
 
 ## Status
 
-Design only. Nothing above is implemented or collected in `campaign_48/` or `august_38/`. Implementing it means: add the two alignment helpers (and retrofit them into the two existing collectors), write `topfull_throttle_collector.py` with the Layer A + B schemas above, wire it into `run_scenario.py` and all 16 scenario YAMLs, and verify the cAdvisor scrape on master first. New runs would be required — this does not backfill existing campaigns.
+Implemented (2026-09-09). No campaign folder has this data yet.

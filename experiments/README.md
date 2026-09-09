@@ -115,14 +115,17 @@ scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_
 | `retryguard.retry_attempts_on` | int | Istio retries.attempts when enabled |
 | `retryguard.retry_attempts_off` | int | Istio retries.attempts when disabled |
 | `envoy_retry_collector.enabled` | bool | Whether to scrape Envoy outbound retry counters (default true in all configs) |
-| `envoy_retry_collector.poll_interval_seconds` | int | Scrape interval (default 5) |
+| `envoy_retry_collector.poll_interval_seconds` | int | Scrape interval (default 1) |
 | `resource_usage_collector.enabled` | bool | Whether to scrape CPU/memory per service (default true in all configs) |
 | `resource_usage_collector.poll_interval_seconds` | int | Scrape interval (default 5) |
+| `topfull_throttle_collector.enabled` | bool | Whether to scrape TopFull cap/admitted + detector reconstruction (default true in all configs) |
+| `topfull_throttle_collector.poll_interval_seconds` | int | Scrape interval (default 1) |
 | `log_folder` | string | Output folder name (on master under `results_base_path`) |
 | `infra.*` | map | SSH hosts, paths, venv — override if your setup differs |
 | `infra.retryguard_script` | string | Path to `retryguard.py` on master |
 | `infra.envoy_retry_collector_script` | string | Path to `envoy_retry_collector.py` on master |
 | `infra.resource_usage_collector_script` | string | Path to `resource_usage_collector.py` on master |
+| `infra.topfull_throttle_collector_script` | string | Path to `topfull_throttle_collector.py` on master |
 
 ### scale_constraints — method: replicas
 

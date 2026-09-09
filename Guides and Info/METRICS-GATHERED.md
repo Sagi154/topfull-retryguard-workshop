@@ -14,7 +14,7 @@ The eval deck’s Layer 1 “retries per request” and Layer 2 CPU/memory do **
 
 | Layer | Deck said | What we actually write | Cadence |
 |---|---|---|---|
-| **1. API / system performance** | goodput, latency, rejection, retries/request | Locust CSVs from TopFull `metric_collector.py` + Envoy retry CSVs | 1 s (Locust), 5 s (Envoy) |
+| **1. API / system performance** | goodput, latency, rejection, retries/request | Locust CSVs from TopFull `metric_collector.py` + Envoy retry CSVs | 1 s (Locust), 1 s (Envoy mesh) |
 | **2. Infrastructure** | CPU, memory, pod counts | `resource_usage.csv` via kubelet `stats/summary` (not TopFull’s in-memory `resource_collector.py`) | 5 s |
 | **3. Controller state** | RetryGuard toggle timing | `retryguard.log` | every 30 s window |
 
@@ -197,6 +197,26 @@ TopFull’s own `resource_collector.py` still only feeds the RL loop in memory. 
 
 ---
 
+## Layer 3 supplement — TopFull throttle (future runs)
+
+**Writer:** `experiments/topfull_throttle_collector.py` on master, 1s wall-clock ticks
+shared with the mesh collector.
+
+**Present only in runs launched after this collector landed** — not in
+`campaign_48/` or `august_38/`.
+
+### `topfull_throttle.csv`
+timestamp, api, threshold, admitted_rps
+
+### `topfull_detect.csv`
+timestamp, service, cadvisor_cpu, quota, alpha, utilization, overloaded
+
+`overloaded` reconstructs `Detector.detect()` (cAdvisor CPU vs TopFull's
+hardcoded quota × alpha). It is not kubelet `resource_usage.csv`. Layers C/D
+are not collected. `mentor_charts.py` does not read these files.
+
+---
+
 ## Layer 3 — RetryGuard decisions
 
 **File:** `retryguard.log` (RetryGuard runs only).
@@ -257,7 +277,8 @@ Per-service RPS / errors / hop latency are **not** in this table today. Feasibil
 
 ## Clock alignment (important)
 
-- Locust CSVs: no clock; row *i* ≈ second *i* of the run. Toggle overlays line up with these charts.
+- Locust CSVs: no clock; row *i* ≈ second *i* of the run. Toggle overlays line up with these charts. Locust CSVs remain index-based with no timestamp column.
+- Envoy mesh + throttle collectors now stamp `floor(unix_time / interval) * interval` UTC seconds (aligned). `resource_usage.csv` uses interval=5 on the same grid.
 - Envoy + CPU/memory: UTC timestamps. Charts set *t* = 0 at **that file’s first poll**, which can be a few seconds before/after Locust. Do not treat “CPU dip at 60 s” as the same instant as “toggle at 60 s” on a Locust chart.
 
 ---
@@ -270,5 +291,6 @@ Per-service RPS / errors / hop latency are **not** in this table today. Feasibil
 | `retryguard.log` | RG runs | RG runs |
 | Envoy retry CSVs (`envoy_retries_*.csv`) | **All 48 folders** | **None** |
 | Full-mesh Envoy (`service_edges.csv`, `service_inbound.csv`, `service_capacity.json`) | **None** (pre-dates collector) | **None** |
+| TopFull throttle (`topfull_throttle.csv`, `topfull_detect.csv`) | **None** (pre-dates collector) | **None** |
 | `resource_usage.csv` | **All 48 folders** | **None** |
 | Re-enable (`OFF→ON`) | S5 + S6 (and a few others) | **Never** |

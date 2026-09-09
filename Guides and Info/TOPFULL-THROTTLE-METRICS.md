@@ -78,7 +78,7 @@ These are the live signals on `topfull-master` **during a run**. None of them ar
 
 `num_agent.csv` was supposed to record the throttle state. It is empty / almost all zeros across every finished run and **cannot be backfilled**. Do not revive it — drain the two live sources above instead.
 
-The collector plan (future runs only): poll `rate_config/*` and `:8090/stats` every 1–5 s, write `topfull_throttle.csv` (`timestamp, api, threshold, admitted_rps`), wire it in `run_scenario.py`. That will not backfill `campaign_48/` or `august_38/`. Details are in [How to keep this for analysis](#how-to-keep-this-for-analysis-future-runs-only).
+The collector is **implemented** (`experiments/topfull_throttle_collector.py`): it polls `rate_config/*` and `:8090/stats` every 1 s and writes `topfull_throttle.csv` (`timestamp, api, threshold, admitted_rps`) plus `topfull_detect.csv`. Campaign folders still lack these files until the next run — this does not backfill `campaign_48/` or `august_38/`. Details are in [How to keep this for analysis](#how-to-keep-this-for-analysis-future-runs-only).
 
 **RetryGuard contrast.** RetryGuard is this project’s own controller, separate from TopFull. It makes a binary decision: toggle Istio `retries.attempts` (3 ↔ 0) per Kubernetes service from rejection-rate windows. See [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md). TopFull decides *how much traffic gets in*; RetryGuard decides *whether failed requests get retried once they are in*.
 
@@ -159,11 +159,11 @@ timestamp, cluster_id, goodput_over_cap, p95_ms, slo_ms, action
 |---|---|---|
 | Completed `RPS` / Fail / Goodput per Locust API | Locust CSVs from `metric_collector.py` | Collected. Weak **proxy** for admitted load. |
 | `num_agent.csv` | Copied into every run folder | **Empty** (almost all zeros). Do not revive; scrape the sources below instead. |
-| Admission **threshold** (cap) per Locust API | `rate_config/<api>` and `:8090/thresholds` | Live on master during a run. **Not** written to results. |
-| **Admitted** RPS per Locust API | `:8090/stats` | Live on master during a run. **Not** written to results. |
+| Admission **threshold** (cap) per Locust API | `rate_config/<api>` and `:8090/thresholds` | Collector implemented — writes `topfull_throttle.csv` on **future** runs. Campaign folders still lack the files. |
+| **Admitted** RPS per Locust API | `:8090/stats` | Collector implemented — same `topfull_throttle.csv`. Campaign folders still lack the files. |
 | Overloaded-service list / RL actions | stdout of tmux `toprl` (`deploy_rl.py`) | Printed, not a CSV. |
 
-Until a collector exists and you **re-run**, you do not have TopFull’s internal throttle history. Existing 48 runs stay “`RPS` as proxy.”
+The collector is implemented; campaign folders still lack the files until the next run. Existing 48 runs stay “`RPS` as proxy.”
 
 ---
 
@@ -240,7 +240,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master "tmux capture-pane -t to
 
 ## How to keep this for analysis (future runs only)
 
-**Design (Layers A + B only, not yet implemented):** [2026-09-09-topfull-throttle-collector-design.md](../docs/superpowers/specs/2026-09-09-topfull-throttle-collector-design.md) — a new `topfull_throttle_collector.py` that polls `rate_config/*` + `:8090/stats` (Layer A) and reconstructs the detector's overload bool from cAdvisor CPU + the hardcoded quota table (Layer B fallback), on the **same wall-clock 1s grid** as the per-service mesh collector, so any second has both a throttle snapshot and a mesh snapshot. Layers C/D (clustering, RL action) are explicitly out of scope there — see the design doc for why.
+**Implemented (2026-09-09). Campaign folders still lack the files until the next run.** Design: [2026-09-09-topfull-throttle-collector-design.md](../docs/superpowers/specs/2026-09-09-topfull-throttle-collector-design.md) — `topfull_throttle_collector.py` polls `rate_config/*` + `:8090/stats` (Layer A) and reconstructs the detector's overload bool from cAdvisor CPU + the hardcoded quota table (Layer B fallback), on the **same wall-clock 1s grid** as the per-service mesh collector, so any second has both a throttle snapshot and a mesh snapshot. Layers C/D (clustering, RL action) are explicitly out of scope there — see the design doc for why.
 
 Same pattern as `resource_usage_collector.py` / `envoy_retry_collector.py`. Collect the layers in [What it did vs why it throttled](#what-it-did-vs-why-it-throttled-wanted-for-future-runs). A = what changed at the gate; B = why the detector fired; C = who was in the cluster; D = how hard the RL stepped. C and D can live in one file.
 
