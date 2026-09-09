@@ -19,6 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import resource_usage_collector as ruc
 
+EPOCH = 1700000000.0
+
 SAMPLE_SUMMARY = {
     "pods": [
         {
@@ -239,6 +241,30 @@ class TestRunCollector(unittest.TestCase):
             finally:
                 ruc.poll_once = orig  # type: ignore[assignment]
             self.assertEqual(poll_count["n"], 2)
+
+
+class TestTickTimestamp(unittest.TestCase):
+    def test_floors_to_interval_boundary(self):
+        ts = ruc.tick_timestamp(1, now=EPOCH + 0.4)
+        self.assertEqual(ts, "2023-11-14T22:13:20Z")
+
+    def test_already_on_boundary(self):
+        ts = ruc.tick_timestamp(1, now=EPOCH)
+        self.assertEqual(ts, "2023-11-14T22:13:20Z")
+
+    def test_five_second_interval_floors_to_mod_5(self):
+        ts = ruc.tick_timestamp(5, now=EPOCH + 3.0)
+        self.assertEqual(ts, "2023-11-14T22:13:20Z")
+
+
+class TestSleepUntilNextTick(unittest.TestCase):
+    def test_sleeps_the_remainder_of_the_interval(self):
+        slept = []
+        ruc.sleep_until_next_tick(
+            1, now=EPOCH + 0.25, sleeper=lambda s: slept.append(s)
+        )
+        self.assertEqual(len(slept), 1)
+        self.assertAlmostEqual(slept[0], 0.75, places=6)
 
 
 if __name__ == "__main__":

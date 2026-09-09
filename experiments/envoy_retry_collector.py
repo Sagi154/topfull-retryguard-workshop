@@ -119,6 +119,25 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def tick_timestamp(interval_seconds: int, now: Optional[float] = None) -> str:
+    t = time.time() if now is None else now
+    aligned = int(t // interval_seconds) * interval_seconds
+    return datetime.fromtimestamp(aligned, tz=timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+
+def sleep_until_next_tick(
+    interval_seconds: int,
+    now: Optional[float] = None,
+    sleeper: Optional[Callable[[float], None]] = None,
+) -> None:
+    t = time.time() if now is None else now
+    next_tick = (int(t // interval_seconds) + 1) * interval_seconds
+    delay = max(0.0, next_tick - t)
+    (sleeper or time.sleep)(delay)
+
+
 # --------------------------------------------------------------------------- #
 #  Config
 # --------------------------------------------------------------------------- #
@@ -400,14 +419,15 @@ def run_collector(
     while not _shutdown:
         if max_polls is not None and polls >= max_polls:
             break
-        poll_once(record_path, services, timestamp=utc_now(), run_cmd=run_cmd, pod_cache=pod_cache)
+        if max_polls is None:
+            sleep_until_next_tick(interval)
+            if _shutdown:
+                break
+        ts = tick_timestamp(interval)
+        poll_once(record_path, services, timestamp=ts, run_cmd=run_cmd, pod_cache=pod_cache)
         polls += 1
         if max_polls is not None and polls >= max_polls:
             break
-        for _ in range(interval):
-            if _shutdown:
-                break
-            time.sleep(1)
 
     log.info("%s  EXIT", utc_now())
 

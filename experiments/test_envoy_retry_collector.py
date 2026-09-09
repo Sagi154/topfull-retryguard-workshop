@@ -19,6 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import envoy_retry_collector as erc
 
+EPOCH = 1700000000.0
+
 
 SAMPLE_MESH_STATS = """\
 cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_total: 100
@@ -313,6 +315,30 @@ class TestResolveServices(unittest.TestCase):
             erc.resolve_services({"services": ["frontend", "cartservice"]}),
             ["frontend", "cartservice"],
         )
+
+
+class TestTickTimestamp(unittest.TestCase):
+    def test_floors_to_interval_boundary(self):
+        ts = erc.tick_timestamp(1, now=EPOCH + 0.4)
+        self.assertEqual(ts, "2023-11-14T22:13:20Z")
+
+    def test_already_on_boundary(self):
+        ts = erc.tick_timestamp(1, now=EPOCH)
+        self.assertEqual(ts, "2023-11-14T22:13:20Z")
+
+    def test_five_second_interval_floors_to_mod_5(self):
+        ts = erc.tick_timestamp(5, now=EPOCH + 3.0)
+        self.assertEqual(ts, "2023-11-14T22:13:20Z")
+
+
+class TestSleepUntilNextTick(unittest.TestCase):
+    def test_sleeps_the_remainder_of_the_interval(self):
+        slept = []
+        erc.sleep_until_next_tick(
+            1, now=EPOCH + 0.25, sleeper=lambda s: slept.append(s)
+        )
+        self.assertEqual(len(slept), 1)
+        self.assertAlmostEqual(slept[0], 0.75, places=6)
 
 
 if __name__ == "__main__":
