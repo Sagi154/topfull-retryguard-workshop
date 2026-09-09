@@ -786,5 +786,43 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
         self.assertTrue(any("1000m" in c and "500m" in c for c in checkout_cmds))
 
 
+class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
+    def test_skips_when_marker_present(self):
+        cfg = {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "topfull_src_path": "/home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src",
+            }
+        }
+        cmds = []
+
+        def fake_ssh(host, cmd, check=True):
+            cmds.append(cmd)
+            if "grep" in cmd and "TOPFULL_RUN_QUOTAS_OVERLAY" in cmd:
+                return SimpleNamespace(
+                    stdout="42:        # TOPFULL_RUN_QUOTAS_OVERLAY\n",
+                    returncode=0,
+                )
+            return SimpleNamespace(stdout="", returncode=0)
+
+        with mock.patch.object(run_scenario, "ssh", fake_ssh), \
+             mock.patch.object(run_scenario, "banner", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.ensure_detector_quota_overlay(cfg)
+        self.assertFalse(
+            any("cp " in c and "overload_detection" in c for c in cmds)
+        )
+
+    def test_effective_map_written_shape(self):
+        import topfull_cpu_quotas
+        constraints = [{
+            "deployment": "checkoutservice",
+            "method": "cpu_limit",
+            "cpu_limit_fraction": 0.1,
+        }]
+        got = topfull_cpu_quotas.effective_cpu_quotas(constraints)
+        self.assertEqual(got["checkoutservice"], 100)
+
+
 if __name__ == "__main__":
     unittest.main()

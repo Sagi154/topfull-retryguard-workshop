@@ -45,6 +45,20 @@ RECONCILE_SERVICES = (
 RUN_QUOTAS_JSON_PATH = "/home/idozacharia/experiments/topfull_run_quotas.json"
 OVERLAY_MARKER = "TOPFULL_RUN_QUOTAS_OVERLAY"
 
+# Indentation matches Detector.__init__ body (8 spaces).
+DETECTOR_OVERLAY_SNIPPET = '''
+        # TOPFULL_RUN_QUOTAS_OVERLAY
+        _quota_path = "/home/idozacharia/experiments/topfull_run_quotas.json"
+        try:
+            with open(_quota_path, "r") as _qf:
+                _overlay = json.load(_qf)
+            for _svc, _cpu in _overlay.items():
+                if _svc in self.services:
+                    self.services[_svc]["cpu"] = int(_cpu)
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            pass
+'''
+
 
 def paper_limit_for(service: str) -> int:
     return int(PAPER_CPU_LIMIT_MILLICORES.get(service, DEFAULT_PAPER_LIMIT_MILLICORES))

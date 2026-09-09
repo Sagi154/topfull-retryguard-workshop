@@ -462,6 +462,71 @@ def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
         wait_with_progress(20, "pods stabilising after paper CPU reconcile")
 
 
+def write_run_quotas_json(cfg: dict) -> dict:
+    """Upload effective per-service millicores for Detector.__init__ overlay."""
+    master = cfg["infra"]["master_ssh_host"]
+    effective = topfull_cpu_quotas.effective_cpu_quotas(
+        cfg.get("scale_constraints") or []
+    )
+    write_remote_json(master, topfull_cpu_quotas.RUN_QUOTAS_JSON_PATH, effective)
+    step(f"Wrote run quotas: {topfull_cpu_quotas.RUN_QUOTAS_JSON_PATH}")
+    return effective
+
+
+def delete_run_quotas_json(cfg: dict) -> None:
+    master = cfg["infra"]["master_ssh_host"]
+    ssh(master, f"rm -f {topfull_cpu_quotas.RUN_QUOTAS_JSON_PATH}", check=False)
+
+
+def ensure_detector_quota_overlay(cfg: dict) -> None:
+    """
+    Idempotently patch overload_detection.py so Detector.__init__ loads
+    topfull_run_quotas.json when present.
+    """
+    master = cfg["infra"]["master_ssh_host"]
+    src = cfg["infra"]["topfull_src_path"]
+    path = f"{src}/overload_detection.py"
+    marker = topfull_cpu_quotas.OVERLAY_MARKER
+    r = ssh(
+        master,
+        f"grep -n '{marker}' {path} 2>/dev/null || true",
+        check=False,
+    )
+    if marker in (r.stdout or ""):
+        step(f"Detector quota overlay already present in {path}")
+        return
+
+    banner("Patching Detector for per-run CPU quota overlay")
+    ssh(master, f"cp {path} {path}.bak.quota-overlay", check=False)
+
+    # Remote patcher: insert snippet immediately before the __init__ return
+    # that precedes the "Find overloaded services" docstring.
+    patcher = (
+        "#!/usr/bin/env python3\n"
+        "from pathlib import Path\n"
+        f"path = Path({path!r})\n"
+        "text = path.read_text(encoding='utf-8')\n"
+        f"marker = {marker!r}\n"
+        "if marker in text:\n"
+        "    raise SystemExit(0)\n"
+        f"snippet = {topfull_cpu_quotas.DETECTOR_OVERLAY_SNIPPET!r}\n"
+        "needle = '    \"\"\"\\n    Find overloaded services'\n"
+        "idx = text.find(needle)\n"
+        "if idx < 0:\n"
+        "    raise SystemExit('overlay insert point not found')\n"
+        "before = text[:idx]\n"
+        "ret = before.rfind('        return')\n"
+        "if ret < 0:\n"
+        "    raise SystemExit('__init__ return not found before detect docstring')\n"
+        "text = before[:ret] + snippet + '\\n' + before[ret:] + text[idx:]\n"
+        "path.write_text(text, encoding='utf-8')\n"
+        "print('overlay_patched')\n"
+    )
+    write_remote_script(master, "/tmp/rg_patch_quota_overlay.py", patcher)
+    ssh(master, "python3 /tmp/rg_patch_quota_overlay.py")
+    step(f"Patched {path} with {marker}")
+
+
 def restore_constraints(cfg: dict, restore_records: list):
     """Undo replica constraints. CPU limits are restored via paper reconcile."""
     replica_recs = [r for r in (restore_records or []) if r.get("method") == "replicas"]
@@ -949,7 +1014,11 @@ def scenario_dir_name(cfg: dict) -> str:
     return ""  # unknown scenario_id — fall back to no subfolder
 
 
-def collect_results(cfg: dict, capacity: dict | None = None) -> str:
+def collect_results(
+    cfg: dict,
+    capacity: dict | None = None,
+    effective_quotas: dict | None = None,
+) -> str:
     banner("Collecting results")
     master = cfg["infra"]["master_ssh_host"]
     src = cfg["infra"]["topfull_src_path"]
@@ -960,6 +1029,14 @@ def collect_results(cfg: dict, capacity: dict | None = None) -> str:
     # Copy logs on remote
     ssh(master, f"mkdir -p {dest}")
     ssh(master, f"cp -r {src}/logs/. {dest}/ 2>/dev/null; true", check=False)
+
+    paper = {
+        s: topfull_cpu_quotas.paper_limit_for(s)
+        for s in topfull_cpu_quotas.RECONCILE_SERVICES
+    }
+    effective = effective_quotas or topfull_cpu_quotas.effective_cpu_quotas(
+        cfg.get("scale_constraints") or []
+    )
 
     # Write a run manifest alongside the logs (config snapshot + timestamps)
     manifest = {
@@ -973,6 +1050,8 @@ def collect_results(cfg: dict, capacity: dict | None = None) -> str:
         "resource_usage_collector": cfg.get("resource_usage_collector", {}),
         "topfull_throttle_collector": cfg.get("topfull_throttle_collector", {}),
         "scale_constraints": cfg.get("scale_constraints", []),
+        "paper_cpu_quotas": paper,
+        "effective_cpu_quotas": effective,
         "log_folder":    log_folder,
         "collected_at":  datetime.utcnow().isoformat() + "Z",
     }
@@ -1060,6 +1139,7 @@ def run(config_path: str):
 
     restore_records = []
     capacity = {}
+    effective_quotas = {}
     start_ts = datetime.now()
 
     try:
@@ -1071,6 +1151,8 @@ def run(config_path: str):
         reconcile_paper_cpu_limits(cfg, wait=not has_constraints)
         restore_records = apply_constraints(cfg)
         capacity = capture_service_capacity(cfg, ALL_BOUTIQUE_SERVICES)
+        effective_quotas = write_run_quotas_json(cfg)
+        ensure_detector_quota_overlay(cfg)
 
         start_master_stack(cfg)
 
@@ -1118,8 +1200,9 @@ def run(config_path: str):
         stop_locust(cfg)
         stop_master_stack(cfg)
 
-        collect_results(cfg, capacity)
+        collect_results(cfg, capacity, effective_quotas=effective_quotas)
 
+        delete_run_quotas_json(cfg)
         if restore_records:
             restore_constraints(cfg, restore_records)
         # Always return to paper CPU limits (not pre-run dirty blobs).
