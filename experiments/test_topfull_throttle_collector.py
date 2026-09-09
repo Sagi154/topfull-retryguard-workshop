@@ -170,7 +170,7 @@ class TestDetectMetrics(unittest.TestCase):
     def test_quota_overrides_and_default(self):
         self.assertEqual(ttc.quota_for("productcatalogservice"), 500)
         self.assertEqual(ttc.quota_for("checkoutservice"), 1000)
-        self.assertEqual(ttc.quota_for("paymentservice"), 200)
+        self.assertEqual(ttc.quota_for("paymentservice"), 1000)
 
     def test_alpha_special_cases(self):
         self.assertEqual(ttc.alpha_for("cartservice"), 0.95)
@@ -195,6 +195,25 @@ class TestDetectMetrics(unittest.TestCase):
         self.assertEqual(row["overloaded"], 0)
         row2 = ttc.detect_metrics("cartservice", 960.0)
         self.assertEqual(row2["overloaded"], 1)
+
+
+class TestQuotaForEffectiveMap(unittest.TestCase):
+    def test_override_wins(self):
+        self.assertEqual(
+            ttc.quota_for("checkoutservice", {"checkoutservice": 100}),
+            100,
+        )
+
+    def test_paper_default_not_200(self):
+        self.assertEqual(ttc.quota_for("paymentservice"), 1000)
+        self.assertNotEqual(ttc.DEFAULT_QUOTA, 200)
+
+    def test_overloaded_against_fraction_quota(self):
+        row = ttc.detect_metrics(
+            "checkoutservice", 90.0, quotas={"checkoutservice": 100}
+        )
+        self.assertEqual(row["quota"], 100)
+        self.assertEqual(row["overloaded"], 1)
 
 
 class TestParseCadvisorSummary(unittest.TestCase):

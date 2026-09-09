@@ -22,6 +22,8 @@ from typing import Callable, Dict, List, Optional
 from urllib.error import URLError
 from urllib.request import urlopen
 
+import topfull_cpu_quotas
+
 GLOBAL_CONFIG_PATH = (
     "/home/idozacharia/TopFull/TopFull_master/"
     "online_boutique_scripts/src/global_config.json"
@@ -48,16 +50,9 @@ DETECT_CSV_COLUMNS = [
     "overloaded",
 ]
 
-CPU_QUOTA: Dict[str, int] = {
-    "cartservice": 1000,
-    "currencyservice": 1000,
-    "frontend": 1000,
-    "adservice": 1000,
-    "productcatalogservice": 500,
-    "checkoutservice": 1000,
-    "recommendationservice": 2000,
-}
-DEFAULT_QUOTA = 200
+# Paper table lives in topfull_cpu_quotas; keep DEFAULT_QUOTA as the
+# Detector for-loop default (1000), never the unused module constant 200.
+DEFAULT_QUOTA = topfull_cpu_quotas.DEFAULT_PAPER_LIMIT_MILLICORES
 ALPHA_SPECIAL = frozenset({"productcatalogservice", "cartservice"})
 DEFAULT_ALPHA = 0.8
 SPECIAL_ALPHA = 0.95
@@ -186,16 +181,22 @@ def write_throttle_csv(
             )
 
 
-def quota_for(service: str) -> int:
-    return int(CPU_QUOTA.get(service, DEFAULT_QUOTA))
+def quota_for(service: str, quotas: Optional[Dict[str, int]] = None) -> int:
+    if quotas and service in quotas:
+        return int(quotas[service])
+    return topfull_cpu_quotas.paper_limit_for(service)
 
 
 def alpha_for(service: str) -> float:
     return SPECIAL_ALPHA if service in ALPHA_SPECIAL else DEFAULT_ALPHA
 
 
-def detect_metrics(service: str, cadvisor_cpu: float) -> Dict[str, object]:
-    quota = quota_for(service)
+def detect_metrics(
+    service: str,
+    cadvisor_cpu: float,
+    quotas: Optional[Dict[str, int]] = None,
+) -> Dict[str, object]:
+    quota = quota_for(service, quotas)
     alpha = alpha_for(service)
     utilization = (cadvisor_cpu / quota) if quota else 0.0
     overloaded = 1 if utilization > alpha else 0
@@ -383,6 +384,7 @@ def poll_once(
     timestamp: str,
     run_cmd: Optional[CommandRunner] = None,
     fetch_url: Optional[UrlFetcher] = None,
+    cpu_quotas: Optional[Dict[str, int]] = None,
 ) -> None:
     ts = timestamp or utc_now()
     try:
@@ -403,7 +405,9 @@ def poll_once(
         except Exception as exc:
             log.warning("%s  WARNING  cadvisor scrape failed: %s", ts, exc)
         rows = {
-            svc: detect_metrics(svc, cpu_by_svc.get(svc, 0.0))
+            svc: detect_metrics(
+                svc, cpu_by_svc.get(svc, 0.0), quotas=cpu_quotas
+            )
             for svc in DETECT_SERVICES
         }
         write_detect_csv(record_path / "topfull_detect.csv", ts, rows)
@@ -421,6 +425,9 @@ def run_collector(
     max_polls: Optional[int] = None,
 ) -> None:
     interval = int(params.get("poll_interval_seconds", DEFAULT_POLL_INTERVAL_SECONDS))
+    cpu_quotas = params.get("cpu_quotas")
+    if cpu_quotas is not None:
+        cpu_quotas = {str(k): int(v) for k, v in cpu_quotas.items()}
     log.info("%s  START  poll_interval=%ss", utc_now(), interval)
     polls = 0
     while not _shutdown:
@@ -438,6 +445,7 @@ def run_collector(
             timestamp=ts,
             run_cmd=run_cmd,
             fetch_url=fetch_url,
+            cpu_quotas=cpu_quotas,
         )
         polls += 1
         if max_polls is not None and polls >= max_polls:

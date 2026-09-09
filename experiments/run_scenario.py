@@ -835,6 +835,9 @@ def start_topfull_throttle_collector(cfg: dict):
     deploy_repo_script(master, "topfull_throttle_collector.py", script)
     params = {
         "poll_interval_seconds": int(ttc_cfg.get("poll_interval_seconds", 1)),
+        "cpu_quotas": topfull_cpu_quotas.effective_cpu_quotas(
+            cfg.get("scale_constraints") or []
+        ),
     }
     write_remote_json(master, "/tmp/topfull_throttle_params.json", params)
     step(
