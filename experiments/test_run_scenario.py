@@ -768,5 +768,23 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
         self.assertNotIn("100m", joined)
 
 
+class TestReconcilePaperCpuLimits(unittest.TestCase):
+    def test_patches_checkout_to_1000m_500m(self):
+        cfg = {"infra": {"master_ssh_host": "topfull-master"}}
+        cmds = []
+
+        def fake_ssh(host, cmd, check=True):
+            cmds.append(cmd)
+            return SimpleNamespace(stdout="", returncode=0)
+
+        with mock.patch.object(run_scenario, "ssh", fake_ssh), \
+             mock.patch.object(run_scenario, "banner", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None):
+            run_scenario.reconcile_paper_cpu_limits(cfg)
+        checkout_cmds = [c for c in cmds if "checkoutservice" in c]
+        self.assertTrue(any("1000m" in c and "500m" in c for c in checkout_cmds))
+
+
 if __name__ == "__main__":
     unittest.main()

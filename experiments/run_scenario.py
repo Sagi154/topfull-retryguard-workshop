@@ -419,6 +419,8 @@ def apply_constraints(cfg: dict) -> list:
                 ]}}}
             })
             ssh(master, f"kubectl patch deployment {dep} -n {ns} -p '{patch}'")
+            # CPU restore is paper-reconcile (not the pre-patch blob); keep
+            # the record only for audit. restore_constraints skips cpu_limit.
             restore_records.append({
                 "method": "cpu_limit",
                 "deployment": dep,
@@ -434,49 +436,48 @@ def apply_constraints(cfg: dict) -> list:
     return restore_records
 
 
+def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
+    """Patch Boutique Deployments to the paper CPU limit/request table."""
+    banner("Reconciling CPU limits to paper quotas")
+    master = cfg["infra"]["master_ssh_host"]
+    for dep in topfull_cpu_quotas.RECONCILE_SERVICES:
+        lim = topfull_cpu_quotas.kubectl_cpu_quantity(
+            topfull_cpu_quotas.paper_limit_for(dep)
+        )
+        req = topfull_cpu_quotas.kubectl_cpu_quantity(
+            topfull_cpu_quotas.paper_request_for(dep)
+        )
+        step(f"{dep}: limits.cpu={lim} requests.cpu={req}")
+        patch = json.dumps({
+            "spec": {"template": {"spec": {"containers": [
+                {"name": "server", "resources": {
+                    "limits": {"cpu": lim},
+                    "requests": {"cpu": req},
+                }}
+            ]}}}
+        })
+        ssh(master, f"kubectl patch deployment {dep} -n default -p '{patch}'",
+            check=False)
+    if wait:
+        wait_with_progress(20, "pods stabilising after paper CPU reconcile")
+
+
 def restore_constraints(cfg: dict, restore_records: list):
-    """Undo all topology constraints applied by apply_constraints()."""
-    if not restore_records:
+    """Undo replica constraints. CPU limits are restored via paper reconcile."""
+    replica_recs = [r for r in (restore_records or []) if r.get("method") == "replicas"]
+    if not replica_recs:
         return
 
     banner("Restoring topology")
     master = cfg["infra"]["master_ssh_host"]
 
-    for rec in restore_records:
+    for rec in replica_recs:
         dep = rec["deployment"]
         ns = rec["namespace"]
-
-        if rec["method"] == "replicas":
-            orig = rec["original_replicas"]
-            step(f"Restoring {dep} ({ns}) -> {orig} replicas")
-            ssh(master, f"kubectl scale deployment {dep} --replicas={orig} -n {ns}",
-                check=False)
-
-        elif rec["method"] == "cpu_limit":
-            container = rec["container"]
-            step(f"Restoring CPU resources on {dep}/{container} ({ns})")
-            # Restore the full original resources blob (limits + requests).
-            try:
-                orig = json.loads(rec.get("original_resources") or "{}")
-            except json.JSONDecodeError:
-                orig = {}
-            if orig:
-                patch = json.dumps({
-                    "spec": {"template": {"spec": {"containers": [
-                        {"name": container, "resources": orig}
-                    ]}}}
-                })
-                ssh(master, f"kubectl patch deployment {dep} -n {ns} -p '{patch}'",
-                    check=False)
-            else:
-                # Fallback: remove cpu limit only (legacy restore records)
-                patch = json.dumps([
-                    {"op": "remove",
-                     "path": "/spec/template/spec/containers/0/resources/limits/cpu"}
-                ])
-                ssh(master,
-                    f"kubectl patch deployment {dep} -n {ns} --type=json -p '{patch}'",
-                    check=False)
+        orig = rec["original_replicas"]
+        step(f"Restoring {dep} ({ns}) -> {orig} replicas")
+        ssh(master, f"kubectl scale deployment {dep} --replicas={orig} -n {ns}",
+            check=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -1064,8 +1065,12 @@ def run(config_path: str):
     try:
         preflight(cfg)
         clear_logs(cfg)
-        capacity = capture_service_capacity(cfg, ALL_BOUTIQUE_SERVICES)
+        # Reconcile first (heals leftover S3 100m). Wait only when there are
+        # no fraction constraints — apply_constraints already waits 20s.
+        has_constraints = bool(cfg.get("scale_constraints"))
+        reconcile_paper_cpu_limits(cfg, wait=not has_constraints)
         restore_records = apply_constraints(cfg)
+        capacity = capture_service_capacity(cfg, ALL_BOUTIQUE_SERVICES)
 
         start_master_stack(cfg)
 
@@ -1117,6 +1122,8 @@ def run(config_path: str):
 
         if restore_records:
             restore_constraints(cfg, restore_records)
+        # Always return to paper CPU limits (not pre-run dirty blobs).
+        reconcile_paper_cpu_limits(cfg, wait=False)
 
         restore_virtualservice_retries(cfg)
 
