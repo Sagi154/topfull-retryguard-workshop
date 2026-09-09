@@ -132,3 +132,55 @@ def setup_logging(record_path: Path) -> None:
             f"[topfull_throttle_collector] WARN: cannot open {log_file}: {exc}",
             file=sys.stderr,
         )
+
+
+def parse_proxy_stats(body: str) -> Dict[str, float]:
+    """Parse Go-proxy `/stats` body: `name=value/` tokens."""
+    result: Dict[str, float] = {}
+    for token in body.strip().split("/"):
+        token = token.strip()
+        if not token or "=" not in token:
+            continue
+        name, _, raw = token.partition("=")
+        try:
+            result[name] = float(raw)
+        except ValueError:
+            continue
+    return result
+
+
+def read_thresholds(
+    proxy_dir: Path, apis: Optional[List[str]] = None
+) -> Dict[str, float]:
+    """Read `rate_config/<api>` files. Missing/unreadable → 0.0."""
+    names = list(apis) if apis is not None else list(LOCUST_APIS)
+    out: Dict[str, float] = {}
+    for api in names:
+        path = proxy_dir / api
+        try:
+            out[api] = float(path.read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            out[api] = 0.0
+    return out
+
+
+def write_throttle_csv(
+    csv_path: Path,
+    timestamp: str,
+    thresholds: Dict[str, float],
+    admitted: Dict[str, float],
+) -> None:
+    write_header = not csv_path.exists() or csv_path.stat().st_size == 0
+    with open(csv_path, "a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=THROTTLE_CSV_COLUMNS)
+        if write_header:
+            w.writeheader()
+        for api in LOCUST_APIS:
+            w.writerow(
+                {
+                    "timestamp": timestamp,
+                    "api": api,
+                    "threshold": thresholds.get(api, 0.0),
+                    "admitted_rps": admitted.get(api, 0.0),
+                }
+            )
