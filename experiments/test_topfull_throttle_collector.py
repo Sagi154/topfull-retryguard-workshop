@@ -324,6 +324,40 @@ class TestPollOnce(unittest.TestCase):
             self.assertEqual(len(throttle), len(ttc.LOCUST_APIS))
             self.assertTrue(all(r["admitted_rps"] == "0.0" for r in throttle))
 
+    def test_runtime_error_from_injected_deps_does_not_propagate(self):
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+
+            def run_cmd(_cmd):
+                raise RuntimeError("kubectl exploded")
+
+            def fetch_url(_url: str) -> str:
+                raise RuntimeError("stats endpoint exploded")
+
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://127.0.0.1:8090/stats",
+                timestamp="2023-11-14T22:13:20Z",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+            )
+            with (record_path / "topfull_throttle.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                throttle = list(csv.DictReader(f))
+            with (record_path / "topfull_detect.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                detect = list(csv.DictReader(f))
+            self.assertEqual(len(throttle), len(ttc.LOCUST_APIS))
+            self.assertTrue(all(r["admitted_rps"] == "0.0" for r in throttle))
+            self.assertEqual(len(detect), len(ttc.DETECT_SERVICES))
+            self.assertTrue(all(r["cadvisor_cpu"] == "0.0" for r in detect))
+            self.assertTrue(all(r["overloaded"] == "0" for r in detect))
+
 
 class TestRunCollector(unittest.TestCase):
     def test_max_polls_writes_and_exits(self):

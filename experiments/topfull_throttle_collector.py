@@ -390,7 +390,7 @@ def poll_once(
     admitted: Dict[str, float] = {}
     try:
         admitted = parse_proxy_stats(fetcher(stats_url))
-    except (OSError, URLError, TimeoutError) as exc:
+    except Exception as exc:
         log.warning("%s  WARNING  stats fetch failed: %s", timestamp, exc)
     write_throttle_csv(
         record_path / "topfull_throttle.csv", timestamp, thresholds, admitted
@@ -398,7 +398,7 @@ def poll_once(
     cpu_by_svc: Dict[str, float] = {}
     try:
         cpu_by_svc = scrape_cadvisor_cpu(runner, fetcher)
-    except (OSError, TimeoutError) as exc:
+    except Exception as exc:
         log.warning("%s  WARNING  cadvisor scrape failed: %s", timestamp, exc)
     rows = {
         svc: detect_metrics(svc, cpu_by_svc.get(svc, 0.0))
