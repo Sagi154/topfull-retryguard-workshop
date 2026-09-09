@@ -184,3 +184,103 @@ def write_throttle_csv(
                     "admitted_rps": admitted.get(api, 0.0),
                 }
             )
+
+
+def quota_for(service: str) -> int:
+    return int(CPU_QUOTA.get(service, DEFAULT_QUOTA))
+
+
+def alpha_for(service: str) -> float:
+    return SPECIAL_ALPHA if service in ALPHA_SPECIAL else DEFAULT_ALPHA
+
+
+def detect_metrics(service: str, cadvisor_cpu: float) -> Dict[str, object]:
+    quota = quota_for(service)
+    alpha = alpha_for(service)
+    utilization = (cadvisor_cpu / quota) if quota else 0.0
+    overloaded = 1 if utilization > alpha else 0
+    return {
+        "cadvisor_cpu": float(cadvisor_cpu),
+        "quota": quota,
+        "alpha": alpha,
+        "utilization": utilization,
+        "overloaded": overloaded,
+    }
+
+
+def parse_cadvisor_summary(body: str) -> Optional[float]:
+    try:
+        data = json.loads(body)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict) or not data:
+        return None
+    first = next(iter(data.values()))
+    if not isinstance(first, dict):
+        return None
+    usage = first.get("latest_usage") or {}
+    cpu = usage.get("cpu")
+    try:
+        return float(cpu)
+    except (TypeError, ValueError):
+        return None
+
+
+def _pod_service_name(pod_name: str, services: List[str]) -> Optional[str]:
+    for svc in sorted(services, key=len, reverse=True):
+        if pod_name == svc or pod_name.startswith(svc + "-"):
+            return svc
+    return None
+
+
+def container_ids_from_pod_list(
+    pod_list: dict, services: List[str]
+) -> Dict[str, List[str]]:
+    out: Dict[str, List[str]] = {s: [] for s in services}
+    for item in pod_list.get("items") or []:
+        name = (item.get("metadata") or {}).get("name") or ""
+        svc = _pod_service_name(name, services)
+        if svc is None:
+            continue
+        for cs in (item.get("status") or {}).get("containerStatuses") or []:
+            cname = cs.get("name") or ""
+            if "proxy" in cname:
+                continue
+            cid = cs.get("containerID") or ""
+            if "://" in cid:
+                cid = cid.split("://", 1)[1]
+            if cid:
+                out[svc].append(cid)
+    return out
+
+
+def aggregate_cpu(values: List[float]) -> float:
+    kept = [v for v in values if v > CPU_SKIP_BELOW]
+    if not kept:
+        return 0.0
+    return sum(kept) / len(kept)
+
+
+def write_detect_csv(
+    csv_path: Path,
+    timestamp: str,
+    rows: Dict[str, Dict[str, object]],
+) -> None:
+    write_header = not csv_path.exists() or csv_path.stat().st_size == 0
+    with open(csv_path, "a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=DETECT_CSV_COLUMNS)
+        if write_header:
+            w.writeheader()
+        for service in DETECT_SERVICES:
+            metrics = rows.get(service) or detect_metrics(service, 0.0)
+            w.writerow(
+                {
+                    "timestamp": timestamp,
+                    "service": service,
+                    "cadvisor_cpu": metrics["cadvisor_cpu"],
+                    "quota": metrics["quota"],
+                    "alpha": metrics["alpha"],
+                    "utilization": metrics["utilization"],
+                    "overloaded": metrics["overloaded"],
+                }
+            )
