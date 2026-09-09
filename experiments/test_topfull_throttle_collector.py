@@ -324,6 +324,29 @@ class TestPollOnce(unittest.TestCase):
             self.assertEqual(len(throttle), len(ttc.LOCUST_APIS))
             self.assertTrue(all(r["admitted_rps"] == "0.0" for r in throttle))
 
+    def test_does_not_raise_when_record_path_is_file_or_proxy_dir_is_file(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            record_file = base / "not_a_dir"
+            record_file.write_text("block\n", encoding="utf-8")
+            proxy_file = base / "also_not_a_dir"
+            proxy_file.write_text("99\n", encoding="utf-8")
+
+            def fetch_url(_url: str) -> str:
+                return SAMPLE_STATS
+
+            def run_cmd(_cmd):
+                return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+            ttc.poll_once(
+                record_file,
+                proxy_file,
+                "http://127.0.0.1:8090/stats",
+                timestamp="2023-11-14T22:13:20Z",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+            )
+
     def test_runtime_error_from_injected_deps_does_not_propagate(self):
         with tempfile.TemporaryDirectory() as td:
             record_path = Path(td)

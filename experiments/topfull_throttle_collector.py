@@ -384,27 +384,31 @@ def poll_once(
     run_cmd: Optional[CommandRunner] = None,
     fetch_url: Optional[UrlFetcher] = None,
 ) -> None:
-    runner = run_cmd or default_run_cmd
-    fetcher = fetch_url or default_fetch_url
-    thresholds = read_thresholds(proxy_dir)
-    admitted: Dict[str, float] = {}
+    ts = timestamp or utc_now()
     try:
-        admitted = parse_proxy_stats(fetcher(stats_url))
+        runner = run_cmd or default_run_cmd
+        fetcher = fetch_url or default_fetch_url
+        thresholds = read_thresholds(proxy_dir)
+        admitted: Dict[str, float] = {}
+        try:
+            admitted = parse_proxy_stats(fetcher(stats_url))
+        except Exception as exc:
+            log.warning("%s  WARNING  stats fetch failed: %s", ts, exc)
+        write_throttle_csv(
+            record_path / "topfull_throttle.csv", ts, thresholds, admitted
+        )
+        cpu_by_svc: Dict[str, float] = {}
+        try:
+            cpu_by_svc = scrape_cadvisor_cpu(runner, fetcher)
+        except Exception as exc:
+            log.warning("%s  WARNING  cadvisor scrape failed: %s", ts, exc)
+        rows = {
+            svc: detect_metrics(svc, cpu_by_svc.get(svc, 0.0))
+            for svc in DETECT_SERVICES
+        }
+        write_detect_csv(record_path / "topfull_detect.csv", ts, rows)
     except Exception as exc:
-        log.warning("%s  WARNING  stats fetch failed: %s", timestamp, exc)
-    write_throttle_csv(
-        record_path / "topfull_throttle.csv", timestamp, thresholds, admitted
-    )
-    cpu_by_svc: Dict[str, float] = {}
-    try:
-        cpu_by_svc = scrape_cadvisor_cpu(runner, fetcher)
-    except Exception as exc:
-        log.warning("%s  WARNING  cadvisor scrape failed: %s", timestamp, exc)
-    rows = {
-        svc: detect_metrics(svc, cpu_by_svc.get(svc, 0.0))
-        for svc in DETECT_SERVICES
-    }
-    write_detect_csv(record_path / "topfull_detect.csv", timestamp, rows)
+        log.warning("%s  WARNING  poll_once failed: %s", ts, exc)
 
 
 def run_collector(
