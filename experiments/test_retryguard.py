@@ -283,6 +283,35 @@ class TestLoadParamsRequiredKeys(unittest.TestCase):
                 retryguard.load_params(str(params_path))
 
 
+class TestWaitForInboundCsv(unittest.TestCase):
+    def test_returns_immediately_when_file_has_a_data_row(self):
+        with TemporaryDirectory() as tmp:
+            record_path = Path(tmp)
+            _write_inbound(
+                record_path / retryguard.INBOUND_CSV_NAME,
+                [_row("2026-09-10T18:30:01Z", "checkoutservice", 10, 1)],
+            )
+            retryguard.wait_for_inbound_csv(
+                record_path, timeout_seconds=0.2, poll_seconds=0.05
+            )
+
+    def test_times_out_when_file_missing(self):
+        with TemporaryDirectory() as tmp:
+            with self.assertRaises(SystemExit):
+                retryguard.wait_for_inbound_csv(
+                    Path(tmp), timeout_seconds=0.15, poll_seconds=0.05
+                )
+
+
+class TestLocustReaderRemoved(unittest.TestCase):
+    def test_locust_helpers_and_endpoint_map_are_gone(self):
+        self.assertFalse(hasattr(retryguard, "ENDPOINT_SERVICE_MAP"))
+        self.assertFalse(hasattr(retryguard, "read_rejection_rate"))
+        self.assertFalse(hasattr(retryguard, "service_rejection_rate"))
+        self.assertFalse(hasattr(retryguard, "service_endpoint_map"))
+        self.assertFalse(hasattr(retryguard, "wait_for_csvs"))
+
+
 if __name__ == "__main__":
     unittest.main()
 

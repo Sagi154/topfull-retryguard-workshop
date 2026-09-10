@@ -5,11 +5,11 @@ retryguard.py — Rejection-based productive-retry controller (RetryGuard paper,
 Usage (on master, with venv active):
     python3 retryguard.py --params /tmp/retryguard_params.json
 
-Reads per-endpoint rejection rates from metric_collector CSV logs, aggregates
-them to Online Boutique services, and patches Istio VirtualService
-retries.attempts when Interval consecutive samples cross the threshold
-(RetryGuard paper Algorithm 1, applied literally: 1 raw sample per second,
-one symmetric Interval for both the disable and re-enable transitions).
+Reads {record_path}/service_inbound.csv (Δ5xx / Δtotal per service) and
+patches Istio VirtualService retries.attempts when Interval consecutive
+samples cross the threshold (RetryGuard paper Algorithm 1, applied
+literally: 1 raw sample per second, one symmetric Interval for both the
+disable and re-enable transitions).
 """
 
 from __future__ import annotations
@@ -21,11 +21,10 @@ import logging
 import signal
 import sys
 import time
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import kubernetes
 from kubernetes import client, config
@@ -39,16 +38,6 @@ GLOBAL_CONFIG_PATH = (
     "/home/idozacharia/TopFull/TopFull_master/"
     "online_boutique_scripts/src/global_config.json"
 )
-
-# Locust endpoint → Online Boutique K8s service name.
-# Multiple endpoints may map to the same service; aggregation uses max().
-ENDPOINT_SERVICE_MAP = {
-    "getproduct": "productcatalogservice",
-    "postcheckout": "checkoutservice",
-    "getcart": "cartservice",
-    "postcart": "cartservice",
-    "emptycart": "cartservice",
-}
 
 INBOUND_CSV_NAME = "service_inbound.csv"
 
@@ -154,13 +143,6 @@ def load_record_path() -> Path:
     return record_path
 
 
-def service_endpoint_map() -> Dict[str, List[str]]:
-    mapping: Dict[str, List[str]] = defaultdict(list)
-    for endpoint, service in ENDPOINT_SERVICE_MAP.items():
-        mapping[service].append(endpoint)
-    return dict(mapping)
-
-
 # --------------------------------------------------------------------------- #
 #  Metric reading
 # --------------------------------------------------------------------------- #
@@ -203,54 +185,6 @@ def measure_inbound_rejection(
     if delta_total <= 0:
         return 0.0, current
     return delta_5xx / delta_total, current
-
-
-def read_rejection_rate(csv_path: Path) -> Optional[float]:
-    """
-    Fail / RPS of the single most recent data row (paper Algorithm 1's
-    measure_value() — one raw sample per iteration, no averaging).
-    Returns None if the file is missing or has no usable data rows.
-    A row with RPS == 0 contributes rejection rate 0 (no load ≠ overload).
-    """
-    if not csv_path.is_file():
-        return None
-
-    try:
-        with open(csv_path, "r", newline="") as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
-    except OSError:
-        return None
-
-    if not rows:
-        return None
-
-    row = rows[-1]
-    try:
-        rps = float(row["RPS"])
-        fail = float(row["Fail"])
-    except (KeyError, TypeError, ValueError):
-        return None
-
-    if rps <= 0:
-        return 0.0
-    return fail / rps
-
-
-def service_rejection_rate(
-    service: str,
-    endpoints: List[str],
-    record_path: Path,
-) -> Optional[float]:
-    """Max rejection rate (latest sample) across endpoints mapped to this service."""
-    rates = []
-    for ep in endpoints:
-        rate = read_rejection_rate(record_path / f"{ep}.csv")
-        if rate is not None:
-            rates.append(rate)
-    if not rates:
-        return None
-    return max(rates)
 
 
 # --------------------------------------------------------------------------- #
@@ -326,26 +260,36 @@ def _handle_signal(signum, _frame):
     _shutdown = True
 
 
-def wait_for_csvs(record_path: Path, endpoints: List[str]) -> None:
-    """Poll until at least one endpoint CSV exists, or exit after timeout."""
-    deadline = time.time() + STARTUP_TIMEOUT_SECONDS
+def wait_for_inbound_csv(
+    record_path: Path,
+    timeout_seconds: float = STARTUP_TIMEOUT_SECONDS,
+    poll_seconds: float = STARTUP_POLL_SECONDS,
+) -> None:
+    """Poll until service_inbound.csv exists and has ≥1 data row."""
+    deadline = time.time() + timeout_seconds
+    csv_path = record_path / INBOUND_CSV_NAME
     log.info(
-        "%s  WAITING  for metric_collector CSVs under %s (timeout=%ss)",
+        "%s  WAITING  for %s (timeout=%ss)",
         utc_now(),
-        record_path,
-        STARTUP_TIMEOUT_SECONDS,
+        csv_path,
+        timeout_seconds,
     )
     while time.time() < deadline:
         if _shutdown:
             raise SystemExit(0)
-        for ep in endpoints:
-            if (record_path / f"{ep}.csv").is_file():
-                log.info("%s  READY  found %s.csv", utc_now(), ep)
+        if csv_path.is_file():
+            try:
+                with open(csv_path, "r", newline="") as f:
+                    rows = list(csv.DictReader(f))
+            except OSError:
+                rows = []
+            if rows:
+                log.info("%s  READY  found %s (%d rows)", utc_now(), INBOUND_CSV_NAME, len(rows))
                 return
-        time.sleep(STARTUP_POLL_SECONDS)
+        time.sleep(poll_seconds)
     raise SystemExit(
-        f"[retryguard] ERROR: no CSV files under {record_path} "
-        f"after {STARTUP_TIMEOUT_SECONDS}s — is metric_collector running?"
+        f"[retryguard] ERROR: no data in {csv_path} "
+        f"after {timeout_seconds}s — is envoy_retry_collector running?"
     )
 
 
@@ -391,17 +335,19 @@ def apply_algorithm1(
 
 
 def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
-    svc_map = service_endpoint_map()
-    endpoints = list(ENDPOINT_SERVICE_MAP.keys())
     sample_interval = int(params["sample_interval_seconds"])
     interval = int(params["interval_samples"])
     threshold = float(params["rejection_threshold"])
     attempts_on = int(params["retry_attempts_on"])
     attempts_off = int(params["retry_attempts_off"])
 
-    wait_for_csvs(record_path, endpoints)
+    wait_for_inbound_csv(record_path)
 
-    states = {svc: ServiceState() for svc in svc_map}
+    states = {svc: ServiceState() for svc in CONTROLLED_SERVICES}
+    previous: Dict[str, Optional[InboundSnapshot]] = {
+        svc: None for svc in CONTROLLED_SERVICES
+    }
+    inbound_path = record_path / INBOUND_CSV_NAME
     log.info(
         "%s  START  threshold=%.2f sample_interval=%ss interval_samples=%d "
         "(%ds) services=%s",
@@ -410,7 +356,7 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
         sample_interval,
         interval,
         sample_interval * interval,
-        sorted(svc_map.keys()),
+        list(CONTROLLED_SERVICES),
     )
 
     while not _shutdown:
@@ -418,8 +364,11 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
         if _shutdown:
             break
 
-        for service, eps in sorted(svc_map.items()):
-            rejection = service_rejection_rate(service, eps, record_path)
+        for service in CONTROLLED_SERVICES:
+            current = read_latest_inbound_row(inbound_path, service)
+            rejection, previous[service] = measure_inbound_rejection(
+                previous[service], current
+            )
             if rejection is None:
                 log.info(
                     "%s  SKIP  %s  no metric data this sample",
