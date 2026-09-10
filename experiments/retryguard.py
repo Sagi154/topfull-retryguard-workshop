@@ -50,6 +50,23 @@ ENDPOINT_SERVICE_MAP = {
     "emptycart": "cartservice",
 }
 
+INBOUND_CSV_NAME = "service_inbound.csv"
+
+# HTTP Boutique callees that already have a VirtualService.
+# frontend (ingress) and redis-cart (TCP) are excluded — see the
+# 2026-09-10 mesh measure_value spec.
+CONTROLLED_SERVICES = (
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice",
+)
+
 VS_GROUP = "networking.istio.io"
 VS_VERSION = "v1alpha3"
 VS_PLURAL = "virtualservices"
@@ -110,6 +127,13 @@ class ServiceState:
     retries_state: str = "ON"
 
 
+@dataclass(frozen=True)
+class InboundSnapshot:
+    timestamp: str
+    total: float
+    five_xx: float
+
+
 # --------------------------------------------------------------------------- #
 #  Config loading
 # --------------------------------------------------------------------------- #
@@ -140,6 +164,46 @@ def service_endpoint_map() -> Dict[str, List[str]]:
 # --------------------------------------------------------------------------- #
 #  Metric reading
 # --------------------------------------------------------------------------- #
+
+def read_latest_inbound_row(csv_path: Path, service: str) -> Optional[InboundSnapshot]:
+    if not csv_path.is_file():
+        return None
+    try:
+        with open(csv_path, "r", newline="") as f:
+            rows = list(csv.DictReader(f))
+    except OSError:
+        return None
+    latest = None
+    for row in rows:
+        if row.get("service") != service:
+            continue
+        try:
+            latest = InboundSnapshot(
+                timestamp=str(row["timestamp"]),
+                total=float(row["total"]),
+                five_xx=float(row["5xx"]),
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    return latest
+
+
+def measure_inbound_rejection(
+    previous: Optional[InboundSnapshot],
+    current: Optional[InboundSnapshot],
+) -> tuple[Optional[float], Optional[InboundSnapshot]]:
+    if current is None:
+        return None, previous
+    if previous is None:
+        return None, current
+    if current.timestamp <= previous.timestamp:
+        return None, previous
+    delta_total = current.total - previous.total
+    delta_5xx = current.five_xx - previous.five_xx
+    if delta_total <= 0:
+        return 0.0, current
+    return delta_5xx / delta_total, current
+
 
 def read_rejection_rate(csv_path: Path) -> Optional[float]:
     """
