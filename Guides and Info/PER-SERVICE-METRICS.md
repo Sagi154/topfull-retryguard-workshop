@@ -16,9 +16,9 @@ Locust will never become per-service unless you stop using a storefront load and
 |---|---|---|
 | CPU, memory, replica count | `resource_usage.csv` | All 11 deployments |
 | Outbound retries to a **target** | `envoy_retries_*.csv` | cart, catalog, checkout, payment (only those four, and only as seen by frontend / checkout) |
-| RetryGuard ON/OFF | `retryguard.log` | cart, checkout, catalog |
+| RetryGuard ON/OFF | `retryguard.log` | 9 HTTP backends (not frontend / redis-cart) |
 
-RetryGuard’s “per-service rejection” is **not** measured at the service. It is Locust `Fail/RPS` on `getproduct` / `postcheckout` / cart APIs, then mapped with `ENDPOINT_SERVICE_MAP`. That is the mismatch: Layer 1 CSVs answer “did this **storefront action** fail?”, not “did **this pod** fail?”
+RetryGuard’s **decision** signal is Envoy inbound `Δ5xx / Δtotal` from `service_inbound.csv` (one Algorithm 1 loop per HTTP backend except `frontend`). Locust `Fail/RPS` is still the **storefront outcome**, not the controller input. Mesh inbound / edges / CPU remain per-service outcomes and insights — see the practical-split table below. `mentor_charts.py` still plots Locust only; wiring mesh into charts is a follow-up, not a claim that mesh is not an outcome.
 
 ---
 

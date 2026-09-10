@@ -133,17 +133,17 @@ ssh topfull-master "tmux attach -t retryguard"   # Ctrl+B, D to detach
 | Keyword | Meaning |
 |---------|---------|
 | `START` | Controller initialized — shows all params |
-| `OBSERVE` | End of each 30s window — reports rejection rate + counters for every service |
+| `OBSERVE` | End of each 1 s sample — reports rejection rate + counters for every service |
 | `ON→OFF` | RetryGuard disabled retries on a service (VirtualService patched) |
 | `OFF→ON` | RetryGuard re-enabled retries on a service |
-| `SKIP` | No CSV data available for a service this window |
+| `SKIP` | No new inbound row this tick |
 | `PATCH_FAIL` | Kubernetes API patch failed (logged, state not updated) |
 | `SHUTDOWN` / `EXIT` | Controller received stop signal |
 
 ### Example log
 
 ```
-2026-08-04T13:20:00Z  START  threshold=0.20 sample_interval=1s interval_samples=30 (30s) services=['cartservice', 'checkoutservice', 'productcatalogservice']
+2026-08-04T13:20:00Z  START  threshold=0.20 sample_interval=1s interval_samples=30 (30s) services=['adservice', 'cartservice', 'checkoutservice', 'currencyservice', 'emailservice', 'paymentservice', 'productcatalogservice', 'recommendationservice', 'shippingservice']
 2026-08-04T13:20:01Z  OBSERVE  cartservice         rejection=0.0100  low=1 high=0  state=ON
 2026-08-04T13:20:30Z  OBSERVE  checkoutservice     rejection=0.3800  low=0 high=1  state=ON
 2026-08-04T13:20:30Z  OBSERVE  productcatalogservice  rejection=0.0200  low=1 high=0  state=ON
@@ -157,7 +157,7 @@ ssh topfull-master "tmux attach -t retryguard"   # Ctrl+B, D to detach
 
 `checkoutservice  ON→OFF   rejection=0.41  consecutive_high=2  attempts=0`
 
-- `checkoutservice` rejection rate stayed above 20% for 2 consecutive windows (≥60s)
+- `checkoutservice` rejection rate stayed above 20% for `interval_samples` consecutive 1 s inbound samples (default 30)
 - RetryGuard patched the VirtualService to remove the `retries` block
 - From this timestamp, Istio no longer retries failed `checkoutservice` calls
 

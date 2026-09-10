@@ -48,7 +48,7 @@ These five files are **Locust APIs** (storefront actions), not one CSV per Bouti
 | `Latency95` | 95th-percentile latency in **ms**. **The latency metric of record.** |
 | `Latency99` | Always `0`. Hardcoded in TopFull. **Do not use.** P99 was dropped. |
 
-Rejection rate is **not a stored column**. Analysis derives it as `Fail / RPS` (0 when `RPS == 0`). RetryGuard uses the same formula.
+Rejection rate is **not a stored column**. Analysis derives storefront rejection as `Fail / RPS` (0 when `RPS == 0`). RetryGuard does **not** use this; it uses inbound `Δ5xx / Δtotal` from `service_inbound.csv` (see Layer 3).
 
 ### System-wide file: `total.csv`
 
@@ -221,16 +221,11 @@ are not collected. `mentor_charts.py` does not read these files.
 
 **File:** `retryguard.log` (RetryGuard runs only).
 
-RetryGuard does **not** read Istio Prometheus. Every 30 s it reads the last 30 rows of the Locust CSVs and computes:
+RetryGuard reads `{record_path}/service_inbound.csv` every 1 s. For each of the 9 `CONTROLLED_SERVICES` it computes inbound `Δ5xx / Δtotal` against the last consumed poll (SKIP if no newer timestamp). That rate is Algorithm 1 `measure_value()`. Locust CSVs are not opened.
 
-- per-endpoint rejection = mean(`Fail / RPS`)
-- per-service rejection = **max** across endpoints mapped to that service (conservative)
+It controls nine HTTP backends (including `paymentservice`). It does not patch `frontend` or `redis-cart`.
 
-That “per-service” rejection is a **map from Locust APIs**, not Envoy inbound on the pod. See [PER-SERVICE-METRICS.md](PER-SERVICE-METRICS.md).
-
-It only controls three services: `cartservice`, `checkoutservice`, `productcatalogservice`.
-
-Default thresholds: disable after **2** consecutive windows ≥ 20% rejection (~60 s); re-enable after **3** consecutive windows below 20% (~90 s). Scenario 5 varies the re-enable window (1/2/3/6 × 10 s).
+Default: disable after 30 consecutive 1 s samples ≥ 20% inbound 5xx; re-enable after 30 consecutive samples below 20% (Scenario 5 sweeps `interval_samples` 10/20/30/60).
 
 | Log keyword | Meaning |
 |---|---|
