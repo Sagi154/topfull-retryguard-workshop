@@ -128,5 +128,70 @@ class TestServiceRejectionRateSingleSample(unittest.TestCase):
             self.assertIsNone(rate)
 
 
+class TestApplyAlgorithm1Symmetric(unittest.TestCase):
+    """
+    Paper Algorithm 1 uses ONE Interval for both transitions:
+        13: if Consecutive_low >= Interval then Retries <- ON
+        14: else if Consecutive_high >= Interval then Retries <- OFF
+    apply_algorithm1 must take a single `interval` argument applied
+    symmetrically to both directions.
+    """
+
+    def _state(self, initial="ON"):
+        state = retryguard.ServiceState()
+        state.retries_state = initial
+        return state
+
+    def test_no_transition_below_interval_low(self):
+        state = self._state(initial="OFF")
+        for _ in range(2):
+            result = retryguard.apply_algorithm1(state, 0.05, 0.20, interval=3)
+        self.assertIsNone(result)
+        self.assertEqual(state.consecutive_low, 2)
+
+    def test_turns_on_after_interval_consecutive_low_samples(self):
+        state = self._state(initial="OFF")
+        result = None
+        for _ in range(3):
+            result = retryguard.apply_algorithm1(state, 0.05, 0.20, interval=3)
+        self.assertEqual(result, "ON")
+
+    def test_turns_off_after_interval_consecutive_high_samples(self):
+        state = self._state(initial="ON")
+        result = None
+        for _ in range(3):
+            result = retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)
+        self.assertEqual(result, "OFF")
+
+    def test_same_interval_value_governs_both_directions(self):
+        # A single dip resets the high-streak (paper lines 9-10), so with
+        # interval=2, two highs then one low then two highs never reaches 2
+        # consecutive highs until the streak restarts cleanly.
+        state = self._state(initial="ON")
+        retryguard.apply_algorithm1(state, 0.50, 0.20, interval=2)  # high=1
+        result = retryguard.apply_algorithm1(state, 0.05, 0.20, interval=2)  # resets to low=1
+        self.assertIsNone(result)
+        self.assertEqual(state.consecutive_high, 0)
+        self.assertEqual(state.consecutive_low, 1)
+
+    def test_single_dip_resets_consecutive_high_streak(self):
+        state = self._state(initial="ON")
+        retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)  # high=1
+        retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)  # high=2
+        retryguard.apply_algorithm1(state, 0.05, 0.20, interval=3)  # dip -> high resets to 0
+        result = retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)  # high=1 again
+        self.assertIsNone(result)
+        self.assertEqual(state.consecutive_high, 1)
+
+    def test_no_repeat_transition_once_already_in_target_state(self):
+        state = self._state(initial="OFF")
+        for _ in range(3):
+            retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)
+        # already OFF and still above threshold: no further transition fires
+        result = retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)
+        self.assertIsNone(result)
+
+
 if __name__ == "__main__":
     unittest.main()
+
