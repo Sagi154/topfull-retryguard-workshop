@@ -355,22 +355,22 @@ Same as Scenario 6 (Forced Recovery) — 300s at peak, then drop to ~25% load fo
 
 ### How to run
 
-The `re_enable_windows` parameter is already set correctly in each config — no manual script editing needed. There is no separate `scenario_5_baseline.yaml`; use **Scenario 6 baseline** as the comparison (same 900s load-drop). Do not compare S5 to Scenario 2 — S2 is a different offered-load shape.
+The `interval_samples` parameter is already set correctly in each config (applied symmetrically to both disable and re-enable) — no manual script editing needed. There is no separate `scenario_5_baseline.yaml`; use **Scenario 6 baseline** as the comparison (same 900s load-drop). Do not compare S5 to Scenario 2 — S2 is a different offered-load shape.
 
 ```powershell
-# 10s effective wait (re_enable_windows: 1) — run1
+# 10s interval, both directions (interval_samples: 10) — run1
 python experiments/run_scenario.py experiments/configs/scenario_5_interval_10s.yaml
 scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_10s_run1 experiments/results/
 
-# 20s effective wait (re_enable_windows: 2) — run1
+# 20s interval, both directions (interval_samples: 20) — run1
 python experiments/run_scenario.py experiments/configs/scenario_5_interval_20s.yaml
 scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_20s_run1 experiments/results/
 
-# 30s effective wait (re_enable_windows: 3) — paper default — run1
+# 30s interval, both directions (interval_samples: 30) — paper default — run1
 python experiments/run_scenario.py experiments/configs/scenario_5_interval_30s.yaml
 scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_30s_run1 experiments/results/
 
-# 60s effective wait (re_enable_windows: 6) — run1
+# 60s interval, both directions (interval_samples: 60) — run1
 python experiments/run_scenario.py experiments/configs/scenario_5_interval_60s.yaml
 scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_interval_60s_run1 experiments/results/
 ```
@@ -394,7 +394,7 @@ After all four intervals are done, compare:
 
 ### What it tests
 
-Scenario 2 holds ρ > 1 for 10 minutes. Under that hold, RetryGuard disables retries but rejection stays ~75–100%, so re-enable never fires (Gap 1). Scenario 6 keeps the same peak for 5 minutes (enough to trigger disable), then **drops Locust to ~25% of peak** for 10 minutes so rejection can fall under 20% and `re_enable_windows` can accumulate.
+Scenario 2 holds ρ > 1 for 10 minutes. Under that hold, RetryGuard disables retries but rejection stays ~75–100%, so re-enable never fires (Gap 1). Scenario 6 keeps the same peak for 5 minutes (enough to trigger disable), then **drops Locust to ~25% of peak** for 10 minutes so rejection can fall under 20% and `interval_samples` consecutive low samples can accumulate.
 
 Recovery here is an input to the load generator, not a claim that TopFull + RetryGuard found equilibrium while still overloaded. Use this pair as the baseline for Scenario 5. Do not mix S6 folders with S2 folders.
 
@@ -420,7 +420,7 @@ python experiments/run_scenario.py experiments/configs/scenario_6_recovery_retry
 scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_forced_recovery_run1 experiments/results/
 ```
 
-`scenario_6_recovery_retryguard.yaml` uses `re_enable_windows: 3` — the same experiment as `scenario_5_interval_30s.yaml`. Keep both: S6 is the canonical pair; S5-30s is the default point on the interval sweep.
+`scenario_6_recovery_retryguard.yaml` uses `interval_samples: 30` — the same experiment as `scenario_5_interval_30s.yaml`. Keep both: S6 is the canonical pair; S5-30s is the default point on the interval sweep.
 
 ### What to look for
 
