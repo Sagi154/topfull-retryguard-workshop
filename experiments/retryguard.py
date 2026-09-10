@@ -140,11 +140,12 @@ def service_endpoint_map() -> Dict[str, List[str]]:
 #  Metric reading
 # --------------------------------------------------------------------------- #
 
-def read_rejection_rate(csv_path: Path, window_rows: int) -> Optional[float]:
+def read_rejection_rate(csv_path: Path) -> Optional[float]:
     """
-    Mean(Fail / RPS) over the last window_rows data rows.
+    Fail / RPS of the single most recent data row (paper Algorithm 1's
+    measure_value() — one raw sample per iteration, no averaging).
     Returns None if the file is missing or has no usable data rows.
-    Rows with RPS == 0 contribute rejection rate 0 (no load ≠ overload).
+    A row with RPS == 0 contributes rejection rate 0 (no load ≠ overload).
     """
     if not csv_path.is_file():
         return None
@@ -159,34 +160,27 @@ def read_rejection_rate(csv_path: Path, window_rows: int) -> Optional[float]:
     if not rows:
         return None
 
-    window = rows[-window_rows:]
-    rates = []
-    for row in window:
-        try:
-            rps = float(row["RPS"])
-            fail = float(row["Fail"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if rps <= 0:
-            rates.append(0.0)
-        else:
-            rates.append(fail / rps)
-
-    if not rates:
+    row = rows[-1]
+    try:
+        rps = float(row["RPS"])
+        fail = float(row["Fail"])
+    except (KeyError, TypeError, ValueError):
         return None
-    return sum(rates) / len(rates)
+
+    if rps <= 0:
+        return 0.0
+    return fail / rps
 
 
 def service_rejection_rate(
     service: str,
     endpoints: List[str],
     record_path: Path,
-    window_rows: int,
 ) -> Optional[float]:
-    """Max rejection rate across endpoints mapped to this service."""
+    """Max rejection rate (latest sample) across endpoints mapped to this service."""
     rates = []
     for ep in endpoints:
-        rate = read_rejection_rate(record_path / f"{ep}.csv", window_rows)
+        rate = read_rejection_rate(record_path / f"{ep}.csv")
         if rate is not None:
             rates.append(rate)
     if not rates:
