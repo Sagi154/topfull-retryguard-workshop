@@ -56,46 +56,51 @@ Params JSON (from the YAML `retryguard:` block):
 
 | Algorithm 1 variable | Our param / behavior |
 |----------------------|----------------------|
-| `Failures` (`measure_value()`) | Raw `Fail / RPS` of the single most recent CSV row (no averaging) |
+| `Failures` (`measure_value()`) | Inbound `Δ5xx / Δtotal` from the newest unused `service_inbound.csv` row for that service (no averaging; 4xx ignored) |
 | Loop cadence (implicit 1 measurement/iteration) | `sample_interval_seconds` (=1, one sample per second) |
 | `Threshold` | `rejection_threshold` (e.g. 0.20) |
 | `Interval` (lines 13 and 14 — symmetric, same value both directions) | `interval_samples` |
 | `Retries ← ON` | Patch VirtualService `retries.attempts` → `retry_attempts_on` |
 | `Retries ← OFF` | Disable retries on the VirtualService (see patch note below) |
 
-One controller state machine runs **per K8s service**, not per Locust endpoint.
+One controller state machine runs per HTTP Boutique **backend** in `CONTROLLED_SERVICES` (9 services). `frontend` and `redis-cart` are not controlled.
 
 ---
 
 ## Metric source
 
-Reads CSVs written every 1s by `metric_collector.py` under `global_config.json` → `record_path`:
+Reads `{record_path}/service_inbound.csv` written every 1s by `envoy_retry_collector.py` (same `record_path` as Locust CSVs). Schema: `timestamp, service, total, 2xx, 4xx, 5xx` (cumulative Envoy inbound listener counters).
+
+Per controlled service, RetryGuard keeps the last consumed `(timestamp, total, 5xx)` in memory:
 
 ```
-{record_path}/getcart.csv
-{record_path}/getproduct.csv
-{record_path}/postcart.csv
-{record_path}/postcheckout.csv
-{record_path}/emptycart.csv
+Failures = Δ5xx / Δtotal     if Δtotal > 0
+Failures = 0.0               if Δtotal <= 0 on a new timestamp
 ```
 
-Columns used: `RPS`, `Fail`. Rejection rate for a sample = `Fail/RPS` of the single most recent CSV row — no averaging, matching the paper's Algorithm 1 literally. Rows with `RPS == 0` contribute 0 (no load ≠ overload). If a CSV is missing for a sample, that service is **skipped** (counters unchanged).
+A repeated timestamp (collector has not appended yet) is a SKIP — do not feed Algorithm 1. The first row for a service is stored and SKIP'd (cannot difference yet). Missing file / missing service / unreadable row → SKIP. `4xx` is never used. `service_edges.csv` is never used.
+
+Locust CSVs remain storefront **outcomes**. They are not the controller input.
 
 ---
 
-## Endpoint → service map
+## Controlled services
 
 ```python
-ENDPOINT_SERVICE_MAP = {
-    "getproduct":   "productcatalogservice",
-    "postcheckout": "checkoutservice",
-    "getcart":      "cartservice",
-    "postcart":     "cartservice",
-    "emptycart":    "cartservice",
-}
+CONTROLLED_SERVICES = (
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice",
+)
 ```
 
-Aggregation: **max** rejection rate across endpoints that map to the same service (conservative — any hot path flags the service).
+Excluded: `frontend` (ingress hop; its VS stays `attempts: 3`) and `redis-cart` (TCP, no HTTP inbound 5xx). Patching a service's VirtualService disables retries on **incoming** calls **to** that service (caller sidecars).
 
 ---
 
@@ -117,8 +122,9 @@ Aggregation: **max** rejection rate across endpoints that map to the same servic
 Stdout (tmux session `retryguard`) and `{record_path}/retryguard.log`:
 
 ```
-2026-08-04T18:30:00Z  START  threshold=0.20 sample_interval=1s interval_samples=30 (30s) ...
+2026-08-04T18:30:00Z  START  threshold=0.20 sample_interval=1s interval_samples=30 (30s) services=['adservice', ..., 'shippingservice']
 2026-08-04T18:30:01Z  OBSERVE  checkoutservice  rejection=0.3100  low=0 high=1  state=ON
+2026-08-04T18:30:02Z  OBSERVE  paymentservice  rejection=0.2200  low=0 high=1  state=ON
 2026-08-04T18:30:30Z  cartservice  ON→OFF   rejection=0.31  consecutive_high=30  attempts=0
 2026-08-04T18:31:15Z  checkoutservice  OFF→ON   rejection=0.08  consecutive_low=30  attempts=3
 ```
@@ -127,7 +133,7 @@ Stdout (tmux session `retryguard`) and `{record_path}/retryguard.log`:
 
 ## Startup / shutdown
 
-- Waits up to 60s (poll every 5s) for at least one endpoint CSV before entering the main loop
+- Waits up to 60s (poll every 5s) for `service_inbound.csv` to contain at least one data row.
 - Handles `SIGTERM`/`SIGINT` (runner uses `pkill -f retryguard.py`) and logs `SHUTDOWN` / `EXIT`
 
 ---
@@ -135,7 +141,7 @@ Stdout (tmux session `retryguard`) and `{record_path}/retryguard.log`:
 ## Deviations from the paper pseudocode
 
 1. **Initial state `ON`** — Algorithm 1 initializes `Retries ← OFF`. We start `ON` so the controller matches the default VirtualService (`attempts: 3`) and Scenario 1 (healthy load) produces **zero** patches. Documented in code on `ServiceState.retries_state`.
-2. **Rejection metric from Locust CSVs**, not Istio Prometheus — same signal class as the paper's rejection-based controller; chosen because `metric_collector.py` already writes these files on our stack.
+2. **Mesh inbound `Δ5xx/Δtotal`** matches the paper's Istio experiment (Sec. 6.2): hop-level 5xx on each backend's inbound listener (4xx ignored). `frontend` is intentionally not controlled (ingress hop; its VS stays `attempts: 3`).
 
 As of 2026-09-10, the `Interval` parameter is symmetric (single `interval_samples` value for both ON and OFF transitions, `sample_interval_seconds=1`) — a literal match to Algorithm 1. The previous `disable_windows`/`re_enable_windows` asymmetric split and `window_duration_seconds`-based averaging (a workshop extension) were removed; Scenario 5 now sweeps the single `interval_samples` value (10/20/30/60) symmetrically.
 
@@ -143,4 +149,4 @@ As of 2026-09-10, the `Interval` parameter is symmetric (single `interval_sample
 
 ## Prerequisite for live runs
 
-VirtualServices for `productcatalogservice`, `checkoutservice`, and `cartservice` must exist (PHASE5 guide §6c) or patches return 404.
+VirtualServices for **all nine** `CONTROLLED_SERVICES` must exist (`experiments/virtual-services.yaml`), not only catalog/checkout/cart (PHASE5 guide §6c) or patches return 404.
