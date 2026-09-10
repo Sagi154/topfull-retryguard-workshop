@@ -1,6 +1,6 @@
 """
 test_retryguard.py — Unit tests for the pure-logic parts of retryguard.py
-(Algorithm 1 state machine + raw single-sample rejection-rate reader).
+(Algorithm 1 state machine + inbound measure_value() + 9-service allow-list).
 No network/K8s access; retryguard.py's `kubernetes` import is stubbed out
 because the `kubernetes` package is not installed in this dev environment
 and is never exercised by these tests.
@@ -58,74 +58,135 @@ if "kubernetes" not in sys.modules:
 import retryguard  # noqa: E402  (import after sys.modules stubbing above)
 
 
-def _write_csv(path: Path, rows):
-    """rows: list of (rps, fail) tuples. Writes a metric_collector-style CSV."""
+INBOUND_FIELDS = ["timestamp", "service", "total", "2xx", "4xx", "5xx"]
+
+
+def _write_inbound(path: Path, rows):
+    """rows: iterable of dicts with INBOUND_FIELDS keys."""
     with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["RPS", "Fail"])
+        writer = csv.DictWriter(f, fieldnames=INBOUND_FIELDS)
         writer.writeheader()
-        for rps, fail in rows:
-            writer.writerow({"RPS": rps, "Fail": fail})
+        for row in rows:
+            writer.writerow(row)
 
 
-class TestReadRejectionRateSingleSample(unittest.TestCase):
-    """
-    Paper Algorithm 1's measure_value() reads one raw sample per iteration —
-    no averaging. read_rejection_rate must therefore return the rejection
-    rate of only the LATEST CSV row, regardless of how many rows precede it.
-    """
+def _row(ts, service, total, five_xx, four_xx=0, two_xx=0):
+    return {
+        "timestamp": ts,
+        "service": service,
+        "total": total,
+        "2xx": two_xx,
+        "4xx": four_xx,
+        "5xx": five_xx,
+    }
 
-    def test_returns_latest_row_rejection_rate_ignoring_earlier_rows(self):
+
+class TestControlledServices(unittest.TestCase):
+    def test_includes_paymentservice_and_the_eight_other_backends(self):
+        expected = (
+            "adservice",
+            "cartservice",
+            "checkoutservice",
+            "currencyservice",
+            "emailservice",
+            "paymentservice",
+            "productcatalogservice",
+            "recommendationservice",
+            "shippingservice",
+        )
+        self.assertEqual(retryguard.CONTROLLED_SERVICES, expected)
+
+    def test_excludes_frontend_and_redis_cart(self):
+        self.assertNotIn("frontend", retryguard.CONTROLLED_SERVICES)
+        self.assertNotIn("redis-cart", retryguard.CONTROLLED_SERVICES)
+
+
+class TestReadLatestInboundRow(unittest.TestCase):
+    def test_returns_newest_row_for_that_service_only(self):
         with TemporaryDirectory() as tmp:
-            csv_path = Path(tmp) / "getproduct.csv"
-            # Earlier rows are 100% rejection; latest row is 10% — if this
-            # were averaged over multiple rows the result would be > 0.10.
-            _write_csv(csv_path, [(100, 100), (100, 100), (100, 10)])
-            rate = retryguard.read_rejection_rate(csv_path)
-            self.assertAlmostEqual(rate, 0.10)
-
-    def test_zero_rps_row_contributes_zero_not_none(self):
-        with TemporaryDirectory() as tmp:
-            csv_path = Path(tmp) / "getproduct.csv"
-            _write_csv(csv_path, [(100, 50), (0, 0)])
-            rate = retryguard.read_rejection_rate(csv_path)
-            self.assertEqual(rate, 0.0)
+            path = Path(tmp) / "service_inbound.csv"
+            _write_inbound(
+                path,
+                [
+                    _row("2026-09-10T18:30:01Z", "checkoutservice", 100, 10),
+                    _row("2026-09-10T18:30:01Z", "paymentservice", 50, 40),
+                    _row("2026-09-10T18:30:02Z", "checkoutservice", 180, 40),
+                ],
+            )
+            snap = retryguard.read_latest_inbound_row(path, "checkoutservice")
+            self.assertEqual(snap.timestamp, "2026-09-10T18:30:02Z")
+            self.assertEqual(snap.total, 180.0)
+            self.assertEqual(snap.five_xx, 40.0)
 
     def test_missing_file_returns_none(self):
         with TemporaryDirectory() as tmp:
-            csv_path = Path(tmp) / "does_not_exist.csv"
-            self.assertIsNone(retryguard.read_rejection_rate(csv_path))
-
-    def test_empty_csv_returns_none(self):
-        with TemporaryDirectory() as tmp:
-            csv_path = Path(tmp) / "getproduct.csv"
-            _write_csv(csv_path, [])
-            self.assertIsNone(retryguard.read_rejection_rate(csv_path))
-
-
-class TestServiceRejectionRateSingleSample(unittest.TestCase):
-    """service_rejection_rate aggregates (max) across the endpoints mapped
-    to one K8s service, each read as a single latest-row sample."""
-
-    def test_takes_max_across_endpoints_latest_rows(self):
-        with TemporaryDirectory() as tmp:
-            record_path = Path(tmp)
-            _write_csv(record_path / "getcart.csv", [(100, 5)])       # 0.05
-            _write_csv(record_path / "postcart.csv", [(100, 40)])     # 0.40
-            _write_csv(record_path / "emptycart.csv", [(100, 10)])    # 0.10
-            rate = retryguard.service_rejection_rate(
-                "cartservice",
-                ["getcart", "postcart", "emptycart"],
-                record_path,
+            path = Path(tmp) / "service_inbound.csv"
+            self.assertIsNone(
+                retryguard.read_latest_inbound_row(path, "checkoutservice")
             )
-            self.assertAlmostEqual(rate, 0.40)
 
-    def test_missing_all_endpoint_csvs_returns_none(self):
+    def test_service_absent_from_file_returns_none(self):
         with TemporaryDirectory() as tmp:
-            record_path = Path(tmp)
-            rate = retryguard.service_rejection_rate(
-                "cartservice", ["getcart", "postcart", "emptycart"], record_path
+            path = Path(tmp) / "service_inbound.csv"
+            _write_inbound(
+                path, [_row("2026-09-10T18:30:01Z", "cartservice", 10, 0)]
             )
-            self.assertIsNone(rate)
+            self.assertIsNone(
+                retryguard.read_latest_inbound_row(path, "paymentservice")
+            )
+
+
+class TestMeasureInboundRejection(unittest.TestCase):
+    def test_delta_5xx_over_delta_total(self):
+        prev = retryguard.InboundSnapshot("2026-09-10T18:30:01Z", 100.0, 10.0)
+        curr = retryguard.InboundSnapshot("2026-09-10T18:30:02Z", 200.0, 30.0)
+        rate, new_prev = retryguard.measure_inbound_rejection(prev, curr)
+        self.assertAlmostEqual(rate, 0.20)
+        self.assertEqual(new_prev, curr)
+
+    def test_zero_delta_total_is_zero_not_none(self):
+        prev = retryguard.InboundSnapshot("2026-09-10T18:30:01Z", 100.0, 10.0)
+        curr = retryguard.InboundSnapshot("2026-09-10T18:30:02Z", 100.0, 10.0)
+        rate, new_prev = retryguard.measure_inbound_rejection(prev, curr)
+        self.assertEqual(rate, 0.0)
+        self.assertEqual(new_prev, curr)
+
+    def test_same_timestamp_does_not_double_count(self):
+        prev = retryguard.InboundSnapshot("2026-09-10T18:30:01Z", 100.0, 10.0)
+        curr = retryguard.InboundSnapshot("2026-09-10T18:30:01Z", 100.0, 10.0)
+        rate, new_prev = retryguard.measure_inbound_rejection(prev, curr)
+        self.assertIsNone(rate)
+        self.assertEqual(new_prev, prev)
+
+    def test_first_row_stores_and_skips(self):
+        curr = retryguard.InboundSnapshot("2026-09-10T18:30:01Z", 100.0, 10.0)
+        rate, new_prev = retryguard.measure_inbound_rejection(None, curr)
+        self.assertIsNone(rate)
+        self.assertEqual(new_prev, curr)
+
+    def test_missing_current_skips_and_keeps_previous(self):
+        prev = retryguard.InboundSnapshot("2026-09-10T18:30:01Z", 100.0, 10.0)
+        rate, new_prev = retryguard.measure_inbound_rejection(prev, None)
+        self.assertIsNone(rate)
+        self.assertEqual(new_prev, prev)
+
+    def test_four_xx_does_not_enter_the_formula(self):
+        """4xx lives on the CSV row but must not affect Failures."""
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "service_inbound.csv"
+            _write_inbound(
+                path,
+                [
+                    _row("2026-09-10T18:30:01Z", "paymentservice", 100, 0, four_xx=50),
+                    _row("2026-09-10T18:30:02Z", "paymentservice", 200, 0, four_xx=90),
+                ],
+            )
+            first = retryguard.read_latest_inbound_row(path, "paymentservice")
+            # After only the latest row exists in-file, reconstruct the
+            # previous snapshot the controller would have stored at t1.
+            prev = retryguard.InboundSnapshot("2026-09-10T18:30:01Z", 100.0, 0.0)
+            rate, _ = retryguard.measure_inbound_rejection(prev, first)
+            self.assertEqual(rate, 0.0)
 
 
 class TestApplyAlgorithm1Symmetric(unittest.TestCase):
