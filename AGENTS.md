@@ -139,7 +139,7 @@ If it doesn't recover within a few minutes, follow the troubleshooting table in 
 | 2 | Sustained Overload (core) | Peak from t=0, **hold flat** | 10 min | `scenario_2_{baseline,retryguard}.yaml` |
 | 3 | Targeted Bottleneck | `checkoutservice` at `cpu_limit_fraction: 0.1` (paper 1000m → **100m**) | 10 min | `scenario_3_{baseline,retryguard}.yaml` |
 | 4A/4B | Topology Position | productcatalog (A → **50m**) vs payment (B → **100m**) at fraction 0.1 | 10 min | `scenario_4{a,b}_{baseline,retryguard}.yaml` |
-| 5 | Re-enable Interval Tuning | Same load as S6; `re_enable_windows` = 1/2/3/6 | 15 min | `scenario_5_interval_{10,20,30,60}s.yaml` |
+| 5 | Interval Tuning | Same load as S6; `interval_samples` = 10/20/30/60 | 15 min | `scenario_5_interval_{10,20,30,60}s.yaml` |
 | 6 | Forced Recovery | Peak 5 min, then ~25% load for 10 min | 15 min | `scenario_6_recovery_{baseline,retryguard}.yaml` |
 
 Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit` + **`cpu_limit_fraction: 0.1`** (not absolute `"100m"`), and the runner reconciles K8s + Detector to paper quotas before/after each run — a leftover checkout `100m` from an older S3/S4 is healed and must not be treated as the S2 baseline. New S4A (**50m**) is not comparable to `campaign_48/` S4A (absolute 100m). Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
