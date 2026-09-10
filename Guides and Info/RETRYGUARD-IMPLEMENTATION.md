@@ -26,9 +26,8 @@ Params JSON (from the YAML `retryguard:` block):
 ```json
 {
   "rejection_threshold": 0.20,
-  "window_duration_seconds": 30,
-  "disable_windows": 2,
-  "re_enable_windows": 3,
+  "sample_interval_seconds": 1,
+  "interval_samples": 30,
   "retry_attempts_on": 3,
   "retry_attempts_off": 0
 }
@@ -57,10 +56,10 @@ Params JSON (from the YAML `retryguard:` block):
 
 | Algorithm 1 variable | Our param / behavior |
 |----------------------|----------------------|
-| `Failures` (`measure_value()`) | Mean(`Fail / RPS`) over last `window_duration_seconds` CSV rows |
+| `Failures` (`measure_value()`) | Raw `Fail / RPS` of the single most recent CSV row (no averaging) |
+| Loop cadence (implicit 1 measurement/iteration) | `sample_interval_seconds` (=1, one sample per second) |
 | `Threshold` | `rejection_threshold` (e.g. 0.20) |
-| `Interval` (line 13, re-enable) | `re_enable_windows` (asymmetric extension of the paper's single Interval) |
-| `Interval` (line 14, disable) | `disable_windows` |
+| `Interval` (lines 13 and 14 — symmetric, same value both directions) | `interval_samples` |
 | `Retries ← ON` | Patch VirtualService `retries.attempts` → `retry_attempts_on` |
 | `Retries ← OFF` | Disable retries on the VirtualService (see patch note below) |
 
@@ -80,7 +79,7 @@ Reads CSVs written every 1s by `metric_collector.py` under `global_config.json` 
 {record_path}/emptycart.csv
 ```
 
-Columns used: `RPS`, `Fail`. Rejection rate for a window = mean(`Fail/RPS`) over the last N rows where N = `window_duration_seconds`. Rows with `RPS == 0` contribute 0 (no load ≠ overload). If a CSV is missing for a window, that service is **skipped** (counters unchanged).
+Columns used: `RPS`, `Fail`. Rejection rate for a sample = `Fail/RPS` of the single most recent CSV row — no averaging, matching the paper's Algorithm 1 literally. Rows with `RPS == 0` contribute 0 (no load ≠ overload). If a CSV is missing for a sample, that service is **skipped** (counters unchanged).
 
 ---
 
@@ -118,10 +117,10 @@ Aggregation: **max** rejection rate across endpoints that map to the same servic
 Stdout (tmux session `retryguard`) and `{record_path}/retryguard.log`:
 
 ```
-2026-08-04T18:30:00Z  START  threshold=0.20 window=30s ...
-2026-08-04T18:30:30Z  OBSERVE  checkoutservice  rejection=0.3100  low=0 high=1  state=ON
-2026-08-04T18:33:32Z  cartservice  ON→OFF   rejection=0.31  consecutive_high=2  attempts=0
-2026-08-04T18:35:02Z  checkoutservice  OFF→ON   rejection=0.08  consecutive_low=3  attempts=3
+2026-08-04T18:30:00Z  START  threshold=0.20 sample_interval=1s interval_samples=30 (30s) ...
+2026-08-04T18:30:01Z  OBSERVE  checkoutservice  rejection=0.3100  low=0 high=1  state=ON
+2026-08-04T18:30:30Z  cartservice  ON→OFF   rejection=0.31  consecutive_high=30  attempts=0
+2026-08-04T18:31:15Z  checkoutservice  OFF→ON   rejection=0.08  consecutive_low=30  attempts=3
 ```
 
 ---
@@ -136,8 +135,9 @@ Stdout (tmux session `retryguard`) and `{record_path}/retryguard.log`:
 ## Deviations from the paper pseudocode
 
 1. **Initial state `ON`** — Algorithm 1 initializes `Retries ← OFF`. We start `ON` so the controller matches the default VirtualService (`attempts: 3`) and Scenario 1 (healthy load) produces **zero** patches. Documented in code on `ServiceState.retries_state`.
-2. **Asymmetric Interval** — paper uses one `Interval` for both directions; YAML splits it into `disable_windows` / `re_enable_windows` (workshop extension used by Scenario 5).
-3. **Rejection metric from Locust CSVs**, not Istio Prometheus — same signal class as the paper's rejection-based controller; chosen because `metric_collector.py` already writes these files on our stack.
+2. **Rejection metric from Locust CSVs**, not Istio Prometheus — same signal class as the paper's rejection-based controller; chosen because `metric_collector.py` already writes these files on our stack.
+
+As of 2026-09-10, the `Interval` parameter is symmetric (single `interval_samples` value for both ON and OFF transitions, `sample_interval_seconds=1`) — a literal match to Algorithm 1. The previous `disable_windows`/`re_enable_windows` asymmetric split and `window_duration_seconds`-based averaging (a workshop extension) were removed; Scenario 5 now sweeps the single `interval_samples` value (10/20/30/60) symmetrically.
 
 ---
 
