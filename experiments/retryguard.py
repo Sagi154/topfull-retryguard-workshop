@@ -292,11 +292,12 @@ def apply_algorithm1(
     state: ServiceState,
     rejection: float,
     threshold: float,
-    re_enable_windows: int,
-    disable_windows: int,
+    interval: int,
 ) -> Optional[str]:
     """
     One Algorithm 1 iteration. Mutates state counters.
+    `interval` is the paper's single `Interval` parameter, applied
+    symmetrically to both the ON (line 13) and OFF (line 14) transitions.
     Returns desired retries state ("ON"/"OFF") if a transition should fire,
     otherwise None (keep current state).
     """
@@ -312,11 +313,11 @@ def apply_algorithm1(
         state.consecutive_low = 0
         state.consecutive_high = 0
 
-    # Lines 13–14 (asymmetric Interval: re_enable vs disable)
+    # Lines 13–14 (single symmetric Interval, per the paper)
     desired = state.retries_state
-    if state.consecutive_low >= re_enable_windows:
+    if state.consecutive_low >= interval:
         desired = "ON"
-    elif state.consecutive_high >= disable_windows:
+    elif state.consecutive_high >= interval:
         desired = "OFF"
 
     if desired != state.retries_state:
