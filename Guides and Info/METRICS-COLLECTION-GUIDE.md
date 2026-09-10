@@ -143,8 +143,8 @@ ssh topfull-master "tmux attach -t retryguard"   # Ctrl+B, D to detach
 ### Example log
 
 ```
-2026-08-04T13:20:00Z  START  threshold=0.20 window=30s disable_windows=2 re_enable_windows=3 services=['cartservice', 'checkoutservice', 'productcatalogservice']
-2026-08-04T13:20:30Z  OBSERVE  cartservice         rejection=0.0100  low=1 high=0  state=ON
+2026-08-04T13:20:00Z  START  threshold=0.20 sample_interval=1s interval_samples=30 (30s) services=['cartservice', 'checkoutservice', 'productcatalogservice']
+2026-08-04T13:20:01Z  OBSERVE  cartservice         rejection=0.0100  low=1 high=0  state=ON
 2026-08-04T13:20:30Z  OBSERVE  checkoutservice     rejection=0.3800  low=0 high=1  state=ON
 2026-08-04T13:20:30Z  OBSERVE  productcatalogservice  rejection=0.0200  low=1 high=0  state=ON
 2026-08-04T13:21:00Z  OBSERVE  checkoutservice     rejection=0.4100  low=0 high=2  state=ON
