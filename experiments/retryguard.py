@@ -7,7 +7,9 @@ Usage (on master, with venv active):
 
 Reads per-endpoint rejection rates from metric_collector CSV logs, aggregates
 them to Online Boutique services, and patches Istio VirtualService
-retries.attempts when consecutive windows cross the threshold.
+retries.attempts when Interval consecutive samples cross the threshold
+(RetryGuard paper Algorithm 1, applied literally: 1 raw sample per second,
+one symmetric Interval for both the disable and re-enable transitions).
 """
 
 from __future__ import annotations
@@ -59,9 +61,8 @@ STARTUP_TIMEOUT_SECONDS = 60
 
 REQUIRED_PARAMS = (
     "rejection_threshold",
-    "window_duration_seconds",
-    "disable_windows",
-    "re_enable_windows",
+    "sample_interval_seconds",
+    "interval_samples",
     "retry_attempts_on",
     "retry_attempts_off",
 )
@@ -328,10 +329,9 @@ def apply_algorithm1(
 def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
     svc_map = service_endpoint_map()
     endpoints = list(ENDPOINT_SERVICE_MAP.keys())
-    window_rows = int(params["window_duration_seconds"])
+    sample_interval = int(params["sample_interval_seconds"])
+    interval = int(params["interval_samples"])
     threshold = float(params["rejection_threshold"])
-    re_enable_windows = int(params["re_enable_windows"])
-    disable_windows = int(params["disable_windows"])
     attempts_on = int(params["retry_attempts_on"])
     attempts_off = int(params["retry_attempts_off"])
 
@@ -339,41 +339,33 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
 
     states = {svc: ServiceState() for svc in svc_map}
     log.info(
-        "%s  START  threshold=%.2f window=%ss disable_windows=%d "
-        "re_enable_windows=%d services=%s",
+        "%s  START  threshold=%.2f sample_interval=%ss interval_samples=%d "
+        "(%ds) services=%s",
         utc_now(),
         threshold,
-        window_rows,
-        disable_windows,
-        re_enable_windows,
+        sample_interval,
+        interval,
+        sample_interval * interval,
         sorted(svc_map.keys()),
     )
 
     while not _shutdown:
-        time.sleep(window_rows)
+        time.sleep(sample_interval)
         if _shutdown:
             break
 
         for service, eps in sorted(svc_map.items()):
-            rejection = service_rejection_rate(
-                service, eps, record_path, window_rows
-            )
+            rejection = service_rejection_rate(service, eps, record_path)
             if rejection is None:
                 log.info(
-                    "%s  SKIP  %s  no metric data this window",
+                    "%s  SKIP  %s  no metric data this sample",
                     utc_now(),
                     service,
                 )
                 continue
 
             state = states[service]
-            desired = apply_algorithm1(
-                state,
-                rejection,
-                threshold,
-                re_enable_windows,
-                disable_windows,
-            )
+            desired = apply_algorithm1(state, rejection, threshold, interval)
 
             log.info(
                 "%s  OBSERVE  %s  rejection=%.4f  low=%d high=%d  state=%s",
@@ -448,7 +440,7 @@ def main() -> None:
         "--params",
         required=True,
         help="Path to RetryGuard params JSON "
-        "(rejection_threshold, window_duration_seconds, ...)",
+        "(rejection_threshold, sample_interval_seconds, interval_samples, ...)",
     )
     args = parser.parse_args()
 

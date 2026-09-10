@@ -192,6 +192,36 @@ class TestApplyAlgorithm1Symmetric(unittest.TestCase):
         self.assertIsNone(result)
 
 
+class TestLoadParamsRequiredKeys(unittest.TestCase):
+    def test_new_param_names_are_required(self):
+        self.assertIn("sample_interval_seconds", retryguard.REQUIRED_PARAMS)
+        self.assertIn("interval_samples", retryguard.REQUIRED_PARAMS)
+
+    def test_old_param_names_are_no_longer_required(self):
+        self.assertNotIn("window_duration_seconds", retryguard.REQUIRED_PARAMS)
+        self.assertNotIn("disable_windows", retryguard.REQUIRED_PARAMS)
+        self.assertNotIn("re_enable_windows", retryguard.REQUIRED_PARAMS)
+
+    def test_load_params_rejects_missing_new_keys(self):
+        import json
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmp:
+            params_path = Path(tmp) / "params.json"
+            with open(params_path, "w") as f:
+                json.dump(
+                    {
+                        "rejection_threshold": 0.2,
+                        "retry_attempts_on": 3,
+                        "retry_attempts_off": 0,
+                        # sample_interval_seconds / interval_samples deliberately missing
+                    },
+                    f,
+                )
+            with self.assertRaises(SystemExit):
+                retryguard.load_params(str(params_path))
+
+
 if __name__ == "__main__":
     unittest.main()
 
