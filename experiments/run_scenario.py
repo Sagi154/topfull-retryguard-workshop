@@ -636,16 +636,15 @@ def start_retryguard(cfg: dict):
 
     # Upload RetryGuard runtime parameters as JSON
     params = {
-        "rejection_threshold":    rg_cfg["rejection_threshold"],
-        "window_duration_seconds": rg_cfg["window_duration_seconds"],
-        "disable_windows":        rg_cfg["disable_windows"],
-        "re_enable_windows":      rg_cfg["re_enable_windows"],
-        "retry_attempts_on":      rg_cfg["retry_attempts_on"],
-        "retry_attempts_off":     rg_cfg["retry_attempts_off"],
+        "rejection_threshold":      rg_cfg["rejection_threshold"],
+        "sample_interval_seconds": rg_cfg["sample_interval_seconds"],
+        "interval_samples":        rg_cfg["interval_samples"],
+        "retry_attempts_on":       rg_cfg["retry_attempts_on"],
+        "retry_attempts_off":      rg_cfg["retry_attempts_off"],
     }
     write_remote_json(master, "/tmp/retryguard_params.json", params)
-    step(f"Uploaded RetryGuard params: re_enable_windows={params['re_enable_windows']} "
-         f"({params['re_enable_windows'] * params['window_duration_seconds']}s)")
+    step(f"Uploaded RetryGuard params: interval_samples={params['interval_samples']} "
+         f"({params['interval_samples'] * params['sample_interval_seconds']}s)")
 
     rg_start = (
         f"#!/bin/bash\n"
@@ -1095,11 +1094,11 @@ def run(config_path: str):
     print(f"  RetryGuard: {'ON' if rg_enabled else 'OFF'}")
     if rg_enabled:
         rg = cfg["retryguard"]
-        rew = rg["re_enable_windows"]
-        wd  = rg["window_duration_seconds"]
+        sample_interval = rg["sample_interval_seconds"]
+        interval = rg["interval_samples"]
         print(f"    threshold      : {rg['rejection_threshold']*100:.0f}%")
-        print(f"    disable_windows: {rg['disable_windows']}  ({rg['disable_windows']*wd}s)")
-        print(f"    re_enable_windows: {rew}  ({rew*wd}s)")
+        print(f"    sample_interval_seconds: {sample_interval}s")
+        print(f"    interval_samples: {interval}  ({interval*sample_interval}s, symmetric ON/OFF)")
     erc_enabled = cfg.get("envoy_retry_collector", {}).get("enabled", False)
     print(f"  Envoy retry collector: {'ON' if erc_enabled else 'OFF'}")
     if erc_enabled:

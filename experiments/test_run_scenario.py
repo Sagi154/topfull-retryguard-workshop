@@ -230,9 +230,8 @@ class TestStartRetryGuardWiring(unittest.TestCase):
             "retryguard": {
                 "enabled": enabled,
                 "rejection_threshold": 0.20,
-                "window_duration_seconds": 30,
-                "disable_windows": 2,
-                "re_enable_windows": 3,
+                "sample_interval_seconds": 1,
+                "interval_samples": 30,
                 "retry_attempts_on": 3,
                 "retry_attempts_off": 0,
             },
