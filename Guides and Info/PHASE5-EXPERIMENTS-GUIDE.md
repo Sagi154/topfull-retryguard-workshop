@@ -77,22 +77,22 @@ Two Targeted Bottleneck runs with different services constrained. Same load, sam
 ### Scenario 5 — Re-enable Interval Tuning
 
 - **Load:** Same as Scenario 6 (forced recovery: 300s peak, then ~25% for 600s). **Not** Scenario 2's flat hold.
-- **RetryGuard:** Always on. Only `re_enable_windows` changes across runs.
+- **RetryGuard:** Always on. Only `interval_samples` changes across runs (applied symmetrically to both disable and re-enable — paper Algorithm 1 uses one `Interval` for both).
 - **Comparison baseline:** Scenario 6 baseline (`scenario_6_recovery_baseline.yaml`). Do not use Scenario 2 baseline — different offered load.
 
-| Config | `re_enable_windows` | Effective wait | Risk |
-|--------|--------------------|-----------------|----|
-| `interval_10s` | 1 | 30s | Oscillation — retries re-enabled before bottleneck clears |
-| `interval_20s` | 2 | 60s | Below paper default |
-| `interval_30s` | 3 | 90s | **Paper default** (RetryGuard Sec. 6.2); same params as S6 RetryGuard |
-| `interval_60s` | 6 | 180s | Goodput suppressed too long after recovery |
+| Config | `interval_samples` | Effective interval (both directions) | Risk |
+|--------|--------------------|----------------------------------------|----|
+| `interval_10s` | 10 | 10s | Oscillation — retries disabled/re-enabled before bottleneck clears |
+| `interval_20s` | 20 | 20s | Below paper default — faster disable/re-enable than 30s |
+| `interval_30s` | 30 | 30s | **Paper default** (RetryGuard Sec. 6.2); same params as S6 RetryGuard (symmetric ON/OFF) |
+| `interval_60s` | 60 | 60s | Disable delayed into overload; goodput suppressed too long after recovery |
 
 ### Scenario 6 — Forced Recovery
 
 - **Load:** Peak 0–300s, drop to ~25% of peak 300–900s (`locust.phases`)
 - **Topology:** No changes
 - **Duration:** 15 minutes
-- **Goal:** Elicit `OFF→ON` by reducing offered load after disable has fired. Canonical baseline for Scenario 5. `scenario_6_recovery_retryguard.yaml` uses paper-default `re_enable_windows: 3`.
+- **Goal:** Elicit `OFF→ON` by reducing offered load after disable has fired. Canonical baseline for Scenario 5. `scenario_6_recovery_retryguard.yaml` uses paper-default `interval_samples: 30`.
 
 ---
 
@@ -104,7 +104,7 @@ There are exactly **three knobs** — everything else (cluster, VMs, pods, stack
 |------|---------------|--------------------|
 | **Load intensity** (user counts / phases) | `locust.user_counts` or `locust.phases` | All (low for S1, high flat for S2/S3/S4, high then drop for S5/S6) |
 | **Topology constraint** | `scale_constraints` in config → `kubectl scale` or `kubectl patch` cpu_limit | S3, S4A, S4B only |
-| **RetryGuard re-enable interval** | `retryguard.re_enable_windows` in config | S5 only (S6 RetryGuard uses paper default = 3) |
+| **RetryGuard interval** | `retryguard.interval_samples` in config | S5 only (S6 RetryGuard uses paper default = 30) |
 
 Between every run you must:
 1. Stop Locust (runner does this automatically)
@@ -261,12 +261,11 @@ scale_constraints: []        # empty = no manipulation
 
 retryguard:
   enabled: false
-  rejection_threshold: 0.20  # >20% triggers disable counter
-  window_duration_seconds: 30
-  disable_windows: 2         # consecutive windows above threshold → disable
-  re_enable_windows: 3       # consecutive windows below threshold → re-enable
-  retry_attempts_on: 3       # Istio VirtualService retries.attempts when enabled
-  retry_attempts_off: 0      # Istio VirtualService retries.attempts when disabled
+  rejection_threshold: 0.20     # >20% triggers disable counter
+  sample_interval_seconds: 1    # loop cadence — 1 raw sample/sec (paper Algorithm 1)
+  interval_samples: 30          # paper's Interval — symmetric ON/OFF, 30 samples = 30s
+  retry_attempts_on: 3          # Istio VirtualService retries.attempts when enabled
+  retry_attempts_off: 0         # Istio VirtualService retries.attempts when disabled
 
 # Gap 3 — retries-per-request via Envoy sidecar outbound stats.
 # Independent of RetryGuard: enable in both baseline and RetryGuard arms.
