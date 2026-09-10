@@ -109,9 +109,8 @@ scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_
 | `scale_constraints` | list | Topology manipulations (see below) |
 | `retryguard.enabled` | bool | Whether to start RetryGuard |
 | `retryguard.rejection_threshold` | float | Fraction (0–1) to trigger disable counter |
-| `retryguard.window_duration_seconds` | int | Length of one observation window |
-| `retryguard.disable_windows` | int | Consecutive windows above threshold → disable |
-| `retryguard.re_enable_windows` | int | Consecutive windows below threshold → re-enable |
+| `retryguard.sample_interval_seconds` | int | Loop cadence — seconds between raw samples (paper default: 1) |
+| `retryguard.interval_samples` | int | Paper's `Interval` — consecutive samples required to transition, applied symmetrically to both ON and OFF (paper default: 30, i.e. 30s at a 1s sample interval) |
 | `retryguard.retry_attempts_on` | int | Istio retries.attempts when enabled |
 | `retryguard.retry_attempts_off` | int | Istio retries.attempts when disabled |
 | `envoy_retry_collector.enabled` | bool | Whether to scrape Envoy outbound retry counters (default true in all configs) |
