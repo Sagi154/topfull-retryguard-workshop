@@ -1,22 +1,24 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Scenario 5 — Re-enable Interval Tuning  |  Interval: 10s (aggressive)
+# Scenario 5 — Interval Tuning  |  Interval: 10s (aggressive)
 #
 # Same load as Scenario 6 (forced recovery), NOT Scenario 2. RetryGuard ALWAYS ON.
-# Only the re_enable_windows parameter changes across the four S5 configs.
+# Only interval_samples changes across the four S5 configs — applied
+# symmetrically to both the disable and re-enable transitions (paper
+# Algorithm 1 uses one Interval for both, not separate disable/re-enable
+# values). sample_interval_seconds is fixed at 1 across all four.
 #
-# re_enable_windows: 1  →  1 × 30s = 30s effective wait
-# (RetryGuard re-enables retries after just 1 window below threshold.
-#  Folder label "10s" is historical; see PHASE5-EXPERIMENTS-GUIDE.md §2 table.)
+# interval_samples: 10  →  10 consecutive 1s samples = 10s, both directions.
 #
-# Risk: re-enables too fast. Retries restart before bottleneck is truly clear.
-# Likely outcome: oscillation — disable/re-enable cycles repeat rapidly.
-# Watch for: number of toggle events per run (too many = instability).
+# Risk: re-enables (and disables) too fast. Retries restart before bottleneck
+# is truly clear. Likely outcome: oscillation — disable/re-enable cycles
+# repeat rapidly. Watch for: number of toggle events per run (too many =
+# instability).
 #
 # Gap 1: flat S2 never produced OFF→ON. This file uses Scenario 6's 900s
-# load-drop profile so re_enable_windows can fire. Load must stay
-# byte-identical to scenario_6_recovery_{baseline,retryguard}.yaml and the
-# other three scenario_5_interval_*.yaml files — only re_enable_windows
-# differs across the four S5 files. Compare against S6 baseline, not S2.
+# load-drop profile so re-enable can fire. Load must stay byte-identical to
+# scenario_6_recovery_{baseline,retryguard}.yaml and the other three
+# scenario_5_interval_*.yaml files — only interval_samples differs across
+# the four S5 files. Compare against S6 baseline, not S2.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 5
@@ -25,7 +27,7 @@ condition: retryguard
 run_number: 6
 description: >
   Sustained overload 0-300s, then dropped to ~25% load 300-900s so recovery
-  can occur. RetryGuard on, re-enable interval = 10s (aggressive).
+  can occur. RetryGuard on, interval = 10s (aggressive), symmetric ON/OFF.
   Risk of oscillation: retries re-enabled before bottleneck clears.
 
 duration_seconds: 900
@@ -56,9 +58,8 @@ scale_constraints: []
 retryguard:
   enabled: true
   rejection_threshold: 0.20
-  window_duration_seconds: 30
-  disable_windows: 2
-  re_enable_windows: 1         # ← THE VARIABLE: 1 window × 30s = 30s effective
+  sample_interval_seconds: 1
+  interval_samples: 10         # ← THE VARIABLE: 10 consecutive 1s samples = 10s, symmetric ON/OFF
   retry_attempts_on: 3
   retry_attempts_off: 0
 

@@ -2,7 +2,7 @@
 # Scenario 6 — Forced Recovery  |  Condition: RETRYGUARD ON
 #
 # Identical load to scenario_6_recovery_baseline.yaml. Paper-default
-# re_enable_windows: 3 (90s effective). Same experiment as
+# interval_samples: 30 (30s, symmetric ON/OFF). Same experiment as
 # scenario_5_interval_30s.yaml (keep both: this is the canonical S6 pair;
 # S5-30s is the default point on the interval sweep).
 #
@@ -21,7 +21,7 @@ condition: retryguard
 run_number: 3                  # COMPLETED campaign slot — bump to 4 before re-running
 description: >
   Peak overload 0-300s, then drop to ~25% load 300-900s. TopFull + RetryGuard
-  both active, re-enable interval = paper default (3 windows × 30s = 90s).
+  both active, re-enable interval = paper default (30 consecutive 1s samples = 30s).
   Load drop gives disable -> recover -> re-enable room to complete.
 
 duration_seconds: 900
@@ -52,9 +52,8 @@ scale_constraints: []
 retryguard:
   enabled: true
   rejection_threshold: 0.20
-  window_duration_seconds: 30
-  disable_windows: 2
-  re_enable_windows: 3         # paper default — same as scenario_5_interval_30s.yaml
+  sample_interval_seconds: 1
+  interval_samples: 30         # paper default — same as scenario_5_interval_30s.yaml
   retry_attempts_on: 3
   retry_attempts_off: 0
 

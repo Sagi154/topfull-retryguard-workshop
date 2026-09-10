@@ -33,9 +33,8 @@ scale_constraints: []
 retryguard:
   enabled: true
   rejection_threshold: 0.20
-  window_duration_seconds: 30
-  disable_windows: 2
-  re_enable_windows: 3
+  sample_interval_seconds: 1
+  interval_samples: 30         # paper default (Sec. 6.2), symmetric ON/OFF
   retry_attempts_on: 3
   retry_attempts_off: 0
 

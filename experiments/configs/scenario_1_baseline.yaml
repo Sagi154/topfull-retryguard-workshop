@@ -44,9 +44,8 @@ retryguard:
 
   # Parameters below are stored for reference; not used when enabled=false.
   rejection_threshold: 0.20    # >20% rejection rate triggers disable counter
-  window_duration_seconds: 30  # one observation window = 30 s
-  disable_windows: 2           # 2 consecutive windows above threshold → disable
-  re_enable_windows: 3         # 3 consecutive windows below threshold → re-enable
+  sample_interval_seconds: 1   # loop cadence — 1 raw sample/sec (paper Algorithm 1)
+  interval_samples: 30         # paper's Interval — 30 consecutive samples = 30s, symmetric ON/OFF
   retry_attempts_on: 3         # Istio VirtualService retries.attempts when enabled
   retry_attempts_off: 0        # Istio VirtualService retries.attempts when disabled
 

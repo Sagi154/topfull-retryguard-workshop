@@ -1,8 +1,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Scenario 5 — Re-enable Interval Tuning  |  Interval: 20s (below paper default)
-# re_enable_windows: 2  →  2 × 30s = 60s effective wait
+# Scenario 5 — Interval Tuning  |  Interval: 20s (below paper default)
+# interval_samples: 20  →  20 consecutive 1s samples = 20s, symmetric ON/OFF
 #
 # Same load as Scenario 6 (forced recovery), NOT Scenario 2.
+# Only interval_samples changes across the four S5 configs — applied
+# symmetrically to both disable and re-enable. sample_interval_seconds is 1.
 # Load must stay byte-identical to scenario_6_recovery_{baseline,retryguard}.yaml
 # and the other three scenario_5_interval_*.yaml files. Compare against S6
 # baseline, not S2.
@@ -14,8 +16,8 @@ condition: retryguard
 run_number: 6
 description: >
   Sustained overload 0-300s, then dropped to ~25% load 300-900s so recovery
-  can occur. RetryGuard on, re-enable interval = 20s. Below the paper
-  default (30s). Faster recovery than 30s; less oscillation risk than 10s.
+  can occur. RetryGuard on, interval = 20s (below paper default), symmetric ON/OFF.
+  Faster recovery than 30s; less oscillation risk than 10s.
   Tests whether TopFull's 1s RL loop allows earlier re-enable.
 
 duration_seconds: 900
@@ -46,9 +48,8 @@ scale_constraints: []
 retryguard:
   enabled: true
   rejection_threshold: 0.20
-  window_duration_seconds: 30
-  disable_windows: 2
-  re_enable_windows: 2         # ← 2 windows × 30s = 60s effective
+  sample_interval_seconds: 1
+  interval_samples: 20         # ← THE VARIABLE: 20 consecutive 1s samples = 20s, symmetric ON/OFF
   retry_attempts_on: 3
   retry_attempts_off: 0
 

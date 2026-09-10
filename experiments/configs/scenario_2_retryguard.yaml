@@ -2,8 +2,8 @@
 # Scenario 2 — Sustained Overload  |  Condition: RETRYGUARD ON
 #
 # Identical FLAT 600s load to scenario_2_baseline.yaml. RetryGuard watches
-# per-service rejection rates. After ~20% rejection persists across 2
-# consecutive 30-second windows, it patches the Istio VirtualService:
+# per-service rejection rates. After ~20% rejection persists across 30
+# consecutive 1-second samples, it patches the Istio VirtualService:
 # retries.attempts → 0. The deck (slide 12) expects disable → recover →
 # re-enable under CONTINUED overload. Matrix runs 1–3 showed disable fires
 # and re-enable does not (rejection stays ~75–100%). That is Scenario 2's
@@ -43,9 +43,8 @@ scale_constraints: []
 retryguard:
   enabled: true
   rejection_threshold: 0.20
-  window_duration_seconds: 30
-  disable_windows: 2           # 2 windows × 30s = 60s above threshold → disable
-  re_enable_windows: 3         # 3 windows × 30s = 90s below threshold → re-enable
+  sample_interval_seconds: 1
+  interval_samples: 30         # paper default (Sec. 6.2), symmetric ON/OFF
   retry_attempts_on: 3
   retry_attempts_off: 0
 

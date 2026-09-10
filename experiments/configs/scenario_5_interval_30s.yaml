@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Scenario 5 — Re-enable Interval Tuning  |  Interval: 30s (PAPER DEFAULT)
-# re_enable_windows: 3  →  3 × 30s = 90s effective wait
+# Scenario 5 — Interval Tuning  |  Interval: 30s (PAPER DEFAULT)
+# interval_samples: 30  →  30 consecutive 1s samples = 30s, symmetric ON/OFF
 #
 # Same load as Scenario 6 (forced recovery), NOT Scenario 2. Same RetryGuard
 # params as scenario_6_recovery_retryguard.yaml (canonical S6 pair).
@@ -15,7 +15,7 @@ condition: retryguard
 run_number: 6
 description: >
   Sustained overload 0-300s, then dropped to ~25% load 300-900s so recovery
-  can occur. RetryGuard on, re-enable interval = 30s (paper default,
+  can occur. RetryGuard on, interval = 30s (paper default, symmetric ON/OFF,
   RetryGuard Sec. 6.2). The reference point for all interval comparisons.
 
 duration_seconds: 900
@@ -46,9 +46,8 @@ scale_constraints: []
 retryguard:
   enabled: true
   rejection_threshold: 0.20
-  window_duration_seconds: 30
-  disable_windows: 2
-  re_enable_windows: 3         # ← 3 windows × 30s = 90s effective (PAPER DEFAULT)
+  sample_interval_seconds: 1
+  interval_samples: 30         # ← THE VARIABLE: 30 consecutive 1s samples = 30s, symmetric ON/OFF (PAPER DEFAULT)
   retry_attempts_on: 3
   retry_attempts_off: 0
 
