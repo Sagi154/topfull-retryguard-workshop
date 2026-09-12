@@ -78,7 +78,7 @@ These are the live signals on `topfull-master` **during a run**. None of them ar
 
 `num_agent.csv` was supposed to record the throttle state. It is empty / almost all zeros across every finished run and **cannot be backfilled**. Do not revive it — drain the two live sources above instead.
 
-The collector is **implemented** (`experiments/topfull_throttle_collector.py`): it polls `rate_config/*` and `:8090/stats` every 1 s and writes `topfull_throttle.csv` (`timestamp, api, threshold, admitted_rps`) plus `topfull_detect.csv`. Campaign folders still lack these files until the next run — this does not backfill `campaign_48/` or `august_38/`. Details are in [How to keep this for analysis](#how-to-keep-this-for-analysis-future-runs-only).
+The collector is **implemented** (`experiments/topfull_throttle_collector.py`): it polls proxied `GET /thresholds` + `GET /stats` every 1 s (in parallel with Layer B cAdvisor) and writes `topfull_throttle.csv` (`timestamp, api, threshold, admitted_rps, threshold_fresh, admitted_fresh`) plus `topfull_detect.csv`. On goproxy timeout it **carries the last successful values** and sets the matching `*_fresh` flag to `0` (so timeout storms no longer look like a cap of 0). Campaign folders still lack these files until the next run — this does not backfill `campaign_48/` or `august_38/`. Details are in [How to keep this for analysis](#how-to-keep-this-for-analysis-future-runs-only).
 
 **RetryGuard contrast.** RetryGuard is this project’s own controller, separate from TopFull. It makes a binary decision: toggle Istio `retries.attempts` (3 ↔ 0) per Kubernetes service from rejection-rate windows. See [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md). TopFull decides *how much traffic gets in*; RetryGuard decides *whether failed requests get retried once they are in*.
 
@@ -202,8 +202,10 @@ Format is the same `name=value/` text as Locust. This is **how much the proxy le
 During a live run (proxy must be up):
 
 ```powershell
-ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master "curl -sS http://127.0.0.1:8090/stats; echo; curl -sS http://127.0.0.1:8090/thresholds"
+ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master "curl -sS -x http://127.0.0.1:8090 http://10.128.0.3:8090/stats; echo; curl -sS -x http://127.0.0.1:8090 http://10.128.0.3:8090/thresholds"
 ```
+
+`:8090` is goproxy — `/stats` and `/thresholds` are OnRequest hooks that only fire for a **proxied** GET (same pattern as `Detector.current_rps()`). A direct `curl http://127.0.0.1:8090/stats` returns HTTP 500.
 
 `/thresholds` is the HTTP twin of the `rate_config/` files (used in TopFull’s Train-Ticket recorder). `/stats` is admitted throughput.
 
@@ -240,21 +242,26 @@ ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master "tmux capture-pane -t to
 
 ## How to keep this for analysis (future runs only)
 
-**Implemented (2026-09-09). Campaign folders still lack the files until the next run.** Design: [2026-09-09-topfull-throttle-collector-design.md](../docs/superpowers/specs/2026-09-09-topfull-throttle-collector-design.md) — `topfull_throttle_collector.py` polls `rate_config/*` + `:8090/stats` (Layer A) and reconstructs the detector's overload bool from cAdvisor CPU + the hardcoded quota table (Layer B fallback), on the **same wall-clock 1s grid** as the per-service mesh collector, so any second has both a throttle snapshot and a mesh snapshot. Layers C/D (clustering, RL action) are explicitly out of scope there — see the design doc for why.
+**Implemented (2026-09-09; Layer A scrape hardened 2026-09-11).** Campaign folders still lack the files until the next run. Design: [2026-09-09-topfull-throttle-collector-design.md](../docs/superpowers/specs/2026-09-09-topfull-throttle-collector-design.md) — `topfull_throttle_collector.py` polls proxied `:8090/thresholds` + `:8090/stats` (Layer A) and reconstructs the detector's overload bool from cAdvisor CPU + the hardcoded quota table (Layer B fallback), on the **same wall-clock 1s grid** as the per-service mesh collector, so any second has both a throttle snapshot and a mesh snapshot. Layers C/D (clustering, RL action) are explicitly out of scope there — see the design doc for why.
 
 Same pattern as `resource_usage_collector.py` / `envoy_retry_collector.py`. Collect the layers in [What it did vs why it throttled](#what-it-did-vs-why-it-throttled-wanted-for-future-runs). A = what changed at the gate; B = why the detector fired; C = who was in the cluster; D = how hard the RL stepped. C and D can live in one file.
 
 **Layer A — proxy / cap (required):**
 
 1. New script on master, poll every 1 s (match the RL cycle; 5 s loses steps).
-2. Read `rate_config/*` **and** `GET :8090/stats` (and `/thresholds` if you want a cross-check).
-3. Write e.g. `topfull_throttle.csv`:
+2. Each tick fetches `/thresholds` and `/stats` **in parallel** through goproxy (`ProxyHandler` → `127.0.0.1:8090`, request `proxy_url + "/…"`), each with a **0.8 s** timeout, and runs Layer B cAdvisor in the same pool so a proxy timeout cannot stall the detector scrape.
+3. On success, store the values as last-good. On timeout / empty body, **carry last-good** (do not write measured zeros from an empty `rate_config/` dir). `rate_config/<api>` is used only when at least one API file still exists.
+4. Write `topfull_throttle.csv`:
 
 ```
-timestamp, api, threshold, admitted_rps
+timestamp, api, threshold, admitted_rps, threshold_fresh, admitted_fresh
 ```
 
-Derived later: `action ≈ (threshold_t / threshold_{t-1}) − 1` on APIs that moved; `tightness = admitted_rps / threshold`.
+`threshold_fresh` / `admitted_fresh` are `1` if that column was measured this tick, `0` if carried forward (or still unknown). Analysts who need a true per-second admitted rate should filter `admitted_fresh==1`. Threshold last-good is the sticky cap.
+
+Derived later: `action ≈ (threshold_t / threshold_{t-1}) − 1` on APIs that moved; `tightness = admitted_rps / threshold` (prefer rows with both fresh flags set).
+
+**Follow-up not implemented:** a longer-wait **background `/stats` thread** was considered for denser admitted samples under S2 load (TopFull’s own `Detector.current_rps()` has no timeout). It is **not** in this collector. If `admitted_fresh==1` stays sparse after the parallel + last-good change, that side thread is the next lever — not a longer timeout on the 1 s loop (that would re-stall Layer B).
 
 **Layer B — detector (required for “why”):**
 

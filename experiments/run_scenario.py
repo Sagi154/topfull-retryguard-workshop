@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 from __future__ import annotations
 
 """
@@ -832,6 +832,10 @@ def start_topfull_throttle_collector(cfg: dict):
         "/home/idozacharia/experiments/topfull_throttle_collector.py",
     )
     deploy_repo_script(master, "topfull_throttle_collector.py", script)
+    # Collector imports this sibling module; without it, tmux 'throttle' exits
+    # immediately (S2 baseline run8: ModuleNotFoundError: topfull_cpu_quotas).
+    quotas_dest = script.rsplit("/", 1)[0] + "/topfull_cpu_quotas.py"
+    deploy_repo_script(master, "topfull_cpu_quotas.py", quotas_dest)
     params = {
         "poll_interval_seconds": int(ttc_cfg.get("poll_interval_seconds", 1)),
         "cpu_quotas": topfull_cpu_quotas.effective_cpu_quotas(

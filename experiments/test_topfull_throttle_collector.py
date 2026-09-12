@@ -10,6 +10,7 @@ import csv
 import json
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -102,16 +103,51 @@ class TestReadThresholds(unittest.TestCase):
             self.assertEqual(got["getproduct"], 0.0)
 
 
-class TestLocalProxyUrls(unittest.TestCase):
-    def test_rewrites_gce_internal_proxy_url_to_localhost(self):
-        stats, thresh = ttc.local_proxy_urls("http://10.128.0.3:8090")
-        self.assertEqual(stats, "http://127.0.0.1:8090/stats")
-        self.assertEqual(thresh, "http://127.0.0.1:8090/thresholds")
+class TestProxyScrapeConfig(unittest.TestCase):
+    def test_loopback_proxy_and_admin_urls_on_proxy_host(self):
+        cfg = ttc.proxy_scrape_config("http://10.128.0.3:8090")
+        self.assertEqual(cfg["proxy"], "http://127.0.0.1:8090")
+        self.assertEqual(cfg["stats_url"], "http://10.128.0.3:8090/stats")
+        self.assertEqual(cfg["thresholds_url"], "http://10.128.0.3:8090/thresholds")
 
     def test_keeps_nondefault_port(self):
-        stats, thresh = ttc.local_proxy_urls("http://10.128.0.3:9090")
-        self.assertEqual(stats, "http://127.0.0.1:9090/stats")
-        self.assertEqual(thresh, "http://127.0.0.1:9090/thresholds")
+        cfg = ttc.proxy_scrape_config("http://10.128.0.3:9090")
+        self.assertEqual(cfg["proxy"], "http://127.0.0.1:9090")
+        self.assertEqual(cfg["stats_url"], "http://10.128.0.3:9090/stats")
+        self.assertEqual(cfg["thresholds_url"], "http://10.128.0.3:9090/thresholds")
+
+
+class TestFetchUrlProxyChoice(unittest.TestCase):
+    def test_admin_urls_use_goproxy_handler_cadvisor_uses_direct(self):
+        handlers = []
+        fake_resp = mock.MagicMock()
+        fake_resp.read.return_value = b"ok"
+        fake_resp.__enter__ = lambda s: s
+        fake_resp.__exit__ = mock.Mock(return_value=False)
+
+        def fake_build_opener(*args):
+            handlers.append(args)
+            opener = mock.MagicMock()
+            opener.open.return_value = fake_resp
+            return opener
+
+        with mock.patch.object(ttc, "build_opener", side_effect=fake_build_opener):
+            ttc.default_fetch_url(
+                "http://10.128.0.3:8090/stats",
+                proxy="http://127.0.0.1:8090",
+            )
+            ttc.default_fetch_url(
+                "http://10.0.0.9:8080/api/v2.0/summary/abc?type=docker",
+            )
+
+        self.assertEqual(len(handlers), 2)
+        admin_handler = handlers[0][0]
+        self.assertEqual(
+            admin_handler.proxies,
+            {"http": "http://127.0.0.1:8090", "https": "http://127.0.0.1:8090"},
+        )
+        direct_handler = handlers[1][0]
+        self.assertEqual(direct_handler.proxies, {})
 
 
 class TestReadLiveThresholds(unittest.TestCase):
@@ -144,7 +180,7 @@ class TestReadLiveThresholds(unittest.TestCase):
             )
             self.assertEqual(got["getproduct"], 10000.0)
 
-    def test_falls_back_to_files_when_http_fails(self):
+    def test_returns_none_when_http_fails(self):
         with tempfile.TemporaryDirectory() as td:
             d = Path(td)
             (d / "getproduct").write_text("40\n", encoding="utf-8")
@@ -155,7 +191,7 @@ class TestReadLiveThresholds(unittest.TestCase):
             got = ttc.read_live_thresholds(
                 d, fetch, "http://127.0.0.1:8090/thresholds"
             )
-            self.assertEqual(got["getproduct"], 40.0)
+            self.assertIsNone(got)
 
 
 class TestWriteThrottleCsv(unittest.TestCase):
@@ -167,15 +203,23 @@ class TestWriteThrottleCsv(unittest.TestCase):
                 "2023-11-14T22:13:20Z",
                 {"getproduct": 40.0, "postcheckout": 10.0},
                 {"getproduct": 37.0},
+                threshold_fresh={"getproduct": 1, "postcheckout": 1},
+                admitted_fresh={"getproduct": 1},
             )
             with open(path, newline="", encoding="utf-8") as f:
                 rows = list(csv.DictReader(f))
-            self.assertEqual(ttc.THROTTLE_CSV_COLUMNS, list(rows[0].keys()) if rows else ttc.THROTTLE_CSV_COLUMNS)
+            self.assertEqual(
+                ttc.THROTTLE_CSV_COLUMNS,
+                list(rows[0].keys()) if rows else ttc.THROTTLE_CSV_COLUMNS,
+            )
             by_api = {r["api"]: r for r in rows}
             self.assertEqual(len(rows), len(ttc.LOCUST_APIS))
             self.assertEqual(by_api["getproduct"]["threshold"], "40.0")
             self.assertEqual(by_api["getproduct"]["admitted_rps"], "37.0")
             self.assertEqual(by_api["postcheckout"]["admitted_rps"], "0.0")
+            self.assertEqual(by_api["getproduct"]["threshold_fresh"], "1")
+            self.assertEqual(by_api["getproduct"]["admitted_fresh"], "1")
+            self.assertEqual(by_api["postcheckout"]["admitted_fresh"], "0")
 
     def test_appends_without_second_header(self):
         with tempfile.TemporaryDirectory() as td:
@@ -183,7 +227,10 @@ class TestWriteThrottleCsv(unittest.TestCase):
             ttc.write_throttle_csv(path, "2023-11-14T22:13:20Z", {}, {})
             ttc.write_throttle_csv(path, "2023-11-14T22:13:21Z", {}, {})
             text = path.read_text(encoding="utf-8")
-            self.assertEqual(text.count("timestamp,api,threshold,admitted_rps"), 1)
+            header = ",".join(ttc.THROTTLE_CSV_COLUMNS)
+            self.assertEqual(text.count(header), 1)
+            self.assertIn("threshold_fresh", header)
+            self.assertIn("admitted_fresh", header)
 
 
 SAMPLE_CADVISOR_SUMMARY = json.dumps(
@@ -372,6 +419,8 @@ class TestPollOnce(unittest.TestCase):
             by_api = {r["api"]: r for r in throttle}
             self.assertEqual(by_api["getproduct"]["threshold"], "40.0")
             self.assertEqual(by_api["getproduct"]["admitted_rps"], "12.5")
+            self.assertEqual(by_api["getproduct"]["threshold_fresh"], "1")
+            self.assertEqual(by_api["getproduct"]["admitted_fresh"], "1")
             by_svc = {r["service"]: r for r in detect}
             self.assertEqual(by_svc["checkoutservice"]["cadvisor_cpu"], "910.0")
             self.assertEqual(by_svc["checkoutservice"]["overloaded"], "1")
@@ -382,12 +431,14 @@ class TestPollOnce(unittest.TestCase):
             proxy_dir = record_path / "rate_config"
             proxy_dir.mkdir()
             fetched = []
+            lock = threading.Lock()
 
             def run_cmd(_cmd):
                 return SimpleNamespace(returncode=1, stdout="", stderr="")
 
             def fetch_url(url: str) -> str:
-                fetched.append(url)
+                with lock:
+                    fetched.append(url)
                 if url.endswith("/thresholds"):
                     return SAMPLE_THRESHOLDS
                 if url.endswith("/stats"):
@@ -397,13 +448,14 @@ class TestPollOnce(unittest.TestCase):
             ttc.poll_once(
                 record_path,
                 proxy_dir,
-                "http://127.0.0.1:8090/stats",
+                "http://10.128.0.3:8090/stats",
                 timestamp="2023-11-14T22:13:20Z",
                 run_cmd=run_cmd,
                 fetch_url=fetch_url,
+                thresholds_url="http://10.128.0.3:8090/thresholds",
             )
-            self.assertIn("http://127.0.0.1:8090/thresholds", fetched)
-            self.assertIn("http://127.0.0.1:8090/stats", fetched)
+            self.assertIn("http://10.128.0.3:8090/thresholds", fetched)
+            self.assertIn("http://10.128.0.3:8090/stats", fetched)
             with (record_path / "topfull_throttle.csv").open(
                 newline="", encoding="utf-8"
             ) as f:
@@ -411,6 +463,8 @@ class TestPollOnce(unittest.TestCase):
             self.assertEqual(by_api["getproduct"]["threshold"], "10000.0")
             self.assertEqual(by_api["getcart"]["threshold"], "80.0")
             self.assertEqual(by_api["getproduct"]["admitted_rps"], "12.5")
+            self.assertEqual(by_api["getproduct"]["threshold_fresh"], "1")
+            self.assertEqual(by_api["getproduct"]["admitted_fresh"], "1")
 
     def test_stats_fetch_failure_still_writes_zero_admitted(self):
         with tempfile.TemporaryDirectory() as td:
@@ -438,6 +492,9 @@ class TestPollOnce(unittest.TestCase):
                 throttle = list(csv.DictReader(f))
             self.assertEqual(len(throttle), len(ttc.LOCUST_APIS))
             self.assertTrue(all(r["admitted_rps"] == "0.0" for r in throttle))
+            self.assertTrue(all(r["threshold"] == "0.0" for r in throttle))
+            self.assertTrue(all(r["admitted_fresh"] == "0" for r in throttle))
+            self.assertTrue(all(r["threshold_fresh"] == "0" for r in throttle))
 
     def test_does_not_raise_when_record_path_is_file_or_proxy_dir_is_file(self):
         with tempfile.TemporaryDirectory() as td:
@@ -495,6 +552,201 @@ class TestPollOnce(unittest.TestCase):
             self.assertEqual(len(detect), len(ttc.DETECT_SERVICES))
             self.assertTrue(all(r["cadvisor_cpu"] == "0.0" for r in detect))
             self.assertTrue(all(r["overloaded"] == "0" for r in detect))
+
+
+class TestParallelAdminFetch(unittest.TestCase):
+    def test_stats_and_thresholds_fetched_in_parallel(self):
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+            barrier = threading.Barrier(2, timeout=2.0)
+            fetched = []
+            lock = threading.Lock()
+
+            def run_cmd(_cmd):
+                return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+            def fetch_url(url: str) -> str:
+                with lock:
+                    fetched.append(url)
+                if url.endswith("/thresholds") or url.endswith("/stats"):
+                    barrier.wait()
+                    if url.endswith("/thresholds"):
+                        return SAMPLE_THRESHOLDS
+                    return SAMPLE_STATS
+                raise OSError("no cadvisor")
+
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://10.128.0.3:8090/stats",
+                timestamp="2023-11-14T22:13:20Z",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+                thresholds_url="http://10.128.0.3:8090/thresholds",
+            )
+            self.assertIn("http://10.128.0.3:8090/thresholds", fetched)
+            self.assertIn("http://10.128.0.3:8090/stats", fetched)
+            with (record_path / "topfull_throttle.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                by_api = {r["api"]: r for r in csv.DictReader(f)}
+            self.assertEqual(by_api["getproduct"]["threshold"], "10000.0")
+            self.assertEqual(by_api["getproduct"]["admitted_rps"], "12.5")
+
+
+class TestLastGoodThrottle(unittest.TestCase):
+    def test_timeout_carries_last_good_with_fresh_flags(self):
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+            last_good = ttc.LastGoodThrottle()
+            phase = {"fail_admin": False}
+
+            def run_cmd(_cmd):
+                return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+            def fetch_url(url: str) -> str:
+                if url.endswith("/thresholds") or url.endswith("/stats"):
+                    if phase["fail_admin"]:
+                        raise OSError("timed out")
+                    if url.endswith("/thresholds"):
+                        return SAMPLE_THRESHOLDS
+                    return SAMPLE_STATS
+                raise OSError("no cadvisor")
+
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://10.128.0.3:8090/stats",
+                timestamp="2023-11-14T22:13:20Z",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+                thresholds_url="http://10.128.0.3:8090/thresholds",
+                last_good=last_good,
+            )
+            phase["fail_admin"] = True
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://10.128.0.3:8090/stats",
+                timestamp="2023-11-14T22:13:21Z",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+                thresholds_url="http://10.128.0.3:8090/thresholds",
+                last_good=last_good,
+            )
+            with (record_path / "topfull_throttle.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                rows = list(csv.DictReader(f))
+            tick1 = {
+                r["api"]: r for r in rows if r["timestamp"] == "2023-11-14T22:13:20Z"
+            }
+            tick2 = {
+                r["api"]: r for r in rows if r["timestamp"] == "2023-11-14T22:13:21Z"
+            }
+            self.assertEqual(tick1["getproduct"]["threshold"], "10000.0")
+            self.assertEqual(tick1["getproduct"]["admitted_rps"], "12.5")
+            self.assertEqual(tick1["getproduct"]["threshold_fresh"], "1")
+            self.assertEqual(tick1["getproduct"]["admitted_fresh"], "1")
+            self.assertEqual(tick2["getproduct"]["threshold"], "10000.0")
+            self.assertEqual(tick2["getproduct"]["admitted_rps"], "12.5")
+            self.assertEqual(tick2["getproduct"]["threshold_fresh"], "0")
+            self.assertEqual(tick2["getproduct"]["admitted_fresh"], "0")
+            self.assertEqual(tick2["getcart"]["threshold"], "80.0")
+            self.assertTrue((record_path / "topfull_detect.csv").exists())
+
+    def test_empty_rate_config_on_http_fail_is_not_measured(self):
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+            last_good = ttc.LastGoodThrottle()
+
+            def run_cmd(_cmd):
+                return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+            def fetch_url(_url: str) -> str:
+                raise OSError("timed out")
+
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://127.0.0.1:8090/stats",
+                timestamp="2023-11-14T22:13:20Z",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+                last_good=last_good,
+            )
+            with (record_path / "topfull_throttle.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                throttle = list(csv.DictReader(f))
+            self.assertTrue(all(r["threshold"] == "0.0" for r in throttle))
+            self.assertTrue(all(r["admitted_rps"] == "0.0" for r in throttle))
+            self.assertTrue(all(r["threshold_fresh"] == "0" for r in throttle))
+            self.assertTrue(all(r["admitted_fresh"] == "0" for r in throttle))
+
+
+class TestLayerBNotBlocked(unittest.TestCase):
+    def test_cadvisor_runs_while_admin_waits(self):
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+            # Admin pair waits on this barrier; Layer B must start without joining it.
+            admin_release = threading.Event()
+            cadvisor_started = threading.Event()
+
+            def run_cmd(cmd):
+                joined = " ".join(cmd)
+                if "cadvisor" in joined and "podIP" in joined:
+                    cadvisor_started.set()
+                    return SimpleNamespace(
+                        returncode=0, stdout="10.0.0.9\n", stderr=""
+                    )
+                if "get" in cmd and ("po" in cmd or "pods" in joined):
+                    return SimpleNamespace(
+                        returncode=0,
+                        stdout=json.dumps(SAMPLE_POD_LIST),
+                        stderr="",
+                    )
+                return SimpleNamespace(returncode=1, stdout="", stderr="no")
+
+            def fetch_url(url: str) -> str:
+                if url.endswith("/thresholds") or url.endswith("/stats"):
+                    # Block until Layer B has proven it started (or timeout).
+                    if not cadvisor_started.wait(timeout=2.0):
+                        raise AssertionError(
+                            "Layer B did not start while admin waited"
+                        )
+                    admin_release.set()
+                    if url.endswith("/thresholds"):
+                        return SAMPLE_THRESHOLDS
+                    return SAMPLE_STATS
+                if "deadbeefcheckout" in url:
+                    return SAMPLE_CADVISOR_SUMMARY
+                raise OSError("no such container")
+
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://10.128.0.3:8090/stats",
+                timestamp="2023-11-14T22:13:20Z",
+                run_cmd=run_cmd,
+                fetch_url=fetch_url,
+                thresholds_url="http://10.128.0.3:8090/thresholds",
+            )
+            self.assertTrue(cadvisor_started.is_set())
+            self.assertTrue(admin_release.is_set())
+            with (record_path / "topfull_detect.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                by_svc = {r["service"]: r for r in csv.DictReader(f)}
+            self.assertEqual(by_svc["checkoutservice"]["cadvisor_cpu"], "910.0")
 
 
 class TestRunCollector(unittest.TestCase):

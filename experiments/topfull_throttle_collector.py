@@ -16,6 +16,8 @@ import signal
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
@@ -44,7 +46,14 @@ DEFAULT_POLL_INTERVAL_SECONDS = 1
 # :8090/stats hung, which is what happened on S2 run7.
 PROXY_FETCH_TIMEOUT_SECONDS = 0.8
 
-THROTTLE_CSV_COLUMNS = ["timestamp", "api", "threshold", "admitted_rps"]
+THROTTLE_CSV_COLUMNS = [
+    "timestamp",
+    "api",
+    "threshold",
+    "admitted_rps",
+    "threshold_fresh",
+    "admitted_fresh",
+]
 DETECT_CSV_COLUMNS = [
     "timestamp",
     "service",
@@ -149,19 +158,32 @@ def parse_proxy_stats(body: str) -> Dict[str, float]:
     return result
 
 
-def local_proxy_urls(proxy_url: str) -> Tuple[str, str]:
-    """Scrape the Go proxy on localhost, not via `proxy_url`.
+def proxy_scrape_config(proxy_url: str) -> Dict[str, str]:
+    """How to scrape goproxy `/stats` and `/thresholds`.
 
-    `global_config.json`'s `proxy_url` (e.g. `http://10.128.0.3:8090`) is the
-    *forward-proxy* address Locust sends Boutique traffic through. Hitting
-    `/stats` or `/thresholds` on that host is not a reliable local scrape
-    (S2 run7: HTTP 500 then timeouts). The process listens on `:8090` on
-    master; use loopback and keep the configured port.
+    `:8090` is `goproxy`. Admin endpoints are OnRequest hooks that only fire
+    for a *proxied* GET whose path contains `/stats` or `/thresholds` — the
+    same pattern as `Detector.current_rps()`. A direct GET to
+    `http://127.0.0.1:8090/stats` is a non-proxy request and returns HTTP 500
+    (S2 run7 / run9 Layer A zeros).
+
+    Use loopback as the HTTP *proxy* address; request `proxy_url + "/stats"`
+    (GCE internal host, not 127.0.0.1) so NO_PROXY does not skip the proxy.
     """
     parsed = urlparse(proxy_url)
     port = parsed.port or 8090
-    base = f"http://127.0.0.1:{port}"
-    return f"{base}/stats", f"{base}/thresholds"
+    base = proxy_url.rstrip("/")
+    return {
+        "proxy": f"http://127.0.0.1:{port}",
+        "stats_url": f"{base}/stats",
+        "thresholds_url": f"{base}/thresholds",
+    }
+
+
+def local_proxy_urls(proxy_url: str) -> Tuple[str, str]:
+    """Backward-compatible alias: (stats_url, thresholds_url)."""
+    cfg = proxy_scrape_config(proxy_url)
+    return cfg["stats_url"], cfg["thresholds_url"]
 
 
 def read_thresholds(
@@ -179,27 +201,144 @@ def read_thresholds(
     return out
 
 
+def rate_config_has_any(
+    proxy_dir: Path, apis: Optional[List[str]] = None
+) -> bool:
+    """True if at least one rate_config/<api> file exists and parses as float."""
+    names = list(apis) if apis is not None else list(LOCUST_APIS)
+    for api in names:
+        path = proxy_dir / api
+        try:
+            float(path.read_text(encoding="utf-8").strip())
+            return True
+        except (OSError, ValueError):
+            continue
+    return False
+
+
 def read_live_thresholds(
     proxy_dir: Path,
     fetch_url: UrlFetcher,
     thresholds_url: str,
     apis: Optional[List[str]] = None,
-) -> Dict[str, float]:
-    """Live cap from `GET :8090/thresholds`; fall back to `rate_config/` files.
+    error_ts: Optional[str] = None,
+) -> Optional[Dict[str, float]]:
+    """Live cap via proxied `GET …/thresholds`.
 
-    The Go proxy consume-deletes each `rate_config/<api>` file after applying
-    it (`changeLimitAbs` + `os.Remove`). Polling the directory therefore
-    almost always sees zeros. `/thresholds` is the in-memory limiter table
-    (default 10000 req/s per API until the RL writes a new cap).
+    Returns a per-API map on success, or None on HTTP failure / empty body.
+    Does **not** fall back to empty `rate_config/` zeros (that looked like a
+    measured cap of 0 under S2 timeouts). File fallback is handled by
+    `resolve_thresholds` only when at least one file actually exists.
     """
     names = list(apis) if apis is not None else list(LOCUST_APIS)
     try:
         parsed = parse_proxy_stats(fetch_url(thresholds_url))
         if parsed:
             return {api: float(parsed.get(api, 0.0)) for api in names}
-    except Exception:
-        pass
-    return read_thresholds(proxy_dir, apis=names)
+    except Exception as exc:
+        if error_ts is not None:
+            log.warning("%s  WARNING  thresholds fetch failed: %s", error_ts, exc)
+    return None
+
+
+@dataclass
+class LastGoodThrottle:
+    """Per-API last successful threshold / admitted values across ticks."""
+
+    thresholds: Dict[str, float] = field(default_factory=dict)
+    admitted: Dict[str, float] = field(default_factory=dict)
+
+
+def resolve_thresholds(
+    http_map: Optional[Dict[str, float]],
+    proxy_dir: Path,
+    last_good: LastGoodThrottle,
+    apis: Optional[List[str]] = None,
+) -> Tuple[Dict[str, float], Dict[str, int]]:
+    """Apply HTTP → rate_config (if any file) → last-good → 0.0."""
+    names = list(apis) if apis is not None else list(LOCUST_APIS)
+    if http_map is not None:
+        out = {api: float(http_map.get(api, 0.0)) for api in names}
+        last_good.thresholds.update(out)
+        return out, {api: 1 for api in names}
+    if rate_config_has_any(proxy_dir, names):
+        out = read_thresholds(proxy_dir, apis=names)
+        last_good.thresholds.update(out)
+        return out, {api: 1 for api in names}
+    if last_good.thresholds:
+        return (
+            {api: float(last_good.thresholds.get(api, 0.0)) for api in names},
+            {api: 0 for api in names},
+        )
+    return {api: 0.0 for api in names}, {api: 0 for api in names}
+
+
+def resolve_admitted(
+    http_map: Optional[Dict[str, float]],
+    last_good: LastGoodThrottle,
+    apis: Optional[List[str]] = None,
+) -> Tuple[Dict[str, float], Dict[str, int]]:
+    """Apply HTTP /stats → last-good → 0.0."""
+    names = list(apis) if apis is not None else list(LOCUST_APIS)
+    if http_map is not None:
+        out = {api: float(http_map.get(api, 0.0)) for api in names}
+        last_good.admitted.update(out)
+        return out, {api: 1 for api in names}
+    if last_good.admitted:
+        return (
+            {api: float(last_good.admitted.get(api, 0.0)) for api in names},
+            {api: 0 for api in names},
+        )
+    return {api: 0.0 for api in names}, {api: 0 for api in names}
+
+
+def fetch_proxy_admin(
+    fetch_url: UrlFetcher,
+    stats_url: str,
+    thresholds_url: str,
+    error_ts: Optional[str] = None,
+) -> Tuple[
+    Optional[Dict[str, float]],
+    Optional[Dict[str, float]],
+    Optional[BaseException],
+    Optional[BaseException],
+]:
+    """Fetch `/thresholds` and `/stats` in parallel. Returns maps or None."""
+    thresh_map: Optional[Dict[str, float]] = None
+    admitted_map: Optional[Dict[str, float]] = None
+    thresh_exc: Optional[BaseException] = None
+    stats_exc: Optional[BaseException] = None
+
+    def _thresholds() -> Optional[Dict[str, float]]:
+        parsed = parse_proxy_stats(fetch_url(thresholds_url))
+        if not parsed:
+            return None
+        return {api: float(parsed.get(api, 0.0)) for api in LOCUST_APIS}
+
+    def _stats() -> Optional[Dict[str, float]]:
+        parsed = parse_proxy_stats(fetch_url(stats_url))
+        if not parsed:
+            return None
+        return {api: float(parsed.get(api, 0.0)) for api in LOCUST_APIS}
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        fut_t = pool.submit(_thresholds)
+        fut_s = pool.submit(_stats)
+        try:
+            thresh_map = fut_t.result()
+        except Exception as exc:
+            thresh_exc = exc
+            if error_ts is not None:
+                log.warning(
+                    "%s  WARNING  thresholds fetch failed: %s", error_ts, exc
+                )
+        try:
+            admitted_map = fut_s.result()
+        except Exception as exc:
+            stats_exc = exc
+            if error_ts is not None:
+                log.warning("%s  WARNING  stats fetch failed: %s", error_ts, exc)
+    return thresh_map, admitted_map, thresh_exc, stats_exc
 
 
 def write_throttle_csv(
@@ -207,6 +346,8 @@ def write_throttle_csv(
     timestamp: str,
     thresholds: Dict[str, float],
     admitted: Dict[str, float],
+    threshold_fresh: Optional[Dict[str, int]] = None,
+    admitted_fresh: Optional[Dict[str, int]] = None,
 ) -> None:
     write_header = not csv_path.exists() or csv_path.stat().st_size == 0
     with open(csv_path, "a", newline="", encoding="utf-8") as f:
@@ -220,6 +361,8 @@ def write_throttle_csv(
                     "api": api,
                     "threshold": thresholds.get(api, 0.0),
                     "admitted_rps": admitted.get(api, 0.0),
+                    "threshold_fresh": (threshold_fresh or {}).get(api, 0),
+                    "admitted_fresh": (admitted_fresh or {}).get(api, 0),
                 }
             )
 
@@ -362,10 +505,18 @@ def default_run_cmd(cmd: List[str]) -> SimpleResult:
 
 
 def default_fetch_url(
-    url: str, timeout: float = PROXY_FETCH_TIMEOUT_SECONDS
+    url: str,
+    timeout: float = PROXY_FETCH_TIMEOUT_SECONDS,
+    proxy: Optional[str] = None,
 ) -> str:
-    # Bypass HTTP_PROXY so we don't send :8090 scrapes *through* the Go proxy.
-    opener = build_opener(ProxyHandler({}))
+    """Fetch `url`. If `proxy` is set, send the request *through* that HTTP proxy
+    (required for goproxy `/stats` / `/thresholds`). Otherwise open directly
+    with an empty ProxyHandler so env HTTP_PROXY does not capture cAdvisor."""
+    if proxy:
+        handler = ProxyHandler({"http": proxy, "https": proxy})
+    else:
+        handler = ProxyHandler({})
+    opener = build_opener(handler)
     with opener.open(url, timeout=timeout) as resp:
         return resp.read().decode("utf-8")
 
@@ -424,6 +575,20 @@ def scrape_cadvisor_cpu(
     return out
 
 
+def _admin_aware_fetch(http_proxy: Optional[str]) -> UrlFetcher:
+    """Admin `/stats`/`/thresholds` go through goproxy; everything else direct."""
+
+    def fetch(url: str) -> str:
+        path = urlparse(url).path or ""
+        if http_proxy and (
+            path.endswith("/stats") or path.endswith("/thresholds")
+        ):
+            return default_fetch_url(url, proxy=http_proxy)
+        return default_fetch_url(url)
+
+    return fetch
+
+
 def poll_once(
     record_path: Path,
     proxy_dir: Path,
@@ -432,26 +597,44 @@ def poll_once(
     run_cmd: Optional[CommandRunner] = None,
     fetch_url: Optional[UrlFetcher] = None,
     cpu_quotas: Optional[Dict[str, int]] = None,
+    thresholds_url: Optional[str] = None,
+    http_proxy: Optional[str] = None,
+    last_good: Optional[LastGoodThrottle] = None,
 ) -> None:
     ts = timestamp or utc_now()
+    thresh_url = thresholds_url or (stats_url.rsplit("/", 1)[0] + "/thresholds")
+    store = last_good if last_good is not None else LastGoodThrottle()
     try:
         runner = run_cmd or default_run_cmd
-        fetcher = fetch_url or default_fetch_url
-        thresh_url = stats_url.rsplit("/", 1)[0] + "/thresholds"
-        thresholds = read_live_thresholds(proxy_dir, fetcher, thresh_url)
-        admitted: Dict[str, float] = {}
-        try:
-            admitted = parse_proxy_stats(fetcher(stats_url))
-        except Exception as exc:
-            log.warning("%s  WARNING  stats fetch failed: %s", ts, exc)
-        write_throttle_csv(
-            record_path / "topfull_throttle.csv", ts, thresholds, admitted
-        )
+        fetcher = fetch_url or _admin_aware_fetch(http_proxy)
+        thresh_map: Optional[Dict[str, float]] = None
+        admitted_map: Optional[Dict[str, float]] = None
         cpu_by_svc: Dict[str, float] = {}
-        try:
-            cpu_by_svc = scrape_cadvisor_cpu(runner, fetcher)
-        except Exception as exc:
-            log.warning("%s  WARNING  cadvisor scrape failed: %s", ts, exc)
+
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            fut_admin = pool.submit(
+                fetch_proxy_admin, fetcher, stats_url, thresh_url, ts
+            )
+            fut_cpu = pool.submit(scrape_cadvisor_cpu, runner, fetcher)
+            try:
+                thresh_map, admitted_map, _te, _se = fut_admin.result()
+            except Exception as exc:
+                log.warning("%s  WARNING  admin fetch failed: %s", ts, exc)
+            try:
+                cpu_by_svc = fut_cpu.result()
+            except Exception as exc:
+                log.warning("%s  WARNING  cadvisor scrape failed: %s", ts, exc)
+
+        thresholds, t_fresh = resolve_thresholds(thresh_map, proxy_dir, store)
+        admitted, a_fresh = resolve_admitted(admitted_map, store)
+        write_throttle_csv(
+            record_path / "topfull_throttle.csv",
+            ts,
+            thresholds,
+            admitted,
+            threshold_fresh=t_fresh,
+            admitted_fresh=a_fresh,
+        )
         rows = {
             svc: detect_metrics(
                 svc, cpu_by_svc.get(svc, 0.0), quotas=cpu_quotas
@@ -471,11 +654,15 @@ def run_collector(
     run_cmd: Optional[CommandRunner] = None,
     fetch_url: Optional[UrlFetcher] = None,
     max_polls: Optional[int] = None,
+    thresholds_url: Optional[str] = None,
+    http_proxy: Optional[str] = None,
 ) -> None:
     interval = int(params.get("poll_interval_seconds", DEFAULT_POLL_INTERVAL_SECONDS))
     cpu_quotas = params.get("cpu_quotas")
     if cpu_quotas is not None:
         cpu_quotas = {str(k): int(v) for k, v in cpu_quotas.items()}
+    thresh_url = thresholds_url or (stats_url.rsplit("/", 1)[0] + "/thresholds")
+    last_good = LastGoodThrottle()
     log.info("%s  START  poll_interval=%ss", utc_now(), interval)
     polls = 0
     while not _shutdown:
@@ -494,6 +681,9 @@ def run_collector(
             run_cmd=run_cmd,
             fetch_url=fetch_url,
             cpu_quotas=cpu_quotas,
+            thresholds_url=thresh_url,
+            http_proxy=http_proxy,
+            last_good=last_good,
         )
         polls += 1
         if max_polls is not None and polls >= max_polls:
@@ -511,12 +701,19 @@ def main() -> None:
     gcfg = load_global_config()
     record_path = Path(gcfg["record_path"])
     proxy_dir = Path(gcfg["proxy_dir"])
-    stats_url, _thresholds_url = local_proxy_urls(gcfg["proxy_url"])
+    scrape = proxy_scrape_config(gcfg["proxy_url"])
     record_path.mkdir(parents=True, exist_ok=True)
     setup_logging(record_path)
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
-    run_collector(params, record_path, proxy_dir, stats_url)
+    run_collector(
+        params,
+        record_path,
+        proxy_dir,
+        scrape["stats_url"],
+        thresholds_url=scrape["thresholds_url"],
+        http_proxy=scrape["proxy"],
+    )
 
 
 if __name__ == "__main__":

@@ -526,10 +526,20 @@ class TestTopfullThrottleCollectorWiring(unittest.TestCase):
     ):
         cfg = self._cfg(enabled=True)
         run_scenario.start_topfull_throttle_collector(cfg)
-        mock_deploy.assert_called_once_with(
-            "topfull-master",
-            "topfull_throttle_collector.py",
-            "/home/idozacharia/experiments/topfull_throttle_collector.py",
+        self.assertEqual(
+            mock_deploy.call_args_list,
+            [
+                mock.call(
+                    "topfull-master",
+                    "topfull_throttle_collector.py",
+                    "/home/idozacharia/experiments/topfull_throttle_collector.py",
+                ),
+                mock.call(
+                    "topfull-master",
+                    "topfull_cpu_quotas.py",
+                    "/home/idozacharia/experiments/topfull_cpu_quotas.py",
+                ),
+            ],
         )
         json_path, params = mock_write_json.call_args[0][1:3]
         self.assertEqual(json_path, "/tmp/topfull_throttle_params.json")

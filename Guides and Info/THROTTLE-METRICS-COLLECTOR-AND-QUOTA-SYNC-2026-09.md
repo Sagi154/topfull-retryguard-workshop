@@ -102,7 +102,10 @@ Effective bottlenecks: S3/S4B **100m**, S4A **50m** (not comparable to `campaign
 - Updated the throttle branch with `main`, then merged throttle **into `main`**.
 - Run7 Layer A (`topfull_throttle.csv`) was **all zeros**: `rate_config/` files are consume-deleted after the proxy applies them, and `global_config.json`’s `proxy_url` is the GCE Locust path (500s / timeouts), not the scrape target.
 - Fix (`e5bb1a5`): read live caps from **`GET /thresholds`**, scrape **`127.0.0.1:8090`**, short timeout / bypass `HTTP_PROXY`. Files under `rate_config/` remain a fallback.
+- **Correction (S2 run9):** that localhost + `ProxyHandler({})` path was wrong — `:8090` is goproxy, so admin GETs must go *through* the proxy (`ProxyHandler` → `127.0.0.1:8090`, request `proxy_url + "/stats"`). Direct loopback GETs are the run9 Layer A all-zeros failure mode.
 - On **`origin/main`** at `b41decd`. Tests passed.
+- **S2 run10:** via-proxy scrape worked when it answered (`threshold=10000`, non-zero `admitted_rps`), but ~87% of ticks timed out at 0.8 s and wrote zeros — sequential `/thresholds` then `/stats` also stalled Layer B.
+- **2026-09-11:** parallel `/thresholds` + `/stats` + Layer B; **last-good carry** with `threshold_fresh` / `admitted_fresh` columns. Empty `rate_config/` is no longer treated as a measured cap of 0. A longer-wait background `/stats` thread is **not** implemented (next lever if `admitted_fresh==1` stays sparse).
 
 ---
 
@@ -120,9 +123,11 @@ Git Changes on `main` included leftover WIP (throttle-collector plan markdown, a
 | Collector Layers A + B | Implemented, wired, on `main` / `origin/main` |
 | Clock alignment (mesh + CPU) | Implemented |
 | Quota ↔ K8s sync | Implemented; S3/S4 use fraction 0.1 |
-| Layer A scrape (`/thresholds` + localhost) | Fixed after run7 zeros |
+| Layer A scrape (via goproxy, not direct loopback) | Fixed after run9 zeros |
+| Layer A parallel + last-good + freshness flags | Implemented (2026-09-11); verify on S2 run11 |
+| Background `/stats` side thread | **Not** implemented — follow-up if admitted stays sparse |
 | Layers C/D | Still out of scope (would need TopFull patches) |
 | `campaign_48/` / `august_38/` | Not rewritten; still no throttle/detect CSVs |
 | Charts | `mentor_charts.py` does not read the new files |
 
-The next new run is the first that should have matching K8s/Detector quotas **and** a usable Layer A series, joinable on the 1 s wall-clock grid with mesh + (every 5 s) CPU.
+The next new run is the first that should have matching K8s/Detector quotas **and** a usable Layer A series (last-good under timeout storms), joinable on the 1 s wall-clock grid with mesh + (every 5 s) CPU.
