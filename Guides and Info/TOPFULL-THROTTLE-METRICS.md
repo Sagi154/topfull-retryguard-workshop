@@ -78,7 +78,7 @@ These are the live signals on `topfull-master` **during a run**. None of them ar
 
 `num_agent.csv` was supposed to record the throttle state. It is empty / almost all zeros across every finished run and **cannot be backfilled**. Do not revive it — drain the two live sources above instead.
 
-The collector is **implemented** (`experiments/topfull_throttle_collector.py`): it polls proxied `GET /thresholds` + `GET /stats` every 1 s (in parallel with Layer B cAdvisor) and writes `topfull_throttle.csv` (`timestamp, api, threshold, admitted_rps, threshold_fresh, admitted_fresh`) plus `topfull_detect.csv`. On goproxy timeout it **carries the last successful values** and sets the matching `*_fresh` flag to `0` (so timeout storms no longer look like a cap of 0). Campaign folders still lack these files until the next run — this does not backfill `campaign_48/` or `august_38/`. Details are in [How to keep this for analysis](#how-to-keep-this-for-analysis-future-runs-only).
+The collector is **implemented** (`experiments/topfull_throttle_collector.py`): Layer B (cAdvisor) and both CSV **row** cadences stay on the wall-clock **1 s** grid (`poll_interval_seconds`, default 1) so `topfull_throttle.csv` remains joinable with `service_edges.csv` / `service_inbound.csv` / `resource_usage.csv` on `timestamp`. Live Layer A `GET /thresholds` + `GET /stats` attempts use a slower cadence (`layer_a_poll_interval_seconds`, default **5**, applied even when a scenario YAML omits the key): a tick is an attempt iff `int(aligned_epoch) % layer_a_poll_interval_seconds == 0`. On a skipped tick, or on goproxy timeout, it **carries the last successful values** and sets the matching `*_fresh` flag to `0`. `*_fresh` stays binary `0`/`1` — `0` means the value in this row is carried, whether because this tick was not attempted by design or because the attempt timed out. Distinguish those two cases from `topfull_throttle_collector.log` (`WARNING  …fetch failed` only on genuine failures). Campaign folders still lack these files until the next run — this does not backfill `campaign_48/` or `august_38/`. Details are in [How to keep this for analysis](#how-to-keep-this-for-analysis-future-runs-only).
 
 **RetryGuard contrast.** RetryGuard is this project’s own controller, separate from TopFull. It makes a binary decision: toggle Istio `retries.attempts` (3 ↔ 0) per Kubernetes service from rejection-rate windows. See [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md). TopFull decides *how much traffic gets in*; RetryGuard decides *whether failed requests get retried once they are in*.
 
@@ -92,8 +92,8 @@ The collector is **implemented** (`experiments/topfull_throttle_collector.py`): 
 
 | Signal | Example on a timeline | How to get it |
 |---|---|---|
-| **Threshold** | It cut `postcheckout` to 40 req/s. | Poll `rate_config/<api>` or `GET :8090/thresholds` every 1 s. |
-| **Admitted RPS** | The proxy let 37 through (clamp binding, or Locust offered less). | `GET :8090/stats` every 1 s. |
+| **Threshold** | It cut `postcheckout` to 40 req/s. | Live `GET :8090/thresholds` every `layer_a_poll_interval_seconds` (default 5 s). CSV still writes the carried cap every 1 s. |
+| **Admitted RPS** | The proxy let 37 through (clamp binding, or Locust offered less). | Live `GET :8090/stats` on the same Layer A attempt cadence (default 5 s). CSV still writes the carried admitted value every 1 s. |
 | **`toprl` / RL action** | It applied −0.2 to that API. | Print from `deploy_rl.py`, **or** derive `(cap_t / cap_{t-1}) − 1` on APIs that moved. Derived step = applied change; equals the RL action only for APIs Algorithm 1 targeted that second. |
 | **Locust CSVs** | What the client then saw (completed / Fail / Goodput). | Already collected. Outcome, **not** the reason. |
 
@@ -242,22 +242,18 @@ ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master "tmux capture-pane -t to
 
 ## How to keep this for analysis (future runs only)
 
-**Implemented (2026-09-09; Layer A scrape hardened 2026-09-11).** Campaign folders still lack the files until the next run. Design: [2026-09-09-topfull-throttle-collector-design.md](../docs/superpowers/specs/2026-09-09-topfull-throttle-collector-design.md) — `topfull_throttle_collector.py` polls proxied `:8090/thresholds` + `:8090/stats` (Layer A) and reconstructs the detector's overload bool from cAdvisor CPU + the hardcoded quota table (Layer B fallback), on the **same wall-clock 1s grid** as the per-service mesh collector, so any second has both a throttle snapshot and a mesh snapshot. Layers C/D (clustering, RL action) are explicitly out of scope there — see the design doc for why.
+**Implemented (2026-09-09; Layer A scrape hardened 2026-09-11; Layer A attempt cadence split 2026-09-12).** Campaign folders still lack the files until the next run. Design: [2026-09-09-topfull-throttle-collector-design.md](../docs/superpowers/specs/2026-09-09-topfull-throttle-collector-design.md) + [2026-09-12-throttle-collector-split-intervals-design.md](../docs/superpowers/specs/2026-09-12-throttle-collector-split-intervals-design.md) — `topfull_throttle_collector.py` writes Layer A and Layer B on the **same wall-clock 1s grid** as the per-service mesh collector (one CSV row per API / service per second). Live proxied `:8090/thresholds` + `:8090/stats` fetches are attempted only when `int(aligned_epoch) % layer_a_poll_interval_seconds == 0` (default 5). Layers C/D remain out of scope.
 
 Same pattern as `resource_usage_collector.py` / `envoy_retry_collector.py`. Collect the layers in [What it did vs why it throttled](#what-it-did-vs-why-it-throttled-wanted-for-future-runs). A = what changed at the gate; B = why the detector fired; C = who was in the cluster; D = how hard the RL stepped. C and D can live in one file.
 
 **Layer A — proxy / cap (required):**
 
-1. New script on master, poll every 1 s (match the RL cycle; 5 s loses steps).
-2. Each tick fetches `/thresholds` and `/stats` **in parallel** through goproxy (`ProxyHandler` → `127.0.0.1:8090`, request `proxy_url + "/…"`), each with a **0.8 s** timeout, and runs Layer B cAdvisor in the same pool so a proxy timeout cannot stall the detector scrape.
-3. On success, store the values as last-good. On timeout / empty body, **carry last-good** (do not write measured zeros from an empty `rate_config/` dir). `rate_config/<api>` is used only when at least one API file still exists.
-4. Write `topfull_throttle.csv`:
+1. Same script on master. CSV row cadence stays 1 s (`poll_interval_seconds`). Live `/thresholds`+`/stats` attempts use `layer_a_poll_interval_seconds` (default 5; set `1` to reproduce the old 1:1 cadence).
+2. On an attempt tick, fetch `/thresholds` and `/stats` **in parallel** through goproxy (`ProxyHandler` → `127.0.0.1:8090`, request `proxy_url + "/…"`), each with a **0.8 s** timeout, and run Layer B cAdvisor in the same pool so a proxy timeout cannot stall the detector scrape. On a non-attempt tick, skip the admin pair entirely; Layer B still runs.
+3. On success, store the values as last-good. On skip, timeout, or empty body, **carry last-good** (do not write measured zeros from an empty `rate_config/` dir). `rate_config/<api>` is used only when at least one API file still exists.
+4. Write `topfull_throttle.csv` with columns: timestamp, api, threshold, admitted_rps, threshold_fresh, admitted_fresh.
 
-```
-timestamp, api, threshold, admitted_rps, threshold_fresh, admitted_fresh
-```
-
-`threshold_fresh` / `admitted_fresh` are `1` if that column was measured this tick, `0` if carried forward (or still unknown). Analysts who need a true per-second admitted rate should filter `admitted_fresh==1`. Threshold last-good is the sticky cap.
+`threshold_fresh` / `admitted_fresh` are `1` if that column was measured this tick, `0` if carried forward (or still unknown). After the split cadence, most `0`s under the default are "not attempted this tick by design," not "attempted and timed out." Analysts who need a true per-second admitted rate should still filter `admitted_fresh==1`. Threshold last-good is the sticky cap. Do not introduce a third freshness value.
 
 Derived later: `action ≈ (threshold_t / threshold_{t-1}) − 1` on APIs that moved; `tightness = admitted_rps / threshold` (prefer rows with both fresh flags set).
 

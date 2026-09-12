@@ -41,6 +41,7 @@ LOCUST_APIS: List[str] = [
 ]
 
 DEFAULT_POLL_INTERVAL_SECONDS = 1
+DEFAULT_LAYER_A_POLL_INTERVAL_SECONDS = 5
 # Keep proxy scrapes well under the 1s tick. A 5s urlopen timeout
 # (the previous default) stalled Layer A+B onto a ~6s grid whenever
 # :8090/stats hung, which is what happened on S2 run7.
@@ -123,6 +124,13 @@ def sleep_until_next_tick(
     next_tick = (int(t // interval_seconds) + 1) * interval_seconds
     delay = max(0.0, next_tick - t)
     (sleeper or time.sleep)(delay)
+
+
+def is_layer_a_attempt_tick(
+    aligned_epoch_seconds: int, layer_a_interval: int
+) -> bool:
+    """Wall-clock predicate: attempt Layer A iff aligned epoch % interval == 0."""
+    return int(aligned_epoch_seconds) % int(layer_a_interval) == 0
 
 
 def setup_logging(record_path: Path) -> None:
@@ -600,6 +608,7 @@ def poll_once(
     thresholds_url: Optional[str] = None,
     http_proxy: Optional[str] = None,
     last_good: Optional[LastGoodThrottle] = None,
+    attempt_layer_a: bool = True,
 ) -> None:
     ts = timestamp or utc_now()
     thresh_url = thresholds_url or (stats_url.rsplit("/", 1)[0] + "/thresholds")
@@ -612,19 +621,25 @@ def poll_once(
         cpu_by_svc: Dict[str, float] = {}
 
         with ThreadPoolExecutor(max_workers=3) as pool:
-            fut_admin = pool.submit(
-                fetch_proxy_admin, fetcher, stats_url, thresh_url, ts
-            )
+            fut_admin = None
+            if attempt_layer_a:
+                fut_admin = pool.submit(
+                    fetch_proxy_admin, fetcher, stats_url, thresh_url, ts
+                )
             fut_cpu = pool.submit(scrape_cadvisor_cpu, runner, fetcher)
-            try:
-                thresh_map, admitted_map, _te, _se = fut_admin.result()
-            except Exception as exc:
-                log.warning("%s  WARNING  admin fetch failed: %s", ts, exc)
+            if fut_admin is not None:
+                try:
+                    thresh_map, admitted_map, _te, _se = fut_admin.result()
+                except Exception as exc:
+                    log.warning("%s  WARNING  admin fetch failed: %s", ts, exc)
             try:
                 cpu_by_svc = fut_cpu.result()
             except Exception as exc:
                 log.warning("%s  WARNING  cadvisor scrape failed: %s", ts, exc)
 
+        if not attempt_layer_a:
+            thresh_map = None
+            admitted_map = None
         thresholds, t_fresh = resolve_thresholds(thresh_map, proxy_dir, store)
         admitted, a_fresh = resolve_admitted(admitted_map, store)
         write_throttle_csv(
@@ -658,12 +673,23 @@ def run_collector(
     http_proxy: Optional[str] = None,
 ) -> None:
     interval = int(params.get("poll_interval_seconds", DEFAULT_POLL_INTERVAL_SECONDS))
+    layer_a_interval = int(
+        params.get(
+            "layer_a_poll_interval_seconds",
+            DEFAULT_LAYER_A_POLL_INTERVAL_SECONDS,
+        )
+    )
     cpu_quotas = params.get("cpu_quotas")
     if cpu_quotas is not None:
         cpu_quotas = {str(k): int(v) for k, v in cpu_quotas.items()}
     thresh_url = thresholds_url or (stats_url.rsplit("/", 1)[0] + "/thresholds")
     last_good = LastGoodThrottle()
-    log.info("%s  START  poll_interval=%ss", utc_now(), interval)
+    log.info(
+        "%s  START  poll_interval=%ss layer_a_poll_interval=%ss",
+        utc_now(),
+        interval,
+        layer_a_interval,
+    )
     polls = 0
     while not _shutdown:
         if max_polls is not None and polls >= max_polls:
@@ -672,7 +698,9 @@ def run_collector(
             sleep_until_next_tick(interval)
             if _shutdown:
                 break
-        ts = tick_timestamp(interval)
+        t = time.time()
+        aligned = int(t // interval) * interval
+        ts = tick_timestamp(interval, now=t)
         poll_once(
             record_path,
             proxy_dir,
@@ -684,6 +712,7 @@ def run_collector(
             thresholds_url=thresh_url,
             http_proxy=http_proxy,
             last_good=last_good,
+            attempt_layer_a=is_layer_a_attempt_tick(aligned, layer_a_interval),
         )
         polls += 1
         if max_polls is not None and polls >= max_polls:

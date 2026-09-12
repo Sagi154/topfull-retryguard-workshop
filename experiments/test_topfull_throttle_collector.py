@@ -59,6 +59,26 @@ class TestSleepUntilNextTick(unittest.TestCase):
         self.assertLessEqual(slept[0], 1.0)
 
 
+class TestIsLayerAAttemptTick(unittest.TestCase):
+    def test_true_only_on_multiples_of_five(self):
+        # Spec §5: poll_interval=1, layer_a=5, epochs 0..9 → True only at 0 and 5.
+        got = [
+            ttc.is_layer_a_attempt_tick(epoch, 5) for epoch in range(10)
+        ]
+        self.assertEqual(
+            got,
+            [True, False, False, False, False, True, False, False, False, False],
+        )
+
+    def test_interval_one_is_every_tick(self):
+        self.assertTrue(
+            all(ttc.is_layer_a_attempt_tick(epoch, 1) for epoch in range(10))
+        )
+
+    def test_constant_default_is_five(self):
+        self.assertEqual(ttc.DEFAULT_LAYER_A_POLL_INTERVAL_SECONDS, 5)
+
+
 SAMPLE_STATS = "getproduct=12.5/postcheckout=3.0/getcart=0/postcart=8.25/emptycart=1/"
 SAMPLE_THRESHOLDS = (
     "getproduct=10000.0/postcheckout=40.0/getcart=80.0/"
@@ -773,6 +793,272 @@ class TestRunCollector(unittest.TestCase):
             )
             self.assertTrue((record_path / "topfull_throttle.csv").exists())
             self.assertTrue((record_path / "topfull_detect.csv").exists())
+
+
+SPLIT_EPOCHS = [int(EPOCH) + i for i in range(10)]
+
+
+def _split_run_cmd(cmd):
+    joined = " ".join(cmd)
+    if "cadvisor" in joined and "podIP" in joined:
+        return SimpleNamespace(returncode=0, stdout="10.0.0.9\n", stderr="")
+    if "get" in cmd and ("po" in cmd or "pods" in joined):
+        return SimpleNamespace(
+            returncode=0, stdout=json.dumps(SAMPLE_POD_LIST), stderr=""
+        )
+    return SimpleNamespace(returncode=1, stdout="", stderr="no")
+
+
+def _split_fetch_factory(fetched):
+    lock = threading.Lock()
+
+    def fetch_url(url: str) -> str:
+        with lock:
+            fetched.append(url)
+        if url.endswith("/thresholds"):
+            return SAMPLE_THRESHOLDS
+        if url.endswith("/stats"):
+            return SAMPLE_STATS
+        if "deadbeefcheckout" in url:
+            return SAMPLE_CADVISOR_SUMMARY
+        raise OSError("no such container")
+
+    return fetch_url
+
+
+class TestPollOnceLayerASkip(unittest.TestCase):
+    def _drive_ten_ticks(self, fetched, last_good=None):
+        store = last_good if last_good is not None else ttc.LastGoodThrottle()
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+            fetch_url = _split_fetch_factory(fetched)
+            for epoch in SPLIT_EPOCHS:
+                ts = ttc.tick_timestamp(1, now=float(epoch))
+                ttc.poll_once(
+                    record_path,
+                    proxy_dir,
+                    "http://10.128.0.3:8090/stats",
+                    timestamp=ts,
+                    run_cmd=_split_run_cmd,
+                    fetch_url=fetch_url,
+                    thresholds_url="http://10.128.0.3:8090/thresholds",
+                    last_good=store,
+                    attempt_layer_a=ttc.is_layer_a_attempt_tick(epoch, 5),
+                )
+            with (record_path / "topfull_throttle.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                throttle = list(csv.DictReader(f))
+            with (record_path / "topfull_detect.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                detect = list(csv.DictReader(f))
+            return throttle, detect
+
+    def test_admin_fetch_twice_over_ten_ticks_csv_still_ten_rows(self):
+        # Spec §5: /thresholds+/stats invoked on ticks 0 and 5 only;
+        # topfull_throttle.csv still has 10 rows per API; skipped ticks *_fresh=0.
+        fetched = []
+        throttle, detect = self._drive_ten_ticks(fetched)
+        stats_calls = sum(1 for url in fetched if url.endswith("/stats"))
+        thresh_calls = sum(1 for url in fetched if url.endswith("/thresholds"))
+        self.assertEqual(stats_calls, 2)
+        self.assertEqual(thresh_calls, 2)
+        by_ts = {}
+        for row in throttle:
+            by_ts.setdefault(row["timestamp"], []).append(row)
+        self.assertEqual(len(by_ts), 10)
+        for rows in by_ts.values():
+            self.assertEqual(len(rows), len(ttc.LOCUST_APIS))
+        attempt_ts = {
+            ttc.tick_timestamp(1, now=float(SPLIT_EPOCHS[0])),
+            ttc.tick_timestamp(1, now=float(SPLIT_EPOCHS[5])),
+        }
+        for ts, rows in by_ts.items():
+            if ts in attempt_ts:
+                self.assertTrue(all(r["threshold_fresh"] == "1" for r in rows))
+                self.assertTrue(all(r["admitted_fresh"] == "1" for r in rows))
+            else:
+                self.assertTrue(all(r["threshold_fresh"] == "0" for r in rows))
+                self.assertTrue(all(r["admitted_fresh"] == "0" for r in rows))
+            by_api = {r["api"]: r for r in rows}
+            self.assertEqual(by_api["getproduct"]["threshold"], "10000.0")
+            self.assertEqual(by_api["getproduct"]["admitted_rps"], "12.5")
+            self.assertEqual(by_api["getcart"]["threshold"], "80.0")
+
+    def test_layer_b_unaffected_ten_detect_ticks(self):
+        # Spec §5: topfull_detect.csv is 10 × DETECT_SERVICES; scrape_cadvisor_cpu
+        # (and its cAdvisor fetch_url calls) happen every tick. SAMPLE_POD_LIST
+        # has two app containers, so fetch_url cAdvisor hits are >10; count the
+        # scrape function itself.
+        fetched = []
+        scrape_calls = {"n": 0}
+        orig_scrape = ttc.scrape_cadvisor_cpu
+
+        def counting_scrape(*args, **kwargs):
+            scrape_calls["n"] += 1
+            return orig_scrape(*args, **kwargs)
+
+        with mock.patch.object(
+            ttc, "scrape_cadvisor_cpu", side_effect=counting_scrape
+        ):
+            _throttle, detect = self._drive_ten_ticks(fetched)
+        self.assertEqual(len(detect), 10 * len(ttc.DETECT_SERVICES))
+        self.assertEqual(scrape_calls["n"], 10)
+        cadvisor_urls = [
+            url for url in fetched if "/api/v2.0/summary/" in url
+        ]
+        self.assertTrue(cadvisor_urls)
+        by_ts = {r["timestamp"] for r in detect}
+        self.assertEqual(len(by_ts), 10)
+        checkout = [
+            r for r in detect if r["service"] == "checkoutservice"
+        ]
+        self.assertEqual(len(checkout), 10)
+        self.assertTrue(all(r["cadvisor_cpu"] == "910.0" for r in checkout))
+
+
+class TestFreshnessSkippedByDesign(unittest.TestCase):
+    def test_skipped_tick_carries_last_good_even_if_fetch_would_succeed(self):
+        # Spec §5: admin fetch *would* succeed, but non-attempt tick still
+        # writes *_fresh=0 and carries the previous attempt's values.
+        fetched = []
+        last_good = ttc.LastGoodThrottle()
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+            fetch_url = _split_fetch_factory(fetched)
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://10.128.0.3:8090/stats",
+                timestamp="2023-11-14T22:13:20Z",
+                run_cmd=_split_run_cmd,
+                fetch_url=fetch_url,
+                thresholds_url="http://10.128.0.3:8090/thresholds",
+                last_good=last_good,
+                attempt_layer_a=True,
+            )
+            fetched_after_attempt = list(fetched)
+            ttc.poll_once(
+                record_path,
+                proxy_dir,
+                "http://10.128.0.3:8090/stats",
+                timestamp="2023-11-14T22:13:21Z",
+                run_cmd=_split_run_cmd,
+                fetch_url=fetch_url,
+                thresholds_url="http://10.128.0.3:8090/thresholds",
+                last_good=last_good,
+                attempt_layer_a=False,
+            )
+            admin_after_skip = [
+                url
+                for url in fetched[len(fetched_after_attempt) :]
+                if url.endswith("/thresholds") or url.endswith("/stats")
+            ]
+            self.assertEqual(admin_after_skip, [])
+            with (record_path / "topfull_throttle.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                rows = list(csv.DictReader(f))
+            tick1 = {
+                r["api"]: r
+                for r in rows
+                if r["timestamp"] == "2023-11-14T22:13:20Z"
+            }
+            tick2 = {
+                r["api"]: r
+                for r in rows
+                if r["timestamp"] == "2023-11-14T22:13:21Z"
+            }
+            self.assertEqual(tick1["getproduct"]["threshold"], "10000.0")
+            self.assertEqual(tick1["getproduct"]["admitted_rps"], "12.5")
+            self.assertEqual(tick1["getproduct"]["threshold_fresh"], "1")
+            self.assertEqual(tick1["getproduct"]["admitted_fresh"], "1")
+            self.assertEqual(tick2["getproduct"]["threshold"], "10000.0")
+            self.assertEqual(tick2["getproduct"]["admitted_rps"], "12.5")
+            self.assertEqual(tick2["getproduct"]["threshold_fresh"], "0")
+            self.assertEqual(tick2["getproduct"]["admitted_fresh"], "0")
+            self.assertEqual(tick2["getcart"]["threshold"], "80.0")
+            self.assertNotIn("2", {r["threshold_fresh"] for r in rows})
+            self.assertNotIn("2", {r["admitted_fresh"] for r in rows})
+
+
+class TestRunCollectorLayerAInterval(unittest.TestCase):
+    def _run_with_clock(self, params, fetched):
+        times = iter(float(EPOCH) + i for i in range(20))
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            proxy_dir = record_path / "rate_config"
+            proxy_dir.mkdir()
+            with mock.patch.object(ttc.time, "time", side_effect=lambda: next(times)):
+                ttc.run_collector(
+                    params,
+                    record_path,
+                    proxy_dir,
+                    "http://10.128.0.3:8090/stats",
+                    run_cmd=_split_run_cmd,
+                    fetch_url=_split_fetch_factory(fetched),
+                    thresholds_url="http://10.128.0.3:8090/thresholds",
+                    max_polls=10,
+                )
+            with (record_path / "topfull_throttle.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                throttle = list(csv.DictReader(f))
+            with (record_path / "topfull_detect.csv").open(
+                newline="", encoding="utf-8"
+            ) as f:
+                detect = list(csv.DictReader(f))
+            return throttle, detect
+
+    def test_absent_key_defaults_to_five(self):
+        # Spec §5: params has only poll_interval_seconds; implicit default 5
+        # → admin fetch exactly 2 times over 10 polls.
+        fetched = []
+        throttle, detect = self._run_with_clock(
+            {"poll_interval_seconds": 1}, fetched
+        )
+        self.assertEqual(
+            sum(1 for url in fetched if url.endswith("/stats")), 2
+        )
+        self.assertEqual(
+            sum(1 for url in fetched if url.endswith("/thresholds")), 2
+        )
+        self.assertEqual(
+            len({r["timestamp"] for r in throttle}), 10
+        )
+        self.assertEqual(len(detect), 10 * len(ttc.DETECT_SERVICES))
+
+    def test_explicit_one_reproduces_every_tick(self):
+        # Spec §5: layer_a_poll_interval_seconds=1 → admin fetch on all 10 polls.
+        fetched = []
+        throttle, _detect = self._run_with_clock(
+            {
+                "poll_interval_seconds": 1,
+                "layer_a_poll_interval_seconds": 1,
+            },
+            fetched,
+        )
+        self.assertEqual(
+            sum(1 for url in fetched if url.endswith("/stats")), 10
+        )
+        self.assertEqual(
+            sum(1 for url in fetched if url.endswith("/thresholds")), 10
+        )
+        self.assertEqual(len({r["timestamp"] for r in throttle}), 10)
+
+    def test_start_log_mentions_layer_a_interval(self):
+        fetched = []
+        with self.assertLogs(ttc.log, level="INFO") as cm:
+            self._run_with_clock({"poll_interval_seconds": 1}, fetched)
+        start_lines = [line for line in cm.output if "START" in line]
+        self.assertTrue(start_lines)
+        self.assertIn("layer_a_poll_interval=5s", start_lines[0])
+        self.assertIn("poll_interval=1s", start_lines[0])
 
 
 if __name__ == "__main__":
