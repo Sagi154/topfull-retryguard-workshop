@@ -1,0 +1,2 @@
+2026-09-12T20:01:12Z  START  poll_interval=1s services=11 exec_mode=docker_local max_workers=4
+2026-09-12T20:05:13Z  SHUTDOWN  signal=15
