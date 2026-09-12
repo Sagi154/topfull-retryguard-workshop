@@ -218,8 +218,32 @@ Direct GET `/cart` under load is still **>1 s** with HTTP 200 on both new cells.
 
 YAML after this recheck: `scenario_2_baseline.yaml` restored to mesh+throttle+resource **ON**, `duration_seconds: 600`, next free slot **run17**.
 
+### Addendum — 2026-09-12 S1 collector-credit trio
+
+Short S1 baseline holds after the S2 tax recheck, to split **mesh vs throttle** credit. Same Locust `user_counts` as deck S1. Resource-usage stayed **on** in every arm. Scratch slots — **not** campaign S1.
+
+| Slot | Arm | duration | getcart P95 | getcart Fail | getproduct P95 | GET `/cart` direct median |
+|---|---|---|---|---|---|---|
+| run7 | both on (reference) | 300 s | 1374 ms | 29.2 | 1017 ms | *(no mid-hold probe)* |
+| run8 | **mesh only** | 180 s | **1370 ms** | **26.7** | 1018 ms | 0.125 s *(noisy / soft)* |
+| run9 | **throttle only** | 180 s | **912 ms** | **1.9** | 767 ms | 0.524 s |
+| run10 | **both off** | 180 s | **900 ms** | **1.5** | 782 ms | 0.397 s |
+
+Credit vs run10 (Locust, skip first 30 s):
+
+- **mesh tax** ≈ run8 − run10: getcart P95 **+470 ms**, Fail **+25.2**
+- **throttle tax** ≈ run9 − run10: getcart P95 **+12 ms**, Fail **+0.4**
+
+**Verdict:** on S1, the leftover collector tax is almost entirely the **worker-local mesh** scrape (`docker_local`, 11 sidecars / 1 s / pool 4). Throttle (Layer A every 5 s + Layer B every 1 s from master) is negligible here. run7 both-on ≈ run8 mesh-only, same story.
+
+Campaign S1 run6 was still ~725 ms getcart with Fail ≈ 0. run10 both-off is ~900 ms — a **cluster-age / environment** gap remains with collectors off. Do **not** treat this as “turn off mesh and S1 is campaign-clean,” and do **not** raise Locust users from this trio.
+
+Loaded GET `/cart` **direct** medians are secondary: run8’s 0.125 s looks like a soft window (Locust still showed ~1.4 s P95). Prefer Locust for the credit call.
+
+YAML after this trio: `scenario_1_baseline.yaml` restored to mesh+throttle+resource **ON**, `duration_seconds: 300`, next free slot **run11**.
+
 ---
 
 ## Status
 
-Spec only for μ estimator. Latency-path checks above are **done** (2026-09-11). Load-calibration (raise users until ρ_cpu > 1 or inbound 5xx moves) stays a later spec, after we decide which row of the §4 table S2 is supposed to hit.
+Spec only for μ estimator. Latency-path checks above are **done** (2026-09-11). S2 collector-tax recheck and S1 mesh-vs-throttle credit trio are **done** (2026-09-12). Load-calibration (raise users until ρ_cpu > 1 or inbound 5xx moves) stays a later spec, after we decide which row of the §4 table S2 is supposed to hit.
