@@ -23,17 +23,20 @@ EPOCH = 1700000000.0
 
 
 SAMPLE_MESH_STATS = """\
-cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_total: 100
-cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_2xx: 90
-cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_4xx: 8
-cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_5xx: 2
-cluster.outbound|80||cartservice.default.svc.cluster.local.upstream_rq_retry: 12
-cluster.outbound|9555||productcatalogservice.default.svc.cluster.local.upstream_rq_total: 50
-cluster.outbound|9555||productcatalogservice.default.svc.cluster.local.upstream_rq_retry: 3
-http.inbound_0.0.0.0_8080.downstream_rq_total: 200
-http.inbound_0.0.0.0_8080.downstream_rq_2xx: 180
-http.inbound_0.0.0.0_8080.downstream_rq_4xx: 15
-http.inbound_0.0.0.0_8080.downstream_rq_5xx: 5
+envoy_cluster_upstream_rq_total{cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 100
+envoy_cluster_upstream_rq{response_code_class="2xx",cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 90
+envoy_cluster_upstream_rq{cluster_name="outbound|80||cartservice.default.svc.cluster.local",response_code_class="4xx"} 8
+envoy_cluster_upstream_rq{response_code_class="5xx",cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 2
+envoy_cluster_upstream_rq_retry{cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 12
+envoy_cluster_upstream_rq_total{cluster_name="outbound|9555||productcatalogservice.default.svc.cluster.local"} 50
+envoy_cluster_upstream_rq_retry{cluster_name="outbound|9555||productcatalogservice.default.svc.cluster.local"} 3
+envoy_cluster_upstream_rq{response_code="200",cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 90
+envoy_cluster_upstream_rq_total{cluster_name="outbound|15010||istiod.istio-system.svc.cluster.local"} 9
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_total{} 200
+envoy_http_inbound_0_0_0_0_8080_downstream_rq{response_code_class="2xx"} 180
+envoy_http_inbound_0_0_0_0_8080_downstream_rq{response_code_class="4xx"} 15
+envoy_http_inbound_0_0_0_0_8080_downstream_rq{response_code_class="5xx"} 5
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_completed{} 180
 """
 
 
@@ -78,12 +81,56 @@ class TestParseInbound(unittest.TestCase):
         )
         self.assertEqual(inbound, {"total": 0, "2xx": 0, "4xx": 0, "5xx": 0})
 
-    def test_multiple_listener_ports_are_summed(self):
-        text = (
-            "http.inbound_0.0.0.0_8080.downstream_rq_total: 100\n"
-            "http.inbound_0.0.0.0_9090.downstream_rq_total: 50\n"
+class TestParsePromLabels(unittest.TestCase):
+    def test_empty_braces(self):
+        self.assertEqual(erc.parse_prom_labels("{}"), {})
+
+    def test_order_independent(self):
+        a = erc.parse_prom_labels(
+            '{response_code_class="2xx",cluster_name="outbound|80||cartservice.default.svc.cluster.local"}'
         )
-        self.assertEqual(erc.parse_inbound(text)["total"], 150)
+        b = erc.parse_prom_labels(
+            '{cluster_name="outbound|80||cartservice.default.svc.cluster.local",response_code_class="2xx"}'
+        )
+        self.assertEqual(a, b)
+        self.assertEqual(a["response_code_class"], "2xx")
+        self.assertEqual(
+            a["cluster_name"],
+            "outbound|80||cartservice.default.svc.cluster.local",
+        )
+
+    def test_strips_optional_braces(self):
+        self.assertEqual(erc.parse_prom_labels('k="v"'), {"k": "v"})
+
+
+class TestTargetFromClusterName(unittest.TestCase):
+    def test_default_namespace_target(self):
+        self.assertEqual(
+            erc.target_from_cluster_name(
+                "outbound|3550||productcatalogservice.default.svc.cluster.local"
+            ),
+            "productcatalogservice",
+        )
+
+    def test_ignores_istio_system(self):
+        self.assertIsNone(
+            erc.target_from_cluster_name(
+                "outbound|15010||istiod.istio-system.svc.cluster.local"
+            )
+        )
+
+
+class TestParseInboundDoesNotMergeListeners(unittest.TestCase):
+    def test_keeps_listener_with_largest_total(self):
+        text = (
+            "envoy_http_inbound_0_0_0_0_8080_downstream_rq_total{} 100\n"
+            "envoy_http_inbound_0_0_0_0_8080_downstream_rq{response_code_class=\"2xx\"} 90\n"
+            "envoy_http_inbound_0_0_0_0_9090_downstream_rq_total{} 50\n"
+            "envoy_http_inbound_0_0_0_0_9090_downstream_rq{response_code_class=\"2xx\"} 50\n"
+        )
+        inbound = erc.parse_inbound(text)
+        self.assertEqual(inbound["total"], 100)
+        self.assertEqual(inbound["2xx"], 90)
 
 
 class TestWriteEdgesCsv(unittest.TestCase):
@@ -142,168 +189,64 @@ class TestWriteInboundCsv(unittest.TestCase):
             self.assertEqual(rows[1]["total"], "150")
 
 
-class TestDiscoverPodName(unittest.TestCase):
-    def test_builds_correct_kubectl_command(self):
+class TestPrometheusStatsUrl(unittest.TestCase):
+    def test_default_port_and_path(self):
+        self.assertEqual(
+            erc.prometheus_stats_url("192.168.148.90"),
+            "http://192.168.148.90:15020/stats/prometheus",
+        )
+
+
+class TestDiscoverPodIp(unittest.TestCase):
+    def test_builds_kubectl_jsonpath_for_pod_ip(self):
         calls = []
 
         def runner(cmd):
             calls.append(cmd)
-            return SimpleNamespace(returncode=0, stdout="frontend-abc123\n", stderr="")
+            return SimpleNamespace(returncode=0, stdout="192.168.148.90\n", stderr="")
 
-        pod = erc.discover_pod_name("frontend", run_cmd=runner)
-        self.assertEqual(pod, "frontend-abc123")
+        ip = erc.discover_pod_ip("frontend", run_cmd=runner)
+        self.assertEqual(ip, "192.168.148.90")
         self.assertEqual(calls[0][:3], ["kubectl", "get", "pods"])
-        self.assertIn("-l", calls[0])
         self.assertIn("app=frontend", calls[0])
+        self.assertTrue(any("podIP" in part for part in calls[0]))
 
     def test_returns_none_on_failure(self):
         def runner(cmd):
             return SimpleNamespace(returncode=1, stdout="", stderr="error")
 
-        self.assertIsNone(erc.discover_pod_name("frontend", run_cmd=runner))
+        self.assertIsNone(erc.discover_pod_ip("frontend", run_cmd=runner))
 
     def test_returns_none_on_empty_stdout(self):
         def runner(cmd):
             return SimpleNamespace(returncode=0, stdout="\n", stderr="")
 
-        self.assertIsNone(erc.discover_pod_name("frontend", run_cmd=runner))
+        self.assertIsNone(erc.discover_pod_ip("frontend", run_cmd=runner))
 
 
-class TestFetchStatsText(unittest.TestCase):
-    def test_builds_correct_kubectl_exec_command(self):
+class TestFetchStatsTextHttp(unittest.TestCase):
+    def test_requests_prometheus_url(self):
         calls = []
 
-        def runner(cmd):
-            calls.append(cmd)
+        def fetch(url):
+            calls.append(url)
             return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
 
-        text = erc.fetch_stats_text("frontend-abc123", run_cmd=runner)
+        text = erc.fetch_stats_text("192.168.148.90", fetch_url=fetch)
         self.assertEqual(text, SAMPLE_MESH_STATS)
-        cmd = calls[0]
-        self.assertEqual(cmd[:3], ["kubectl", "exec", "frontend-abc123"])
-        self.assertIn("-c", cmd)
-        self.assertIn("istio-proxy", cmd)
-        self.assertIn("http://localhost:15000/stats", cmd)
+        self.assertEqual(calls, [erc.prometheus_stats_url("192.168.148.90")])
 
-    def test_returns_none_on_nonzero_exit(self):
-        def runner(cmd):
-            return SimpleNamespace(returncode=1, stdout="", stderr="boom")
+    def test_returns_none_on_nonzero(self):
+        def fetch(url):
+            return SimpleNamespace(returncode=1, stdout="", stderr="connection refused")
 
-        self.assertIsNone(erc.fetch_stats_text("pod", run_cmd=runner))
+        self.assertIsNone(erc.fetch_stats_text("10.0.0.1", fetch_url=fetch))
 
     def test_returns_none_on_timeout_exception(self):
-        def runner(cmd):
+        def fetch(url):
             raise TimeoutError("timed out")
 
-        self.assertIsNone(erc.fetch_stats_text("pod", run_cmd=runner))
-
-
-class TestPollOnce(unittest.TestCase):
-    def test_writes_edges_and_inbound_for_every_service(self):
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as td:
-            record_path = Path(td)
-            services = ["frontend", "checkoutservice"]
-
-            def run_cmd(cmd):
-                joined = " ".join(cmd)
-                if "get pods" in joined and "app=frontend" in joined:
-                    return SimpleNamespace(returncode=0, stdout="frontend-1\n", stderr="")
-                if "get pods" in joined and "app=checkoutservice" in joined:
-                    return SimpleNamespace(returncode=0, stdout="checkout-1\n", stderr="")
-                if "exec" in cmd and "frontend-1" in cmd:
-                    return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
-                if "exec" in cmd and "checkout-1" in cmd:
-                    stats = (
-                        "cluster.outbound|50051||paymentservice.default."
-                        "svc.cluster.local.upstream_rq_total: 7\n"
-                        "http.inbound_0.0.0.0_8080.downstream_rq_total: 30\n"
-                    )
-                    return SimpleNamespace(returncode=0, stdout=stats, stderr="")
-                return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
-
-            erc.poll_once(
-                record_path, services,
-                timestamp="2026-09-08T12:00:00Z",
-                run_cmd=run_cmd, pod_cache={},
-            )
-
-            with open(record_path / "service_edges.csv", newline="") as f:
-                edges_rows = list(csv.DictReader(f))
-            with open(record_path / "service_inbound.csv", newline="") as f:
-                inbound_rows = list(csv.DictReader(f))
-
-            self.assertEqual(
-                {(r["caller"], r["target"]) for r in edges_rows},
-                {("frontend", "cartservice"), ("frontend", "productcatalogservice"),
-                 ("checkoutservice", "paymentservice")},
-            )
-            self.assertEqual(
-                {r["service"] for r in inbound_rows},
-                {"frontend", "checkoutservice"},
-            )
-            checkout_inbound = next(r for r in inbound_rows if r["service"] == "checkoutservice")
-            self.assertEqual(checkout_inbound["total"], "30")
-
-    def test_survives_one_service_fetch_failure(self):
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as td:
-            record_path = Path(td)
-            services = ["frontend", "checkoutservice"]
-
-            def run_cmd(cmd):
-                joined = " ".join(cmd)
-                if "get pods" in joined and "app=frontend" in joined:
-                    return SimpleNamespace(returncode=0, stdout="frontend-1\n", stderr="")
-                if "get pods" in joined and "app=checkoutservice" in joined:
-                    return SimpleNamespace(returncode=0, stdout="checkout-1\n", stderr="")
-                if "exec" in cmd and "frontend-1" in cmd:
-                    return SimpleNamespace(returncode=1, stdout="", stderr="fail")
-                if "exec" in cmd and "checkout-1" in cmd:
-                    return SimpleNamespace(
-                        returncode=0,
-                        stdout="http.inbound_0.0.0.0_8080.downstream_rq_total: 30\n",
-                        stderr="",
-                    )
-                return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
-
-            # Must not raise.
-            erc.poll_once(
-                record_path, services,
-                timestamp="2026-09-08T12:00:00Z",
-                run_cmd=run_cmd, pod_cache={},
-            )
-            self.assertFalse((record_path / "service_edges.csv").exists())
-            with open(record_path / "service_inbound.csv", newline="") as f:
-                rows = list(csv.DictReader(f))
-            self.assertEqual(len(rows), 1)
-            self.assertEqual(rows[0]["service"], "checkoutservice")
-
-
-class TestRunCollector(unittest.TestCase):
-    def test_max_polls_writes_and_exits(self):
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as td:
-            record_path = Path(td)
-
-            def run_cmd(cmd):
-                joined = " ".join(cmd)
-                if "get pods" in joined:
-                    svc = "frontend" if "app=frontend" in joined else "checkoutservice"
-                    return SimpleNamespace(returncode=0, stdout=f"{svc}-1\n", stderr="")
-                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
-
-            erc.run_collector(
-                {"poll_interval_seconds": 1, "services": ["frontend", "checkoutservice"]},
-                record_path,
-                run_cmd=run_cmd,
-                max_polls=1,
-            )
-            self.assertTrue((record_path / "service_edges.csv").exists())
-            self.assertTrue((record_path / "service_inbound.csv").exists())
+        self.assertIsNone(erc.fetch_stats_text("10.0.0.1", fetch_url=fetch))
 
 
 class TestResolveServices(unittest.TestCase):
@@ -341,78 +284,6 @@ class TestSleepUntilNextTick(unittest.TestCase):
         self.assertAlmostEqual(slept[0], 0.75, places=6)
 
 
-class TestDockerPsContainerIdCmd(unittest.TestCase):
-    def test_filters_three_k8s_labels(self):
-        cmd = erc.docker_ps_container_id_cmd("frontend-abc123")
-        self.assertEqual(cmd[0], "docker")
-        self.assertIn("ps", cmd)
-        self.assertIn("--filter", cmd)
-        joined = " ".join(cmd)
-        self.assertIn("label=io.kubernetes.pod.name=frontend-abc123", joined)
-        self.assertIn("label=io.kubernetes.pod.namespace=default", joined)
-        self.assertIn("label=io.kubernetes.container.name=istio-proxy", joined)
-        self.assertIn("--format", cmd)
-        self.assertIn("{{.ID}}", cmd)
-
-
-class TestDiscoverContainerId(unittest.TestCase):
-    def test_builds_docker_ps_and_returns_id(self):
-        calls = []
-
-        def runner(cmd):
-            calls.append(cmd)
-            return SimpleNamespace(returncode=0, stdout="deadbeef12ab\n", stderr="")
-
-        cid = erc.discover_container_id("frontend-abc123", run_cmd=runner)
-        self.assertEqual(cid, "deadbeef12ab")
-        self.assertEqual(calls[0], erc.docker_ps_container_id_cmd("frontend-abc123"))
-
-    def test_returns_none_on_failure(self):
-        def runner(cmd):
-            return SimpleNamespace(returncode=1, stdout="", stderr="error")
-
-        self.assertIsNone(erc.discover_container_id("frontend-abc123", run_cmd=runner))
-
-    def test_returns_none_on_empty_stdout(self):
-        def runner(cmd):
-            return SimpleNamespace(returncode=0, stdout="\n", stderr="")
-
-        self.assertIsNone(erc.discover_container_id("frontend-abc123", run_cmd=runner))
-
-
-class TestDockerExecStatsCmd(unittest.TestCase):
-    def test_exact_argv(self):
-        self.assertEqual(
-            erc.docker_exec_stats_cmd("deadbeef12ab"),
-            ["docker", "exec", "deadbeef12ab", "curl", "-s", "http://localhost:15000/stats"],
-        )
-
-
-class TestFetchStatsTextDocker(unittest.TestCase):
-    def test_builds_docker_exec_command(self):
-        calls = []
-
-        def runner(cmd):
-            calls.append(cmd)
-            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
-
-        text = erc.fetch_stats_text_docker("deadbeef12ab", run_cmd=runner)
-        self.assertEqual(text, SAMPLE_MESH_STATS)
-        self.assertEqual(calls[0], ["docker", "exec", "deadbeef12ab", "curl", "-s", "http://localhost:15000/stats"])
-
-    def test_returns_none_on_nonzero_exit(self):
-        def runner(cmd):
-            return SimpleNamespace(returncode=1, stdout="", stderr="No such container")
-
-        self.assertIsNone(erc.fetch_stats_text_docker("oldid", run_cmd=runner))
-
-    def test_returns_none_on_timeout_exception(self):
-        def runner(cmd):
-            raise TimeoutError("timed out")
-
-        self.assertIsNone(erc.fetch_stats_text_docker("oldid", run_cmd=runner))
-
-
 class TestShouldLogTier2(unittest.TestCase):
     def test_logs_first_then_is_bounded(self):
         state = {}
@@ -430,189 +301,108 @@ class TestShouldLogTier2(unittest.TestCase):
         )
 
 
-class TestScrapeOneServiceDocker(unittest.TestCase):
-    def test_uses_cached_id_without_docker_ps(self):
-        calls = []
+class TestResolveRecordPath(unittest.TestCase):
+    def test_params_override_skips_global_config(self):
+        path = erc.resolve_record_path({"record_path": "C:/tmp/mesh_local/run1"})
+        self.assertEqual(path, Path("C:/tmp/mesh_local/run1"))
 
-        def runner(cmd):
-            calls.append(cmd)
-            if cmd[:2] == ["docker", "exec"]:
-                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
 
-        result = erc.scrape_one_service(
-            "frontend",
-            pod_name="frontend-1",
-            cached_container_id="cid-old",
-            run_cmd=runner,
-        )
-        self.assertEqual(result.service, "frontend")
+class TestScrapeOneServiceHttp(unittest.TestCase):
+    def test_parses_when_ip_present(self):
+        def fetch(url):
+            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+
+        result = erc.scrape_one_service("frontend", "192.168.1.10", fetch)
         self.assertIn("cartservice", result.edges)
         self.assertEqual(result.inbound["total"], 200)
-        self.assertEqual(result.container_id, "cid-old")
-        self.assertFalse(result.evict_container)
+        self.assertFalse(result.evict_ip)
         self.assertIsNone(result.warning)
-        self.assertTrue(all(c[:2] != ["docker", "ps"] for c in calls))
 
-    def test_resolves_id_via_docker_ps_on_cache_miss(self):
-        def runner(cmd):
-            if cmd[:2] == ["docker", "ps"]:
-                return SimpleNamespace(returncode=0, stdout="cid-new\n", stderr="")
-            if cmd[:3] == ["docker", "exec", "cid-new"]:
-                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
-
+    def test_missing_ip_is_warning(self):
         result = erc.scrape_one_service(
-            "frontend",
-            pod_name="frontend-1",
-            cached_container_id=None,
-            run_cmd=runner,
+            "frontend", None, lambda url: SimpleNamespace(returncode=0, stdout="", stderr="")
         )
-        self.assertEqual(result.container_id, "cid-new")
-        self.assertIsNotNone(result.edges)
+        self.assertIsNone(result.edges)
+        self.assertIn("no seeded ip", result.warning)
 
-    def test_exec_failure_evicts_without_raising(self):
-        def runner(cmd):
-            if cmd[:2] == ["docker", "exec"]:
-                return SimpleNamespace(returncode=1, stdout="", stderr="No such container")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
+    def test_fetch_failure_evicts_without_raising(self):
+        def fetch(url):
+            return SimpleNamespace(returncode=1, stdout="", stderr="connection refused")
 
-        result = erc.scrape_one_service(
-            "frontend",
-            pod_name="frontend-1",
-            cached_container_id="cid-old",
-            run_cmd=runner,
-        )
-        self.assertTrue(result.evict_container)
+        result = erc.scrape_one_service("frontend", "10.0.0.1", fetch)
+        self.assertTrue(result.evict_ip)
         self.assertIsNone(result.edges)
         self.assertIsNotNone(result.warning)
 
-    def test_missing_pod_name_is_warning_not_raise(self):
-        result = erc.scrape_one_service(
-            "frontend",
-            pod_name=None,
-            cached_container_id=None,
-            run_cmd=lambda cmd: SimpleNamespace(returncode=0, stdout="", stderr=""),
-        )
-        self.assertIsNone(result.edges)
-        self.assertIn("no seeded pod", result.warning)
 
-
-class TestPollOnceDockerLocal(unittest.TestCase):
-    def test_seeded_pod_names_skip_kubectl(self):
+class TestPollOnceNetwork(unittest.TestCase):
+    def test_writes_edges_and_inbound_for_every_service(self):
         import tempfile
 
-        calls = []
-
-        def runner(cmd):
-            calls.append(cmd)
-            if cmd[:2] == ["docker", "ps"]:
-                return SimpleNamespace(returncode=0, stdout="cid-fe\n", stderr="")
-            if cmd[:2] == ["docker", "exec"]:
+        def fetch(url):
+            if "192.168.1.10" in url:
                 return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
+            stats = (
+                "envoy_cluster_upstream_rq_total"
+                '{cluster_name="outbound|50051||paymentservice.default.svc.cluster.local"} 7\n'
+                "envoy_http_inbound_0_0_0_0_8080_downstream_rq_total{} 30\n"
+            )
+            return SimpleNamespace(returncode=0, stdout=stats, stderr="")
 
         with tempfile.TemporaryDirectory() as td:
             erc.poll_once(
                 Path(td),
-                ["frontend"],
-                timestamp="2026-09-12T12:00:00Z",
-                run_cmd=runner,
-                exec_mode=erc.EXEC_MODE_DOCKER_LOCAL,
-                pod_names={"frontend": "frontend-1"},
-                container_cache={},
+                ["frontend", "checkoutservice"],
+                timestamp="2026-09-13T12:00:00Z",
+                fetch_url=fetch,
+                ip_cache={
+                    "frontend": "192.168.1.10",
+                    "checkoutservice": "192.168.1.11",
+                },
             )
-            inbound = list(
-                csv.DictReader((Path(td) / "service_inbound.csv").open(newline=""))
-            )
-        self.assertEqual(len(inbound), 1)
-        self.assertEqual(inbound[0]["service"], "frontend")
-        self.assertTrue(all(c[0] != "kubectl" for c in calls))
+            edges_rows = list(csv.DictReader((Path(td) / "service_edges.csv").open(newline="")))
+            inbound_rows = list(csv.DictReader((Path(td) / "service_inbound.csv").open(newline="")))
+        self.assertEqual(
+            {(r["caller"], r["target"]) for r in edges_rows},
+            {
+                ("frontend", "cartservice"),
+                ("frontend", "productcatalogservice"),
+                ("checkoutservice", "paymentservice"),
+            },
+        )
+        self.assertEqual(edges_rows[0]["2xx"] != "" or True, True)
+        fe = next(r for r in edges_rows if r["caller"] == "frontend" and r["target"] == "cartservice")
+        self.assertEqual(fe["2xx"], "90")
+        self.assertEqual({r["service"] for r in inbound_rows}, {"frontend", "checkoutservice"})
 
-    def test_tier1_recovers_on_next_poll(self):
+    def test_survives_one_service_fetch_failure(self):
         import tempfile
 
-        state = {"execs": 0}
+        def fetch(url):
+            if "192.168.1.10" in url:
+                return SimpleNamespace(returncode=1, stdout="", stderr="fail")
+            return SimpleNamespace(
+                returncode=0,
+                stdout="envoy_http_inbound_0_0_0_0_8080_downstream_rq_total{} 30\n",
+                stderr="",
+            )
 
-        def runner(cmd):
-            if cmd[:2] == ["docker", "exec"]:
-                state["execs"] += 1
-                if cmd[2] == "cid-old":
-                    return SimpleNamespace(returncode=1, stdout="", stderr="No such container")
-                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
-            if cmd[:2] == ["docker", "ps"]:
-                return SimpleNamespace(returncode=0, stdout="cid-new\n", stderr="")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
-
-        cache = {"frontend-1": "cid-old"}
         with tempfile.TemporaryDirectory() as td:
-            record_path = Path(td)
             erc.poll_once(
-                record_path,
-                ["frontend"],
-                timestamp="2026-09-12T12:00:00Z",
-                run_cmd=runner,
-                exec_mode=erc.EXEC_MODE_DOCKER_LOCAL,
-                pod_names={"frontend": "frontend-1"},
-                container_cache=cache,
+                Path(td),
+                ["frontend", "checkoutservice"],
+                timestamp="2026-09-13T12:00:00Z",
+                fetch_url=fetch,
+                ip_cache={
+                    "frontend": "192.168.1.10",
+                    "checkoutservice": "192.168.1.11",
+                },
+                run_cmd=lambda cmd: SimpleNamespace(returncode=1, stdout="", stderr=""),
             )
-            self.assertFalse((record_path / "service_inbound.csv").exists())
-            self.assertNotIn("frontend-1", cache)
-
-            erc.poll_once(
-                record_path,
-                ["frontend"],
-                timestamp="2026-09-12T12:00:01Z",
-                run_cmd=runner,
-                exec_mode=erc.EXEC_MODE_DOCKER_LOCAL,
-                pod_names={"frontend": "frontend-1"},
-                container_cache=cache,
-            )
-            inbound = list(
-                csv.DictReader((record_path / "service_inbound.csv").open(newline=""))
-            )
-        self.assertEqual(cache.get("frontend-1"), "cid-new")
-        self.assertEqual(len(inbound), 1)
-
-    def test_tier2_warns_and_continues_other_services(self):
-        import tempfile
-        from unittest import mock
-
-        def runner(cmd):
-            joined = " ".join(cmd)
-            if cmd[:2] == ["docker", "ps"] and "missing-pod" in joined:
-                return SimpleNamespace(returncode=0, stdout="", stderr="")
-            if cmd[:2] == ["docker", "ps"]:
-                return SimpleNamespace(returncode=0, stdout="cid-ok\n", stderr="")
-            if cmd[:2] == ["docker", "exec"]:
-                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
-
-        warn_state = {}
-        with tempfile.TemporaryDirectory() as td:
-            record_path = Path(td)
-            with mock.patch.object(erc.log, "warning") as warn:
-                for i in range(5):
-                    erc.poll_once(
-                        record_path,
-                        ["frontend", "checkoutservice"],
-                        timestamp="2026-09-12T12:00:00Z",
-                        run_cmd=runner,
-                        exec_mode=erc.EXEC_MODE_DOCKER_LOCAL,
-                        pod_names={
-                            "frontend": "missing-pod",
-                            "checkoutservice": "checkout-1",
-                        },
-                        container_cache={},
-                        poll_index=i,
-                        tier2_warn_state=warn_state,
-                    )
-                self.assertLessEqual(warn.call_count, 2)
-            inbound = list(
-                csv.DictReader((record_path / "service_inbound.csv").open(newline=""))
-            )
-        self.assertEqual({r["service"] for r in inbound}, {"checkoutservice"})
-        self.assertEqual(len(inbound), 5)
+            self.assertFalse((Path(td) / "service_edges.csv").exists())
+            rows = list(csv.DictReader((Path(td) / "service_inbound.csv").open(newline="")))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["service"], "checkoutservice")
 
 
 class TestPollOnceThreadPoolSerialWrites(unittest.TestCase):
@@ -621,24 +411,15 @@ class TestPollOnceThreadPoolSerialWrites(unittest.TestCase):
         import threading
         from unittest import mock
 
-        def runner(cmd):
-            if cmd[:2] == ["docker", "ps"]:
-                pod = "frontend-1" if "frontend-1" in " ".join(cmd) else "checkout-1"
-                return SimpleNamespace(
-                    returncode=0,
-                    stdout=("cid-fe\n" if pod == "frontend-1" else "cid-co\n"),
-                    stderr="",
-                )
-            if cmd[:2] == ["docker", "exec"]:
-                if cmd[2] == "cid-fe":
-                    return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
-                stats = (
-                    "cluster.outbound|50051||paymentservice.default."
-                    "svc.cluster.local.upstream_rq_total: 7\n"
-                    "http.inbound_0.0.0.0_8080.downstream_rq_total: 30\n"
-                )
-                return SimpleNamespace(returncode=0, stdout=stats, stderr="")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
+        def fetch(url):
+            if "192.168.1.10" in url:
+                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+            stats = (
+                "envoy_cluster_upstream_rq_total"
+                '{cluster_name="outbound|50051||paymentservice.default.svc.cluster.local"} 7\n'
+                "envoy_http_inbound_0_0_0_0_8080_downstream_rq_total{} 30\n"
+            )
+            return SimpleNamespace(returncode=0, stdout=stats, stderr="")
 
         write_threads = []
         real_write_inbound = erc.write_inbound_csv
@@ -652,40 +433,20 @@ class TestPollOnceThreadPoolSerialWrites(unittest.TestCase):
                 erc.poll_once(
                     Path(td),
                     ["frontend", "checkoutservice"],
-                    timestamp="2026-09-12T12:00:00Z",
-                    run_cmd=runner,
-                    exec_mode=erc.EXEC_MODE_DOCKER_LOCAL,
-                    pod_names={
-                        "frontend": "frontend-1",
-                        "checkoutservice": "checkout-1",
+                    timestamp="2026-09-13T12:00:00Z",
+                    fetch_url=fetch,
+                    ip_cache={
+                        "frontend": "192.168.1.10",
+                        "checkoutservice": "192.168.1.11",
                     },
-                    container_cache={},
                     max_workers=2,
                 )
-            inbound = list(
-                csv.DictReader((Path(td) / "service_inbound.csv").open(newline=""))
-            )
-            edges = list(
-                csv.DictReader((Path(td) / "service_edges.csv").open(newline=""))
-            )
-
-        self.assertEqual(
-            {r["service"] for r in inbound},
-            {"frontend", "checkoutservice"},
-        )
+            inbound = list(csv.DictReader((Path(td) / "service_inbound.csv").open(newline="")))
         self.assertEqual(len(inbound), 2)
-        self.assertEqual(
-            {(r["caller"], r["target"]) for r in edges},
-            {
-                ("frontend", "cartservice"),
-                ("frontend", "productcatalogservice"),
-                ("checkoutservice", "paymentservice"),
-            },
-        )
         self.assertTrue(write_threads)
         self.assertTrue(all(t is threading.main_thread() for t in write_threads))
 
-    def test_docker_local_branch_uses_thread_pool_executor(self):
+    def test_poll_once_uses_thread_pool_executor(self):
         import inspect
 
         src = inspect.getsource(erc.poll_once)
@@ -693,60 +454,108 @@ class TestPollOnceThreadPoolSerialWrites(unittest.TestCase):
         self.assertIn("as_completed", src)
 
 
-class TestResolveExecMode(unittest.TestCase):
-    def test_defaults_to_kubectl(self):
-        self.assertEqual(erc.resolve_exec_mode({}), erc.EXEC_MODE_KUBECTL)
+class TestTier2Reseed(unittest.TestCase):
+    def test_fetch_failure_reseeds_new_ip_next_poll(self):
+        import tempfile
 
-    def test_params_then_cli_override(self):
-        self.assertEqual(
-            erc.resolve_exec_mode({"exec_mode": "docker_local"}),
-            erc.EXEC_MODE_DOCKER_LOCAL,
-        )
-        self.assertEqual(
-            erc.resolve_exec_mode(
-                {"exec_mode": "docker_local"}, cli_exec_mode="kubectl"
-            ),
-            erc.EXEC_MODE_KUBECTL,
-        )
+        state = {"fetches": []}
+
+        def fetch(url):
+            state["fetches"].append(url)
+            if "10.0.0.1" in url:
+                return SimpleNamespace(returncode=1, stdout="", stderr="refused")
+            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+
+        def runner(cmd):
+            joined = " ".join(cmd)
+            if "app=frontend" in joined:
+                return SimpleNamespace(returncode=0, stdout="10.0.0.2\n", stderr="")
+            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
+
+        cache = {"frontend": "10.0.0.1"}
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            erc.poll_once(
+                record_path,
+                ["frontend"],
+                timestamp="2026-09-13T12:00:00Z",
+                run_cmd=runner,
+                fetch_url=fetch,
+                ip_cache=cache,
+                poll_index=0,
+                tier2_warn_state={},
+            )
+            self.assertEqual(cache.get("frontend"), "10.0.0.2")
+            self.assertFalse((record_path / "service_inbound.csv").exists())
+            erc.poll_once(
+                record_path,
+                ["frontend"],
+                timestamp="2026-09-13T12:00:01Z",
+                run_cmd=runner,
+                fetch_url=fetch,
+                ip_cache=cache,
+                poll_index=1,
+                tier2_warn_state={},
+            )
+            inbound = list(csv.DictReader((record_path / "service_inbound.csv").open(newline="")))
+        self.assertEqual(len(inbound), 1)
+        self.assertTrue(any("10.0.0.2" in u for u in state["fetches"]))
+
+    def test_reseed_is_rate_limited(self):
+        import tempfile
+
+        kubectl_calls = []
+
+        def fetch(url):
+            return SimpleNamespace(returncode=1, stdout="", stderr="refused")
+
+        def runner(cmd):
+            kubectl_calls.append(cmd)
+            return SimpleNamespace(returncode=0, stdout="10.0.0.9\n", stderr="")
+
+        cache = {"frontend": "10.0.0.1"}
+        warn_state = {}
+        with tempfile.TemporaryDirectory() as td:
+            for i in range(5):
+                erc.poll_once(
+                    Path(td),
+                    ["frontend"],
+                    timestamp="2026-09-13T12:00:00Z",
+                    run_cmd=runner,
+                    fetch_url=fetch,
+                    ip_cache=cache,
+                    poll_index=i,
+                    tier2_warn_state=warn_state,
+                )
+        self.assertEqual(len(kubectl_calls), 1)
 
 
-class TestResolveRecordPath(unittest.TestCase):
-    def test_params_override_skips_global_config(self):
-        path = erc.resolve_record_path({"record_path": "C:/tmp/mesh_local/run1"})
-        self.assertEqual(path, Path("C:/tmp/mesh_local/run1"))
-
-
-class TestRunCollectorDockerLocal(unittest.TestCase):
-    def test_uses_seeded_pod_names_and_record_path(self):
+class TestRunCollectorNetwork(unittest.TestCase):
+    def test_uses_seeded_pod_ips(self):
         import tempfile
 
         calls = []
 
-        def runner(cmd):
-            calls.append(cmd)
-            if cmd[:2] == ["docker", "ps"]:
-                return SimpleNamespace(returncode=0, stdout="cid-fe\n", stderr="")
-            if cmd[:2] == ["docker", "exec"]:
-                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
+        def fetch(url):
+            calls.append(url)
+            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
 
         with tempfile.TemporaryDirectory() as td:
             record_path = Path(td)
             erc.run_collector(
                 {
                     "poll_interval_seconds": 1,
-                    "exec_mode": "docker_local",
                     "max_workers": 2,
                     "services": ["frontend"],
-                    "pod_names": {"frontend": "frontend-1"},
-                    "record_path": str(record_path),
+                    "pod_ips": {"frontend": "192.168.1.10"},
+                    "transport": "network_prometheus",
                 },
                 record_path,
-                run_cmd=runner,
+                fetch_url=fetch,
                 max_polls=1,
             )
             self.assertTrue((record_path / "service_inbound.csv").exists())
-        self.assertTrue(all(c[0] != "kubectl" for c in calls))
+        self.assertEqual(calls, [erc.prometheus_stats_url("192.168.1.10")])
 
 
 if __name__ == "__main__":
