@@ -196,6 +196,28 @@ Checks run after restoring three VirtualServices that had retries omitted (`cart
 
 YAML after checks: `scenario_2_baseline.yaml` restored to `enabled: true` for mesh+throttle, `duration_seconds: 600`, next free slot **run14**.
 
+### Addendum — 2026-09-12 collector-tax recheck
+
+Phase 3 short S2 baseline pair after worker-local mesh + split Layer A: run15 (mesh + throttle **ON**) vs run16 (both **OFF**), compared to the 2026-09-11 pair run12 ON vs run13 OFF. Locust `user_counts` unchanged. 180 s scratch holds — **not** campaign S2, **not** a claim that S2 is fixed.
+
+Pass/fail is a **smaller on-vs-off gap**, not zero collector cost.
+
+| Metric | run12 ON | run13 OFF | gap | run15 ON | run16 OFF | gap |
+|---|---|---|---|---|---|---|
+| GET /cart direct loaded median | 1.84 s | 1.45 s | 0.39 s | 1.60 s | 1.36 s | 0.24 s |
+| Locust getcart P95 | 2648 ms | 2462 ms | +186 ms | 2342 ms | 2532 ms | −190 ms |
+
+**Direct-gap verdict:** shrank (0.39 s → 0.24 s).
+**P95-gap verdict:** reversed (ON is faster this pair: −190 ms vs +186 ms).
+
+Via-proxy 17–30 s remains extra context only. Both new loaded via-proxy medians (run15 and run16 ~0.039 s) are **teardown-contaminated** (samples landed at Locust stop) — do not use them as pass/fail.
+
+Mesh CSVs (`service_edges.csv`, `service_inbound.csv`) landed on run15 via the two-hop worker → master copy. Run16 (collectors off) correctly has no mesh/throttle files.
+
+Direct GET `/cart` under load is still **>1 s** with HTTP 200 on both new cells. Boutique path alone still misses TopFull's 1 s goodput bar; collectors are not the main cause. Do **not** raise Locust users from this recheck.
+
+YAML after this recheck: `scenario_2_baseline.yaml` restored to mesh+throttle+resource **ON**, `duration_seconds: 600`, next free slot **run17**.
+
 ---
 
 ## Status
