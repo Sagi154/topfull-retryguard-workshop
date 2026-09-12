@@ -69,6 +69,15 @@ def scp_to(local_path: str, host: str, remote_path: str):
     )
 
 
+def scp_from(host: str, remote_path: str, local_path: str, recursive: bool = False):
+    """Copy a remote file or directory to the local machine."""
+    cmd = ["scp", "-o", "BatchMode=yes", "-o", "ControlMaster=no"]
+    if recursive:
+        cmd.append("-r")
+    cmd.extend([f"{host}:{remote_path}", local_path])
+    subprocess.run(cmd, check=True)
+
+
 def write_remote_script(host: str, remote_path: str, content: str):
     """
     Write a bash script to a remote host with guaranteed LF line endings.
@@ -688,6 +697,13 @@ ALL_BOUTIQUE_SERVICES = [
     "redis-cart",
 ]
 
+WORKER_MESH_ROOT = "/home/idozacharia/experiments/mesh_local"
+MANIFEST_EXEC_MODE_DOCKER = "worker_local_docker_exec"
+
+
+def mesh_exec_mode(cfg: dict) -> str:
+    return cfg.get("envoy_retry_collector", {}).get("exec_mode", "kubectl")
+
 
 def ensure_envoy_stats_enabled(cfg: dict, caller_pods: list):
     """
@@ -719,6 +735,76 @@ def ensure_envoy_stats_enabled(cfg: dict, caller_pods: list):
     step(f"Envoy stats inclusion ensured on: {', '.join(caller_pods)}")
 
 
+def discover_service_pod_map(cfg: dict, services: list) -> dict:
+    """
+    One-time seed: service -> pod name via kubectl on master.
+    Matches envoy_retry_collector.discover_pod_name's selector exactly.
+    """
+    master = cfg["infra"]["master_ssh_host"]
+    out = {}
+    for svc in services:
+        r = ssh(
+            master,
+            f"kubectl get pods -n default -l app={svc} "
+            f"-o jsonpath={{.items[0].metadata.name}}",
+            check=False,
+        )
+        name = (r.stdout or "").strip()
+        if name:
+            out[svc] = name
+        else:
+            print(f"[WARN] No pod for app={svc} during mesh seed "
+                  f"(stderr={(r.stderr or '').strip()})")
+    return out
+
+
+def start_mesh_collector_on_worker(cfg: dict):
+    """
+    Deploy envoy_retry_collector.py to topfull-worker-1 and start it
+    with --exec-mode docker_local. Stats-inclusion patch stays on master.
+    """
+    erc_cfg = cfg.get("envoy_retry_collector", {})
+    worker = cfg["infra"]["worker_ssh_host"]
+    master_script = cfg["infra"].get(
+        "envoy_retry_collector_script",
+        "/home/idozacharia/experiments/envoy_retry_collector.py",
+    )
+    script = master_script
+    log_folder = cfg["log_folder"]
+    record_path = f"{WORKER_MESH_ROOT}/{log_folder}"
+    services = list(erc_cfg.get("services", ALL_BOUTIQUE_SERVICES))
+
+    ssh(worker, f"mkdir -p /home/idozacharia/experiments {record_path}", check=False)
+    deploy_repo_script(worker, "envoy_retry_collector.py", script)
+    ensure_envoy_stats_enabled(cfg, services)
+
+    pod_names = discover_service_pod_map(cfg, services)
+    step(f"Seeded service->pod map for {len(pod_names)}/{len(services)} services")
+
+    params = {
+        "poll_interval_seconds": int(erc_cfg.get("poll_interval_seconds", 5)),
+        "exec_mode": "docker_local",
+        "max_workers": int(erc_cfg.get("max_workers", 4)),
+        "pod_names": pod_names,
+        "record_path": record_path,
+    }
+    if "services" in erc_cfg:
+        params["services"] = erc_cfg["services"]
+
+    write_remote_json(worker, "/tmp/envoy_retry_params.json", params)
+    start_script = (
+        "#!/bin/bash\n"
+        f"mkdir -p {record_path}\n"
+        f"python3 {script} --params /tmp/envoy_retry_params.json "
+        f"--exec-mode docker_local\n"
+    )
+    write_remote_script(worker, "/tmp/rg_mesh_local.sh", start_script)
+    ssh(worker, "tmux new-session -d -s meshlocal /tmp/rg_mesh_local.sh")
+    step(f"Started: Envoy mesh collector on {worker} "
+         f"(tmux session: meshlocal, script: {script})")
+    wait_with_progress(3, "Worker mesh collector init")
+
+
 def start_envoy_retry_collector(cfg: dict):
     """
     Start the full-mesh Envoy sidecar collector on master.
@@ -731,6 +817,11 @@ def start_envoy_retry_collector(cfg: dict):
     """
     erc_cfg = cfg.get("envoy_retry_collector", {})
     if not erc_cfg.get("enabled", False):
+        return
+
+    if mesh_exec_mode(cfg) == "docker_local":
+        banner("Starting Envoy mesh collector (worker-local docker exec)")
+        start_mesh_collector_on_worker(cfg)
         return
 
     banner("Starting Envoy mesh collector")
@@ -838,6 +929,9 @@ def start_topfull_throttle_collector(cfg: dict):
     deploy_repo_script(master, "topfull_cpu_quotas.py", quotas_dest)
     params = {
         "poll_interval_seconds": int(ttc_cfg.get("poll_interval_seconds", 1)),
+        "layer_a_poll_interval_seconds": int(
+            ttc_cfg.get("layer_a_poll_interval_seconds", 5)
+        ),
         "cpu_quotas": topfull_cpu_quotas.effective_cpu_quotas(
             cfg.get("scale_constraints") or []
         ),
@@ -845,7 +939,8 @@ def start_topfull_throttle_collector(cfg: dict):
     write_remote_json(master, "/tmp/topfull_throttle_params.json", params)
     step(
         "Uploaded TopFull throttle collector params: "
-        f"poll_interval={params['poll_interval_seconds']}s"
+        f"poll_interval={params['poll_interval_seconds']}s "
+        f"layer_a_poll_interval={params['layer_a_poll_interval_seconds']}s"
     )
     start_script = (
         f"#!/bin/bash\n"
@@ -959,6 +1054,58 @@ def stop_master_stack(cfg: dict):
         check=False)
 
 
+def stop_worker_mesh_collector(cfg: dict):
+    worker = cfg.get("infra", {}).get("worker_ssh_host")
+    if not worker:
+        return
+    step(f"Stopping worker mesh collector on {worker}...")
+    ssh(
+        worker,
+        "pkill -f '[e]nvoy_retry_collector.py' 2>/dev/null; "
+        "tmux kill-session -t meshlocal 2>/dev/null; "
+        "true",
+        check=False,
+    )
+
+
+def envoy_collector_manifest(cfg: dict) -> dict:
+    raw = dict(cfg.get("envoy_retry_collector") or {})
+    mode = mesh_exec_mode(cfg)
+    if mode == "docker_local":
+        raw["exec_mode"] = MANIFEST_EXEC_MODE_DOCKER
+        raw["exec_host"] = cfg.get("infra", {}).get("worker_ssh_host", "topfull-worker-1")
+    else:
+        raw["exec_mode"] = "kubectl"
+        raw["exec_host"] = cfg.get("infra", {}).get("master_ssh_host", "topfull-master")
+    return raw
+
+
+def pull_worker_mesh_csvs(cfg: dict, dest: str) -> None:
+    """Two-hop pull: worker disk -> orchestrator temp -> master dest."""
+    worker = cfg["infra"]["worker_ssh_host"]
+    master = cfg["infra"]["master_ssh_host"]
+    log_folder = cfg["log_folder"]
+    remote_dir = f"{WORKER_MESH_ROOT}/{log_folder}/"
+    names = ("service_edges.csv", "service_inbound.csv", "envoy_retry_collector.log")
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            scp_from(worker, remote_dir, td, recursive=True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[WARN] Could not pull worker mesh CSVs from {worker}:{remote_dir}: {exc}")
+            return
+        for name in names:
+            local = os.path.join(td, name)
+            if not os.path.isfile(local):
+                nested = os.path.join(td, log_folder, name)
+                if os.path.isfile(nested):
+                    local = nested
+            if not os.path.isfile(local):
+                print(f"[WARN] worker mesh file missing after scp: {name}")
+                continue
+            scp_to(local, master, f"{dest}/{name}")
+            step(f"Copied {name} from {worker} -> {master}:{dest}/")
+
+
 def restore_virtualservice_retries(cfg: dict):
     """
     Re-apply default retries.attempts after a RetryGuard run.
@@ -1036,6 +1183,9 @@ def collect_results(
     ssh(master, f"mkdir -p {dest}")
     ssh(master, f"cp -r {src}/logs/. {dest}/ 2>/dev/null; true", check=False)
 
+    if mesh_exec_mode(cfg) == "docker_local" and cfg.get("envoy_retry_collector", {}).get("enabled", False):
+        pull_worker_mesh_csvs(cfg, dest)
+
     paper = {
         s: topfull_cpu_quotas.paper_limit_for(s)
         for s in topfull_cpu_quotas.RECONCILE_SERVICES
@@ -1052,7 +1202,7 @@ def collect_results(
         "run_number":    cfg["run_number"],
         "duration_seconds": cfg["duration_seconds"],
         "retryguard":    cfg["retryguard"],
-        "envoy_retry_collector": cfg.get("envoy_retry_collector", {}),
+        "envoy_retry_collector": envoy_collector_manifest(cfg),
         "resource_usage_collector": cfg.get("resource_usage_collector", {}),
         "topfull_throttle_collector": cfg.get("topfull_throttle_collector", {}),
         "scale_constraints": cfg.get("scale_constraints", []),
@@ -1108,6 +1258,8 @@ def run(config_path: str):
     if erc_enabled:
         print(f"    poll_interval  : "
               f"{cfg['envoy_retry_collector'].get('poll_interval_seconds', 5)}s")
+        print(f"    exec_mode      : "
+              f"{cfg['envoy_retry_collector'].get('exec_mode', 'kubectl')}")
     ruc_enabled = cfg.get("resource_usage_collector", {}).get("enabled", False)
     print(f"  Resource usage collector: {'ON' if ruc_enabled else 'OFF'}")
     if ruc_enabled:
@@ -1205,6 +1357,7 @@ def run(config_path: str):
         banner("Stopping all processes")
         stop_locust(cfg)
         stop_master_stack(cfg)
+        stop_worker_mesh_collector(cfg)
 
         collect_results(cfg, capacity, effective_quotas=effective_quotas)
 

@@ -544,6 +544,11 @@ class TestTopfullThrottleCollectorWiring(unittest.TestCase):
         json_path, params = mock_write_json.call_args[0][1:3]
         self.assertEqual(json_path, "/tmp/topfull_throttle_params.json")
         self.assertEqual(params["poll_interval_seconds"], 1)
+        self.assertEqual(params["layer_a_poll_interval_seconds"], 5)
+        self.assertNotIn(
+            "layer_a_poll_interval_seconds",
+            cfg["topfull_throttle_collector"],
+        )
         script_path, script_body = mock_write_script.call_args[0][1:3]
         self.assertEqual(script_path, "/tmp/rg_topfull_throttle.sh")
         self.assertIn(
@@ -566,6 +571,21 @@ class TestTopfullThrottleCollectorWiring(unittest.TestCase):
         run_scenario.start_topfull_throttle_collector(self._cfg(enabled=False))
         mock_ssh.assert_not_called()
         mock_write_json.assert_not_called()
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_start_passes_explicit_layer_a_interval(
+        self, mock_deploy, mock_ssh, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(enabled=True)
+        cfg["topfull_throttle_collector"]["layer_a_poll_interval_seconds"] = 1
+        run_scenario.start_topfull_throttle_collector(cfg)
+        params = mock_write_json.call_args[0][2]
+        self.assertEqual(params["poll_interval_seconds"], 1)
+        self.assertEqual(params["layer_a_poll_interval_seconds"], 1)
 
 
 class TestDeployRepoScript(unittest.TestCase):
@@ -849,6 +869,209 @@ class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
         }]
         got = topfull_cpu_quotas.effective_cpu_quotas(constraints)
         self.assertEqual(got["checkoutservice"], 100)
+
+
+class TestMeshCollectorWorkerWiring(unittest.TestCase):
+    def _cfg(self, enabled=True, exec_mode="docker_local"):
+        return {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "worker_ssh_host": "topfull-worker-1",
+                "venv_activate": "/home/idozacharia/TopFull/venv/bin/activate",
+                "envoy_retry_collector_script":
+                    "/home/idozacharia/experiments/envoy_retry_collector.py",
+            },
+            "envoy_retry_collector": {
+                "enabled": enabled,
+                "poll_interval_seconds": 1,
+                "exec_mode": exec_mode,
+                "max_workers": 4,
+            },
+            "log_folder": "baseline_topfull_no_retryguard_sustained_overload_run99",
+        }
+
+    def test_mesh_exec_mode_defaults_to_kubectl(self):
+        self.assertEqual(
+            run_scenario.mesh_exec_mode({"envoy_retry_collector": {}}),
+            "kubectl",
+        )
+        self.assertEqual(
+            run_scenario.mesh_exec_mode(self._cfg(exec_mode="docker_local")),
+            "docker_local",
+        )
+
+    @mock.patch("run_scenario.ssh")
+    def test_discover_service_pod_map_uses_master_kubectl(self, mock_ssh):
+        mock_ssh.side_effect = [
+            SimpleNamespace(returncode=0, stdout="frontend-abc\n", stderr=""),
+            SimpleNamespace(returncode=0, stdout="checkout-def\n", stderr=""),
+        ]
+        cfg = self._cfg()
+        got = run_scenario.discover_service_pod_map(
+            cfg, ["frontend", "checkoutservice"]
+        )
+        self.assertEqual(
+            got, {"frontend": "frontend-abc", "checkoutservice": "checkout-def"}
+        )
+        self.assertEqual(mock_ssh.call_count, 2)
+        self.assertEqual(mock_ssh.call_args_list[0].args[0], "topfull-master")
+        self.assertIn("app=frontend", mock_ssh.call_args_list[0].args[1])
+        self.assertIn("jsonpath={.items[0].metadata.name}", mock_ssh.call_args_list[0].args[1])
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ensure_envoy_stats_enabled")
+    @mock.patch("run_scenario.discover_service_pod_map")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_start_worker_uploads_seed_and_launches_meshlocal(
+        self,
+        mock_deploy,
+        mock_ssh,
+        mock_seed,
+        mock_ensure,
+        mock_write_json,
+        mock_write_script,
+        mock_wait,
+    ):
+        mock_seed.return_value = {"frontend": "frontend-abc"}
+        cfg = self._cfg()
+        cfg["envoy_retry_collector"]["services"] = ["frontend"]
+        run_scenario.start_envoy_retry_collector(cfg)
+
+        mock_deploy.assert_called_once_with(
+            "topfull-worker-1",
+            "envoy_retry_collector.py",
+            "/home/idozacharia/experiments/envoy_retry_collector.py",
+        )
+        mock_ensure.assert_called_once_with(cfg, ["frontend"])
+        json_host, json_path, params = mock_write_json.call_args[0][:3]
+        self.assertEqual(json_host, "topfull-worker-1")
+        self.assertEqual(json_path, "/tmp/envoy_retry_params.json")
+        self.assertEqual(params["exec_mode"], "docker_local")
+        self.assertEqual(params["max_workers"], 4)
+        self.assertEqual(params["pod_names"], {"frontend": "frontend-abc"})
+        self.assertEqual(
+            params["record_path"],
+            "/home/idozacharia/experiments/mesh_local/"
+            "baseline_topfull_no_retryguard_sustained_overload_run99",
+        )
+        script_host, script_path, script_body = mock_write_script.call_args[0][:3]
+        self.assertEqual(script_host, "topfull-worker-1")
+        self.assertEqual(script_path, "/tmp/rg_mesh_local.sh")
+        self.assertIn("python3", script_body)
+        self.assertIn("--exec-mode docker_local", script_body)
+        self.assertNotIn("source /home/idozacharia/TopFull/venv", script_body)
+        tmux_calls = [
+            c for c in mock_ssh.call_args_list
+            if len(c.args) > 1 and "tmux new-session" in c.args[1] and "meshlocal" in c.args[1]
+        ]
+        self.assertEqual(len(tmux_calls), 1)
+        self.assertEqual(tmux_calls[0].args[0], "topfull-worker-1")
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_start_still_uses_master_when_kubectl_mode(
+        self, mock_deploy, mock_ssh, mock_write_json, mock_write_script, mock_wait
+    ):
+        cfg = self._cfg(exec_mode="kubectl")
+        run_scenario.start_envoy_retry_collector(cfg)
+        mock_deploy.assert_called_once_with(
+            "topfull-master",
+            "envoy_retry_collector.py",
+            "/home/idozacharia/experiments/envoy_retry_collector.py",
+        )
+
+    @mock.patch("run_scenario.ssh")
+    def test_stop_worker_pkills_on_worker_host(self, mock_ssh):
+        run_scenario.stop_worker_mesh_collector(self._cfg())
+        self.assertEqual(mock_ssh.call_args[0][0], "topfull-worker-1")
+        cmd = mock_ssh.call_args[0][1]
+        self.assertIn("[e]nvoy_retry_collector.py", cmd)
+        self.assertIn("meshlocal", cmd)
+
+    @mock.patch("run_scenario.ssh")
+    def test_stop_worker_noop_without_worker_host(self, mock_ssh):
+        run_scenario.stop_worker_mesh_collector(
+            {"infra": {"master_ssh_host": "topfull-master"}}
+        )
+        mock_ssh.assert_not_called()
+
+    @mock.patch("run_scenario.scp_to")
+    @mock.patch("run_scenario.scp_from")
+    def test_pull_worker_mesh_csvs_two_hop(self, mock_scp_from, mock_scp_to):
+        def fake_scp_from(host, remote, local, recursive=False):
+            self.assertEqual(host, "topfull-worker-1")
+            self.assertTrue(remote.endswith(
+                "/mesh_local/baseline_topfull_no_retryguard_sustained_overload_run99/"
+            ))
+            self.assertTrue(recursive)
+            Path(local, "service_edges.csv").write_text("timestamp,caller\n", encoding="utf-8")
+            Path(local, "service_inbound.csv").write_text("timestamp,service\n", encoding="utf-8")
+            Path(local, "envoy_retry_collector.log").write_text("START\n", encoding="utf-8")
+
+        mock_scp_from.side_effect = fake_scp_from
+        cfg = self._cfg()
+        run_scenario.pull_worker_mesh_csvs(
+            cfg, "/home/idozacharia/experiments/results/test_run"
+        )
+        names = sorted(Path(c.args[0]).name for c in mock_scp_to.call_args_list)
+        self.assertEqual(
+            names,
+            [
+                "envoy_retry_collector.log",
+                "service_edges.csv",
+                "service_inbound.csv",
+            ],
+        )
+        self.assertTrue(all(c.args[1] == "topfull-master" for c in mock_scp_to.call_args_list))
+
+    @mock.patch("run_scenario.pull_worker_mesh_csvs")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_collect_results_pulls_when_docker_local(
+        self, mock_ssh, mock_write_json, mock_pull
+    ):
+        mock_ssh.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
+        cfg = {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "worker_ssh_host": "topfull-worker-1",
+                "topfull_src_path": "/home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src",
+                "results_base_path": "/home/idozacharia/experiments/results",
+            },
+            "scenario_id": 2,
+            "scenario_name": "sustained_overload",
+            "condition": "baseline",
+            "run_number": 99,
+            "duration_seconds": 600,
+            "retryguard": {"enabled": False},
+            "log_folder": "test_run",
+            "envoy_retry_collector": {
+                "enabled": True,
+                "exec_mode": "docker_local",
+                "poll_interval_seconds": 1,
+                "max_workers": 4,
+            },
+        }
+        run_scenario.collect_results(cfg)
+        mock_pull.assert_called_once()
+        self.assertEqual(
+            mock_pull.call_args[0][1],
+            "/home/idozacharia/experiments/results/test_run",
+        )
+        manifest = [
+            c.args[2]
+            for c in mock_write_json.call_args_list
+            if c.args[1].endswith("run_manifest.json")
+        ][0]
+        erc = manifest["envoy_retry_collector"]
+        self.assertEqual(erc["exec_mode"], run_scenario.MANIFEST_EXEC_MODE_DOCKER)
+        self.assertEqual(erc["exec_host"], "topfull-worker-1")
 
 
 if __name__ == "__main__":
