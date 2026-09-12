@@ -5,6 +5,9 @@ envoy_retry_collector.py — Scrapes Envoy sidecar stats for all Boutique servic
 Usage (on master, with venv active):
     python3 envoy_retry_collector.py --params /tmp/envoy_retry_params.json
 
+Usage (on worker, docker_local):
+    python3 envoy_retry_collector.py --params /tmp/envoy_retry_params.json --exec-mode docker_local
+
 Every poll scrapes each service's istio-proxy sidecar via:
 
     kubectl exec <pod> -c istio-proxy -- curl -s http://localhost:15000/stats
@@ -26,6 +29,8 @@ import signal
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
@@ -77,6 +82,10 @@ INBOUND_CSV_COLUMNS = ["timestamp", "service", "total", "2xx", "4xx", "5xx"]
 
 DEFAULT_POLL_INTERVAL_SECONDS = 5
 KUBECTL_TIMEOUT_SECONDS = 15
+EXEC_MODE_KUBECTL = "kubectl"
+EXEC_MODE_DOCKER_LOCAL = "docker_local"
+DEFAULT_MAX_WORKERS = 4
+TIER2_WARN_EVERY_POLLS = 30
 NAMESPACE = "default"
 
 CommandRunner = Callable[[List[str]], object]
@@ -151,6 +160,24 @@ def load_record_path(global_config_path: str = GLOBAL_CONFIG_PATH) -> Path:
     with open(global_config_path, "r", encoding="utf-8") as f:
         gcfg = json.load(f)
     return Path(gcfg["record_path"])
+
+
+def resolve_exec_mode(params: dict, cli_exec_mode: Optional[str] = None) -> str:
+    if cli_exec_mode:
+        return cli_exec_mode
+    mode = params.get("exec_mode") or EXEC_MODE_KUBECTL
+    if mode not in (EXEC_MODE_KUBECTL, EXEC_MODE_DOCKER_LOCAL):
+        return EXEC_MODE_KUBECTL
+    return mode
+
+
+def resolve_record_path(
+    params: dict, global_config_path: str = GLOBAL_CONFIG_PATH
+) -> Path:
+    override = params.get("record_path")
+    if override:
+        return Path(override)
+    return load_record_path(global_config_path)
 
 
 # --------------------------------------------------------------------------- #
@@ -345,6 +372,156 @@ def fetch_stats_text(
     return getattr(result, "stdout", None)
 
 
+def docker_ps_container_id_cmd(pod_name: str, namespace: str = NAMESPACE) -> List[str]:
+    return [
+        "docker",
+        "ps",
+        "--filter",
+        f"label=io.kubernetes.pod.name={pod_name}",
+        "--filter",
+        f"label=io.kubernetes.pod.namespace={namespace}",
+        "--filter",
+        "label=io.kubernetes.container.name=istio-proxy",
+        "--format",
+        "{{.ID}}",
+    ]
+
+
+def docker_exec_stats_cmd(container_id: str) -> List[str]:
+    return [
+        "docker",
+        "exec",
+        container_id,
+        "curl",
+        "-s",
+        "http://localhost:15000/stats",
+    ]
+
+
+def discover_container_id(
+    pod_name: str,
+    run_cmd: Optional[CommandRunner] = None,
+    namespace: str = NAMESPACE,
+) -> Optional[str]:
+    """Return the live istio-proxy container ID for pod_name, or None."""
+    runner = run_cmd or default_run_cmd
+    cmd = docker_ps_container_id_cmd(pod_name, namespace=namespace)
+    try:
+        result = runner(cmd)
+    except Exception as exc:  # noqa: BLE001 — keep poll loop alive
+        log.warning("%s  WARNING  docker ps %s failed: %s", utc_now(), pod_name, exc)
+        return None
+
+    if getattr(result, "returncode", 1) != 0:
+        log.warning(
+            "%s  WARNING  docker ps %s exit=%s stderr=%s",
+            utc_now(),
+            pod_name,
+            getattr(result, "returncode", "?"),
+            (getattr(result, "stderr", "") or "").strip(),
+        )
+        return None
+
+    lines = [
+        line.strip()
+        for line in (getattr(result, "stdout", "") or "").splitlines()
+        if line.strip()
+    ]
+    return lines[0] if lines else None
+
+
+def fetch_stats_text_docker(
+    container_id: str,
+    run_cmd: Optional[CommandRunner] = None,
+) -> Optional[str]:
+    """docker exec into the local istio-proxy container and curl /stats."""
+    runner = run_cmd or default_run_cmd
+    cmd = docker_exec_stats_cmd(container_id)
+    try:
+        result = runner(cmd)
+    except Exception as exc:  # noqa: BLE001 — TimeoutError etc.
+        log.warning(
+            "%s  WARNING  docker exec %s failed: %s", utc_now(), container_id, exc
+        )
+        return None
+
+    if getattr(result, "returncode", 1) != 0:
+        log.warning(
+            "%s  WARNING  docker exec %s exit=%s stderr=%s",
+            utc_now(),
+            container_id,
+            getattr(result, "returncode", "?"),
+            (getattr(result, "stderr", "") or "").strip(),
+        )
+        return None
+
+    return getattr(result, "stdout", None)
+
+
+@dataclass
+class ServiceScrapeResult:
+    service: str
+    edges: Optional[Dict[str, Dict[str, int]]] = None
+    inbound: Optional[Dict[str, int]] = None
+    container_id: Optional[str] = None
+    evict_container: bool = False
+    warning: Optional[str] = None
+
+
+def should_log_tier2(service: str, poll_index: int, state: Dict[str, int]) -> bool:
+    last = state.get(service)
+    if last is None or poll_index - last >= TIER2_WARN_EVERY_POLLS:
+        state[service] = poll_index
+        return True
+    return False
+
+
+def scrape_one_service(
+    service: str,
+    pod_name: Optional[str],
+    cached_container_id: Optional[str],
+    run_cmd: CommandRunner,
+) -> ServiceScrapeResult:
+    """
+    Read-only scrape for one service in docker_local mode.
+
+    Does not write CSVs and does not mutate caches. Main thread applies
+    evict / container_id after the batch completes.
+    """
+    if not pod_name:
+        return ServiceScrapeResult(
+            service=service, warning=f"no seeded pod for service={service}"
+        )
+
+    container_id = cached_container_id
+    if not container_id:
+        container_id = discover_container_id(pod_name, run_cmd=run_cmd)
+        if not container_id:
+            return ServiceScrapeResult(
+                service=service,
+                evict_container=True,
+                warning=(
+                    f"tier2 stale pod service={service} pod={pod_name} "
+                    "(pod recreated? v1 does not re-seed)"
+                ),
+            )
+
+    stats_text = fetch_stats_text_docker(container_id, run_cmd=run_cmd)
+    if stats_text is None:
+        return ServiceScrapeResult(
+            service=service,
+            evict_container=True,
+            warning=f"docker exec failed service={service} container={container_id}",
+        )
+
+    return ServiceScrapeResult(
+        service=service,
+        edges=parse_edges(stats_text),
+        inbound=parse_inbound(stats_text),
+        container_id=container_id,
+    )
+
+
 # --------------------------------------------------------------------------- #
 #  Service list / poll loop
 # --------------------------------------------------------------------------- #
@@ -362,6 +539,12 @@ def poll_once(
     timestamp: str,
     run_cmd: Optional[CommandRunner] = None,
     pod_cache: Optional[Dict[str, str]] = None,
+    exec_mode: str = EXEC_MODE_KUBECTL,
+    container_cache: Optional[Dict[str, str]] = None,
+    pod_names: Optional[Dict[str, str]] = None,
+    max_workers: int = DEFAULT_MAX_WORKERS,
+    poll_index: int = 0,
+    tier2_warn_state: Optional[Dict[str, int]] = None,
 ) -> None:
     """
     One scrape of every service's sidecar. Writes rows into
@@ -370,10 +553,47 @@ def poll_once(
     """
     if pod_cache is None:
         pod_cache = {}
+    if container_cache is None:
+        container_cache = {}
+    if pod_names is None:
+        pod_names = {}
+    if tier2_warn_state is None:
+        tier2_warn_state = {}
     runner = run_cmd or default_run_cmd
 
     edges_path = record_path / "service_edges.csv"
     inbound_path = record_path / "service_inbound.csv"
+
+    if exec_mode == EXEC_MODE_DOCKER_LOCAL:
+        workers = max(1, int(max_workers or DEFAULT_MAX_WORKERS))
+
+        def _submit(service: str) -> ServiceScrapeResult:
+            pod = pod_names.get(service)
+            cached = container_cache.get(pod) if pod else None
+            return scrape_one_service(service, pod, cached, runner)
+
+        results: List[ServiceScrapeResult] = []
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futs = {pool.submit(_submit, service): service for service in services}
+            for fut in as_completed(futs):
+                try:
+                    results.append(fut.result())
+                except Exception as exc:  # noqa: BLE001 — never crash poll_once
+                    svc = futs[fut]
+                    log.warning(
+                        "%s  WARNING  scrape %s raised: %s", utc_now(), svc, exc
+                    )
+        _apply_scrape_results(
+            results,
+            pod_names,
+            container_cache,
+            edges_path,
+            inbound_path,
+            timestamp,
+            poll_index,
+            tier2_warn_state,
+        )
+        return
 
     for service in sorted(services):
         pod = pod_cache.get(service)
@@ -396,6 +616,33 @@ def poll_once(
         write_inbound_csv(inbound_path, timestamp, service, inbound)
 
 
+def _apply_scrape_results(
+    results: List[ServiceScrapeResult],
+    pod_names: Dict[str, str],
+    container_cache: Dict[str, str],
+    edges_path: Path,
+    inbound_path: Path,
+    timestamp: str,
+    poll_index: int,
+    tier2_warn_state: Dict[str, int],
+) -> None:
+    for result in sorted(results, key=lambda r: r.service):
+        pod = pod_names.get(result.service)
+        if result.evict_container and pod:
+            container_cache.pop(pod, None)
+        if result.container_id and pod and result.edges is not None:
+            container_cache[pod] = result.container_id
+        if result.warning:
+            if "tier2" in result.warning:
+                if should_log_tier2(result.service, poll_index, tier2_warn_state):
+                    log.warning("%s  WARNING  %s", utc_now(), result.warning)
+            else:
+                log.warning("%s  WARNING  %s", utc_now(), result.warning)
+        if result.edges is not None and result.inbound is not None:
+            write_edges_csv(edges_path, timestamp, result.service, result.edges)
+            write_inbound_csv(inbound_path, timestamp, result.service, result.inbound)
+
+
 def run_collector(
     params: dict,
     record_path: Path,
@@ -408,11 +655,16 @@ def run_collector(
     """
     services = resolve_services(params)
     interval = int(params.get("poll_interval_seconds", DEFAULT_POLL_INTERVAL_SECONDS))
-    pod_cache: Dict[str, str] = {}
+    exec_mode = resolve_exec_mode(params)
+    pod_names = dict(params.get("pod_names") or {})
+    max_workers = int(params.get("max_workers", DEFAULT_MAX_WORKERS))
+    pod_cache: Dict[str, str] = dict(pod_names) if exec_mode == EXEC_MODE_KUBECTL else {}
+    container_cache: Dict[str, str] = {}
+    tier2_warn_state: Dict[str, int] = {}
 
     log.info(
-        "%s  START  poll_interval=%ss services=%d",
-        utc_now(), interval, len(services),
+        "%s  START  poll_interval=%ss services=%d exec_mode=%s max_workers=%s",
+        utc_now(), interval, len(services), exec_mode, max_workers,
     )
 
     polls = 0
@@ -424,7 +676,19 @@ def run_collector(
             if _shutdown:
                 break
         ts = tick_timestamp(interval)
-        poll_once(record_path, services, timestamp=ts, run_cmd=run_cmd, pod_cache=pod_cache)
+        poll_once(
+            record_path,
+            services,
+            timestamp=ts,
+            run_cmd=run_cmd,
+            pod_cache=pod_cache,
+            exec_mode=exec_mode,
+            container_cache=container_cache,
+            pod_names=pod_names,
+            max_workers=max_workers,
+            poll_index=polls,
+            tier2_warn_state=tier2_warn_state,
+        )
         polls += 1
         if max_polls is not None and polls >= max_polls:
             break
@@ -444,12 +708,20 @@ def main() -> None:
         "--params",
         required=True,
         help="Path to collector params JSON "
-        "(poll_interval_seconds, optional services list)",
+        "(poll_interval_seconds, optional services list, optional exec_mode)",
+    )
+    parser.add_argument(
+        "--exec-mode",
+        choices=[EXEC_MODE_KUBECTL, EXEC_MODE_DOCKER_LOCAL],
+        default=None,
+        help="Transport used to reach istio-proxy (default: params or kubectl)",
     )
     args = parser.parse_args()
 
     params = load_params(args.params)
-    record_path = load_record_path()
+    if args.exec_mode:
+        params["exec_mode"] = args.exec_mode
+    record_path = resolve_record_path(params)
     record_path.mkdir(parents=True, exist_ok=True)
     setup_logging(record_path)
 
