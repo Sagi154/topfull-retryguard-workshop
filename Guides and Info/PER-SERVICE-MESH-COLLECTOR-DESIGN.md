@@ -136,3 +136,15 @@ live goodput.
 `envoy_retries_{caller}.csv` shape for chart generation. Wiring them to also
 read `service_edges.csv` / `service_inbound.csv` for future campaigns is a
 separate task.
+
+**Worker-local exec (2026-09-12).** When `envoy_retry_collector.exec_mode`
+is `docker_local`, `experiments/envoy_retry_collector.py` runs on
+`topfull-worker-1` and scrapes each sidecar with `docker exec` (cri-dockerd),
+not `kubectl exec` from master. Parsers and CSV schemas are unchanged.
+`run_scenario.py` seeds `service → pod_name` once via kubectl on master,
+starts tmux session `meshlocal` on the worker, and at teardown two-hop
+`scp`s `service_edges.csv` / `service_inbound.csv` /
+`envoy_retry_collector.log` onto master's `results_base_path/<log_folder>/`.
+Tier-2 pod recreation is an accepted v1 gap (rate-limited warning, no
+re-seed). Do not treat this as a campaign-data change —
+`campaign_48/` / `august_38/` still have whatever they had.

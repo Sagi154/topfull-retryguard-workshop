@@ -15,7 +15,7 @@ Every run produces output from up to six sources. API performance and the run ma
 | **API performance** | `metric_collector.py` (TopFull, on master) | One CSV per Locust endpoint, one row per second | Yes |
 | **Run manifest + capacity snapshot** | `run_scenario.py` at collection/start time | `run_manifest.json`, `service_capacity.json` | Yes |
 | **RetryGuard decisions** | `retryguard.py` | `retryguard.log` text file | RetryGuard runs only |
-| **Full-mesh Envoy (per-service edges + inbound)** | `envoy_retry_collector.py` | `service_edges.csv`, `service_inbound.csv` + `envoy_retry_collector.log` | When collector enabled (default), **runs after 2026-09-08** |
+| **Full-mesh Envoy (per-service edges + inbound)** | `envoy_retry_collector.py` (process on `topfull-worker-1` when `exec_mode: docker_local`; files land in the master results folder at teardown) | `service_edges.csv`, `service_inbound.csv` + `envoy_retry_collector.log` | When collector enabled (default), **runs after 2026-09-08** |
 | **CPU/memory per service** | `resource_usage_collector.py` | `resource_usage.csv` + `resource_usage_collector.log` | When collector enabled (default) |
 | **TopFull throttle + detector reconstruction** | `topfull_throttle_collector.py` | `topfull_throttle.csv`, `topfull_detect.csv` + `topfull_throttle_collector.log` | When collector enabled (default), **runs after 2026-09-09** |
 
@@ -64,7 +64,7 @@ The runner (`run_scenario.py`) creates one folder per run on the master VM under
     service_capacity.json                ← always (2026-09-08+), pre-constraint CPU/replica snapshot
 ```
 
-`log_folder` comes directly from the YAML config (e.g. `baseline_topfull_no_retryguard_sustained_overload_run1`). Each run has a unique folder name because the run number is embedded in it — runs never overwrite each other.
+`log_folder` comes directly from the YAML config (e.g. `baseline_topfull_no_retryguard_sustained_overload_run1`). Each run has a unique folder name because the run number is embedded in it — runs never overwrite each other. When `exec_mode: docker_local` (current YAML default), `service_edges.csv` / `service_inbound.csv` / `envoy_retry_collector.log` are written on `topfull-worker-1` during the run and two-hop copied into this master folder at teardown. Do not treat `campaign_48/` or `august_38/` as having those worker-local files.
 
 ### All results for a scenario (multiple runs + both conditions) look like:
 

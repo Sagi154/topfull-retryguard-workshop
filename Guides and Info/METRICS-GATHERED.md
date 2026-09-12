@@ -109,7 +109,11 @@ Prerequisite (runner does this automatically): Istio hides `upstream_rq_retry*` 
 
 ## Layer 1 — Full-mesh Envoy (per-service edges, inbound, capacity)
 
-**Writer:** same `experiments/envoy_retry_collector.py`, extended to scrape **all 11** Boutique sidecars every poll (outbound **and** inbound listener stats). **Writer for capacity:** `experiments/run_scenario.py::capture_service_capacity` (once per run, before `scale_constraints`).
+**Writer:** `experiments/envoy_retry_collector.py`. With
+`exec_mode: docker_local` (current YAML default) the process runs on
+`topfull-worker-1` (`docker exec`); `run_scenario.py` copies the two CSVs
+plus `envoy_retry_collector.log` onto master at teardown. `exec_mode:
+kubectl` is the old master-side sequential `kubectl exec` path. **Writer for capacity:** `experiments/run_scenario.py::capture_service_capacity` (once per run, before `scale_constraints`).
 
 **Present only in runs launched after this collector landed** — not in `campaign_48/` or `august_38/`. The next new experiment run will be the first folder with these files.
 
@@ -199,8 +203,11 @@ TopFull’s own `resource_collector.py` still only feeds the RL loop in memory. 
 
 ## Layer 3 supplement — TopFull throttle (future runs)
 
-**Writer:** `experiments/topfull_throttle_collector.py` on master, 1s wall-clock ticks
-shared with the mesh collector.
+**Writer:** `experiments/topfull_throttle_collector.py` on master. CSV rows stay on
+1s wall-clock ticks shared with the mesh collector (`poll_interval_seconds`,
+default 1). Live Layer A `GET /thresholds` + `GET /stats` attempts use
+`layer_a_poll_interval_seconds` (default **5**, even when the scenario YAML
+omits the key). `topfull_detect.csv` cadence is unchanged (still 1 s).
 
 **Present only in runs launched after this collector landed** — not in
 `campaign_48/` or `august_38/`.
@@ -209,8 +216,13 @@ shared with the mesh collector.
 timestamp, api, threshold, admitted_rps, threshold_fresh, admitted_fresh
 
 `threshold_fresh` / `admitted_fresh` are `1` when measured that tick, `0` when
-carried from the last successful scrape (goproxy timeouts under load). Filter
-`admitted_fresh==1` for a true per-second admitted rate.
+the value is carried from an earlier successful scrape. After the split
+cadence, `0` covers both "not attempted this tick by design" and "attempted
+and timed out" — there is no third state. Filter `admitted_fresh==1` for a
+true per-second admitted rate. Row cadence is still 1 s and still joinable
+on `timestamp`; the live fraction of rows is lower by design under the
+default. Genuine timeouts vs skips are in `topfull_throttle_collector.log`
+(`WARNING  …fetch failed` only on failures).
 
 ### `topfull_detect.csv`
 timestamp, service, cadvisor_cpu, quota, alpha, utilization, overloaded
@@ -292,7 +304,7 @@ Per-service RPS / errors / hop latency are **not** in this table today. Feasibil
 ## Clock alignment (important)
 
 - Locust CSVs: no clock; row *i* ≈ second *i* of the run. Toggle overlays line up with these charts. Locust CSVs remain index-based with no timestamp column.
-- Envoy mesh + throttle collectors now stamp `floor(unix_time / interval) * interval` UTC seconds (aligned). `resource_usage.csv` uses interval=5 on the same grid.
+- Envoy mesh + throttle collectors now stamp `floor(unix_time / interval) * interval` UTC seconds (aligned). `resource_usage.csv` uses interval=5 on the same grid. Throttle **rows** stay 1 s; Layer A live `/thresholds`+`/stats` attempts use `layer_a_poll_interval_seconds` (default 5) on that same aligned grid. Skipped ticks still write a `topfull_throttle.csv` row with `*_fresh=0`.
 - Envoy + CPU/memory: UTC timestamps. Charts set *t* = 0 at **that file’s first poll**, which can be a few seconds before/after Locust. Do not treat “CPU dip at 60 s” as the same instant as “toggle at 60 s” on a Locust chart.
 
 ---
