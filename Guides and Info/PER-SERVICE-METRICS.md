@@ -2,7 +2,7 @@
 
 TopFull + RetryGuard Workshop — TAU Deepness Lab
 
-> Locust Layer 1 is **entry-API**, not per Kubernetes service. This note is whether we can still get **per-service** RPS, errors, latency, and retries, and how. What we already gather: [METRICS-GATHERED.md](METRICS-GATHERED.md). TopFull admission caps (also per Locust API, not per Deployment): [TOPFULL-THROTTLE-METRICS.md](TOPFULL-THROTTLE-METRICS.md). Concrete collector design (outgoing/incoming retries, outgoing/incoming goodput, offered load, shared timestamps, and what we know about per-service capacity): [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md).
+> Locust Layer 1 is **entry-API**, not per Kubernetes service. This note is whether we can still get **per-service** RPS, errors, latency, and retries, and how. What we already gather: [METRICS-GATHERED.md](METRICS-GATHERED.md); why we gather each one: [METRICS-CATALOG.md](METRICS-CATALOG.md). TopFull admission caps (also per Locust API, not per Deployment): [TOPFULL-THROTTLE-METRICS.md](TOPFULL-THROTTLE-METRICS.md). Concrete collector design (outgoing/incoming retries, outgoing/incoming goodput, offered load, shared timestamps, and what we know about per-service capacity): [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md).
 
 Locust is the wrong instrument for **the microservices themselves**. You can still get per-service metrics; most of them have to come from **Envoy sidecars** (and the CPU collector you already have), not from `metric_collector.py`.
 
@@ -15,8 +15,13 @@ Locust will never become per-service unless you stop using a storefront load and
 | Metric | File | Grain |
 |---|---|---|
 | CPU, memory, replica count | `resource_usage.csv` | All 11 deployments |
-| Outbound retries to a **target** | `envoy_retries_*.csv` | cart, catalog, checkout, payment (only those four, and only as seen by frontend / checkout) |
+| Outbound edges (total / retry, all callers→targets seen) | `service_edges.csv` (**implemented 2026-09-08**, no campaign data yet) | All 11 deployments, every `(caller, target)` pair actually observed |
+| Inbound offered load + status split at each service's own sidecar | `service_inbound.csv` (**implemented 2026-09-08**, no campaign data yet) | All 11 deployments |
+| Pre-constraint CPU limit/request/replica snapshot | `service_capacity.json` (**implemented 2026-09-08**, no campaign data yet) | All 11 deployments, once per run |
+| ~~Outbound retries to a **target** (legacy, superseded)~~ | `envoy_retries_*.csv` | Historical only (`campaign_48/`, `august_38/`) — cart, catalog, checkout, payment, only as seen by frontend / checkout. New runs get `service_edges.csv` / `service_inbound.csv` instead, never both. |
 | RetryGuard ON/OFF | `retryguard.log` | 9 HTTP backends (not frontend / redis-cart) |
+| TopFull's own admission cap / admitted RPS (Locust-API grain, not per-service) | `topfull_throttle.csv` (**implemented 2026-09-09**, no campaign data yet) | 5 Locust APIs |
+| Reconstructed overload-detector state (CPU vs quota × alpha) | `topfull_detect.csv` (**implemented 2026-09-09**, no campaign data yet) | All 11 deployments |
 
 RetryGuard’s **decision** signal is Envoy inbound `Δ5xx / Δtotal` from `service_inbound.csv` (one Algorithm 1 loop per HTTP backend except `frontend`). Locust `Fail/RPS` is still the **storefront outcome**, not the controller input. Mesh inbound / edges / CPU remain per-service outcomes and insights — see the practical-split table below. `mentor_charts.py` still plots Locust only; wiring mesh into charts is a follow-up, not a claim that mesh is not an outcome.
 
@@ -58,20 +63,18 @@ Boutique internals are mostly **gRPC**; Envoy still exposes cluster stats. `redi
 
 ---
 
-## How you would actually collect it
+## How you would actually collect it — implemented (2026-09-08)
 
-Same pattern as `envoy_retry_collector.py`, widened:
+This is no longer hypothetical. `experiments/envoy_retry_collector.py` was widened exactly along these lines — full design in [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md):
 
-1. **Patch stats inclusion on every Deployment**, not only `frontend` / `checkoutservice`. Today Istio strips detailed cluster stats unless `sidecar.istio.io/statsInclusionRegexps` is set. Without that, you get all-zero CSVs (you already hit this once).
-2. **`kubectl exec` each `istio-proxy`** on a 5 s poll (you already do this for two callers).
-3. Parse **inbound** clusters for that pod’s service name, plus optional outbound to children.
-4. Write e.g. `envoy_inbound.csv`:
+1. **Stats inclusion patched on all 11 Deployments** (not just `frontend`/`checkoutservice`) via `run_scenario.py::ensure_envoy_stats_enabled()`, regex widened to also match inbound listener stats: `(cluster\.outbound.*upstream_rq.*)|(http\.inbound.*downstream_rq.*)`.
+2. **`kubectl exec` into every pod's `istio-proxy`** each poll (default 1s in current scenario YAMLs, not 5s).
+3. Parses **both** outbound (`cluster.outbound|...upstream_rq_*`) and inbound listener (`http.inbound_*.downstream_rq_*`) stats from the same `curl localhost:15000/stats` dump.
+4. Writes two CSVs (not one `envoy_inbound.csv` as originally sketched — kept edges and inbound separate so "who called whom" survives):
+   - `service_edges.csv`: `timestamp, caller, target, total, 2xx, 4xx, 5xx, retry` — one row per `(caller, target)` pair actually seen
+   - `service_inbound.csv`: `timestamp, service, total, 2xx, 4xx, 5xx` — one row per service's own listener totals
 
-```
-timestamp, service, rq_total, rq_2xx, rq_5xx, rq_retry, ...
-```
-
-Derive RPS / rejection / retries-per-request by differencing, same as retries today.
+RPS / rejection / retries-per-request are still derived by differencing at analysis time, same as before. **Known live gap:** outbound `2xx`/`4xx`/`5xx` read as `0` on our Envoy build (only `total`/`retry` are populated on outbound) — use `service_inbound.csv`'s status columns for goodput/rejection instead. **No campaign folder has this data yet** — `campaign_48/` and `august_38/` predate the rewrite and still only have the legacy `envoy_retries_{frontend,checkoutservice}.csv` shape. The next new run is the first with these files. `mentor_charts.py` still only reads the legacy shape — wiring it to the new files is a follow-up.
 
 You do **not** need Prometheus for this. A dedicated Prometheus + Istio telemetry is cleaner at scale; for 11 pods the exec scraper is consistent with what you already run.
 

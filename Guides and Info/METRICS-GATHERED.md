@@ -2,7 +2,7 @@
 
 TopFull + RetryGuard Workshop — TAU Deepness Lab
 
-> Comprehensive inventory of every metric collected during experiment runs: sources, columns, derived values, clocks, and what is empty or unused. Operational details (how to pull, verify, load) live in [METRICS-COLLECTION-GUIDE.md](METRICS-COLLECTION-GUIDE.md). Gaps and what is answerable: [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md). RetryGuard’s use of these CSVs: [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md). Locust is **per entry API**, not per Kubernetes service — why, and how to get true per-service RPS/errors/latency/retries: [PER-SERVICE-METRICS.md](PER-SERVICE-METRICS.md). Concrete collector design for per-service outgoing/incoming retries, goodput, offered load, and capacity: [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md). TopFull admission caps (also per Locust API): [TOPFULL-THROTTLE-METRICS.md](TOPFULL-THROTTLE-METRICS.md).
+> Comprehensive inventory of every metric collected during experiment runs: sources, columns, derived values, clocks, and what is empty or unused. **For the "why do we collect this" narrative (rationale per metric, mapped to the eval deck's open questions), see [METRICS-CATALOG.md](METRICS-CATALOG.md) instead — that doc is the companion "how + why" read; this one stays the columns/files inventory.** Operational details (how to pull, verify, load) live in [METRICS-COLLECTION-GUIDE.md](METRICS-COLLECTION-GUIDE.md). Gaps and what is answerable: [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md). RetryGuard’s use of these CSVs: [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md). Locust is **per entry API**, not per Kubernetes service — why, and how to get true per-service RPS/errors/latency/retries: [PER-SERVICE-METRICS.md](PER-SERVICE-METRICS.md). Concrete collector design for per-service outgoing/incoming retries, goodput, offered load, and capacity: [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md). TopFull admission caps (also per Locust API): [TOPFULL-THROTTLE-METRICS.md](TOPFULL-THROTTLE-METRICS.md).
 
 We gather **three layers of measurement**, plus a run manifest. On the 48-run campaign (`campaign_48/`) every layer is present. The older August 38-run set only has Layer 1 Locust CSVs and RetryGuard logs.
 
@@ -206,13 +206,30 @@ shared with the mesh collector.
 `campaign_48/` or `august_38/`.
 
 ### `topfull_throttle.csv`
-timestamp, api, threshold, admitted_rps
+timestamp, api, threshold, admitted_rps, threshold_fresh, admitted_fresh
+
+`threshold_fresh` / `admitted_fresh` are `1` when measured that tick, `0` when
+carried from the last successful scrape (goproxy timeouts under load). Filter
+`admitted_fresh==1` for a true per-second admitted rate.
 
 ### `topfull_detect.csv`
 timestamp, service, cadvisor_cpu, quota, alpha, utilization, overloaded
 
-`overloaded` reconstructs `Detector.detect()` (cAdvisor CPU vs TopFull's
-hardcoded quota × alpha). It is not kubelet `resource_usage.csv`. Layers C/D
+One row per `(timestamp, service)` for all 11 Boutique services. `cadvisor_cpu`
+is a **direct** HTTP scrape of the cAdvisor DaemonSet (`cadvisor` namespace,
+`GET :8080/api/v2.0/summary/<container_id>?type=docker`, container IDs from
+`kubectl get po -o json`) — a different source than `resource_usage.csv`
+(Layer 2, kubelet `stats/summary`); it exists specifically to approximate
+what TopFull's own `Detector` sees. `quota` is `topfull_cpu_quotas.
+paper_limit_for(service)`, overridden per-run by that run's
+`effective_cpu_quotas` (paper table + any active S3/S4 `cpu_limit_fraction`)
+— the same map written to `topfull_run_quotas.json` for the live Detector
+overlay, so this column tracks what the detector was reconciled to that run,
+not a stale hardcoded map. `alpha` approximates only the detector's
+**main-loop** `detect(0.8)` check (`0.95` for `productcatalogservice`/
+`cartservice`); real calls from `apply()`/`apply_v2()` also use `0.9` and are
+not reconstructed. `overloaded` reconstructs `Detector.detect()` (cAdvisor
+CPU vs quota × alpha). It is not kubelet `resource_usage.csv`. Layers C/D
 are not collected. `mentor_charts.py` does not read these files.
 
 ---
@@ -243,9 +260,11 @@ These timestamps are the overlay on the mentor Locust charts.
 
 | File | What it is | Status |
 |---|---|---|
-| `run_manifest.json` | Scenario, condition, run number, duration, collector flags | Always |
+| `run_manifest.json` | Scenario, condition, run number, duration, collector flags, `paper_cpu_quotas` / `effective_cpu_quotas` | Always |
+| `service_capacity.json` | Per-service `cpu_limit_millicores` / `cpu_request_millicores` / `replica_count`, snapshotted **before** `scale_constraints` are applied | Always, 2026-09-08+ runs. Context for interpreting `resource_usage.csv` / `topfull_detect.csv`, not a time series itself. |
+| `topfull_run_quotas.json` | Live-only on master (never copied into the run folder; deleted at teardown) — the *effective* per-run quota map read by a patched `Detector.__init__` overlay so K8s and TopFull's in-memory quotas match for that run | Not a collected artifact — see `run_manifest.json`'s `effective_cpu_quotas` for the persisted equivalent |
 | `num_agent.csv` | TopFull RL admission / agent counts | **Empty** (almost all zeros). Use Locust `RPS` as admitted-load proxy. |
-| `envoy_retry_collector.log` / `resource_usage_collector.log` | Collector start/stop/warnings | Diagnostics only |
+| `envoy_retry_collector.log` / `resource_usage_collector.log` / `topfull_throttle_collector.log` | Collector start/stop/warnings | Diagnostics only |
 
 Locust on `topfull-load` is not copied as its own stats files. All API numbers come through `metric_collector.py`.
 

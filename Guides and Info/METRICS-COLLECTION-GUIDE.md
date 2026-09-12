@@ -2,25 +2,30 @@
 
 TopFull + RetryGuard Workshop — TAU Deepness Lab
 
-> **Scope:** This guide explains what data is collected during each experiment run, where it lives, how to pull it to your PC, and how to verify it's usable before moving on to the next run. Read this alongside [SCENARIOS-GUIDE.md](SCENARIOS-GUIDE.md) and [PHASE5-EXPERIMENTS-GUIDE.md](PHASE5-EXPERIMENTS-GUIDE.md).
+> **Scope:** This guide explains what data is collected during each experiment run, where it lives, how to pull it to your PC, and how to verify it's usable before moving on to the next run. Read this alongside [SCENARIOS-GUIDE.md](SCENARIOS-GUIDE.md) and [PHASE5-EXPERIMENTS-GUIDE.md](PHASE5-EXPERIMENTS-GUIDE.md). For the full inventory of every metric and a rationale ("why we collect this") per metric, see [METRICS-GATHERED.md](METRICS-GATHERED.md) and [METRICS-CATALOG.md](METRICS-CATALOG.md).
 
 ---
 
 ## 1. What gets collected and by what tool
 
-Every run produces output from up to five sources. API performance and the run manifest are always present; RetryGuard decisions only when RetryGuard is on; Envoy retry counters and CPU/memory when their collectors are enabled (default in all 16 scenario configs).
+Every run produces output from up to six sources. API performance and the run manifest are always present; RetryGuard decisions only when RetryGuard is on; the Envoy mesh collector, CPU/memory collector, and TopFull throttle collector when their collectors are enabled (default `enabled: true` in all 16 scenario configs).
 
 | Source | Written by | Format | Always collected? |
 |--------|-----------|--------|------------------|
-| **API performance** | `metric_collector.py` | One CSV per Locust endpoint, one row per second | Yes |
-| **Run manifest** | `run_scenario.py` at collection time | `run_manifest.json` | Yes |
+| **API performance** | `metric_collector.py` (TopFull, on master) | One CSV per Locust endpoint, one row per second | Yes |
+| **Run manifest + capacity snapshot** | `run_scenario.py` at collection/start time | `run_manifest.json`, `service_capacity.json` | Yes |
 | **RetryGuard decisions** | `retryguard.py` | `retryguard.log` text file | RetryGuard runs only |
-| **Envoy retry counters** | `envoy_retry_collector.py` | `envoy_retries_{caller}.csv` + `envoy_retry_collector.log` | When collector enabled (default) |
+| **Full-mesh Envoy (per-service edges + inbound)** | `envoy_retry_collector.py` | `service_edges.csv`, `service_inbound.csv` + `envoy_retry_collector.log` | When collector enabled (default), **runs after 2026-09-08** |
 | **CPU/memory per service** | `resource_usage_collector.py` | `resource_usage.csv` + `resource_usage_collector.log` | When collector enabled (default) |
+| **TopFull throttle + detector reconstruction** | `topfull_throttle_collector.py` | `topfull_throttle.csv`, `topfull_detect.csv` + `topfull_throttle_collector.log` | When collector enabled (default), **runs after 2026-09-09** |
 
+> **Legacy note (superseded, not additive):** Before 2026-09-08, `envoy_retry_collector.py` only scraped two caller sidecars (`frontend`, `checkoutservice`) and wrote `envoy_retries_frontend.csv` / `envoy_retries_checkoutservice.csv`. That code path no longer exists — the collector now *always* scrapes all 11 Boutique sidecars and writes `service_edges.csv` / `service_inbound.csv` instead. A run either has the legacy files (all of `campaign_48/` and `august_38/`, collected before the rewrite) **or** the full-mesh files (any run launched after 2026-09-08) — never both. See §5.
+>
 > **Layer 2 note:** `resource_usage_collector.py` (kubelet `stats/summary` via `kubectl get --raw`) closes the *instrumentation* half of the CPU/memory gap. TopFull's in-memory `resource_collector.py` still feeds the RL loop only — it is not patched. The existing 38 matrix folders predate this collector; new runs will produce `resource_usage.csv`. Pod replica counts in the CSV will be `1` for every service (fixed-replica experimental design). See [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md).
 >
 > **Gap 3 note:** The Envoy retry collector closes the *instrumentation* half of the "retries per request" gap. The existing 38 matrix folders were collected *before* this collector existed, so they still have no retry-count series. New runs (including the Gap 1 recovery-phase re-runs) will produce the CSVs. See [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 3.
+>
+> **No campaign data yet for the newest collectors.** `service_edges.csv` / `service_inbound.csv` / `service_capacity.json` (full mesh, 2026-09-08) and `topfull_throttle.csv` / `topfull_detect.csv` (TopFull throttle, 2026-09-09) are implemented and unit-tested but **no run in `campaign_48/` or `august_38/` has them** — both predate the collectors. The next new experiment run is the first that will.
 
 ---
 
@@ -36,13 +41,27 @@ The runner (`run_scenario.py`) creates one folder per run on the master VM under
     getcart.csv
     postcart.csv
     emptycart.csv
-    envoy_retries_frontend.csv          ← when envoy_retry_collector enabled
-    envoy_retries_checkoutservice.csv   ← when envoy_retry_collector enabled
-    envoy_retry_collector.log           ← when envoy_retry_collector enabled
-    resource_usage.csv                  ← when resource_usage_collector enabled
-    resource_usage_collector.log        ← when resource_usage_collector enabled
-    retryguard.log                      ← RetryGuard runs only
-    run_manifest.json
+    total.csv                            ← always (system-wide sum of the five)
+
+    # Envoy mesh — runs BEFORE 2026-09-08 have the two legacy files;
+    # runs AFTER have the three full-mesh files. Never both.
+    envoy_retries_frontend.csv           ← LEGACY, when envoy_retry_collector enabled
+    envoy_retries_checkoutservice.csv    ← LEGACY, when envoy_retry_collector enabled
+    service_edges.csv                    ← FULL MESH, when envoy_retry_collector enabled
+    service_inbound.csv                  ← FULL MESH, when envoy_retry_collector enabled
+    envoy_retry_collector.log            ← when envoy_retry_collector enabled
+
+    resource_usage.csv                   ← when resource_usage_collector enabled
+    resource_usage_collector.log         ← when resource_usage_collector enabled
+
+    topfull_throttle.csv                 ← when topfull_throttle_collector enabled (2026-09-09+)
+    topfull_detect.csv                   ← when topfull_throttle_collector enabled (2026-09-09+)
+    topfull_throttle_collector.log       ← when topfull_throttle_collector enabled (2026-09-09+)
+
+    retryguard.log                       ← RetryGuard runs only
+    num_agent.csv                        ← always written by TopFull, always empty — not a metric
+    run_manifest.json                    ← always
+    service_capacity.json                ← always (2026-09-08+), pre-constraint CPU/replica snapshot
 ```
 
 `log_folder` comes directly from the YAML config (e.g. `baseline_topfull_no_retryguard_sustained_overload_run1`). Each run has a unique folder name because the run number is embedded in it — runs never overwrite each other.
@@ -165,40 +184,55 @@ Cross-reference this timestamp with `postcheckout.csv` — you should see `Fail`
 
 ---
 
-## 5. The Envoy retry CSVs (retries per request)
+## 5. The Envoy mesh CSVs (retries per request, per-service goodput, offered load)
 
-**Files** (when `envoy_retry_collector.enabled: true`):
+**Files** (when `envoy_retry_collector.enabled: true`, default `poll_interval_seconds: 1` in current scenario YAMLs):
+
+`experiments/envoy_retry_collector.py` `kubectl exec`s into **every** Boutique pod's `istio-proxy` sidecar (`ALL_BOUTIQUE_SERVICES`, 11 services including `redis-cart`) each poll, runs `curl localhost:15000/stats`, and parses two families of counters out of the same dump:
+
+| File | Grain | Columns | What it answers |
+|------|-------|---------|-----------------|
+| `service_edges.csv` | one row per `(timestamp, caller, target)` outbound edge actually seen that poll | `timestamp, caller, target, total, 2xx, 4xx, 5xx, retry` | Who calls whom, how many outbound retries per edge (`retry`) |
+| `service_inbound.csv` | one row per `(timestamp, service)` | `timestamp, service, total, 2xx, 4xx, 5xx` | Offered load and status split *at that service's own sidecar* |
+| `envoy_retry_collector.log` | — | `START` / `WARNING` / `SHUTDOWN` / `EXIT` lines | Diagnostics |
+
+**Why scrape both directions.** Envoy only ever records "I retried this call" on the **caller's** outbound cluster stats (`cluster.outbound|…|<target>.…upstream_rq_retry`) — the callee's sidecar has no idea a retry happened, it just sees N separate inbound requests. So:
+- **Outgoing retries** for a service = `service_edges.csv` rows where `caller = <service>`.
+- **Incoming retries** at a service (not a real Envoy counter) = `Σ retry` over all `service_edges.csv` rows where `target = <service>`.
+- **Per-service offered load / goodput / rejection** = differences between consecutive `service_inbound.csv` rows for that service (`Δtotal`, `Δ2xx`, `Δ4xx+Δ5xx`).
+
+**Live gap (2026-09-08 smoke, still true):** live outbound `cluster.outbound|…upstream_rq_*` on our Istio/Envoy build exposes `total` and `retry` but not `2xx`/`4xx`/`5xx` — those class columns in `service_edges.csv` stay `0` even under load. Use `service_inbound.csv`'s `2xx`/`4xx`/`5xx` for per-hop goodput/rejection instead; use `service_edges.csv`'s `total`/`retry` for outgoing volume and retries.
+
+All counters are **cumulative** for the pod's lifetime (Envoy never resets mid-run). Every derived value (retries-per-request, RPS, rejection) is a **diff between consecutive polls of the same row**, never the raw value.
+
+```python
+# service_edges.csv, consecutive rows for the same (caller, target)
+d_retry = row_n["retry"] - row_n1["retry"]
+d_total = row_n["total"] - row_n1["total"]
+retries_per_request = (d_retry / d_total) if d_total > 0 else 0.0
+
+# service_inbound.csv, consecutive rows for the same service
+d_5xx = row_n["5xx"] - row_n1["5xx"]
+d_total_in = row_n["total"] - row_n1["total"]
+rejection = (d_5xx / d_total_in) if d_total_in > 0 else 0.0   # what RetryGuard actually reads
+```
+
+Join against `retryguard.log` toggle timestamps to show that `ON→OFF` reduces the retry rate / rejection on that service.
+
+> **Prerequisite (handled automatically):** Istio's default stats reduction hides `upstream_rq_retry*` / `downstream_rq_*` from the plain `/stats` dump unless the pod carries a `sidecar.istio.io/statsInclusionRegexps` annotation. `run_scenario.py::ensure_envoy_stats_enabled()` patches **all 11** Deployments with `(cluster\.outbound.*upstream_rq.*)|(http\.inbound.*downstream_rq.*)` before every run (idempotent — a no-op rollout after the first time).
+
+### Legacy per-caller files (historical only — `campaign_48/` and `august_38/`)
+
+Before 2026-09-08 the collector only scraped two caller sidecars and wrote:
 
 | File | Caller sidecar scraped | Target services in rows |
 |------|------------------------|-------------------------|
 | `envoy_retries_frontend.csv` | `frontend` | `cartservice`, `productcatalogservice`, `checkoutservice` |
 | `envoy_retries_checkoutservice.csv` | `checkoutservice` | `cartservice`, `productcatalogservice`, `paymentservice` |
-| `envoy_retry_collector.log` | — | `START` / `WARNING` / `SHUTDOWN` / `EXIT` lines |
 
-**Why scrape callers, not callees.** Envoy records retry counters on the *caller's outbound* cluster stats (`cluster.outbound|…|<svc>.….upstream_rq_retry`), not on the callee's inbound stats. Scraping `frontend` and `checkoutservice` covers the four services we care about (the three RetryGuard toggles plus `paymentservice` for S4B).
+Columns: `timestamp, target_service, upstream_rq_total, upstream_rq_retry, upstream_rq_retry_success, upstream_rq_retry_limit_exceeded` — same cumulative/diff rule as above. **This code path no longer exists** in `envoy_retry_collector.py`; a run either has these two files (collected before the rewrite) or the two full-mesh files above — never both. `mentor_charts.py` / `mentor_charts_data.py` still only read this legacy shape; wiring them to the full-mesh files is a documented follow-up, not evidence that mesh data is unavailable.
 
-> **Prerequisite (handled automatically):** Istio's default stats reduction hides `upstream_rq_retry*` from the plain `/stats` dump unless the pod carries a `sidecar.istio.io/statsInclusionRegexps` annotation. `run_scenario.py`'s `start_envoy_retry_collector()` patches `frontend`/`checkoutservice` with this annotation before every run (idempotent — a no-op after the first time). See [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 3 for the full story; confirmed live on 2026-08-20.
-
-### Columns
-
-```
-timestamp, target_service, upstream_rq_total, upstream_rq_retry, upstream_rq_retry_success, upstream_rq_retry_limit_exceeded
-```
-
-Counters are **cumulative** for the pod's lifetime (Envoy never resets them mid-run). One row is written per target service per poll (default every 5s).
-
-### Deriving retries-per-request at analysis time
-
-```python
-# consecutive rows for the same target_service in one caller CSV
-d_retry = row_n["upstream_rq_retry"] - row_n1["upstream_rq_retry"]
-d_total = row_n["upstream_rq_total"] - row_n1["upstream_rq_total"]
-retries_per_request = (d_retry / d_total) if d_total > 0 else 0.0
-```
-
-Join against `retryguard.log` toggle timestamps to show that `ON→OFF` reduces the retry rate on that service.
-
-> The existing 38 matrix folders do **not** contain these files — they predate the collector. Only runs started after this collector was enabled will have them.
+> The August 38 and `campaign_48/` folders have only the legacy files. No folder anywhere has the full-mesh files yet — the next new run will be the first.
 
 ---
 
@@ -227,7 +261,7 @@ timestamp, service, cpu_millicores, memory_working_set_bytes, replica_count
 | `memory_working_set_bytes` | Sum of app-container working-set memory across replicas |
 | `replica_count` | `readyReplicas` from the Deployment status (always `1` in this workshop's fixed-replica setup) |
 
-Default poll interval: **5s** (same as Envoy collector). A 600s run produces ~120 rows per service.
+Default poll interval: **5s**. A 600s run produces ~120 rows per service.
 
 Join against `retryguard.log` toggle timestamps to show CPU/memory dropping after `ON→OFF` on a service.
 
@@ -235,7 +269,64 @@ Join against `retryguard.log` toggle timestamps to show CPU/memory dropping afte
 
 ---
 
-## 7. The run manifest
+## 7. The TopFull throttle CSVs (Layer A cap/admitted, Layer B detector reconstruction)
+
+**Files** (when `topfull_throttle_collector.enabled: true`, `poll_interval_seconds: 1`, all 16 scenario YAMLs since 2026-09-09):
+
+`experiments/topfull_throttle_collector.py` runs **on master**, on the same wall-clock-aligned 1s grid as the mesh collector (both use `sleep_until_next_tick()` / `tick_timestamp()`, so a row's `timestamp` in `topfull_throttle.csv` lines up exactly with the same-second row in `service_edges.csv` / `service_inbound.csv` / `resource_usage.csv`).
+
+### `topfull_throttle.csv` — Layer A: what TopFull actually admitted
+
+One row per `(timestamp, api)` for the 5 Locust APIs:
+
+```
+timestamp, api, threshold, admitted_rps, threshold_fresh, admitted_fresh
+```
+
+| Column | Source | Meaning |
+|---|---|---|
+| `threshold` | proxied `GET :8090/thresholds` (fallback: `cat rate_config/<api>` under `proxy_dir`) | The RL-set admission cap for that API this tick |
+| `admitted_rps` | proxied `GET :8090/stats` | What the goproxy actually forwarded — a truer "admitted load" than Locust `RPS`, which is measured *after* the proxy |
+| `threshold_fresh` / `admitted_fresh` | collector bookkeeping | `1` if measured this tick, `0` if carried forward from the last successful scrape (goproxy times out under heavy load) — **filter to `*_fresh == 1` for a true per-second series** |
+
+Why measure this at all: Locust `RPS` (Layer 1) is *completed* traffic after every hop, including retries — a weak proxy for what TopFull's RL loop actually let through. `num_agent.csv` (TopFull's own admission counter) is empty in every run and won't be revived. This collector answers "what did the controller admit," independent of what came back successful.
+
+### `topfull_detect.csv` — Layer B: reconstructed overload-detector state
+
+One row per `(timestamp, service)` for the 11 Boutique services:
+
+```
+timestamp, service, cadvisor_cpu, quota, alpha, utilization, overloaded
+```
+
+| Column | Source | Meaning |
+|---|---|---|
+| `cadvisor_cpu` | direct HTTP scrape of the **cAdvisor DaemonSet** (`cadvisor` namespace) — `GET http://<cadvisor-pod-ip>:8080/api/v2.0/summary/<container_id>?type=docker`, container IDs discovered via `kubectl get po -o json` | CPU usage as TopFull's own `Detector` would see it — **not** the same source as `resource_usage.csv` (which reads kubelet `stats/summary`, Layer 2) |
+| `quota` | `topfull_cpu_quotas.paper_limit_for(service)`, overridden per-run by the `cpu_quotas` param (= that run's `effective_cpu_quotas`, i.e. the paper table with the S3/S4 bottleneck fraction applied) | The CPU ceiling the detector compares against — kept in sync with whatever `run_scenario.py` actually reconciled onto the live Deployment that run (see §7b) |
+| `alpha` | `0.95` for `productcatalogservice` / `cartservice`, else `0.8` | The detector's main-loop threshold fraction (`Detector.detect(0.8)`); this is an *approximation* — real calls from `apply()`/`apply_v2()` also use `0.9`, not reconstructed here |
+| `utilization` | `cadvisor_cpu / quota` | — |
+| `overloaded` | `utilization > alpha` | Reconstructed overload bool |
+
+**Out of scope, by design:** Layers C (clustering) and D (RL action/state) are not collected — getting TopFull's *real* internal values would require patching `Detector.clustering()` / `Agent.run()`, which run on TopFull's own irregular per-thread cadence and would break the same-second-join guarantee this collector exists to provide. `mentor_charts.py` does not read either of these files yet.
+
+> No campaign folder has this data yet (implemented 2026-09-09, after `campaign_48/` was collected). See [TOPFULL-THROTTLE-METRICS.md](TOPFULL-THROTTLE-METRICS.md) for the full inventory this collector was designed against.
+
+---
+
+## 7b. Capacity and quota artifacts (not time series)
+
+Two artifacts record what CPU ceiling was in effect for a run — useful context for interpreting `resource_usage.csv` / `topfull_detect.csv`, but not themselves a metric to chart over time.
+
+| File | Written by | When | Content |
+|---|---|---|---|
+| `service_capacity.json` | `run_scenario.py::capture_service_capacity()` | Once, **before** any `scale_constraints` are applied | `{service: {cpu_limit_millicores, cpu_request_millicores, replica_count}}` — the *original* (paper-reconciled) limits, so you can see what an S3/S4 bottleneck was constrained *from* |
+| `topfull_run_quotas.json` (on master only, **not** copied into the run folder) | `run_scenario.py::write_run_quotas_json()` | At run start; deleted at teardown | The *effective* per-run quota map (paper table + any active `cpu_limit_fraction`), read by a small overlay `Detector.__init__` patches in so its in-memory quotas match K8s for that run |
+
+`run_manifest.json`'s `paper_cpu_quotas` / `effective_cpu_quotas` fields (see §8) are the same maps, persisted for after-the-fact reference once `topfull_run_quotas.json` itself has been deleted from master.
+
+---
+
+## 8. The run manifest
 
 **File:** `run_manifest.json` — written by `run_scenario.py` at the end of collection.
 
@@ -247,9 +338,12 @@ Join against `retryguard.log` toggle timestamps to show CPU/memory dropping afte
   "run_number": 1,
   "duration_seconds": 600,
   "retryguard": { "enabled": false, ... },
-  "envoy_retry_collector": { "enabled": true, "poll_interval_seconds": 5 },
+  "envoy_retry_collector": { "enabled": true, "poll_interval_seconds": 1 },
   "resource_usage_collector": { "enabled": true, "poll_interval_seconds": 5 },
+  "topfull_throttle_collector": { "enabled": true, "poll_interval_seconds": 1 },
   "scale_constraints": [],
+  "paper_cpu_quotas": { "cartservice": 1000, "currencyservice": 1000, "frontend": 1000, "adservice": 1000, "productcatalogservice": 500, "checkoutservice": 1000, "recommendationservice": 2000, "paymentservice": 1000 },
+  "effective_cpu_quotas": { "cartservice": 1000, "currencyservice": 1000, "frontend": 1000, "adservice": 1000, "productcatalogservice": 500, "checkoutservice": 1000, "recommendationservice": 2000, "paymentservice": 1000 },
   "log_folder": "baseline_topfull_no_retryguard_sustained_overload_run1",
   "collected_at": "2026-08-11T10:00:00Z"
 }
@@ -259,7 +353,7 @@ This makes each folder self-describing — you don't need to look up the YAML to
 
 ---
 
-## 8. How to pull results to your PC
+## 9. How to pull results to your PC
 
 After each run completes, the runner prints the `scp` command for you — it already resolves the correct scenario subfolder (e.g. `S2_sustained_overload/`) from the run's `scenario_id`/`scenario_name`:
 
@@ -285,10 +379,11 @@ experiments/results/
       baseline_topfull_no_retryguard_forced_recovery_run1/
         getproduct.csv
         postcheckout.csv
-        envoy_retries_frontend.csv
+        envoy_retries_frontend.csv       ← legacy shape; future runs get service_edges.csv / service_inbound.csv instead
         resource_usage.csv
         ...
         run_manifest.json
+        service_capacity.json
   august_38/            ← historical August 38 (goodput/P95/rejection only, still flat — not reorganized)
 ```
 
@@ -296,7 +391,7 @@ See [experiments/results/README.md](../experiments/results/README.md) and [exper
 
 ---
 
-## 9. Verifying a run after collection
+## 10. Verifying a run after collection
 
 Before moving on to the next run or repeating, do a quick sanity check:
 
@@ -316,11 +411,14 @@ ssh topfull-master "wc -l /home/idozacharia/experiments/results/<log_folder>/*.c
 | `Fail` elevated for S2/3 baseline | High throughout overload period | Expected and correct |
 | `retryguard.log` exists (RetryGuard runs) | File present, `START` line at top | RetryGuard didn't start — check `tmux` session |
 | `run_manifest.json` exists | Always | Runner aborted before collection step |
+| `service_capacity.json` exists | Always (2026-09-08+ runs) | `capture_service_capacity()` failed before `scale_constraints` ran |
 | `resource_usage.csv` has rows (when enabled) | `memory_working_set_bytes > 0` for `frontend` under any load | kubelet `stats/summary` blocked — check collector log on master |
+| `service_edges.csv` / `service_inbound.csv` have rows (when enabled, 2026-09-08+ runs) | Non-empty, `total` columns increasing across polls | Stats-inclusion annotation not applied yet, or `kubectl exec` blocked — check `envoy_retry_collector.log` |
+| `topfull_throttle.csv` / `topfull_detect.csv` have rows (when enabled, 2026-09-09+ runs) | `admitted_fresh`/`threshold_fresh` mostly `1`; `cadvisor_cpu > 0` under load | goproxy `/stats`/`/thresholds` timing out, or cAdvisor DaemonSet unreachable — check `topfull_throttle_collector.log` |
 
 ---
 
-## 10. Collecting across runs for analysis (Phase 7 preview)
+## 11. Collecting across runs for analysis (Phase 7 preview)
 
 Each run folder is independent. For Phase 7, you'll load all runs for a given scenario+condition together.
 
@@ -352,7 +450,7 @@ avg_series = pd.concat([df["Goodput"].iloc[:min_len] for df in dfs], axis=1).mea
 
 ---
 
-## 11. Quick reference — per-scenario focus metrics
+## 12. Quick reference — per-scenario focus metrics
 
 | Scenario | Primary files | What to look for |
 |----------|--------------|-----------------|
@@ -365,4 +463,4 @@ avg_series = pd.concat([df["Goodput"].iloc[:min_len] for df in dfs], axis=1).mea
 
 ---
 
-*Related guides: [SCENARIOS-GUIDE.md](SCENARIOS-GUIDE.md) (how to run), [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md) (log format detail), [PHASE5-EXPERIMENTS-GUIDE.md](PHASE5-EXPERIMENTS-GUIDE.md) §4 (data collection mechanics).*
+*Related guides: [SCENARIOS-GUIDE.md](SCENARIOS-GUIDE.md) (how to run), [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md) (log format detail), [PHASE5-EXPERIMENTS-GUIDE.md](PHASE5-EXPERIMENTS-GUIDE.md) §4 (data collection mechanics), [METRICS-GATHERED.md](METRICS-GATHERED.md) (full metric inventory), [METRICS-CATALOG.md](METRICS-CATALOG.md) (why each metric is collected).*
