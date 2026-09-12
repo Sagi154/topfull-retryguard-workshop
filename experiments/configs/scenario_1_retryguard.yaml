@@ -44,6 +44,9 @@ retryguard:
 envoy_retry_collector:
   enabled: true
   poll_interval_seconds: 1
+  exec_mode: docker_local
+  # Thread-pool size for parallel docker exec scrapes on worker_ssh_host — NOT extra K8s/GCP worker VMs.
+  max_workers: 4
 
 # ── Resource usage collector (Layer 2 — CPU/memory per service) ──────────────
 resource_usage_collector:
@@ -60,6 +63,7 @@ log_folder: run_topfull_retryguard_normal_op_run7
 infra:
   master_ssh_host: topfull-master
   loadgen_ssh_host: topfull-load
+  worker_ssh_host: topfull-worker-1
   topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
   topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
   venv_activate: /home/idozacharia/TopFull/venv/bin/activate
