@@ -43,12 +43,12 @@ These five files are **Locust APIs** (storefront actions), not one CSV per Bouti
 | Column | Meaning |
 |---|---|
 | `RPS` | Offered requests/sec to that endpoint (also the best proxy for TopFull’s admitted load) |
-| `Fail` | Failed requests/sec (5xx / timeout) |
+| `Fail` | Requests/sec that missed the 1 s goodput SLO (`elapsed > 1 s`) **or** got a non-OK HTTP status. A slow 200 is a Fail. |
 | `Goodput` | `RPS − Fail` — successful req/s. **Primary health metric.** |
 | `Latency95` | 95th-percentile latency in **ms**. **The latency metric of record.** |
 | `Latency99` | Always `0`. Hardcoded in TopFull. **Do not use.** P99 was dropped. |
 
-Rejection rate is **not a stored column**. Analysis derives storefront rejection as `Fail / RPS` (0 when `RPS == 0`). RetryGuard does **not** use this; it uses inbound `Δ5xx / Δtotal` from `service_inbound.csv` (see Layer 3).
+Rejection rate is **not a stored column**. Analysis derives storefront rejection as `Fail / RPS` (0 when `RPS == 0`). RetryGuard does **not** use this; it uses inbound `Δ5xx / Δtotal` from `service_inbound.csv` (see Layer 3). S2 `Fail/RPS ≈ 1` with mesh 5xx = 0 is SLO-miss, not Boutique rejection. See [2026-09-11-slo-fail-and-mu-estimator-design.md](../docs/superpowers/specs/2026-09-11-slo-fail-and-mu-estimator-design.md).
 
 ### System-wide file: `total.csv`
 

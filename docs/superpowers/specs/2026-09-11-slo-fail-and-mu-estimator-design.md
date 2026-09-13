@@ -66,7 +66,7 @@ So the Boutique environment **is** serving the storefront APIs. Locust “100% F
 
 **Docs to fix when implementing:** [METRICS-GATHERED.md](../../../Guides%20and%20Info/METRICS-GATHERED.md), [METRICS-COLLECTION-GUIDE.md](../../../Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md), [METRICS-CATALOG.md](../../../Guides%20and%20Info/METRICS-CATALOG.md) currently describe `Fail` as 5xx/timeout. Replace with: SLO-miss (`elapsed > 1 s`) **or** non-OK HTTP status. Derived `Fail/RPS` is **not** RetryGuard ρ and **not** mesh rejection.
 
-**Still unmet (2026-09-13):** those three Guides still say `Fail` = “5xx / timeout.” That edit is still this spec’s remaining doc work. The later metrics refresh updated mesh/throttle collection text, not Fail semantics.
+**Done (2026-09-14):** those Guides (plus [HOW-TO-RUN-EXPERIMENTS.md](../../../Guides%20and%20Info/HOW-TO-RUN-EXPERIMENTS.md)) now define `Fail` as SLO-miss / non-OK, not 5xx/timeout.
 
 ---
 
@@ -151,16 +151,16 @@ Median over those high-5xx ticks. If A and B both exist and disagree, **prefer A
 
 ## 6. Tests and docs
 
-- Unit tests: difference λ; CPU-linear μ̂ on a fixture where util=0.5 and λ=100 → μ̂=200; 5xx=0 → no sat estimator; high 5xx → sat estimator used; missing detect file → error, no silent Locust fallback. **Still unmet** — `experiments/estimate_service_mu.py` and its tests do not exist.
-- Guide edits listed in §2 (`Fail` semantics; ρ vs Fail). **Still unmet** (2026-09-13).
-- `AGENTS.md` remaining-work pointer added (2026-09-13 errata). Do not duplicate the formula there.
+- Unit tests: difference λ; CPU-linear μ̂ on a fixture where util=0.5 and λ=100 → μ̂=200; 5xx=0 → no sat estimator; high 5xx → sat estimator used; missing detect file → error, no silent Locust fallback. **Done** — `experiments/test_estimate_service_mu.py`.
+- Guide edits listed in §2 (`Fail` semantics; ρ vs Fail). **Done** (2026-09-14).
+- `AGENTS.md` remaining-work pointer: μ script + Guide Fail wording marked landed; load-calibration still later. Do not duplicate the formula there.
 
 ---
 
 ## 7. Success criteria
 
-- Someone reading the Guides no longer treats run11 `Fail/RPS ≈ 1` as “Boutique returned 5xx.” **Unmet.**
-- `estimate_service_mu.py` on run11 (or checkpoint S2 run17) prints CPU-linear μ̂ / ρ for services with mesh + detect data, and does not claim sat-μ from 5xx. **Unmet.**
+- Someone reading the Guides no longer treats run11 `Fail/RPS ≈ 1` as “Boutique returned 5xx.” **Met.**
+- `estimate_service_mu.py` on run11 (or checkpoint S2 run17) prints CPU-linear μ̂ / ρ for services with mesh + detect data, and does not claim sat-μ from 5xx. **Met** on S2 run17 (all HTTP services `mu_sat=n/a`, `inbound_5xx_fraction=0`; CPU-linear μ̂ present where unsaturated ticks exist).
 - No scenario YAML load numbers change. **Held** (only `run_number` / `log_folder` / `transport` moved).
 
 ---
@@ -252,9 +252,9 @@ YAML after this trio: `scenario_1_baseline.yaml` restored to mesh+throttle+resou
 
 ## Status
 
-**Still TODO (this spec’s implementation):** Guide `Fail` wording (§2) and `experiments/estimate_service_mu.py` (§5–§7). Load-calibration (raise users until ρ_cpu > 1 or inbound 5xx moves) stays a later spec, after we decide which row of the §4 table S2 is supposed to hit. Do not raise Locust users; do not teach RetryGuard ρ.
+**Implemented (2026-09-14):** Guide `Fail` wording (§2) and `experiments/estimate_service_mu.py` (§5–§7). First successful CLI smoke: checkpoint S2 run17 — CPU-linear μ̂ for HTTP services, `mu_sat=n/a`, inbound 5xx fraction 0. Load-calibration (raise users until ρ_cpu > 1 or inbound 5xx moves) stays a later spec, after we decide which row of the §4 table S2 is supposed to hit. Do not raise Locust users; do not teach RetryGuard ρ.
 
-**Done (measurement / collector follow-ons — not the μ script):**
+**Done earlier (measurement / collector follow-ons):**
 
 - Latency-path checks above (2026-09-11).
 - S2 collector-tax recheck and S1 mesh-vs-throttle credit trio (2026-09-12). The +470 ms leftover tax in that trio is **`docker_local` history**.
@@ -262,4 +262,4 @@ YAML after this trio: `scenario_1_baseline.yaml` restored to mesh+throttle+resou
 - Mesh transport: `docker_local` landed then was replaced by `network_prometheus` on master — [2026-09-13-mesh-collector-network-scrape-design.md](2026-09-13-mesh-collector-network-scrape-design.md).
 - S1 run20 **PASS** / S2 run17 **FAIL on retry gates only** — [2026-09-13-s1-s2-baseline-metric-checkpoint.md](2026-09-13-s1-s2-baseline-metric-checkpoint.md). Same §2/§4 picture: Locust Fail is SLO-miss; inbound/outbound 5xx = 0; Envoy retry = 0; Layer B `overloaded=0` (frontend peak util 0.737). Leftover collector tax vs run10 ~**+6 ms**. Do **not** gate “collector stack works” on Envoy retry increment — Istio retries need 5xx.
 
-**YAML now:** S1 baseline **run21**, S2 baseline **run18**. Do not launch the §8 “next slot” numbers (S1 run11 / S2 run14 / S2 run17). Discovery evidence stays run11. Prefer checkpoint S2 run17 as the first μ script target (full duration, live outbound 2xx).
+**YAML now:** S1 baseline **run21**, S2 baseline **run18**. Do not launch the §8 “next slot” numbers (S1 run11 / S2 run14 / S2 run17). Discovery evidence stays run11. μ CLI target used: checkpoint S2 run17.

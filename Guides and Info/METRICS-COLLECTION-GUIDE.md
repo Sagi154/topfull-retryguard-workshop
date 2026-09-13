@@ -103,7 +103,7 @@ RPS, Fail, Goodput, Latency95, Latency99
 | Column | Meaning |
 |--------|---------|
 | `RPS` | Requests per second sent to this endpoint (offered load) |
-| `Fail` | Failed requests per second (5xx / timeout) |
+| `Fail` | Requests/sec that missed the 1 s goodput SLO (`elapsed > 1 s`) **or** got a non-OK HTTP status. A slow 200 is a Fail. |
 | `Goodput` | `RPS - Fail` — successful requests per second (the primary health metric) |
 | `Latency95` | 95th-percentile response latency in milliseconds — **the latency metric of record** (see [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 2) |
 | `Latency99` | Always `0` — hardcoded in TopFull's `metric_collector.py`, never actually computed. **Do not use.** P99 was dropped as a target metric on 2026-08-20: neither RetryGuard's paper (average-latency-based), TopFull's paper (goodput-based), nor the eval deck (generic "API latency") requires it. Column left as-is because it's written by TopFull's unmodified collector. |

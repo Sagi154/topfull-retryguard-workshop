@@ -157,4 +157,5 @@ With fraction `0.1`: S3 checkout → **100m**, S4A productcatalog → **50m** (n
 
 ## Known limitations / TODOs
 
+- **Offline per-service μ̂** — `python experiments/estimate_service_mu.py <run_dir>` prints λ / μ̂ / ρ from `service_inbound.csv` + `topfull_detect.csv` (stdlib only; no Locust / throttle inputs).
 - **Retries-per-request in the existing matrix** — the finished 38 folders predate the Envoy collector; only new runs produce `envoy_retries_*.csv`. Close this with the 48-run campaign, not by mixing datasets. See PHASE7-DATA-GAPS.md Gap 3 and PHASE7-RESOLVE-GAPS-1-3.md.

@@ -62,14 +62,14 @@ Plus two **static context artifacts** that aren't time series but are needed to 
 | Column | What it measures | Why we report it |
 |---|---|---|
 | `RPS` | Offered load to that endpoint that second | Denominator for rejection rate; sanity-checks Locust is actually driving load (`RPS=0` for the first few rows while spawning is normal, sustained `RPS=0` is a bug) |
-| `Fail` | Failed requests/sec (5xx or timeout) at the client | Numerator for rejection rate; the eval deck's core "did the system reject users" signal |
+| `Fail` | Requests/sec that missed the 1 s goodput SLO (`elapsed > 1 s`) **or** got a non-OK HTTP status. A slow 200 is a Fail. | Numerator for derived `Fail/RPS` (storefront SLO-miss). Not Boutique 5xx; not RetryGuard ρ. |
 | `Goodput` | `RPS − Fail` | **Primary health metric.** Directly comparable across scenarios/conditions; this is what "does RetryGuard help" ultimately has to move |
 | `Latency95` | 95th-percentile client latency, ms | **The latency metric of record.** P95 was chosen over mean because tail latency is what the RetryGuard/TopFull papers and the eval deck actually care about (a slow tail is what retries create) |
 | `Latency99` | Always `0` | Hardcoded no-op in TopFull's collector, never computed. Kept in the CSV only because it's TopFull's unmodified output — **do not use**. P99 was explicitly dropped as a target metric (2026-08-20): neither source paper needs it and P95 already satisfies the eval deck |
 
 ### Derived value we compute at analysis time — rejection rate
 
-Not a stored column. `rejection = Fail / RPS` (0 when `RPS == 0`). **Why derive rather than store:** it's a pure function of two columns TopFull already gives us; storing a third redundant column risks it going stale relative to the other two. **Important distinction:** this Locust-level rejection is the *storefront* outcome. RetryGuard's own decision input is a *different* rejection rate — mesh inbound `Δ5xx/Δtotal` from `service_inbound.csv` (§4) — because RetryGuard needs a per-service signal, not a per-storefront-API one. Don't conflate the two when writing the report.
+Not a stored column. `rejection = Fail / RPS` (0 when `RPS == 0`). **Why derive rather than store:** it's a pure function of two columns TopFull already gives us; storing a third redundant column risks it going stale relative to the other two. **Important distinction:** this Locust-level figure is the *storefront* SLO-miss fraction, not HTTP rejection when the client saw slow 200s. RetryGuard's own decision input is a *different* rejection rate — mesh inbound `Δ5xx/Δtotal` from `service_inbound.csv` (§4) — because RetryGuard needs a per-service signal, not a per-storefront-API one. Don't conflate the two when writing the report.
 
 ---
 
