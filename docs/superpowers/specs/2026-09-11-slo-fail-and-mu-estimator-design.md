@@ -4,7 +4,7 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 
 > Run11 looked like “Locust Fail ≈ 100% and goproxy `/stats` timing out, but Boutique pods are not CPU-overloaded and mesh 5xx is ~0.” That is not a contradiction once Locust `Fail` is read correctly: it is TopFull’s **1-second goodput SLO**, not HTTP rejection. This spec (1) records that finding so we stop treating `Fail/RPS` as RetryGuard ρ, and (2) specifies an **analysis-only** per-service μ̂ / ρ estimator from mesh inbound + detector CPU. **No Locust user-count calibration in this work** — do not raise load until we decide whether S2 should target SLO-miss, CPU-quota overload, or HTTP 5xx.
 
-Related: [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](../../../Guides%20and%20Info/PER-SERVICE-MESH-COLLECTOR-DESIGN.md), [METRICS-GATHERED.md](../../../Guides%20and%20Info/METRICS-GATHERED.md), [METRICS-CATALOG.md](../../../Guides%20and%20Info/METRICS-CATALOG.md), [TOPFULL-THROTTLE-METRICS.md](../../../Guides%20and%20Info/TOPFULL-THROTTLE-METRICS.md), RetryGuard ρ = λ/μ ([RetryGuard.pdf](../../../context/RetryGuard.pdf) §5). Evidence folder: `experiments/results/campaign_48/S2_sustained_overload/baseline_topfull_no_retryguard_sustained_overload_run11/`.
+Related: [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](../../../Guides%20and%20Info/PER-SERVICE-MESH-COLLECTOR-DESIGN.md), [METRICS-GATHERED.md](../../../Guides%20and%20Info/METRICS-GATHERED.md), [METRICS-CATALOG.md](../../../Guides%20and%20Info/METRICS-CATALOG.md), [TOPFULL-THROTTLE-METRICS.md](../../../Guides%20and%20Info/TOPFULL-THROTTLE-METRICS.md), RetryGuard ρ = λ/μ ([RetryGuard.pdf](../../../context/RetryGuard.pdf) §5). Discovery evidence: `experiments/results/campaign_48/S2_sustained_overload/baseline_topfull_no_retryguard_sustained_overload_run11/`. Current full-stack confirmation (same Fail / 5xx=0 / retry=0 picture): [2026-09-13-s1-s2-baseline-metric-checkpoint.md](2026-09-13-s1-s2-baseline-metric-checkpoint.md). Live mesh transport: [2026-09-13-mesh-collector-network-scrape-design.md](2026-09-13-mesh-collector-network-scrape-design.md). Layer A cadence: [2026-09-12-throttle-collector-split-intervals-design.md](2026-09-12-throttle-collector-split-intervals-design.md).
 
 ---
 
@@ -66,6 +66,8 @@ So the Boutique environment **is** serving the storefront APIs. Locust “100% F
 
 **Docs to fix when implementing:** [METRICS-GATHERED.md](../../../Guides%20and%20Info/METRICS-GATHERED.md), [METRICS-COLLECTION-GUIDE.md](../../../Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md), [METRICS-CATALOG.md](../../../Guides%20and%20Info/METRICS-CATALOG.md) currently describe `Fail` as 5xx/timeout. Replace with: SLO-miss (`elapsed > 1 s`) **or** non-OK HTTP status. Derived `Fail/RPS` is **not** RetryGuard ρ and **not** mesh rejection.
 
+**Still unmet (2026-09-13):** those three Guides still say `Fail` = “5xx / timeout.” That edit is still this spec’s remaining doc work. The later metrics refresh updated mesh/throttle collection text, not Fail semantics.
+
 ---
 
 ## 3. Where the extra latency / goproxy timeouts sit
@@ -82,6 +84,8 @@ This spec does **not** require pinning A to one hop. A follow-up (not this imple
 
 **B. goproxy `/stats` and `/thresholds` timeouts.**  
 Admin GETs are OnRequest hooks on the **same** `:8090` process as the data plane, with a 0.8 s collector timeout. Concurrent in-flight ≈ Σ (API RPS × latency). With getcart ~125 rps × ~3 s plus getproduct ~65 × ~2 s, hundreds of requests occupy the proxy; admin GETs queue and time out. That is expected given A. It is **not** evidence that Boutique inbound 5xx is high, and last-good + `*_fresh` already handles it for Layer A.
+
+Layer A **attempts** default to every **5 s** as of 2026-09-12 ([split-intervals design](2026-09-12-throttle-collector-split-intervals-design.md)); skipped ticks write `*_fresh=0` by design. Filter `*_fresh==1` when using Layer A. The ~24.6% freshness figure from 1 Hz attempts is historical — S2 checkpoint run17 is **1%** (55/3150), mostly not-attempted plus saturation. Do not quote 24.6% as the live number.
 
 Do not treat B as a reason to raise Locust users. More users would likely lengthen in-flight time and make `/stats` worse without moving CPU over α.
 
@@ -139,7 +143,7 @@ If there are no unsaturated ticks with traffic, do not invent μ̂; print `n/a` 
 
 Median over those high-5xx ticks. If A and B both exist and disagree, **prefer A** (non-CPU bottleneck). Run11 will have A = n/a.
 
-**CLI sketch:** `python experiments/estimate_service_mu.py <run_dir>` stdout table: service, λ mean, util peak, μ̂_cpu, μ̂_sat, ρ_cpu median, inbound 5xx fraction. Stdlib + csv only, unittest with tiny fixture CSVs. No YAML writes, no SSH.
+**CLI sketch:** `python experiments/estimate_service_mu.py <run_dir>` stdout table: service, λ mean, util peak, μ̂_cpu, μ̂_sat, ρ_cpu median, inbound 5xx fraction. Stdlib + csv only, unittest with tiny fixture CSVs. No YAML writes, no SSH. Prefer a later full-duration folder when available (`…_run17` checkpoint, else run11). Same formula.
 
 **Do not** use Locust `Fail`, Locust `RPS`, or `topfull_throttle.csv` `threshold` / `admitted_rps` as μ or λ for a Boutique service. `admitted_rps` is proxy arrival (and `/stats` logs before `Allow()`), and `threshold` is an entry-API cap.
 
@@ -147,17 +151,17 @@ Median over those high-5xx ticks. If A and B both exist and disagree, **prefer A
 
 ## 6. Tests and docs
 
-- Unit tests: difference λ; CPU-linear μ̂ on a fixture where util=0.5 and λ=100 → μ̂=200; 5xx=0 → no sat estimator; high 5xx → sat estimator used; missing detect file → error, no silent Locust fallback.
-- Guide edits listed in §2 (`Fail` semantics; ρ vs Fail).
-- `AGENTS.md` one-line pointer only if §4 status needs it — do not duplicate the formula there.
+- Unit tests: difference λ; CPU-linear μ̂ on a fixture where util=0.5 and λ=100 → μ̂=200; 5xx=0 → no sat estimator; high 5xx → sat estimator used; missing detect file → error, no silent Locust fallback. **Still unmet** — `experiments/estimate_service_mu.py` and its tests do not exist.
+- Guide edits listed in §2 (`Fail` semantics; ρ vs Fail). **Still unmet** (2026-09-13).
+- `AGENTS.md` remaining-work pointer added (2026-09-13 errata). Do not duplicate the formula there.
 
 ---
 
 ## 7. Success criteria
 
-- Someone reading the Guides no longer treats run11 `Fail/RPS ≈ 1` as “Boutique returned 5xx.”
-- `estimate_service_mu.py` on run11 prints CPU-linear μ̂ / ρ for services with mesh + detect data, and does not claim sat-μ from 5xx.
-- No scenario YAML load numbers change.
+- Someone reading the Guides no longer treats run11 `Fail/RPS ≈ 1` as “Boutique returned 5xx.” **Unmet.**
+- `estimate_service_mu.py` on run11 (or checkpoint S2 run17) prints CPU-linear μ̂ / ρ for services with mesh + detect data, and does not claim sat-μ from 5xx. **Unmet.**
+- No scenario YAML load numbers change. **Held** (only `run_number` / `log_folder` / `transport` moved).
 
 ---
 
@@ -194,7 +198,7 @@ Checks run after restoring three VirtualServices that had retries omitted (`cart
 
 **Next (out of scope for this check):** hop-level timing inside the frontend fan-out; whether to treat S2 as SLO-overload (already true for Locust path) vs chasing CPU/5xx; do **not** raise Locust users until that choice is explicit.
 
-YAML after checks: `scenario_2_baseline.yaml` restored to `enabled: true` for mesh+throttle, `duration_seconds: 600`, next free slot **run14**.
+YAML after checks: `scenario_2_baseline.yaml` restored to `enabled: true` for mesh+throttle, `duration_seconds: 600`, next free slot **run14** *at the time*. **Do not launch run14 now** — current S2 baseline slot is **run18** (see Status).
 
 ### Addendum — 2026-09-12 collector-tax recheck
 
@@ -216,7 +220,7 @@ Mesh CSVs (`service_edges.csv`, `service_inbound.csv`) landed on run15 via the t
 
 Direct GET `/cart` under load is still **>1 s** with HTTP 200 on both new cells. Boutique path alone still misses TopFull's 1 s goodput bar; collectors are not the main cause. Do **not** raise Locust users from this recheck.
 
-YAML after this recheck: `scenario_2_baseline.yaml` restored to mesh+throttle+resource **ON**, `duration_seconds: 600`, next free slot **run17**.
+YAML after this recheck: `scenario_2_baseline.yaml` restored to mesh+throttle+resource **ON**, `duration_seconds: 600`, next free slot **run17** *at the time*. That slot was later used by the 2026-09-13 checkpoint. **Do not launch it.** Current S2 baseline is **run18**.
 
 ### Addendum — 2026-09-12 S1 collector-credit trio
 
@@ -234,16 +238,28 @@ Credit vs run10 (Locust, skip first 30 s):
 - **mesh tax** ≈ run8 − run10: getcart P95 **+470 ms**, Fail **+25.2**
 - **throttle tax** ≈ run9 − run10: getcart P95 **+12 ms**, Fail **+0.4**
 
-**Verdict:** on S1, the leftover collector tax is almost entirely the **worker-local mesh** scrape (`docker_local`, 11 sidecars / 1 s / pool 4). Throttle (Layer A every 5 s + Layer B every 1 s from master) is negligible here. run7 both-on ≈ run8 mesh-only, same story.
+**Verdict (historical for `docker_local` only):** on S1, the leftover collector tax was almost entirely the **worker-local mesh** scrape (`docker_local`, 11 sidecars / 1 s / pool 4). Throttle (Layer A every 5 s + Layer B every 1 s from master) is negligible here. run7 both-on ≈ run8 mesh-only, same story.
+
+The 2026-09-13 `network_prometheus` transport superseded this leftover-tax story: S1 run20 vs run10 is ~**+6 ms** getcart P95; the cool credit pair (run18/19) is ~**+37 ms**. Do **not** use +470 ms as the live tax.
 
 Campaign S1 run6 was still ~725 ms getcart with Fail ≈ 0. run10 both-off is ~900 ms — a **cluster-age / environment** gap remains with collectors off. Do **not** treat this as “turn off mesh and S1 is campaign-clean,” and do **not** raise Locust users from this trio.
 
 Loaded GET `/cart` **direct** medians are secondary: run8’s 0.125 s looks like a soft window (Locust still showed ~1.4 s P95). Prefer Locust for the credit call.
 
-YAML after this trio: `scenario_1_baseline.yaml` restored to mesh+throttle+resource **ON**, `duration_seconds: 300`, next free slot **run11**.
+YAML after this trio: `scenario_1_baseline.yaml` restored to mesh+throttle+resource **ON**, `duration_seconds: 300`, next free slot **run11** *at the time*. S1 then jumped through later 09-13 work. **Do not launch run11.** Current S1 baseline is **run21**.
 
 ---
 
 ## Status
 
-Spec only for μ estimator. Latency-path checks above are **done** (2026-09-11). S2 collector-tax recheck and S1 mesh-vs-throttle credit trio are **done** (2026-09-12). Load-calibration (raise users until ρ_cpu > 1 or inbound 5xx moves) stays a later spec, after we decide which row of the §4 table S2 is supposed to hit.
+**Still TODO (this spec’s implementation):** Guide `Fail` wording (§2) and `experiments/estimate_service_mu.py` (§5–§7). Load-calibration (raise users until ρ_cpu > 1 or inbound 5xx moves) stays a later spec, after we decide which row of the §4 table S2 is supposed to hit. Do not raise Locust users; do not teach RetryGuard ρ.
+
+**Done (measurement / collector follow-ons — not the μ script):**
+
+- Latency-path checks above (2026-09-11).
+- S2 collector-tax recheck and S1 mesh-vs-throttle credit trio (2026-09-12). The +470 ms leftover tax in that trio is **`docker_local` history**.
+- Layer A split interval (default **5 s**) landed — [2026-09-12-throttle-collector-split-intervals-design.md](2026-09-12-throttle-collector-split-intervals-design.md).
+- Mesh transport: `docker_local` landed then was replaced by `network_prometheus` on master — [2026-09-13-mesh-collector-network-scrape-design.md](2026-09-13-mesh-collector-network-scrape-design.md).
+- S1 run20 **PASS** / S2 run17 **FAIL on retry gates only** — [2026-09-13-s1-s2-baseline-metric-checkpoint.md](2026-09-13-s1-s2-baseline-metric-checkpoint.md). Same §2/§4 picture: Locust Fail is SLO-miss; inbound/outbound 5xx = 0; Envoy retry = 0; Layer B `overloaded=0` (frontend peak util 0.737). Leftover collector tax vs run10 ~**+6 ms**. Do **not** gate “collector stack works” on Envoy retry increment — Istio retries need 5xx.
+
+**YAML now:** S1 baseline **run21**, S2 baseline **run18**. Do not launch the §8 “next slot” numbers (S1 run11 / S2 run14 / S2 run17). Discovery evidence stays run11. Prefer checkpoint S2 run17 as the first μ script target (full duration, live outbound 2xx).

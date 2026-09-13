@@ -122,6 +122,8 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 > **Do not re-run Scenario 6 until the YAMLs are bumped.** Both `experiments/configs/scenario_6_recovery_{baseline,retryguard}.yaml` still point at completed **`run3`**. Launching them as-is overwrites that folder **on master**. Bump `run_number` and `log_folder` to **run4** first. S1 baseline YAML is now **run21**; S2 baseline YAML is now **run18**. Other S1–S5 YAMLs still sit on the next free campaign-style slot (run7 / S5 run6) unless a later session bumped them.
 >
 > **Chart follow-up (do eventually):** `mentor_charts.py` / `mentor_charts_data.py` still only know Locust. Mesh `service_inbound.csv` / `service_edges.csv` are already meant as per-service **outcomes / insights**, not controller-only. Wiring them into plots is remaining work — do not treat “charts are Locust-only today” as “mesh is not an outcome.”
+>
+> **SLO-Fail / μ estimator (still open):** Locust `Fail` is a 1 s SLO-miss, not Boutique 5xx — [2026-09-11-slo-fail-and-mu-estimator-design.md](docs/superpowers/specs/2026-09-11-slo-fail-and-mu-estimator-design.md). Guide Fail wording and `estimate_service_mu.py` are still unimplemented. Do not raise Locust users until a later load-calibration spec.
 
 Optional: stop the 3 VMs when not analysing (`gcloud compute instances stop …`) to save cost.
 
