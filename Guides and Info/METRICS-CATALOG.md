@@ -95,10 +95,12 @@ Not a stored column. `rejection = Fail / RPS` (0 when `RPS == 0`). **Why derive 
 
 **Why this exists:** Locust only ever addresses 5 storefront APIs; it has no way to say anything about `paymentservice`, `currencyservice`, `shippingservice`, etc. as *services* — a `postcheckout` failure could be caused by any of six downstream services, and Locust can't tell you which. This is the eval deck's "topology beneficiaries" and "chain propagation" open question: which **service** benefited from RetryGuard, and did relief at a bottleneck propagate upstream. It's also the direct input to RetryGuard's own control loop — Algorithm 1 needs a per-service rejection rate, and Locust cannot provide one.
 
-**How it's collected:** `experiments/envoy_retry_collector.py` runs on master, and on each 1s-aligned tick `kubectl exec`s into **every** Boutique pod's `istio-proxy` sidecar (all 11 services, including `redis-cart`) and runs `curl localhost:15000/stats`, then parses two disjoint families of counters out of that one dump with two regexes:
+**How it's collected:** `experiments/envoy_retry_collector.py` runs on master (`transport: network_prometheus`). On each 1s-aligned tick a thread pool GETs `http://<pod_ip>:15020/stats/prometheus` for every Boutique pod (all 11 services, including `redis-cart`) and parses two disjoint Prometheus families out of that page:
 
-- **Outbound** (`cluster.outbound|...|<target>.…upstream_rq_{total,2xx,4xx,5xx,retry}`) — calls *this* pod's sidecar made, broken down by target → written to `service_edges.csv`, one row per `(timestamp, caller, target)` pair actually observed.
-- **Inbound listener** (`http.inbound_*.downstream_rq_{total,2xx,4xx,5xx}`) — calls *this* pod's sidecar received, from anyone → written to `service_inbound.csv`, one row per `(timestamp, service)`.
+- **Outbound** (`envoy_cluster_upstream_rq_total` / `_retry`, plus `envoy_cluster_upstream_rq{response_code_class="2xx|4xx|5xx"}` with `cluster_name="outbound|<port>||<target>.default.svc.cluster.local"`) — calls *this* pod's sidecar made, broken down by target → written to `service_edges.csv`, one row per `(timestamp, caller, target)` pair actually observed.
+- **Inbound listener** (`envoy_http_inbound_<listener>_downstream_rq_total` and `envoy_http_inbound_<listener>_downstream_rq{response_code_class="2xx|4xx|5xx"}`) — calls *this* pod's sidecar received, from anyone → written to `service_inbound.csv`, one row per `(timestamp, service)`.
+
+Files land in the run `record_path` on master during the run, so RetryGuard's `measure_value()` can read `service_inbound.csv` mid-run.
 
 **Why both directions, not just one:** Envoy fundamentally only records "I retried this call" on the **caller's** outbound stats — the callee never knows a retry happened, it just sees extra inbound requests. So:
 - Outgoing retries/goodput for a service = read its own row in `service_edges.csv` where it's the `caller`.
@@ -107,7 +109,7 @@ Not a stored column. `rejection = Fail / RPS` (0 when `RPS == 0`). **Why derive 
 
 **Why a prerequisite patch is needed:** Istio's default stats reduction strips these counters from the plain `/stats` dump to save memory. `run_scenario.py::ensure_envoy_stats_enabled()` patches a `sidecar.istio.io/statsInclusionRegexps` annotation onto all 11 Deployments before every run — without it, every column here reads `0` regardless of load (a failure mode we hit and had to diagnose once already).
 
-**Known live gap, worth reporting rather than hiding:** on our Istio/Envoy build, live outbound stats expose `total`/`retry` but **not** `2xx`/`4xx`/`5xx` — those class columns in `service_edges.csv` stay `0` under real load. Use `service_edges.csv` only for outgoing volume/retries; use `service_inbound.csv`'s status split for hop-level goodput/rejection.
+**Outbound class columns:** on this transport, `service_edges.csv` `2xx` / `4xx` / `5xx` are live. The old admin-port gap (class columns always 0) does **not** apply to new runs. Do not claim `campaign_48/` or `august_38/` have those non-zero class columns — they predate both the full-mesh files and this transport.
 
 ### Legacy shape (historical only — `campaign_48/`, `august_38/`)
 

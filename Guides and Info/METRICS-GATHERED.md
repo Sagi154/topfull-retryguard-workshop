@@ -109,11 +109,10 @@ Prerequisite (runner does this automatically): Istio hides `upstream_rq_retry*` 
 
 ## Layer 1 — Full-mesh Envoy (per-service edges, inbound, capacity)
 
-**Writer:** `experiments/envoy_retry_collector.py`. With
-`exec_mode: docker_local` (current YAML default) the process runs on
-`topfull-worker-1` (`docker exec`); `run_scenario.py` copies the two CSVs
-plus `envoy_retry_collector.log` onto master at teardown. `exec_mode:
-kubectl` is the old master-side sequential `kubectl exec` path. **Writer for capacity:** `experiments/run_scenario.py::capture_service_capacity` (once per run, before `scale_constraints`).
+**Writer:** `experiments/envoy_retry_collector.py` on `topfull-master`
+(`transport: network_prometheus`). Each poll is
+`GET http://<pod_ip>:15020/stats/prometheus`. Files are written into the run
+`record_path` on master during the run (no worker two-hop). **Writer for capacity:** `experiments/run_scenario.py::capture_service_capacity` (once per run, before `scale_constraints`).
 
 **Present only in runs launched after this collector landed** — not in `campaign_48/` or `august_38/`. The next new experiment run will be the first folder with these files.
 
@@ -134,7 +133,7 @@ timestamp, caller, target, total, 2xx, 4xx, 5xx, retry
 
 Use for outgoing retries **and** for incoming retries at a service: sum `retry` (or `Δretry`) over all rows where `target = <service>` — Envoy has no inbound retry counter.
 
-**Live outbound class-counter gap (2026-09-08 smoke):** on our Istio/Envoy sidecars, live `cluster.outbound|…upstream_rq_*` exposes `total` and `retry` but **not** `2xx` / `4xx` / `5xx`. The collector parser defaults missing metrics to 0, so `service_edges.csv` class columns stay 0 even under load. For outgoing volume and retries, use edges `total` / `retry` (and their diffs). For per-hop goodput by status, use `service_inbound.csv` `2xx` / `4xx` / `5xx` on the callee's side — do **not** treat edges class columns as live goodput.
+**Outbound class columns:** on `transport: network_prometheus`, `service_edges.csv` `2xx` / `4xx` / `5xx` are live (Prometheus `envoy_cluster_upstream_rq{response_code_class=…}`). The old admin-port gap (class columns always 0) does **not** apply to new runs. Do not claim `campaign_48/` or `august_38/` have those non-zero class columns — they predate this transport.
 
 ### `service_inbound.csv` — inbound per service
 

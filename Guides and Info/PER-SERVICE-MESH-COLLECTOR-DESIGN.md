@@ -123,13 +123,10 @@ service's original CPU limit/request/replica count into
 retries only, no inbound, no capacity snapshot). A **new run** is required to
 get `service_edges.csv` / `service_inbound.csv` / `service_capacity.json`.
 
-**Live outbound class-counter gap (2026-09-08 smoke):** live Istio/Envoy
-outbound `cluster.outbound|…upstream_rq_*` exposes `total` and `retry` but not
-`2xx` / `4xx` / `5xx`. The parser defaults missing metrics to 0, so
-`service_edges.csv` class columns stay 0 even under load. Use edges
-`total` / `retry` for outgoing volume/retries; use `service_inbound.csv`
-`2xx` / `4xx` / `5xx` for hop goodput — do not treat edges class columns as
-live goodput.
+**Outbound class columns:** on `transport: network_prometheus`,
+`service_edges.csv` `2xx` / `4xx` / `5xx` are live. The 2026-09-08 admin-port
+gap (class columns always 0) does not apply to new runs.
+`campaign_48/` / `august_38/` still have whatever they had.
 
 **Follow-up (not done here):** `experiments/mentor_charts.py` /
 `mentor_charts_data.py` still only read the legacy
@@ -137,14 +134,11 @@ live goodput.
 read `service_edges.csv` / `service_inbound.csv` for future campaigns is a
 separate task.
 
-**Worker-local exec (2026-09-12).** When `envoy_retry_collector.exec_mode`
-is `docker_local`, `experiments/envoy_retry_collector.py` runs on
-`topfull-worker-1` and scrapes each sidecar with `docker exec` (cri-dockerd),
-not `kubectl exec` from master. Parsers and CSV schemas are unchanged.
-`run_scenario.py` seeds `service → pod_name` once via kubectl on master,
-starts tmux session `meshlocal` on the worker, and at teardown two-hop
-`scp`s `service_edges.csv` / `service_inbound.csv` /
-`envoy_retry_collector.log` onto master's `results_base_path/<log_folder>/`.
-Tier-2 pod recreation is an accepted v1 gap (rate-limited warning, no
-re-seed). Do not treat this as a campaign-data change —
-`campaign_48/` / `august_38/` still have whatever they had.
+**Network scrape (2026-09-13).** `experiments/envoy_retry_collector.py` runs
+on `topfull-master` only (`transport: network_prometheus`). Each poll a
+thread pool GETs `http://<pod_ip>:15020/stats/prometheus`. The orchestrator
+seeds `service → pod_ip` once via kubectl; a fetch failure rate-limits a
+per-service re-seed (Tier-2). CSVs land in `record_path` during the run, so
+RetryGuard's `measure_value()` can read `service_inbound.csv` mid-run. Do not
+treat this as a campaign-data change — `campaign_48/` / `august_38/` still
+have whatever they had.
