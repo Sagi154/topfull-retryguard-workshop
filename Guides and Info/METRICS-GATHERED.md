@@ -243,6 +243,13 @@ not reconstructed. `overloaded` reconstructs `Detector.detect()` (cAdvisor
 CPU vs quota × alpha). It is not kubelet `resource_usage.csv`. Layers C/D
 are not collected. `mentor_charts.py` does not read these files.
 
+After every run that writes this file, report Layer B **max utilization per
+service**, **overloaded count**, **quota**, **α**, and the hottest services.
+`cadvisor_cpu>0` / `overloaded=0` alone is not enough — those two can hold
+while a service sits just under α (S1 run20 / S2 run17: frontend max util
+0.727 / 0.737, overloaded=0). Checkpoint table:
+[2026-09-13-s1-s2-baseline-metric-checkpoint.md](../docs/superpowers/specs/2026-09-13-s1-s2-baseline-metric-checkpoint.md) §6.
+
 ---
 
 ## Layer 3 — RetryGuard decisions

@@ -107,7 +107,7 @@ Without Layer A you cannot tell “TopFull clamped” from “the app died” or
 | **Utilization + quota** | “cAdvisor CPU / my quota was 0.91, and 0.91 > 0.8.” | Same detect() log: raw cAdvisor CPU, quota used, utilization. Fallback: scrape the **same** cAdvisor source `resource_collector.py` uses, plus dump the hardcoded quota dict (`cpu_quota = 200` and the per-service map). Then `util = cadvisor / quota`. Close guess — can still disagree on a given second (timing / filters). |
 | **Raw CPU alone** | Our `resource_usage.csv` millicores | Weaker. Parallel measurement; not what the detector compared to 0.8. |
 
-**Prefer `Detector.detect()`.** It is the boolean TopFull used. The cAdvisor + quota rebuild is second-best.
+**Prefer `Detector.detect()`.** It is the boolean TopFull used. The cAdvisor + quota rebuild is second-best. After every run that writes `topfull_detect.csv`, report Layer B max `utilization` per service, `overloaded` count, `quota`/`alpha`, and the hottest services — `overloaded=0` with live CPU is not a substitute for that table.
 
 Put on one timeline you want: *checkout util crossed 0.8 → detector flagged checkout → cluster included `postcheckout` → RL stepped −0.2 → cap 50→40 → admitted 37 → Locust goodput fell.*
 

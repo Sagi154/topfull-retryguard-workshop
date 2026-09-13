@@ -415,6 +415,7 @@ ssh topfull-master "wc -l /home/idozacharia/experiments/results/<log_folder>/*.c
 | `resource_usage.csv` has rows (when enabled) | `memory_working_set_bytes > 0` for `frontend` under any load | kubelet `stats/summary` blocked — check collector log on master |
 | `service_edges.csv` / `service_inbound.csv` have rows (when enabled, 2026-09-08+ runs) | Non-empty, `total` columns increasing across polls | Stats-inclusion annotation not applied yet, or `kubectl exec` blocked — check `envoy_retry_collector.log` |
 | `topfull_throttle.csv` / `topfull_detect.csv` have rows (when enabled, 2026-09-09+ runs) | `admitted_fresh`/`threshold_fresh` mostly `1`; `cadvisor_cpu > 0` under load | goproxy `/stats`/`/thresholds` timing out, or cAdvisor DaemonSet unreachable — check `topfull_throttle_collector.log` |
+| After every run: Layer B max util / overloaded / hottest (`topfull_detect.csv`) | Per-service max `utilization`, `overloaded` count, `quota`, `alpha`, hottest services. Do not stop at `overloaded=0` / `cadvisor_cpu>0` | Missing table hides “almost fired” (e.g. frontend 0.74 vs α=0.8 on S2 run17) |
 
 ---
 
