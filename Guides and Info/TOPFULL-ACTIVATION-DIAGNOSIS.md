@@ -289,6 +289,35 @@ miscoordination, which is precisely RetryGuard's stated target, not from clean 5
 
 Without 7b, RetryGuard stays inert no matter what we do to TopFull.
 
+**Why not just set `perTryTimeout: 1s` to match the SLO?** Two independent reasons this is close to
+the worst choice, not a neutral "match":
+
+1. **Neither controller actually defines "failed" via latency, so there is nothing to "coordinate"
+   with at 1 s.** TopFull's `detect()` (§2) is purely CPU-quota-based — it never looks at latency, 5xx,
+   or SLO misses at all. RetryGuard's own failure signal (`Δ5xx/Δtotal` on mesh inbound, see
+   [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md)) is a raw error rate, not a timing
+   threshold either. The "1 s" figure lives one layer away, in TopFull's **loadgen** script
+   (`TopFull/TopFull_loadgen/locust_online_boutique.py`'s `goodput_threshold`, all five APIs = 1 s),
+   which only decides whether Locust's own chart counts a completed request as `Fail` — see
+   [2026-09-11-slo-fail-and-mu-estimator-design.md](../docs/superpowers/specs/2026-09-11-slo-fail-and-mu-estimator-design.md)
+   §2. It is not an input to either controller.
+
+2. **The mechanics work against an exact match.** A retry only fires *after* the current attempt has
+   already burned through `perTryTimeout`. At `perTryTimeout: 1s`, by the time Envoy even considers a
+   2nd attempt, the request has already consumed the *entire* 1 s SLO budget on attempt 1 alone — any
+   successful retry only adds more time on top of that. So every retried request is mathematically
+   guaranteed to land on the `Fail` side of Locust's `elapsed > 1s` check, regardless of whether the
+   retry itself succeeds. That means retry load (worse during overload, the exact effect both papers
+   are trying to relieve) for zero possible improvement in Goodput/SLO compliance. With
+   `attempts: 3` and no overall route `timeout` configured in `virtual-services.yaml`, worst case a
+   single request could also occupy backend/proxy resources for ~3 s during the exact window we want
+   to shed load fast — the opposite of what an overload defense should do.
+
+   The value should instead be **meaningfully smaller than the SLO**, roughly `SLO / attempts`
+   (~300–500 ms for a 1 s SLO at 3 attempts), so a fast 2nd attempt still has a chance to land inside
+   the 1 s budget and actually convert a would-be miss into a real success — which is the only way a
+   retry can ever help the SLO metric rather than just adding pure overhead.
+
 ---
 
 ## 8. Blocker for verification
