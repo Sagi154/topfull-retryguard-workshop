@@ -22,14 +22,15 @@ python3 /home/idozacharia/experiments/retryguard.py --params /tmp/retryguard_par
 
 The experiment runner uploads params JSON and starts this script in tmux session `retryguard`.
 
-Params JSON (from the YAML `retryguard:` block):
+Params JSON (Algorithm 1 knobs from YAML `retryguard:`; attempts/timeout from top-level `retries:`, mapped by `run_scenario.py`):
 ```json
 {
   "rejection_threshold": 0.20,
   "sample_interval_seconds": 1,
   "interval_samples": 30,
   "retry_attempts_on": 3,
-  "retry_attempts_off": 0
+  "retry_attempts_off": 0,
+  "per_try_timeout_ms": 500
 }
 ```
 
@@ -56,7 +57,7 @@ Params JSON (from the YAML `retryguard:` block):
 
 | Algorithm 1 variable | Our param / behavior |
 |----------------------|----------------------|
-| `Failures` (`measure_value()`) | Inbound `Δ5xx / Δtotal` from the newest unused `service_inbound.csv` row for that service (no averaging; 4xx ignored) |
+| `Failures` (`measure_value()`) | Inbound `Δ(5xx + resets) / Δtotal` from the newest unused `service_inbound.csv` row for that service (no averaging; 4xx ignored) |
 | Loop cadence (implicit 1 measurement/iteration) | `sample_interval_seconds` (=1, one sample per second) |
 | `Threshold` | `rejection_threshold` (e.g. 0.20) |
 | `Interval` (lines 13 and 14 — symmetric, same value both directions) | `interval_samples` |
@@ -69,16 +70,18 @@ One controller state machine runs per HTTP Boutique **backend** in `CONTROLLED_S
 
 ## Metric source
 
-Reads `{record_path}/service_inbound.csv` written every 1s by `envoy_retry_collector.py` (same `record_path` as Locust CSVs). Schema: `timestamp, service, total, 2xx, 4xx, 5xx` (cumulative Envoy inbound listener counters).
+Reads `{record_path}/service_inbound.csv` written every 1s by `envoy_retry_collector.py` (same `record_path` as Locust CSVs). Schema: `timestamp, service, total, 2xx, 4xx, 5xx, resets` (cumulative Envoy inbound listener counters).
 
-Per controlled service, RetryGuard keeps the last consumed `(timestamp, total, 5xx)` in memory:
+Per controlled service, RetryGuard keeps the last consumed `(timestamp, total, 5xx, resets)` in memory:
 
 ```
-Failures = Δ5xx / Δtotal     if Δtotal > 0
-Failures = 0.0               if Δtotal <= 0 on a new timestamp
+Failures = Δ(5xx + resets) / Δtotal     if Δtotal > 0
+Failures = 0.0                           if Δtotal <= 0 on a new timestamp
 ```
 
-A repeated timestamp (collector has not appended yet) is a SKIP — do not feed Algorithm 1. The first row for a service is stored and SKIP'd (cannot difference yet). Missing file / missing service / unreadable row → SKIP. `4xx` is never used. `service_edges.csv` is never used.
+Where `resets` = `downstream_rq_rx_reset` from `service_inbound.csv` column `resets`. Rationale: per-try timeout aborts at the outbound Envoy cause `downstream_rq_rx_reset` at the backend inbound, not a 5xx HTTP response (see TOPFULL-ACTIVATION-DIAGNOSIS.md §7b).
+
+A repeated timestamp (collector has not appended yet) is a SKIP — do not feed Algorithm 1. The first row for a service is stored and SKIP'd (cannot difference yet). Missing file / missing service / unreadable row → SKIP. `4xx` is never used. `service_edges.csv` is never used. Old CSVs without a `resets` column are read as `resets=0` (backward compatible).
 
 Locust CSVs remain storefront **outcomes**. They are not the controller input.
 
@@ -110,10 +113,11 @@ Excluded: `frontend` (ingress hop; its VS stays `attempts: 3`) and `redis-cart` 
 - Resource: `networking.istio.io/v1alpha3` · plural `virtualservices` · namespace `default`
 - Flow: GET existing VS → preserve `spec.http[0].route` → merge-patch the `http` rule
 - **Disable (`retry_attempts_off: 0`):** omit the `retries` block entirely. Istio's validation webhook rejects `retries.attempts: 0` while `retryOn` (or any retry policy) is still present (`http retry policy configured when attempts are set to 0`). Merge-patch replaces the `http` array, so omitting `retries` drops it.
-- **Re-enable:** restore `retries.attempts` + `retryOn: "5xx,reset,connect-failure"`
+- **Re-enable:** restore `retries.attempts` + `retryOn: "5xx,reset,connect-failure"` + `perTryTimeout: "{per_try_timeout_ms}ms"`
+- **Why `perTryTimeout`:** our overload produces slow HTTP 2xx responses (queuing in Envoy sidecars), not 5xx. Without a per-try timeout, no retry condition is ever met and the failure signal stays zero. `perTryTimeout: 500ms` (~SLO/attempts) makes a slow upstream call a retriable `reset`-timeout under the `retryOn` policy. The resulting RST is recorded at the backend's inbound Envoy as `downstream_rq_rx_reset` (not 5xx), which is why `measure_value()` uses `Δ(5xx + resets) / Δtotal`. See TOPFULL-ACTIVATION-DIAGNOSIS.md §7b.
 - Route is preserved because Istio rejects an http rule with no route
 - Patch failures (e.g. VS missing — see PHASE5 guide §6c) are logged as `PATCH_FAIL` and do **not** update internal state
-- `run_scenario.py` also re-applies `retries.attempts=3` on all Boutique VirtualServices at end of a RetryGuard run, so a kill mid-OFF cannot leave the mesh without retries
+- `run_scenario.py` applies `perTryTimeout` at run start via `apply_per_try_timeout()` (both arms) and re-applies `retries.attempts` + `perTryTimeout` on all Boutique VirtualServices at end of a RetryGuard run, so a kill mid-OFF cannot leave the mesh without retries
 
 ---
 
