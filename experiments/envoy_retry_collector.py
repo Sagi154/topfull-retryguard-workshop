@@ -57,7 +57,7 @@ ALL_SERVICES: List[str] = [
 ]
 
 OUTBOUND_METRICS = ("total", "2xx", "4xx", "5xx", "retry")
-INBOUND_METRICS = ("total", "2xx", "4xx", "5xx")
+INBOUND_METRICS = ("total", "2xx", "4xx", "5xx", "resets")
 
 PROM_LINE_RE = re.compile(
     r"^(?P<name>[a-zA-Z_:][a-zA-Z0-9_:]*)"
@@ -75,9 +75,12 @@ INBOUND_TOTAL_NAME_RE = re.compile(
 INBOUND_CLASS_NAME_RE = re.compile(
     r"^envoy_http_inbound_(?P<listener>[\w]+)_downstream_rq$"
 )
+INBOUND_RESET_NAME_RE = re.compile(
+    r"^envoy_http_inbound_(?P<listener>[\w]+)_downstream_rq_rx_reset$"
+)
 
 EDGES_CSV_COLUMNS = ["timestamp", "caller", "target", "total", "2xx", "4xx", "5xx", "retry"]
-INBOUND_CSV_COLUMNS = ["timestamp", "service", "total", "2xx", "4xx", "5xx"]
+INBOUND_CSV_COLUMNS = ["timestamp", "service", "total", "2xx", "4xx", "5xx", "resets"]
 
 DEFAULT_POLL_INTERVAL_SECONDS = 5
 KUBECTL_TIMEOUT_SECONDS = 15
@@ -262,7 +265,7 @@ def parse_inbound(stats_text: str) -> Dict[str, int]:
 
     A pod can have more than one HTTP listener (e.g. separate ports);
     if multiple inbound listeners appear, keep the listener with the
-    largest total (do not sum). Always returns all four metrics
+    largest total (do not sum). Always returns all five metrics
     (missing -> 0).
     """
     per_listener: Dict[str, Dict[str, int]] = {}
@@ -287,6 +290,9 @@ def parse_inbound(stats_text: str) -> Dict[str, int]:
             klass = labels.get("response_code_class")
             if klass in ("2xx", "4xx", "5xx"):
                 bucket(class_m.group("listener"))[klass] = value
+        elif INBOUND_RESET_NAME_RE.match(name):
+            reset_m = INBOUND_RESET_NAME_RE.match(name)
+            bucket(reset_m.group("listener"))["resets"] = value
     if not per_listener:
         return {k: 0 for k in INBOUND_METRICS}
     chosen = max(per_listener.values(), key=lambda d: d["total"])
@@ -340,6 +346,7 @@ def write_inbound_csv(
             "2xx": inbound["2xx"],
             "4xx": inbound["4xx"],
             "5xx": inbound["5xx"],
+            "resets": inbound["resets"],
         })
 
 
