@@ -30,13 +30,17 @@ locust:
 
 scale_constraints: []
 
+# ── Retry policy (Istio VirtualService — applies both arms) ──────────────────
+retries:
+  attempts_on: 3            # retries.attempts when ON
+  attempts_off: 0           # 0 = omit retries block entirely (Istio rejects attempts: 0)
+  per_try_timeout_ms: 500   # perTryTimeout — makes slow responses retriable via reset
+
 retryguard:
   enabled: true
   rejection_threshold: 0.20
   sample_interval_seconds: 1
   interval_samples: 30         # paper default (Sec. 6.2), symmetric ON/OFF
-  retry_attempts_on: 3
-  retry_attempts_off: 0
 
 # ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
 # Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).
