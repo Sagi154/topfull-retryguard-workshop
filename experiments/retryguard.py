@@ -71,6 +71,7 @@ REQUIRED_PARAMS = (
     "interval_samples",
     "retry_attempts_on",
     "retry_attempts_off",
+    "per_try_timeout_ms",
 )
 
 # --------------------------------------------------------------------------- #
@@ -203,6 +204,7 @@ def patch_virtualservice(
     api: client.CustomObjectsApi,
     service_name: str,
     attempts: int,
+    per_try_timeout_ms: int = 500,
     namespace: str = VS_NAMESPACE,
 ) -> None:
     """
@@ -233,6 +235,7 @@ def patch_virtualservice(
         http_rule["retries"] = {
             "attempts": int(attempts),
             "retryOn": RETRY_ON,
+            "perTryTimeout": f"{per_try_timeout_ms}ms",
         }
 
     body = {"spec": {"http": [http_rule]}}
@@ -340,6 +343,7 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
     threshold = float(params["rejection_threshold"])
     attempts_on = int(params["retry_attempts_on"])
     attempts_off = int(params["retry_attempts_off"])
+    per_try_timeout_ms = int(params["per_try_timeout_ms"])
 
     wait_for_inbound_csv(record_path)
 
@@ -396,7 +400,7 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
             attempts = attempts_on if desired == "ON" else attempts_off
             old = state.retries_state
             try:
-                patch_virtualservice(api, service, attempts)
+                patch_virtualservice(api, service, attempts, per_try_timeout_ms)
             except ApiException as exc:
                 log.info(
                     "%s  PATCH_FAIL  %s  %s→%s  attempts=%d  "
