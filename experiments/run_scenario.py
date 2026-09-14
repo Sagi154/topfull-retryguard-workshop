@@ -644,12 +644,14 @@ def start_retryguard(cfg: dict):
     deploy_repo_script(master, "retryguard.py", rg_script)
 
     # Upload RetryGuard runtime parameters as JSON
+    retries_cfg = cfg.get("retries", {})
     params = {
-        "rejection_threshold":      rg_cfg["rejection_threshold"],
+        "rejection_threshold":     rg_cfg["rejection_threshold"],
         "sample_interval_seconds": rg_cfg["sample_interval_seconds"],
         "interval_samples":        rg_cfg["interval_samples"],
-        "retry_attempts_on":       rg_cfg["retry_attempts_on"],
-        "retry_attempts_off":      rg_cfg["retry_attempts_off"],
+        "retry_attempts_on":       retries_cfg["attempts_on"],
+        "retry_attempts_off":      retries_cfg["attempts_off"],
+        "per_try_timeout_ms":      retries_cfg["per_try_timeout_ms"],
     }
     write_remote_json(master, "/tmp/retryguard_params.json", params)
     step(f"Uploaded RetryGuard params: interval_samples={params['interval_samples']} "
@@ -1018,7 +1020,9 @@ def restore_virtualservice_retries(cfg: dict):
 
     banner("Restoring VirtualService retries")
     master = cfg["infra"]["master_ssh_host"]
-    attempts = int(cfg["retryguard"].get("retry_attempts_on", 3))
+    retries_cfg = cfg.get("retries", {})
+    attempts = int(retries_cfg.get("attempts_on", 3))
+    per_try_timeout_ms = int(retries_cfg.get("per_try_timeout_ms", 500))
     services = [
         "adservice", "cartservice", "checkoutservice", "currencyservice",
         "emailservice", "frontend", "paymentservice", "productcatalogservice",
@@ -1031,6 +1035,7 @@ def restore_virtualservice_retries(cfg: dict):
                     "retries": {
                         "attempts": attempts,
                         "retryOn": "5xx,reset,connect-failure",
+                        "perTryTimeout": f"{per_try_timeout_ms}ms",
                     },
                     "route": [{"destination": {"host": svc}}],
                 }]
@@ -1040,6 +1045,45 @@ def restore_virtualservice_retries(cfg: dict):
             f"kubectl patch virtualservice {svc} -n default -p '{patch}'",
             check=False)
     step(f"Restored retries.attempts={attempts} on {len(services)} VirtualServices")
+
+
+def apply_per_try_timeout(cfg: dict):
+    """
+    Patch all Boutique VirtualServices to add perTryTimeout before the run starts.
+
+    Reads from the top-level ``retries:`` block — intentionally NOT gated on
+    retryguard.enabled. Both baseline and RetryGuard arms need perTryTimeout
+    for slow-success overload to produce retriable timeouts
+    (see TOPFULL-ACTIVATION-DIAGNOSIS.md §7b).
+    """
+    retries_cfg = cfg.get("retries", {})
+    per_try_timeout_ms = int(retries_cfg.get("per_try_timeout_ms", 500))
+    attempts = int(retries_cfg.get("attempts_on", 3))
+    banner(f"Applying perTryTimeout={per_try_timeout_ms}ms to VirtualServices")
+    master = cfg["infra"]["master_ssh_host"]
+    services = [
+        "adservice", "cartservice", "checkoutservice", "currencyservice",
+        "emailservice", "frontend", "paymentservice", "productcatalogservice",
+        "recommendationservice", "shippingservice",
+    ]
+    for svc in services:
+        patch = json.dumps({
+            "spec": {
+                "http": [{
+                    "retries": {
+                        "attempts": attempts,
+                        "retryOn": "5xx,reset,connect-failure",
+                        "perTryTimeout": f"{per_try_timeout_ms}ms",
+                    },
+                    "route": [{"destination": {"host": svc}}],
+                }]
+            }
+        })
+        ssh(master,
+            f"kubectl patch virtualservice {svc} -n default "
+            f"--type merge -p '{patch}'",
+            check=False)
+    step(f"Applied perTryTimeout={per_try_timeout_ms}ms on {len(services)} VirtualServices")
 
 
 # --------------------------------------------------------------------------- #
@@ -1206,6 +1250,8 @@ def run(config_path: str):
         capacity = capture_service_capacity(cfg, ALL_BOUTIQUE_SERVICES)
         effective_quotas = write_run_quotas_json(cfg)
         ensure_detector_quota_overlay(cfg)
+
+        apply_per_try_timeout(cfg)
 
         start_master_stack(cfg)
 
