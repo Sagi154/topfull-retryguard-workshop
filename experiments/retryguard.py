@@ -122,6 +122,7 @@ class InboundSnapshot:
     timestamp: str
     total: float
     five_xx: float
+    resets: float = 0.0  # downstream_rq_rx_reset (per-try timeout aborts)
 
 
 # --------------------------------------------------------------------------- #
@@ -165,6 +166,7 @@ def read_latest_inbound_row(csv_path: Path, service: str) -> Optional[InboundSna
                 timestamp=str(row["timestamp"]),
                 total=float(row["total"]),
                 five_xx=float(row["5xx"]),
+                resets=float(row.get("resets", 0)),
             )
         except (KeyError, TypeError, ValueError):
             continue
@@ -182,10 +184,12 @@ def measure_inbound_rejection(
     if current.timestamp <= previous.timestamp:
         return None, previous
     delta_total = current.total - previous.total
-    delta_5xx = current.five_xx - previous.five_xx
+    delta_failures = (current.five_xx - previous.five_xx) + (
+        current.resets - previous.resets
+    )
     if delta_total <= 0:
         return 0.0, current
-    return delta_5xx / delta_total, current
+    return delta_failures / delta_total, current
 
 
 # --------------------------------------------------------------------------- #
