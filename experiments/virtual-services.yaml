@@ -13,6 +13,7 @@ spec:
   http:
     - retries:
         attempts: 3
+        perTryTimeout: 500ms
         retryOn: "5xx,reset,connect-failure"
       route:
         - destination:
@@ -29,6 +30,7 @@ spec:
   http:
     - retries:
         attempts: 3
+        perTryTimeout: 500ms
         retryOn: "5xx,reset,connect-failure"
       route:
         - destination:
@@ -45,6 +47,7 @@ spec:
   http:
     - retries:
         attempts: 3
+        perTryTimeout: 500ms
         retryOn: "5xx,reset,connect-failure"
       route:
         - destination:
@@ -61,6 +64,7 @@ spec:
   http:
     - retries:
         attempts: 3
+        perTryTimeout: 500ms
         retryOn: "5xx,reset,connect-failure"
       route:
         - destination:
@@ -77,6 +81,7 @@ spec:
   http:
     - retries:
         attempts: 3
+        perTryTimeout: 500ms
         retryOn: "5xx,reset,connect-failure"
       route:
         - destination:
@@ -93,6 +98,7 @@ spec:
   http:
     - retries:
         attempts: 3
+        perTryTimeout: 500ms
         retryOn: "5xx,reset,connect-failure"
       route:
         - destination:
@@ -109,6 +115,7 @@ spec:
   http:
     - retries:
         attempts: 3
+        perTryTimeout: 500ms
         retryOn: "5xx,reset,connect-failure"
       route:
         - destination:
@@ -125,6 +132,7 @@ spec:
   http:
     - retries:
         attempts: 3
+        perTryTimeout: 500ms
         retryOn: "5xx,reset,connect-failure"
       route:
         - destination:
@@ -141,6 +149,7 @@ spec:
   http:
     - retries:
         attempts: 3
+        perTryTimeout: 500ms
         retryOn: "5xx,reset,connect-failure"
       route:
         - destination:
@@ -157,6 +166,7 @@ spec:
   http:
     - retries:
         attempts: 3
+        perTryTimeout: 500ms
         retryOn: "5xx,reset,connect-failure"
       route:
         - destination:
