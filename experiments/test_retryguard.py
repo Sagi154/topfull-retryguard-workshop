@@ -58,7 +58,7 @@ if "kubernetes" not in sys.modules:
 import retryguard  # noqa: E402  (import after sys.modules stubbing above)
 
 
-INBOUND_FIELDS = ["timestamp", "service", "total", "2xx", "4xx", "5xx"]
+INBOUND_FIELDS = ["timestamp", "service", "total", "2xx", "4xx", "5xx", "resets"]
 
 
 def _write_inbound(path: Path, rows):
@@ -70,7 +70,7 @@ def _write_inbound(path: Path, rows):
             writer.writerow(row)
 
 
-def _row(ts, service, total, five_xx, four_xx=0, two_xx=0):
+def _row(ts, service, total, five_xx, four_xx=0, two_xx=0, resets=0):
     return {
         "timestamp": ts,
         "service": service,
@@ -78,6 +78,7 @@ def _row(ts, service, total, five_xx, four_xx=0, two_xx=0):
         "2xx": two_xx,
         "4xx": four_xx,
         "5xx": five_xx,
+        "resets": resets,
     }
 
 
@@ -188,6 +189,31 @@ class TestMeasureInboundRejection(unittest.TestCase):
             rate, _ = retryguard.measure_inbound_rejection(prev, first)
             self.assertEqual(rate, 0.0)
 
+    def test_resets_counted_as_failures(self):
+        """Δresets alone (no 5xx) should produce a non-zero failure rate."""
+        prev = retryguard.InboundSnapshot(
+            "2026-09-14T18:30:01Z", total=100.0, five_xx=0.0, resets=5.0
+        )
+        curr = retryguard.InboundSnapshot(
+            "2026-09-14T18:30:02Z", total=200.0, five_xx=0.0, resets=25.0
+        )
+        rate, new_prev = retryguard.measure_inbound_rejection(prev, curr)
+        # Δresets=20, Δtotal=100 → 20/100 = 0.20
+        self.assertAlmostEqual(rate, 0.20)
+        self.assertEqual(new_prev, curr)
+
+    def test_resets_and_five_xx_summed(self):
+        """Δ5xx and Δresets are summed before dividing by Δtotal."""
+        prev = retryguard.InboundSnapshot(
+            "2026-09-14T18:30:01Z", total=100.0, five_xx=5.0, resets=5.0
+        )
+        curr = retryguard.InboundSnapshot(
+            "2026-09-14T18:30:02Z", total=200.0, five_xx=15.0, resets=15.0
+        )
+        rate, _ = retryguard.measure_inbound_rejection(prev, curr)
+        # Δ5xx=10, Δresets=10, Δtotal=100 → 20/100 = 0.20
+        self.assertAlmostEqual(rate, 0.20)
+
 
 class TestApplyAlgorithm1Symmetric(unittest.TestCase):
     """
@@ -257,6 +283,7 @@ class TestLoadParamsRequiredKeys(unittest.TestCase):
     def test_new_param_names_are_required(self):
         self.assertIn("sample_interval_seconds", retryguard.REQUIRED_PARAMS)
         self.assertIn("interval_samples", retryguard.REQUIRED_PARAMS)
+        self.assertIn("per_try_timeout_ms", retryguard.REQUIRED_PARAMS)
 
     def test_old_param_names_are_no_longer_required(self):
         self.assertNotIn("window_duration_seconds", retryguard.REQUIRED_PARAMS)
@@ -275,7 +302,28 @@ class TestLoadParamsRequiredKeys(unittest.TestCase):
                         "rejection_threshold": 0.2,
                         "retry_attempts_on": 3,
                         "retry_attempts_off": 0,
-                        # sample_interval_seconds / interval_samples deliberately missing
+                        # sample_interval_seconds, interval_samples, per_try_timeout_ms deliberately missing
+                    },
+                    f,
+                )
+            with self.assertRaises(SystemExit):
+                retryguard.load_params(str(params_path))
+
+    def test_load_params_rejects_missing_per_try_timeout_ms(self):
+        import json
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmp:
+            params_path = Path(tmp) / "params.json"
+            with open(params_path, "w") as f:
+                json.dump(
+                    {
+                        "rejection_threshold": 0.2,
+                        "sample_interval_seconds": 1,
+                        "interval_samples": 30,
+                        "retry_attempts_on": 3,
+                        "retry_attempts_off": 0,
+                        # per_try_timeout_ms deliberately missing
                     },
                     f,
                 )
