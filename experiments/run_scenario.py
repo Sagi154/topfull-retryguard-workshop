@@ -563,6 +563,8 @@ def start_master_stack(cfg: dict):
     master = cfg["infra"]["master_ssh_host"]
     src = cfg["infra"]["topfull_src_path"]
     venv = cfg["infra"]["venv_activate"]
+    # Default True: omitted key preserves current behavior for all existing YAMLs.
+    rl_enabled = cfg.get("topfull_rl", {}).get("enabled", True)
 
     # Kill any stale processes first.
     # Bracket trick in -f patterns avoids pkill matching this ssh/bash -c line itself.
@@ -585,12 +587,6 @@ def start_master_stack(cfg: dict):
         f"cd {src}/proxy\n"
         f"go run proxy_online_boutique.go\n"
     )
-    rl_script = (
-        f"#!/bin/bash\n"
-        f"source {venv}\n"
-        f"cd {src}\n"
-        f"python3 deploy_rl.py\n"
-    )
     mc_script = (
         f"#!/bin/bash\n"
         f"source {venv}\n"
@@ -599,25 +595,34 @@ def start_master_stack(cfg: dict):
     )
 
     write_remote_script(master, "/tmp/rg_proxy.sh", proxy_script)
-    write_remote_script(master, "/tmp/rg_rl.sh", rl_script)
     write_remote_script(master, "/tmp/rg_mc.sh", mc_script)
 
-    # Start proxy
+    # Start proxy (always — Locust routes through :8090 regardless of RL)
     ssh(master, "tmux new-session -d -s proxy /tmp/rg_proxy.sh")
     step("Started: Go proxy (tmux session: proxy)")
     wait_with_progress(5, "proxy init")
 
-    # Start RL controller
-    ssh(master, "tmux new-session -d -s toprl /tmp/rg_rl.sh")
-    step("Started: deploy_rl.py (tmux session: toprl)")
-    wait_with_progress(20, "Ray + RL checkpoint load")
+    if rl_enabled:
+        rl_script = (
+            f"#!/bin/bash\n"
+            f"source {venv}\n"
+            f"cd {src}\n"
+            f"python3 deploy_rl.py\n"
+        )
+        write_remote_script(master, "/tmp/rg_rl.sh", rl_script)
+        ssh(master, "tmux new-session -d -s toprl /tmp/rg_rl.sh")
+        step("Started: deploy_rl.py (tmux session: toprl)")
+        wait_with_progress(20, "Ray + RL checkpoint load")
 
-    # Verify deploy_rl is running (-f matches full cmdline; process name is python3)
-    r = ssh(master, "pgrep -fa deploy_rl.py 2>/dev/null || true")
-    if "deploy_rl" not in r.stdout:
-        print("[ERROR] deploy_rl.py did not start. Check tmux session 'toprl' on master.")
-        sys.exit(1)
-    step("deploy_rl.py running [OK]")
+        # Verify deploy_rl is running (-f matches full cmdline; process name is python3)
+        r = ssh(master, "pgrep -fa deploy_rl.py 2>/dev/null || true")
+        if "deploy_rl" not in r.stdout:
+            print("[ERROR] deploy_rl.py did not start. Check tmux session 'toprl' on master.")
+            sys.exit(1)
+        step("deploy_rl.py running [OK]")
+    else:
+        step("TopFull RL loop: OFF (skipped deploy_rl.py) — "
+             "proxy passthrough only, no admission throttling.")
 
     # Start metric_collector
     ssh(master, "tmux new-session -d -s metrics /tmp/rg_mc.sh")
@@ -1142,6 +1147,7 @@ def collect_results(
         "run_number":    cfg["run_number"],
         "duration_seconds": cfg["duration_seconds"],
         "retryguard":    cfg["retryguard"],
+        "topfull_rl":    cfg.get("topfull_rl", {"enabled": True}),
         "envoy_retry_collector": envoy_collector_manifest(cfg),
         "resource_usage_collector": cfg.get("resource_usage_collector", {}),
         "topfull_throttle_collector": cfg.get("topfull_throttle_collector", {}),
@@ -1178,6 +1184,7 @@ def run(config_path: str):
     duration    = cfg["duration_seconds"]
     log_folder  = cfg["log_folder"]
     rg_enabled  = cfg["retryguard"].get("enabled", False)
+    rl_enabled  = cfg.get("topfull_rl", {}).get("enabled", True)
     phases = resolve_locust_phases(cfg)
 
     print(f"\n{'='*60}")
@@ -1185,6 +1192,7 @@ def run(config_path: str):
     print(f"  Condition: {condition}")
     print(f"  Run #    : {run_n}")
     print(f"  Duration : {duration}s  ({duration//60}m {duration%60}s)")
+    print(f"  TopFull RL: {'ON' if rl_enabled else 'OFF'}")
     print(f"  RetryGuard: {'ON' if rg_enabled else 'OFF'}")
     if rg_enabled:
         rg = cfg["retryguard"]

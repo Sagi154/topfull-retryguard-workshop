@@ -996,5 +996,97 @@ class TestMeshCollectorNetworkWiring(unittest.TestCase):
         self.assertNotIn("exec_mode", erc)
 
 
+class TestStartMasterStackTopfullRl(unittest.TestCase):
+    """topfull_rl.enabled defaults True; false skips deploy_rl but keeps proxy+metrics."""
+
+    def _cfg(self, rl_enabled=None):
+        cfg = {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "topfull_src_path": "/home/idozacharia/TopFull/src",
+                "venv_activate": "/home/idozacharia/TopFull/venv/bin/activate",
+            },
+        }
+        if rl_enabled is not None:
+            cfg["topfull_rl"] = {"enabled": rl_enabled}
+        return cfg
+
+    def _tmux_sessions(self, mock_ssh):
+        sessions = []
+        for c in mock_ssh.call_args_list:
+            cmd = c.args[1] if c.args else ""
+            if "tmux new-session" in cmd:
+                # e.g. tmux new-session -d -s toprl /tmp/rg_rl.sh
+                parts = cmd.split()
+                if "-s" in parts:
+                    sessions.append(parts[parts.index("-s") + 1])
+        return sessions
+
+    def _script_paths(self, mock_write_script):
+        return [c.args[1] for c in mock_write_script.call_args_list]
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.ssh")
+    def test_rl_disabled_skips_deploy_rl(
+        self, mock_ssh, mock_write_script, mock_wait
+    ):
+        mock_ssh.return_value = mock.Mock(stdout="", returncode=0)
+        run_scenario.start_master_stack(self._cfg(rl_enabled=False))
+
+        self.assertEqual(
+            self._tmux_sessions(mock_ssh),
+            ["proxy", "metrics"],
+        )
+        self.assertNotIn("/tmp/rg_rl.sh", self._script_paths(mock_write_script))
+        self.assertIn("/tmp/rg_proxy.sh", self._script_paths(mock_write_script))
+        self.assertIn("/tmp/rg_mc.sh", self._script_paths(mock_write_script))
+        pgrep_calls = [
+            c for c in mock_ssh.call_args_list
+            if "pgrep" in c.args[1] and "deploy_rl" in c.args[1]
+        ]
+        self.assertEqual(pgrep_calls, [])
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.ssh")
+    def test_rl_enabled_starts_deploy_rl(
+        self, mock_ssh, mock_write_script, mock_wait
+    ):
+        mock_ssh.return_value = mock.Mock(
+            stdout="12345 python3 deploy_rl.py", returncode=0
+        )
+        run_scenario.start_master_stack(self._cfg(rl_enabled=True))
+
+        self.assertEqual(
+            self._tmux_sessions(mock_ssh),
+            ["proxy", "toprl", "metrics"],
+        )
+        self.assertIn("/tmp/rg_rl.sh", self._script_paths(mock_write_script))
+        pgrep_calls = [
+            c for c in mock_ssh.call_args_list
+            if "pgrep" in c.args[1] and "deploy_rl" in c.args[1]
+        ]
+        self.assertEqual(len(pgrep_calls), 1)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.ssh")
+    def test_rl_key_absent_defaults_to_enabled(
+        self, mock_ssh, mock_write_script, mock_wait
+    ):
+        """Existing YAMLs omit topfull_rl — must still start deploy_rl."""
+        mock_ssh.return_value = mock.Mock(
+            stdout="12345 python3 deploy_rl.py", returncode=0
+        )
+        run_scenario.start_master_stack(self._cfg(rl_enabled=None))
+
+        self.assertEqual(
+            self._tmux_sessions(mock_ssh),
+            ["proxy", "toprl", "metrics"],
+        )
+        self.assertIn("/tmp/rg_rl.sh", self._script_paths(mock_write_script))
+
+
 if __name__ == "__main__":
     unittest.main()
