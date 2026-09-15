@@ -169,7 +169,56 @@ Do **not** scale replica count on the same node hoping to help TopFull — that 
 | `…/S2_sustained_overload/run_topfull_retryguard_sustained_overload_run10` | e2-16, TopFull ON + RG, zero disables |
 | `…/S2_sustained_overload/baseline_no_topfull_sustained_overload_run1` | e2-16, TopFull RL OFF, retries +211 |
 | `…/S1_normal_op/baseline_topfull_no_retryguard_normal_op_run22` | e2-16 S1, TopFull ON |
-| Next free: S1 base **run23**, S2 base **run22**, S2 RG **run11**, no-TF control **run2**, S6 **run4** |
+| `…/S2_sustained_overload/baseline_topfull_no_retryguard_sustained_overload_run22` | e2-16, TopFull ON, post-perf-fix baseline |
+| `…/S2_sustained_overload/run_topfull_retryguard_sustained_overload_run11` | e2-16, TopFull ON + RG post-perf-fix, zero disables |
+| Next free: S1 base **run23**, S2 base **run23**, S2 RG **run12**, no-TF control **run2**, S6 **run4** |
+
+---
+
+## 8. Task 3 addendum — post-perf-fix runs (2026-09-15 evening)
+
+After Tasks 1–2 fixed `retryguard.py` (InboundCsvTailer replacing polling) and `resource_usage_collector.py` (adding `__master_node__` CPU/memory row), two fresh S2 runs on e2-16 were executed from the `feature/retryguard-perf-fix` worktree:
+
+- **S2 baseline run22** — 600 s, TopFull ON, Istio retries on, no RetryGuard.
+- **S2 RetryGuard run11** — 600 s, TopFull ON, RetryGuard ON (threshold=20%, interval_samples=30).
+
+### Restart signature: CLEAN ✅
+
+All collector logs show exactly one START block at the beginning and one SHUTDOWN/EXIT at the end — no mid-run restart signatures. This confirms the Task 1 performance fix eliminated the `service_inbound.csv` read storm that caused run10's controller restarts.
+
+### Master-node CPU (new via Task 2 `__master_node__` rows)
+
+| Run | Condition | master max CPU | master mean CPU |
+|-----|-----------|---------------|----------------|
+| run22 | baseline e2-16 | 6519 m | 5608 m |
+| run11 | RG e2-16 | 6691 m | 5647 m |
+
+RG overhead on master: **+172 m max / +39 m mean** — negligible (~0.3% of 8-vCPU machine).
+
+### P95 / goodput comparison
+
+| Run | Condition | getcart mean P95 | getcart max P95 | total mean Goodput | total mean Fail |
+|-----|-----------|-----------------|-----------------|-------------------|----------------|
+| run21 | baseline e2-16 prev | 634 ms | 1600 ms | 290 rps | 422 |
+| run22 | baseline e2-16 new | 756 ms | 1700 ms | 504 rps | 109 |
+| run10 | RG e2-16 prev | 1262 ms | 2600 ms | 332 rps | 266 |
+| run11 | RG e2-16 new | 1594 ms | 2800 ms | 390 rps | 151 |
+
+Key observations:
+- **RG vs baseline P95 gap persists**: run11 RG ~1594 ms vs run22 baseline ~756 ms — roughly **2× higher P95** with RetryGuard ON. This gap was not closed by the perf fix; it existed in run10 vs run21 as well and appears structural.
+- **RG goodput slightly higher than baseline** in this pair (390 vs 504 total, but 113 vs 137 on getcart). Run-to-run variability is significant (run21 total=290 vs run22 total=504, same condition).
+- **Why RG worsens P95**: RetryGuard is NOT disabling retries (zero ON→OFF events in run11), so the Istio default 3 retries remain active. The high P95 is the retry overhead penalty without the benefit of disabling.
+
+### RetryGuard toggle events in run11: ZERO
+
+- 5553 OBSERVE lines total, only 6 had rejection > 0 (all at SHUTDOWN moment, not during run).
+- Max observed rejection: 0.6364 (adservice, at shutdown only).
+- `high` streak counter never reached `interval_samples=30` during the run.
+- Root cause: TopFull Layer A actively throttled (1220 rows with threshold < 10000), so mesh inbound services see near-zero 5xx — the RetryGuard signal source never crosses the 20% threshold during steady-state overload.
+
+### Conclusion
+
+The perf fix (Task 1+2) succeeded in eliminating restarts and measuring master CPU overhead. The fundamental finding is unchanged: **on flat S2 with TopFull ON + e2-16, RetryGuard does not disable** because TopFull absorbs overload before it reaches the mesh inbound rejection signal. Next investigation: S3/S4 with CPU constraints, or tighten `per_try_timeout_ms` further.
 
 ---
 
@@ -178,4 +227,6 @@ Do **not** scale replica count on the same node hoping to help TopFull — that 
 1. **Worker too small → TopFull never fired; e2-16 fixed that for frontend-driven S1/S2.**  
 2. **TopFull-on suppresses retries; TopFull-off brings them back (modestly on e2-16).**  
 3. **RetryGuard still does not disable under flat S2 with live TopFull.**  
-4. **Next: tighter per-try timeout and/or S3 so other services overload and retries exist in the same run.**
+4. **Post-perf-fix (run11): restarts eliminated, master RG CPU overhead negligible (+39 m mean).**
+5. **P95 gap (RG ~2× baseline) persists because RG never disables — retries stay on without any benefit.**
+6. **Next: S3/S4 with CPU constraints, or tighter per-try timeout, to produce mesh inbound 5xx that RetryGuard can detect.**
