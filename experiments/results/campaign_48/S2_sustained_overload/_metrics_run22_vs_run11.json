@@ -1,0 +1,1116 @@
+{
+  "baseline_run22": {
+    "manifest": {
+      "scenario_id": 2,
+      "condition": "baseline",
+      "run_number": 22,
+      "duration_seconds": 600,
+      "log_folder": "baseline_topfull_no_retryguard_sustained_overload_run22"
+    },
+    "locust": {
+      "getproduct": {
+        "RPS": {
+          "n": 508,
+          "mean": 147.876,
+          "median": 150.5,
+          "max": 179.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 508,
+          "mean": 15.265,
+          "median": 15.0,
+          "max": 116.5,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 508,
+          "mean": 132.611,
+          "median": 135.5,
+          "max": 168.5,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 508,
+          "mean": 606.575,
+          "median": 570.0,
+          "max": 1400.0,
+          "min": 0.0
+        },
+        "rejection": {
+          "mean": 0.104,
+          "median": 0.1,
+          "max": 0.857
+        }
+      },
+      "postcheckout": {
+        "RPS": {
+          "n": 508,
+          "mean": 19.772,
+          "median": 20.0,
+          "max": 40.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 508,
+          "mean": 0.17,
+          "median": 0.0,
+          "max": 10.0,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 508,
+          "mean": 19.601,
+          "median": 20.0,
+          "max": 40.0,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 508,
+          "mean": 466.142,
+          "median": 440.0,
+          "max": 1100.0,
+          "min": 0.0
+        },
+        "rejection": {
+          "mean": 0.009,
+          "median": 0.0,
+          "max": 0.5
+        }
+      },
+      "getcart": {
+        "RPS": {
+          "n": 508,
+          "mean": 221.47,
+          "median": 224.0,
+          "max": 268.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 508,
+          "mean": 85.291,
+          "median": 87.0,
+          "max": 181.5,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 508,
+          "mean": 136.179,
+          "median": 138.0,
+          "max": 168.5,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 508,
+          "mean": 753.996,
+          "median": 730.0,
+          "max": 1700.0,
+          "min": 0.0
+        },
+        "rejection": {
+          "mean": 0.381,
+          "median": 0.386,
+          "max": 0.819
+        }
+      },
+      "postcart": {
+        "RPS": {
+          "n": 508,
+          "mean": 110.74,
+          "median": 112.0,
+          "max": 132.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 508,
+          "mean": 8.375,
+          "median": 8.0,
+          "max": 26.5,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 508,
+          "mean": 102.365,
+          "median": 103.5,
+          "max": 130.0,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 508,
+          "mean": 194.035,
+          "median": 170.0,
+          "max": 810.0,
+          "min": 0.0
+        },
+        "rejection": {
+          "mean": 0.072,
+          "median": 0.069,
+          "max": 0.209
+        }
+      },
+      "emptycart": {
+        "RPS": {
+          "n": 508,
+          "mean": 111.482,
+          "median": 113.0,
+          "max": 133.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 508,
+          "mean": 0.242,
+          "median": 0.0,
+          "max": 30.0,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 508,
+          "mean": 111.24,
+          "median": 113.0,
+          "max": 133.0,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 508,
+          "mean": 127.671,
+          "median": 99.0,
+          "max": 800.0,
+          "min": 0.0
+        },
+        "rejection": {
+          "mean": 0.002,
+          "median": 0.0,
+          "max": 0.283
+        }
+      },
+      "total": {
+        "RPS": {
+          "n": 508,
+          "mean": 611.341,
+          "median": 621.5,
+          "max": 681.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 508,
+          "mean": 109.344,
+          "median": 111.5,
+          "max": 321.0,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 508,
+          "mean": 501.997,
+          "median": 509.25,
+          "max": 569.5,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 508,
+          "mean": 429.684,
+          "median": 413.7,
+          "max": 1002.0,
+          "min": 0.0
+        },
+        "rejection": {
+          "mean": 0.178,
+          "median": 0.179,
+          "max": 0.54
+        }
+      }
+    },
+    "top_retry_edges": [
+      {
+        "edge": "frontend->cartservice",
+        "d_retry": 11.0,
+        "d_total": 297621.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "frontend->checkoutservice",
+        "d_retry": 3.0,
+        "d_total": 12070.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->adservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->cartservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->checkoutservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->currencyservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->emailservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->frontend",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->kubernetes",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->paymentservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      }
+    ],
+    "inbound": {
+      "adservice": {
+        "total": 82054.0,
+        "2xx": 81971.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 83.0
+      },
+      "cartservice": {
+        "total": 321752.0,
+        "2xx": 321745.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 7.0
+      },
+      "checkoutservice": {
+        "total": 12070.0,
+        "2xx": 12058.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 12.0
+      },
+      "currencyservice": {
+        "total": 431192.0,
+        "2xx": 431168.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 24.0
+      },
+      "emailservice": {
+        "total": 12058.0,
+        "2xx": 12058.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 0.0
+      },
+      "frontend": {
+        "total": 309791.0,
+        "2xx": 309586.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 205.0
+      },
+      "paymentservice": {
+        "total": 12067.0,
+        "2xx": 12067.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 0.0
+      },
+      "productcatalogservice": {
+        "total": 1289345.0,
+        "2xx": 1289314.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 31.0
+      },
+      "recommendationservice": {
+        "total": 178802.0,
+        "2xx": 178787.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 15.0
+      },
+      "redis-cart": {
+        "total": 0.0,
+        "2xx": 0.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 0.0
+      },
+      "shippingservice": {
+        "total": 108766.0,
+        "2xx": 108766.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 0.0
+      }
+    },
+    "resource": {
+      "frontend": {
+        "n": 133,
+        "cpu_mean": 795.744,
+        "cpu_max": 927,
+        "mem_mean_mb": 62.162,
+        "mem_max_mb": 73.318
+      },
+      "cartservice": {
+        "n": 133,
+        "cpu_mean": 214.436,
+        "cpu_max": 377,
+        "mem_mean_mb": 80.02,
+        "mem_max_mb": 84.07
+      },
+      "checkoutservice": {
+        "n": 133,
+        "cpu_mean": 229.602,
+        "cpu_max": 276,
+        "mem_mean_mb": 51.416,
+        "mem_max_mb": 58.515
+      },
+      "productcatalogservice": {
+        "n": 133,
+        "cpu_mean": 311.977,
+        "cpu_max": 358,
+        "mem_mean_mb": 34.472,
+        "mem_max_mb": 35.844
+      },
+      "paymentservice": {
+        "n": 133,
+        "cpu_mean": 18.398,
+        "cpu_max": 29,
+        "mem_mean_mb": 63.008,
+        "mem_max_mb": 68.268
+      },
+      "recommendationservice": {
+        "n": 133,
+        "cpu_mean": 534.669,
+        "cpu_max": 644,
+        "mem_mean_mb": 100.441,
+        "mem_max_mb": 101.478
+      },
+      "shippingservice": {
+        "n": 133,
+        "cpu_mean": 61.571,
+        "cpu_max": 76,
+        "mem_mean_mb": 33.485,
+        "mem_max_mb": 35.004
+      },
+      "currencyservice": {
+        "n": 133,
+        "cpu_mean": 242.759,
+        "cpu_max": 292,
+        "mem_mean_mb": 62.565,
+        "mem_max_mb": 65.233
+      },
+      "emailservice": {
+        "n": 133,
+        "cpu_mean": 37.842,
+        "cpu_max": 45,
+        "mem_mean_mb": 94.243,
+        "mem_max_mb": 94.695
+      },
+      "adservice": {
+        "n": 133,
+        "cpu_mean": 98.15,
+        "cpu_max": 304,
+        "mem_mean_mb": 218.519,
+        "mem_max_mb": 233.05
+      },
+      "redis-cart": {
+        "n": 133,
+        "cpu_mean": 27.947,
+        "cpu_max": 35,
+        "mem_mean_mb": 30.802,
+        "mem_max_mb": 31.326
+      },
+      "__master_node__": {
+        "n": 133,
+        "cpu_mean": 5607.917,
+        "cpu_max": 6519,
+        "mem_mean_mb": 3637.282,
+        "mem_max_mb": 3700.097
+      }
+    },
+    "throttle": {
+      "active_rows": 2456,
+      "total_rows": 3150,
+      "by_api": {
+        "getproduct": {
+          "min": 0.0,
+          "mean": 88.211,
+          "n_fresh": 581
+        },
+        "postcheckout": {
+          "min": 0.0,
+          "mean": 9724.842,
+          "n_fresh": 581
+        },
+        "getcart": {
+          "min": 0.0,
+          "mean": 220.04,
+          "n_fresh": 581
+        },
+        "postcart": {
+          "min": 0.0,
+          "mean": 139.188,
+          "n_fresh": 581
+        },
+        "emptycart": {
+          "min": 0.0,
+          "mean": 218.791,
+          "n_fresh": 581
+        }
+      }
+    },
+    "detect_hot": [
+      {
+        "service": "frontend",
+        "max_util": 0.977,
+        "overloaded_rows": 511,
+        "quota": "1000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 977.0
+      },
+      {
+        "service": "productcatalogservice",
+        "max_util": 0.78,
+        "overloaded_rows": 0,
+        "quota": "500",
+        "alpha": "0.95",
+        "max_cadvisor_cpu": 390.0
+      },
+      {
+        "service": "adservice",
+        "max_util": 0.691,
+        "overloaded_rows": 0,
+        "quota": "1000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 691.0
+      },
+      {
+        "service": "cartservice",
+        "max_util": 0.414,
+        "overloaded_rows": 0,
+        "quota": "1000",
+        "alpha": "0.95",
+        "max_cadvisor_cpu": 414.0
+      },
+      {
+        "service": "checkoutservice",
+        "max_util": 0.408,
+        "overloaded_rows": 0,
+        "quota": "1000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 408.0
+      },
+      {
+        "service": "currencyservice",
+        "max_util": 0.38,
+        "overloaded_rows": 0,
+        "quota": "1000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 380.0
+      },
+      {
+        "service": "recommendationservice",
+        "max_util": 0.357,
+        "overloaded_rows": 0,
+        "quota": "2000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 715.0
+      },
+      {
+        "service": "shippingservice",
+        "max_util": 0.099,
+        "overloaded_rows": 0,
+        "quota": "1000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 99.0
+      }
+    ],
+    "retryguard": null,
+    "num_agent": {
+      "rows": 108,
+      "nonzero_rows": 13,
+      "cols": [
+        "0"
+      ]
+    }
+  },
+  "rg_run11": {
+    "manifest": {
+      "scenario_id": 2,
+      "condition": "retryguard",
+      "run_number": 11,
+      "duration_seconds": 600,
+      "log_folder": "run_topfull_retryguard_sustained_overload_run11"
+    },
+    "locust": {
+      "getproduct": {
+        "RPS": {
+          "n": 500,
+          "mean": 131.412,
+          "median": 135.0,
+          "max": 165.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 500,
+          "mean": 50.739,
+          "median": 38.0,
+          "max": 130.0,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 500,
+          "mean": 80.673,
+          "median": 98.75,
+          "max": 137.0,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 500,
+          "mean": 1114.72,
+          "median": 1100.0,
+          "max": 1800.0,
+          "min": 190.0
+        },
+        "rejection": {
+          "mean": 0.402,
+          "median": 0.277,
+          "max": 1.0
+        }
+      },
+      "postcheckout": {
+        "RPS": {
+          "n": 500,
+          "mean": 19.75,
+          "median": 20.0,
+          "max": 32.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 500,
+          "mean": 2.278,
+          "median": 1.5,
+          "max": 16.0,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 500,
+          "mean": 17.472,
+          "median": 18.5,
+          "max": 31.0,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 500,
+          "mean": 829.9,
+          "median": 820.0,
+          "max": 1500.0,
+          "min": 130.0
+        },
+        "rejection": {
+          "mean": 0.117,
+          "median": 0.075,
+          "max": 1.0
+        }
+      },
+      "getcart": {
+        "RPS": {
+          "n": 500,
+          "mean": 194.75,
+          "median": 197.0,
+          "max": 241.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 500,
+          "mean": 83.814,
+          "median": 77.0,
+          "max": 192.0,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 500,
+          "mean": 110.936,
+          "median": 122.0,
+          "max": 203.0,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 500,
+          "mean": 1590.6,
+          "median": 1600.0,
+          "max": 2800.0,
+          "min": 0.0
+        },
+        "rejection": {
+          "mean": 0.436,
+          "median": 0.384,
+          "max": 1.0
+        }
+      },
+      "postcart": {
+        "RPS": {
+          "n": 500,
+          "mean": 97.024,
+          "median": 98.5,
+          "max": 119.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 500,
+          "mean": 1.864,
+          "median": 0.0,
+          "max": 17.5,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 500,
+          "mean": 95.16,
+          "median": 96.5,
+          "max": 118.0,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 500,
+          "mean": 260.4,
+          "median": 240.0,
+          "max": 770.0,
+          "min": 160.0
+        },
+        "rejection": {
+          "mean": 0.018,
+          "median": 0.0,
+          "max": 0.152
+        }
+      },
+      "emptycart": {
+        "RPS": {
+          "n": 500,
+          "mean": 97.366,
+          "median": 98.5,
+          "max": 124.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 500,
+          "mean": 12.492,
+          "median": 13.0,
+          "max": 36.5,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 500,
+          "mean": 84.874,
+          "median": 85.0,
+          "max": 105.5,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 500,
+          "mean": 160.57,
+          "median": 140.0,
+          "max": 650.0,
+          "min": 72.0
+        },
+        "rejection": {
+          "mean": 0.123,
+          "median": 0.131,
+          "max": 0.294
+        }
+      },
+      "total": {
+        "RPS": {
+          "n": 500,
+          "mean": 540.302,
+          "median": 551.0,
+          "max": 623.0,
+          "min": 0.0
+        },
+        "Fail": {
+          "n": 500,
+          "mean": 151.187,
+          "median": 131.0,
+          "max": 322.5,
+          "min": 0.0
+        },
+        "Goodput": {
+          "n": 500,
+          "mean": 389.115,
+          "median": 419.5,
+          "max": 531.5,
+          "min": 0.0
+        },
+        "Latency95": {
+          "n": 500,
+          "mean": 791.238,
+          "median": 776.0,
+          "max": 1318.0,
+          "min": 128.0
+        },
+        "rejection": {
+          "mean": 0.284,
+          "median": 0.235,
+          "max": 0.667
+        }
+      }
+    },
+    "top_retry_edges": [
+      {
+        "edge": "adservice->adservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->cartservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->checkoutservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->currencyservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->emailservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->frontend",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->kubernetes",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->paymentservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->productcatalogservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      },
+      {
+        "edge": "adservice->recommendationservice",
+        "d_retry": 0.0,
+        "d_total": 0.0,
+        "retries_per_req": 0.0
+      }
+    ],
+    "inbound": {
+      "adservice": {
+        "total": 71078.0,
+        "2xx": 71050.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 28.0
+      },
+      "cartservice": {
+        "total": 323390.0,
+        "2xx": 323380.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 10.0
+      },
+      "checkoutservice": {
+        "total": 11342.0,
+        "2xx": 11340.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 2.0
+      },
+      "currencyservice": {
+        "total": 522860.0,
+        "2xx": 522834.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 26.0
+      },
+      "emailservice": {
+        "total": 11340.0,
+        "2xx": 11340.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 0.0
+      },
+      "frontend": {
+        "total": 312185.0,
+        "2xx": 311683.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 502.0
+      },
+      "paymentservice": {
+        "total": 11342.0,
+        "2xx": 11342.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 0.0
+      },
+      "productcatalogservice": {
+        "total": 1454159.0,
+        "2xx": 1454077.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 82.0
+      },
+      "recommendationservice": {
+        "total": 201486.0,
+        "2xx": 201450.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 36.0
+      },
+      "redis-cart": {
+        "total": 0.0,
+        "2xx": 0.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 0.0
+      },
+      "shippingservice": {
+        "total": 141513.0,
+        "2xx": 141493.0,
+        "4xx": 0.0,
+        "5xx": 0.0,
+        "resets": 20.0
+      }
+    },
+    "resource": {
+      "frontend": {
+        "n": 137,
+        "cpu_mean": 762.606,
+        "cpu_max": 900,
+        "mem_mean_mb": 71.711,
+        "mem_max_mb": 81.781
+      },
+      "cartservice": {
+        "n": 137,
+        "cpu_mean": 189.533,
+        "cpu_max": 285,
+        "mem_mean_mb": 81.72,
+        "mem_max_mb": 84.148
+      },
+      "checkoutservice": {
+        "n": 137,
+        "cpu_mean": 256.307,
+        "cpu_max": 354,
+        "mem_mean_mb": 51.126,
+        "mem_max_mb": 57.299
+      },
+      "productcatalogservice": {
+        "n": 137,
+        "cpu_mean": 309.642,
+        "cpu_max": 368,
+        "mem_mean_mb": 35.478,
+        "mem_max_mb": 36.876
+      },
+      "paymentservice": {
+        "n": 137,
+        "cpu_mean": 15.022,
+        "cpu_max": 24,
+        "mem_mean_mb": 67.433,
+        "mem_max_mb": 71.205
+      },
+      "recommendationservice": {
+        "n": 137,
+        "cpu_mean": 552.737,
+        "cpu_max": 687,
+        "mem_mean_mb": 102.33,
+        "mem_max_mb": 102.572
+      },
+      "shippingservice": {
+        "n": 137,
+        "cpu_mean": 62.204,
+        "cpu_max": 76,
+        "mem_mean_mb": 34.369,
+        "mem_max_mb": 35.48
+      },
+      "currencyservice": {
+        "n": 137,
+        "cpu_mean": 247.642,
+        "cpu_max": 294,
+        "mem_mean_mb": 63.504,
+        "mem_max_mb": 65.872
+      },
+      "emailservice": {
+        "n": 137,
+        "cpu_mean": 35.657,
+        "cpu_max": 49,
+        "mem_mean_mb": 94.767,
+        "mem_max_mb": 95.113
+      },
+      "adservice": {
+        "n": 137,
+        "cpu_mean": 68.219,
+        "cpu_max": 192,
+        "mem_mean_mb": 245.058,
+        "mem_max_mb": 254.403
+      },
+      "redis-cart": {
+        "n": 137,
+        "cpu_mean": 25.314,
+        "cpu_max": 31,
+        "mem_mean_mb": 31.667,
+        "mem_max_mb": 31.937
+      },
+      "__master_node__": {
+        "n": 137,
+        "cpu_mean": 5647.131,
+        "cpu_max": 6691,
+        "mem_mean_mb": 3982.98,
+        "mem_max_mb": 4084.167
+      }
+    },
+    "throttle": {
+      "active_rows": 2980,
+      "total_rows": 3280,
+      "by_api": {
+        "getproduct": {
+          "min": 0.0,
+          "mean": 279.036,
+          "n_fresh": 593
+        },
+        "postcheckout": {
+          "min": 0.0,
+          "mean": 202.565,
+          "n_fresh": 593
+        },
+        "getcart": {
+          "min": 0.0,
+          "mean": 356.797,
+          "n_fresh": 593
+        },
+        "postcart": {
+          "min": 0.0,
+          "mean": 203.614,
+          "n_fresh": 593
+        },
+        "emptycart": {
+          "min": 0.0,
+          "mean": 203.375,
+          "n_fresh": 593
+        }
+      }
+    },
+    "detect_hot": [
+      {
+        "service": "frontend",
+        "max_util": 0.947,
+        "overloaded_rows": 584,
+        "quota": "1000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 947.0
+      },
+      {
+        "service": "productcatalogservice",
+        "max_util": 0.814,
+        "overloaded_rows": 0,
+        "quota": "500",
+        "alpha": "0.95",
+        "max_cadvisor_cpu": 407.0
+      },
+      {
+        "service": "adservice",
+        "max_util": 0.685,
+        "overloaded_rows": 0,
+        "quota": "1000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 685.0
+      },
+      {
+        "service": "checkoutservice",
+        "max_util": 0.419,
+        "overloaded_rows": 0,
+        "quota": "1000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 419.0
+      },
+      {
+        "service": "recommendationservice",
+        "max_util": 0.384,
+        "overloaded_rows": 0,
+        "quota": "2000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 767.0
+      },
+      {
+        "service": "currencyservice",
+        "max_util": 0.372,
+        "overloaded_rows": 0,
+        "quota": "1000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 372.0
+      },
+      {
+        "service": "cartservice",
+        "max_util": 0.332,
+        "overloaded_rows": 0,
+        "quota": "1000",
+        "alpha": "0.95",
+        "max_cadvisor_cpu": 332.0
+      },
+      {
+        "service": "shippingservice",
+        "max_util": 0.117,
+        "overloaded_rows": 0,
+        "quota": "1000",
+        "alpha": "0.8",
+        "max_cadvisor_cpu": 117.0
+      }
+    ],
+    "retryguard": {
+      "observe": 5553,
+      "on_off": 0,
+      "off_on": 0,
+      "starts": 1,
+      "observe_rej_gt0": 8,
+      "max_rejection": 0.636,
+      "max_high_streak": 1
+    },
+    "num_agent": {
+      "rows": 123,
+      "nonzero_rows": 5,
+      "cols": [
+        "0"
+      ]
+    }
+  }
+}
