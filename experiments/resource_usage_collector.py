@@ -48,6 +48,7 @@ DEFAULT_SERVICES: List[str] = [
 ]
 
 SKIP_CONTAINER_NAMES = frozenset({"istio-proxy", "POD"})
+MASTER_NODE_SERVICE_LABEL = "__master_node__"
 
 DEFAULT_POLL_INTERVAL_SECONDS = 5
 KUBECTL_TIMEOUT_SECONDS = 30
@@ -236,6 +237,17 @@ def parse_stats_summary(
     return totals
 
 
+def parse_node_level_usage(summary: dict) -> Tuple[int, int]:
+    """
+    Extract node-level (not per-pod) CPU/memory from a stats/summary
+    response's top-level "node" object. Used for master's own usage,
+    where we don't care about individual system pods — just the whole
+    node's CPU/memory, the same numbers `kubectl top node` would show.
+    """
+    node = summary.get("node") or {}
+    return _container_usage(node)
+
+
 def parse_replica_counts(deploy_json: dict, services: List[str]) -> Dict[str, int]:
     """Ready replica count per deployment name."""
     counts: Dict[str, int] = {}
@@ -343,6 +355,48 @@ def discover_worker_node(
     return fallback[0] if fallback else None
 
 
+def discover_master_node(
+    run_cmd: Optional[CommandRunner] = None,
+) -> Optional[str]:
+    """Return the first Ready control-plane node name, or None if none is Ready."""
+    runner = run_cmd or default_run_cmd
+    cmd = ["kubectl", "get", "nodes", "-o", "json"]
+    try:
+        result = runner(cmd)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("%s  WARNING  discover master node failed: %s", utc_now(), exc)
+        return None
+
+    if getattr(result, "returncode", 1) != 0:
+        return None
+
+    try:
+        data = json.loads(getattr(result, "stdout", "") or "{}")
+    except json.JSONDecodeError as exc:
+        log.warning("%s  WARNING  nodes JSON parse failed: %s", utc_now(), exc)
+        return None
+
+    for item in data.get("items") or []:
+        name = (item.get("metadata") or {}).get("name")
+        if not name:
+            continue
+        labels = (item.get("metadata") or {}).get("labels") or {}
+        ready = any(
+            cond.get("type") == "Ready" and cond.get("status") == "True"
+            for cond in (item.get("status") or {}).get("conditions") or []
+        )
+        if not ready:
+            continue
+        is_control_plane = any(
+            k.startswith("node-role.kubernetes.io/control-plane")
+            or k.startswith("node-role.kubernetes.io/master")
+            for k in labels
+        )
+        if is_control_plane:
+            return name
+    return None
+
+
 def fetch_stats_summary(
     node_name: str,
     run_cmd: Optional[CommandRunner] = None,
@@ -434,8 +488,27 @@ def poll_once(
     deploy_json = fetch_deployments_json(run_cmd=runner) or {}
     replicas = parse_replica_counts(deploy_json, services)
 
+    master_node = node_cache.get("master")
+    if not master_node:
+        master_node = discover_master_node(run_cmd=runner)
+        if master_node:
+            node_cache["master"] = master_node
+        else:
+            log.warning("%s  WARNING  no control-plane node discovered", utc_now())
+
+    all_services = list(services)
+    if master_node:
+        master_summary = fetch_stats_summary(master_node, run_cmd=runner)
+        if master_summary is None:
+            node_cache.pop("master", None)
+        else:
+            cpu_mc, mem_bytes = parse_node_level_usage(master_summary)
+            usage[MASTER_NODE_SERVICE_LABEL] = (cpu_mc, mem_bytes)
+            replicas[MASTER_NODE_SERVICE_LABEL] = 1
+            all_services = all_services + [MASTER_NODE_SERVICE_LABEL]
+
     csv_path = record_path / "resource_usage.csv"
-    written = write_csv_rows(csv_path, timestamp, usage, replicas, services)
+    written = write_csv_rows(csv_path, timestamp, usage, replicas, all_services)
     if written == 0:
         log.warning(
             "%s  WARNING  no service rows written (pods=%d)",

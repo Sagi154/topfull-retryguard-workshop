@@ -143,6 +143,163 @@ class TestWriteCsvRows(unittest.TestCase):
             self.assertEqual(rows[0]["replica_count"], "1")
 
 
+class _FakeResult:
+    def __init__(self, returncode=0, stdout="", stderr=""):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+class TestDiscoverMasterNode(unittest.TestCase):
+    def test_returns_the_control_plane_labeled_node(self):
+        nodes_json = {
+            "items": [
+                {
+                    "metadata": {
+                        "name": "topfull-worker-1",
+                        "labels": {},
+                    },
+                    "status": {
+                        "conditions": [{"type": "Ready", "status": "True"}]
+                    },
+                },
+                {
+                    "metadata": {
+                        "name": "topfull-master",
+                        "labels": {
+                            "node-role.kubernetes.io/control-plane": ""
+                        },
+                    },
+                    "status": {
+                        "conditions": [{"type": "Ready", "status": "True"}]
+                    },
+                },
+            ]
+        }
+
+        def fake_run_cmd(cmd):
+            return _FakeResult(stdout=json.dumps(nodes_json))
+
+        self.assertEqual(
+            ruc.discover_master_node(run_cmd=fake_run_cmd), "topfull-master"
+        )
+
+    def test_returns_none_when_no_control_plane_node_is_ready(self):
+        nodes_json = {
+            "items": [
+                {
+                    "metadata": {"name": "topfull-worker-1", "labels": {}},
+                    "status": {
+                        "conditions": [{"type": "Ready", "status": "True"}]
+                    },
+                }
+            ]
+        }
+
+        def fake_run_cmd(cmd):
+            return _FakeResult(stdout=json.dumps(nodes_json))
+
+        self.assertIsNone(ruc.discover_master_node(run_cmd=fake_run_cmd))
+
+
+class TestParseNodeLevelUsage(unittest.TestCase):
+    def test_extracts_node_level_cpu_and_memory(self):
+        summary = {
+            "node": {
+                "cpu": {"usageNanoCores": 937000000},
+                "memory": {"workingSetBytes": 2147483648},
+            },
+            "pods": [],
+        }
+        cpu_mc, mem_bytes = ruc.parse_node_level_usage(summary)
+        self.assertEqual(cpu_mc, 937)
+        self.assertEqual(mem_bytes, 2147483648)
+
+    def test_missing_node_key_returns_zeros(self):
+        cpu_mc, mem_bytes = ruc.parse_node_level_usage({"pods": []})
+        self.assertEqual((cpu_mc, mem_bytes), (0, 0))
+
+
+class TestPollOnceWritesMasterRow(unittest.TestCase):
+    def test_master_row_is_written_alongside_service_rows(self):
+        worker_summary = {
+            "node": {"cpu": {"usageNanoCores": 0}, "memory": {"workingSetBytes": 0}},
+            "pods": [
+                {
+                    "podRef": {"name": "cartservice-abc123", "namespace": "default"},
+                    "containers": [
+                        {
+                            "name": "server",
+                            "cpu": {"usageNanoCores": 5000000},
+                            "memory": {"workingSetBytes": 1000},
+                        }
+                    ],
+                }
+            ],
+        }
+        master_summary = {
+            "node": {
+                "cpu": {"usageNanoCores": 937000000},
+                "memory": {"workingSetBytes": 2000000000},
+            },
+            "pods": [],
+        }
+
+        def fake_run_cmd(cmd):
+            if cmd[:3] == ["kubectl", "get", "nodes"]:
+                nodes_json = {
+                    "items": [
+                        {
+                            "metadata": {
+                                "name": "topfull-worker-1",
+                                "labels": {},
+                            },
+                            "status": {
+                                "conditions": [
+                                    {"type": "Ready", "status": "True"}
+                                ]
+                            },
+                        },
+                        {
+                            "metadata": {
+                                "name": "topfull-master",
+                                "labels": {
+                                    "node-role.kubernetes.io/control-plane": ""
+                                },
+                            },
+                            "status": {
+                                "conditions": [
+                                    {"type": "Ready", "status": "True"}
+                                ]
+                            },
+                        },
+                    ]
+                }
+                return _FakeResult(stdout=json.dumps(nodes_json))
+            if cmd[:3] == ["kubectl", "get", "--raw"] and "topfull-worker-1" in cmd[3]:
+                return _FakeResult(stdout=json.dumps(worker_summary))
+            if cmd[:3] == ["kubectl", "get", "--raw"] and "topfull-master" in cmd[3]:
+                return _FakeResult(stdout=json.dumps(master_summary))
+            if cmd[:3] == ["kubectl", "get", "deploy"]:
+                return _FakeResult(stdout=json.dumps({"items": []}))
+            return _FakeResult(returncode=1)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            record_path = Path(tmp)
+            ruc.poll_once(
+                record_path,
+                ["cartservice"],
+                timestamp="2026-09-15T10:00:00Z",
+                run_cmd=fake_run_cmd,
+                node_cache={},
+            )
+            rows = (record_path / "resource_usage.csv").read_text().splitlines()
+            self.assertIn("cartservice", rows[1])
+            self.assertTrue(
+                any(ruc.MASTER_NODE_SERVICE_LABEL in row for row in rows[1:])
+            )
+
+
 class TestDiscoverWorkerNode(unittest.TestCase):
     def test_prefers_non_control_plane(self):
         nodes_json = json.dumps({
