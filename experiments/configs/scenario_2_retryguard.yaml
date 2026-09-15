@@ -70,7 +70,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: run_topfull_retryguard_sustained_overload_run11
+log_folder: run_topfull_retryguard_sustained_overload_run12
 
 infra:
   master_ssh_host: topfull-master
