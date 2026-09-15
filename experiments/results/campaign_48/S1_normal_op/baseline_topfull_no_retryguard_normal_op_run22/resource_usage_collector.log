@@ -1,0 +1,4 @@
+2026-09-15T09:14:03Z  START  poll_interval=5s services=11
+2026-09-15T09:18:23Z  START  poll_interval=5s services=11
+2026-09-15T09:20:09Z  SHUTDOWN  signal=15
+2026-09-15T09:20:10Z  EXIT

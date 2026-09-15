@@ -1,0 +1,51 @@
+{
+  "scenario_id": 1,
+  "scenario_name": "normal_operation",
+  "condition": "baseline",
+  "run_number": 22,
+  "duration_seconds": 300,
+  "retryguard": {
+    "enabled": false,
+    "rejection_threshold": 0.2,
+    "sample_interval_seconds": 1,
+    "interval_samples": 30
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1,
+    "transport": "network_prometheus",
+    "max_workers": 4,
+    "exec_host": "topfull-master"
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "topfull_throttle_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1
+  },
+  "scale_constraints": [],
+  "paper_cpu_quotas": {
+    "cartservice": 1000,
+    "currencyservice": 1000,
+    "frontend": 1000,
+    "adservice": 1000,
+    "productcatalogservice": 500,
+    "checkoutservice": 1000,
+    "recommendationservice": 2000,
+    "paymentservice": 1000
+  },
+  "effective_cpu_quotas": {
+    "cartservice": 1000,
+    "currencyservice": 1000,
+    "frontend": 1000,
+    "adservice": 1000,
+    "productcatalogservice": 500,
+    "checkoutservice": 1000,
+    "recommendationservice": 2000,
+    "paymentservice": 1000
+  },
+  "log_folder": "baseline_topfull_no_retryguard_normal_op_run22",
+  "collected_at": "2026-09-15T09:24:39.717333Z"
+}

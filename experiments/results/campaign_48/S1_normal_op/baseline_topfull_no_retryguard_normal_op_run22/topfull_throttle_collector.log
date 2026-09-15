@@ -1,0 +1,10 @@
+2026-09-15T09:14:36Z  START  poll_interval=1s layer_a_poll_interval=5s
+2026-09-15T09:14:40Z  WARNING  thresholds fetch failed: <urlopen error [Errno 111] Connection refused>
+2026-09-15T09:14:40Z  WARNING  stats fetch failed: <urlopen error [Errno 111] Connection refused>
+2026-09-15T09:14:45Z  WARNING  thresholds fetch failed: <urlopen error [Errno 111] Connection refused>
+2026-09-15T09:14:45Z  WARNING  stats fetch failed: <urlopen error [Errno 111] Connection refused>
+2026-09-15T09:14:50Z  WARNING  thresholds fetch failed: <urlopen error [Errno 111] Connection refused>
+2026-09-15T09:14:50Z  WARNING  stats fetch failed: <urlopen error [Errno 111] Connection refused>
+2026-09-15T09:19:00Z  START  poll_interval=1s layer_a_poll_interval=5s
+2026-09-15T09:20:09Z  SHUTDOWN  signal=15
+2026-09-15T09:20:10Z  EXIT
