@@ -22,7 +22,7 @@
 scenario_id: 6
 scenario_name: forced_recovery
 condition: baseline
-run_number: 3                  # COMPLETED campaign slot — bump to 4 before re-running
+run_number: 4                  # COMPLETED campaign slot — bumped from run3
 description: >
   Peak overload 0-300s, then drop to ~25% load 300-900s. TopFull active,
   Istio default retries on, RetryGuard OFF. Baseline for Scenario 6 and
@@ -81,7 +81,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_topfull_no_retryguard_forced_recovery_run3   # completed; next free is _run4
+log_folder: baseline_topfull_no_retryguard_forced_recovery_run4   # bumped from run3
 
 infra:
   master_ssh_host: topfull-master

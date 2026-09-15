@@ -18,7 +18,7 @@
 scenario_id: 6
 scenario_name: forced_recovery
 condition: retryguard
-run_number: 3                  # COMPLETED campaign slot — bump to 4 before re-running
+run_number: 4                  # COMPLETED campaign slot — bumped from run3
 description: >
   Peak overload 0-300s, then drop to ~25% load 300-900s. TopFull + RetryGuard
   both active, re-enable interval = paper default (30 consecutive 1s samples = 30s).
@@ -77,7 +77,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: run_topfull_retryguard_forced_recovery_run3   # completed; next free is _run4
+log_folder: run_topfull_retryguard_forced_recovery_run4   # bumped from run3
 
 infra:
   master_ssh_host: topfull-master
