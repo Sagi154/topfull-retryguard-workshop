@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import logging
 import signal
 import sys
@@ -192,6 +193,92 @@ def measure_inbound_rejection(
     return delta_failures / delta_total, current
 
 
+class InboundCsvTailer:
+    """
+    Incrementally tails service_inbound.csv. Call poll() once per tick;
+    read self.latest[service] afterward. latest always holds the most
+    recently seen InboundSnapshot per service, even on ticks where no new
+    row arrived. Never re-parses bytes already consumed. Safe to call
+    poll() even if the file doesn't exist yet, or was truncated/recreated
+    by a collector restart (auto-resyncs from scratch in that case).
+    """
+
+    def __init__(self, csv_path: Path):
+        self.csv_path = csv_path
+        self.latest: Dict[str, InboundSnapshot] = {}
+        self._offset = 0
+        self._fieldnames: Optional[list] = None
+        self._pending = ""
+
+    def _reset(self) -> None:
+        self._offset = 0
+        self._fieldnames = None
+        self._pending = ""
+        self.latest = {}
+
+    def _apply_line(self, line: str) -> None:
+        if not line or self._fieldnames is None:
+            return
+        try:
+            values = next(csv.reader([line]))
+        except (csv.Error, StopIteration):
+            return
+        if len(values) != len(self._fieldnames):
+            return
+        row = dict(zip(self._fieldnames, values))
+        if row.get("service") is None:
+            return
+        try:
+            snapshot = InboundSnapshot(
+                timestamp=str(row["timestamp"]),
+                total=float(row["total"]),
+                five_xx=float(row["5xx"]),
+                resets=float(row.get("resets", 0)),
+            )
+        except (KeyError, TypeError, ValueError):
+            return
+        self.latest[row["service"]] = snapshot
+
+    def poll(self) -> None:
+        try:
+            size = self.csv_path.stat().st_size
+        except OSError:
+            return
+
+        if size < self._offset:
+            # Truncated or recreated (e.g. a collector restart) — resync.
+            self._reset()
+
+        try:
+            with open(self.csv_path, "r", newline="") as f:
+                if self._fieldnames is None:
+                    header_line = f.readline()
+                    if not header_line:
+                        return  # empty file so far
+                    try:
+                        self._fieldnames = next(csv.reader([header_line.rstrip("\n")]))
+                    except (csv.Error, StopIteration):
+                        return
+                    self._offset = f.tell()
+                    self._pending = ""
+                else:
+                    f.seek(self._offset)
+
+                chunk = f.read()
+                self._offset = f.tell()
+        except OSError:
+            return
+
+        if not chunk:
+            return
+
+        buf = self._pending + chunk
+        lines = buf.split("\n")
+        self._pending = lines.pop()  # trailing fragment (no newline yet)
+        for line in lines:
+            self._apply_line(line)
+
+
 # --------------------------------------------------------------------------- #
 #  VirtualService patching
 # --------------------------------------------------------------------------- #
@@ -356,6 +443,7 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
         svc: None for svc in CONTROLLED_SERVICES
     }
     inbound_path = record_path / INBOUND_CSV_NAME
+    tailer = InboundCsvTailer(inbound_path)
     log.info(
         "%s  START  threshold=%.2f sample_interval=%ss interval_samples=%d "
         "(%ds) services=%s",
@@ -372,8 +460,9 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
         if _shutdown:
             break
 
+        tailer.poll()
         for service in CONTROLLED_SERVICES:
-            current = read_latest_inbound_row(inbound_path, service)
+            current = tailer.latest.get(service)
             rejection, previous[service] = measure_inbound_rejection(
                 previous[service], current
             )

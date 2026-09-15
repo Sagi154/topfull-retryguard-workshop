@@ -137,6 +137,142 @@ class TestReadLatestInboundRow(unittest.TestCase):
             )
 
 
+class TestInboundCsvTailer(unittest.TestCase):
+    def test_missing_file_is_a_noop(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "service_inbound.csv"
+            tailer = retryguard.InboundCsvTailer(path)
+            tailer.poll()
+            self.assertEqual(tailer.latest, {})
+
+    def test_picks_up_rows_written_before_construction(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "service_inbound.csv"
+            _write_inbound(
+                path,
+                [_row("2026-09-15T10:00:00Z", "checkoutservice", 100, 10)],
+            )
+            tailer = retryguard.InboundCsvTailer(path)
+            tailer.poll()
+            self.assertEqual(
+                tailer.latest["checkoutservice"].timestamp, "2026-09-15T10:00:00Z"
+            )
+            self.assertEqual(tailer.latest["checkoutservice"].total, 100.0)
+
+    def test_second_poll_only_advances_for_new_rows(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "service_inbound.csv"
+            _write_inbound(
+                path,
+                [_row("2026-09-15T10:00:00Z", "checkoutservice", 100, 10)],
+            )
+            tailer = retryguard.InboundCsvTailer(path)
+            tailer.poll()
+            offset_after_first = tailer._offset
+
+            with open(path, "a", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=INBOUND_FIELDS)
+                writer.writerow(
+                    _row("2026-09-15T10:00:01Z", "checkoutservice", 180, 40)
+                )
+            tailer.poll()
+            self.assertEqual(
+                tailer.latest["checkoutservice"].timestamp, "2026-09-15T10:00:01Z"
+            )
+            self.assertEqual(tailer.latest["checkoutservice"].total, 180.0)
+            self.assertGreater(tailer._offset, offset_after_first)
+
+    def test_poll_with_no_new_bytes_is_a_true_noop(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "service_inbound.csv"
+            _write_inbound(
+                path,
+                [_row("2026-09-15T10:00:00Z", "checkoutservice", 100, 10)],
+            )
+            tailer = retryguard.InboundCsvTailer(path)
+            tailer.poll()
+            offset_after_first = tailer._offset
+            snapshot_after_first = tailer.latest["checkoutservice"]
+
+            tailer.poll()  # no new bytes appended
+            self.assertEqual(tailer._offset, offset_after_first)
+            self.assertEqual(tailer.latest["checkoutservice"], snapshot_after_first)
+
+    def test_file_shrinking_triggers_a_full_resync(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "service_inbound.csv"
+            _write_inbound(
+                path,
+                [
+                    _row("2026-09-15T10:00:00Z", "checkoutservice", 100, 10),
+                    _row("2026-09-15T10:00:01Z", "checkoutservice", 180, 40),
+                ],
+            )
+            tailer = retryguard.InboundCsvTailer(path)
+            tailer.poll()
+            self.assertEqual(
+                tailer.latest["checkoutservice"].total, 180.0
+            )
+
+            # Simulate a collector restart recreating the file from scratch.
+            _write_inbound(
+                path,
+                [_row("2026-09-15T10:05:00Z", "checkoutservice", 5, 0)],
+            )
+            tailer.poll()
+            self.assertEqual(tailer._offset, path.stat().st_size)
+            self.assertEqual(
+                tailer.latest["checkoutservice"].timestamp, "2026-09-15T10:05:00Z"
+            )
+            self.assertEqual(tailer.latest["checkoutservice"].total, 5.0)
+
+    def test_partial_trailing_line_is_buffered_and_completed_later(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "service_inbound.csv"
+            _write_inbound(
+                path,
+                [_row("2026-09-15T10:00:00Z", "checkoutservice", 100, 10)],
+            )
+            tailer = retryguard.InboundCsvTailer(path)
+            tailer.poll()
+
+            # Write a row without a trailing newline (writer mid-flush).
+            with open(path, "a", newline="") as f:
+                f.write("2026-09-15T10:00:01Z,checkoutservice,180,40,0,0,0")
+            tailer.poll()
+            # No newline yet -> not a complete row -> latest unchanged.
+            self.assertEqual(tailer.latest["checkoutservice"].total, 100.0)
+
+            with open(path, "a", newline="") as f:
+                f.write("\n")
+            tailer.poll()
+            self.assertEqual(tailer.latest["checkoutservice"].total, 180.0)
+
+    def test_multiple_services_interleaved_match_read_latest_inbound_row(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "service_inbound.csv"
+            _write_inbound(
+                path,
+                [
+                    _row("2026-09-15T10:00:00Z", "checkoutservice", 100, 10),
+                    _row("2026-09-15T10:00:00Z", "paymentservice", 50, 5),
+                ],
+            )
+            tailer = retryguard.InboundCsvTailer(path)
+            tailer.poll()
+
+            with open(path, "a", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=INBOUND_FIELDS)
+                writer.writerow(
+                    _row("2026-09-15T10:00:01Z", "paymentservice", 90, 9)
+                )
+            tailer.poll()
+
+            for service in ("checkoutservice", "paymentservice"):
+                expected = retryguard.read_latest_inbound_row(path, service)
+                self.assertEqual(tailer.latest[service], expected)
+
+
 class TestMeasureInboundRejection(unittest.TestCase):
     def test_delta_5xx_over_delta_total(self):
         prev = retryguard.InboundSnapshot("2026-09-10T18:30:01Z", 100.0, 10.0)
