@@ -93,6 +93,22 @@ The runner prints the exact `scp` command after each run, already pointed at the
 scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1 experiments/results/campaign_48/S2_sustained_overload/
 ```
 
+To automate that pull **and** get a per-service rho/mu.hat + RetryGuard-toggle
+report in the same step, use `pull_results.py` with the same YAML config you
+used to launch the run (it reuses `run_scenario.scenario_dir_name()` so the
+destination mapping is computed in exactly one place, not duplicated):
+
+```powershell
+python experiments/pull_results.py experiments/configs/scenario_2_baseline.yaml
+```
+
+This is purely local/read-only w.r.t. the VMs (`scp -r` pull only — it never
+touches `topfull-master`'s live collector/runner processes) and, after the
+pull, writes `rho_estimate_report.md` / `.json` into the freshly-pulled run
+folder. Pass `--no-report` to skip the report, or `--dry-run` to only print
+the scp command. The existing printed-`scp`-command behavior of
+`run_scenario.py` itself is unchanged — this is an additive convenience.
+
 ---
 
 ## Config schema reference
@@ -157,5 +173,6 @@ With fraction `0.1`: S3 checkout → **100m**, S4A productcatalog → **50m** (n
 
 ## Known limitations / TODOs
 
-- **Offline per-service μ̂** — `python experiments/estimate_service_mu.py <run_dir>` prints λ / μ̂ / ρ from `service_inbound.csv` + `topfull_detect.csv` (stdlib only; no Locust / throttle inputs).
+- **Offline per-service μ̂** — `python experiments/estimate_service_mu.py <run_dir>` prints λ / μ̂ / ρ from `service_inbound.csv` alone (stdlib only; no Locust / throttle inputs, and — since the 2026-09-16 correction — no `topfull_detect.csv` either). Corrected 2026-09-16 (see `docs/superpowers/specs/2026-09-16-rho-estimator-correction.md`): `mu_hat_w = lambda + 1/W`, the M/M/1 steady-state relation, using this service's own inbound mean sojourn time `W` from Envoy's `downstream_rq_time` histogram (`rq_time_sum_ms`/`rq_time_count` columns on `service_inbound.csv`/`service_edges.csv`, added to `envoy_retry_collector.py` the same day — runs pulled before 2026-09-16 lack these columns and report `mu_hat_w`/`rho_w` as `n/a` with an explicit note). The old `mu_cpu = lambda / utilization` estimator (TopFull's CPU-quota bookkeeping, not the paper's ρ) was removed entirely, not kept as a fallback. The saturated-goodput cross-check (`mu_sat = Δ2xx/Δt` on high-5xx ticks) is unchanged.
+- **Combined ρ + RetryGuard-toggle report** — `python experiments/rho_estimate_report.py <run_dir>` (or the `rho-estimate-report` Cursor skill under `.cursor/skills/`) writes `rho_estimate_report.md`/`.json` into the run folder itself: the same λ/μ̂/ρ table plus a summary of `retryguard.log`'s `ON→OFF`/`OFF→ON` events. Degrades gracefully (no exception) when `service_inbound.csv`, its latency columns, or `retryguard.log` are missing. `pull_results.py` calls this automatically after every pull. **Caveat carried in every report:** `mu_hat_w` assumes M/M/1 steady state (ρ<1); if a service's mean λ reaches/exceeds its own `mu_hat_w`, the report flags that assumption as likely violated rather than trusting the number. Treat `rho_w` as directional, not a precise absolute ρ — real traffic isn't exactly Poisson/exponential.
 - **Retries-per-request in the existing matrix** — the finished 38 folders predate the Envoy collector; only new runs produce `envoy_retries_*.csv`. Close this with the 48-run campaign, not by mixing datasets. See PHASE7-DATA-GAPS.md Gap 3 and PHASE7-RESOLVE-GAPS-1-3.md.

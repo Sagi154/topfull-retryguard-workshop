@@ -1,4 +1,10 @@
-"""test_estimate_service_mu.py — unit tests for offline μ / ρ estimator.
+"""test_estimate_service_mu.py — unit tests for offline mu/rho estimator.
+
+Corrected 2026-09-16: estimator is mu_hat_w = lambda + 1/W (M/M/1 steady
+state), reading only service_inbound.csv (lambda from total, W from
+rq_time_sum_ms/rq_time_count). The old CPU-linear "mu_cpu" estimator
+(topfull_detect.csv utilization) has been removed; these tests replace the
+old cpu-linear fixtures/assertions accordingly.
 
 Run:
     python -m unittest experiments.test_estimate_service_mu -v
@@ -16,10 +22,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import estimate_service_mu as mu
 
 
-def _in(ts, total, two=None, five=0):
+def _in(ts, total, two=None, five=0, rq_sum=None, rq_count=None):
     if two is None:
         two = total
-    return {
+    row = {
         "timestamp": ts,
         "service": "cartservice",
         "total": str(total),
@@ -27,6 +33,11 @@ def _in(ts, total, two=None, five=0):
         "4xx": "0",
         "5xx": str(five),
     }
+    if rq_sum is not None:
+        row["rq_time_sum_ms"] = str(rq_sum)
+    if rq_count is not None:
+        row["rq_time_count"] = str(rq_count)
+    return row
 
 
 class TestParseTimestamp(unittest.TestCase):
@@ -68,96 +79,135 @@ class TestDifferenceInbound(unittest.TestCase):
         ticks = mu.difference_inbound(rows)
         self.assertEqual(ticks[0]["lambda_s"], 100.0)
 
+    def test_no_latency_columns_gives_none_w(self):
+        rows = [
+            _in("2026-09-13T13:52:10Z", 0),
+            _in("2026-09-13T13:52:11Z", 100),
+        ]
+        ticks = mu.difference_inbound(rows)
+        self.assertFalse(ticks[0]["has_latency_cols"])
+        self.assertIsNone(ticks[0]["w_seconds"])
 
-def _tick(
-    lambda_s,
-    util,
-    alpha=0.8,
-    dtotal=100,
-    d2xx=100,
-    d5xx=0,
-    dt=1.0,
-    ts="2026-09-13T13:52:11Z",
-):
+    def test_latency_columns_give_w_seconds(self):
+        # Delta rq_time_sum_ms = 500, delta rq_time_count = 100 -> W = 5ms = 0.005s
+        rows = [
+            _in("2026-09-13T13:52:10Z", 0, rq_sum=0, rq_count=0),
+            _in("2026-09-13T13:52:11Z", 100, rq_sum=500, rq_count=100),
+        ]
+        ticks = mu.difference_inbound(rows)
+        self.assertTrue(ticks[0]["has_latency_cols"])
+        self.assertAlmostEqual(ticks[0]["w_seconds"], 0.005)
+
+    def test_zero_delta_count_gives_none_w(self):
+        rows = [
+            _in("2026-09-13T13:52:10Z", 0, rq_sum=0, rq_count=0),
+            _in("2026-09-13T13:52:11Z", 100, rq_sum=0, rq_count=0),
+        ]
+        ticks = mu.difference_inbound(rows)
+        self.assertTrue(ticks[0]["has_latency_cols"])
+        self.assertIsNone(ticks[0]["w_seconds"])
+
+
+def _tick(lambda_s, w_seconds, dtotal=100, d2xx=100, d5xx=0, dt=1.0,
+          ts="2026-09-13T13:52:11Z", has_latency_cols=True):
     return mu.Tick(
         timestamp=ts,
         dt_seconds=dt,
         lambda_s=lambda_s,
-        utilization=util,
-        alpha=alpha,
         delta_total=dtotal,
         delta_2xx=d2xx,
         delta_5xx=d5xx,
+        has_latency_cols=has_latency_cols,
+        w_seconds=w_seconds,
     )
 
 
+class TestTickMuHatWSample(unittest.TestCase):
+    def test_mu_equals_lambda_plus_inverse_w(self):
+        # lambda=80, W=0.02s (20ms) -> mu = 80 + 50 = 130
+        t = _tick(80.0, 0.02)
+        self.assertAlmostEqual(t.mu_hat_w_sample, 130.0)
+
+    def test_none_when_w_is_none(self):
+        t = _tick(80.0, None)
+        self.assertIsNone(t.mu_hat_w_sample)
+
+    def test_none_when_w_is_zero_or_negative(self):
+        self.assertIsNone(_tick(80.0, 0.0).mu_hat_w_sample)
+        self.assertIsNone(_tick(80.0, -0.01).mu_hat_w_sample)
+
+
 class TestSummarizeService(unittest.TestCase):
-    def test_cpu_linear_util_half_lambda_100(self):
-        est = mu.summarize_service("cartservice", [_tick(100.0, 0.5)])
-        self.assertEqual(est.mu_cpu, 200.0)
+    def test_mu_hat_w_from_single_tick(self):
+        # lambda=80, W=0.02 -> mu_hat_w=130, rho_w=80/130
+        est = mu.summarize_service("cartservice", [_tick(80.0, 0.02)])
+        self.assertAlmostEqual(est.mu_hat_w_median, 130.0)
+        self.assertAlmostEqual(est.rho_w_median, 80.0 / 130.0)
         self.assertIsNone(est.mu_sat)
-        self.assertEqual(est.rho_cpu_median, 0.5)
-        self.assertEqual(est.inbound_5xx_fraction, 0.0)
+        self.assertEqual(est.n_ticks_with_latency, 1)
+        self.assertIsNone(est.note)
+
+    def test_median_over_multiple_ticks(self):
+        ticks = [_tick(80.0, 0.02), _tick(80.0, 0.01)]  # mu=130, mu=180
+        est = mu.summarize_service("frontend", ticks)
+        self.assertAlmostEqual(est.mu_hat_w_median, 155.0)
+
+    def test_no_latency_columns_at_all_is_explicit_gap(self):
+        ticks = [_tick(80.0, None, has_latency_cols=False)]
+        est = mu.summarize_service("frontend", ticks)
+        self.assertIsNone(est.mu_hat_w_median)
+        self.assertIsNone(est.rho_w_median)
+        self.assertEqual(est.n_ticks_with_latency, 0)
+        self.assertEqual(est.note, mu.NO_LATENCY_COLUMNS_NOTE)
+
+    def test_latency_columns_present_but_all_zero_count(self):
+        ticks = [_tick(80.0, None, has_latency_cols=True)]
+        est = mu.summarize_service("frontend", ticks)
+        self.assertIsNone(est.mu_hat_w_median)
+        self.assertEqual(est.note, mu.NO_LATENCY_TICKS_NOTE)
+
+    def test_high_five_xx_uses_sat_mu_independent_of_latency(self):
+        # Delta5xx/Deltatotal = 10/100 = 0.10 >= 0.05; mu_sat = Delta2xx/Deltat = 90
+        est = mu.summarize_service(
+            "checkoutservice",
+            [_tick(100.0, 0.01, dtotal=100, d2xx=90, d5xx=10)],
+        )
+        self.assertEqual(est.mu_sat, 90.0)
+        # mu_hat_w still computed independently from W.
+        self.assertAlmostEqual(est.mu_hat_w_median, 200.0)
 
     def test_zero_five_xx_means_no_sat_mu(self):
-        ticks = [_tick(80.0, 0.4), _tick(90.0, 0.45)]
+        ticks = [_tick(80.0, 0.02), _tick(90.0, 0.02)]
         est = mu.summarize_service("frontend", ticks)
         self.assertIsNone(est.mu_sat)
 
-    def test_high_five_xx_uses_sat_mu(self):
-        # Δ5xx/Δtotal = 10/100 = 0.10 >= 0.05; μ_sat = Δ2xx/Δt = 90
-        est = mu.summarize_service(
-            "checkoutservice",
-            [_tick(100.0, 0.9, alpha=0.8, dtotal=100, d2xx=90, d5xx=10)],
-        )
-        self.assertEqual(est.mu_sat, 90.0)
-        self.assertIsNone(est.mu_cpu)  # util 0.9 is not < alpha 0.8
+    def test_saturation_note_when_lambda_exceeds_mu_hat(self):
+        # lambda=200, W=0.02 -> mu_hat_w = 200+50=250; lambda(200) < mu(250): no note.
+        est_ok = mu.summarize_service("cartservice", [_tick(200.0, 0.02)])
+        self.assertIsNone(est_ok.note)
 
-    def test_prefer_sat_when_both_exist(self):
+        # Construct a lambda_mean (a plain average, sensitive to outliers)
+        # that exceeds mu_hat_w_median (a median, robust to outliers): two
+        # light ticks (low lambda, low W -> mu just above their own low
+        # lambda) set a low median, one heavy tick (very high lambda, very
+        # large W i.e. a congested/slow tick -> mu barely above its own
+        # lambda) pulls the mean far above that median.
         ticks = [
-            _tick(100.0, 0.5, dtotal=100, d2xx=100, d5xx=0),
-            _tick(100.0, 0.5, dtotal=100, d2xx=80, d5xx=20),
+            _tick(1.0, 1.0),      # mu = 1 + 1 = 2
+            _tick(1.0, 1.0),      # mu = 2
+            _tick(1000.0, 1000.0),  # mu = 1000 + 0.001 ~= 1000.001
         ]
-        est = mu.summarize_service("adservice", ticks)
-        self.assertEqual(est.mu_cpu, 200.0)
-        self.assertEqual(est.mu_sat, 80.0)
+        est = mu.summarize_service("checkoutservice", ticks)
+        self.assertAlmostEqual(est.mu_hat_w_median, 2.0)
+        self.assertAlmostEqual(est.lambda_mean, (1.0 + 1.0 + 1000.0) / 3)
+        self.assertGreaterEqual(est.lambda_mean, est.mu_hat_w_median)
+        self.assertEqual(est.note, mu.SATURATION_NOTE)
 
-    def test_no_unsaturated_ticks_is_na(self):
-        est = mu.summarize_service("frontend", [_tick(100.0, 0.9, alpha=0.8)])
-        self.assertIsNone(est.mu_cpu)
-        self.assertEqual(est.util_peak, 0.9)
-
-
-class TestJoinTicks(unittest.TestCase):
-    def test_inner_join_on_timestamp(self):
-        inbound = [
-            _in("2026-09-13T13:52:10Z", 0),
-            _in("2026-09-13T13:52:11Z", 100),
-        ]
-        detect = [
-            {
-                "timestamp": "2026-09-13T13:52:11Z",
-                "service": "cartservice",
-                "cadvisor_cpu": "500",
-                "quota": "1000",
-                "alpha": "0.8",
-                "utilization": "0.5",
-                "overloaded": "0",
-            }
-        ]
-        ticks = mu.join_ticks(inbound, detect)
-        self.assertEqual(len(ticks), 1)
-        self.assertEqual(ticks[0].lambda_s, 100.0)
-        self.assertEqual(ticks[0].utilization, 0.5)
-        self.assertEqual(ticks[0].alpha, 0.8)
-
-    def test_skips_inbound_tick_without_detect(self):
-        inbound = [
-            _in("2026-09-13T13:52:10Z", 0),
-            _in("2026-09-13T13:52:11Z", 100),
-        ]
-        ticks = mu.join_ticks(inbound, [])
-        self.assertEqual(ticks, [])
+    def test_no_ticks_at_all(self):
+        est = mu.summarize_service("frontend", [])
+        self.assertIsNone(est.lambda_mean)
+        self.assertIsNone(est.mu_hat_w_median)
+        self.assertEqual(est.n_ticks_with_latency, 0)
 
 
 def _write(path, fieldnames, rows):
@@ -169,90 +219,119 @@ def _write(path, fieldnames, rows):
 
 
 class TestEstimateRun(unittest.TestCase):
-    def test_missing_detect_errors_and_ignores_locust(self):
+    def test_missing_inbound_raises(self):
         with TemporaryDirectory() as raw:
             d = Path(raw)
-            (d / "getcart.csv").write_text(
-                "RPS,Fail,Goodput\n10,10,0\n", encoding="utf-8"
-            )
-            _write(
-                d / "service_inbound.csv",
-                ["timestamp", "service", "total", "2xx", "4xx", "5xx"],
-                [
-                    {
-                        "timestamp": "2026-09-13T13:52:10Z",
-                        "service": "cartservice",
-                        "total": "100",
-                        "2xx": "100",
-                        "4xx": "0",
-                        "5xx": "0",
-                    }
-                ],
-            )
-            with self.assertRaises(mu.MissingDetectError):
+            with self.assertRaises(mu.MissingInboundError):
                 mu.estimate_run(d)
 
-    def test_folder_with_both_csvs(self):
+    def test_does_not_require_topfull_detect_csv(self):
+        """The corrected estimator no longer reads topfull_detect.csv at all."""
+        with TemporaryDirectory() as raw:
+            d = Path(raw)
+            _write(
+                d / "service_inbound.csv",
+                ["timestamp", "service", "total", "2xx", "4xx", "5xx",
+                 "rq_time_sum_ms", "rq_time_count"],
+                [
+                    {"timestamp": "2026-09-13T13:52:10Z", "service": "cartservice",
+                     "total": "0", "2xx": "0", "4xx": "0", "5xx": "0",
+                     "rq_time_sum_ms": "0", "rq_time_count": "0"},
+                    {"timestamp": "2026-09-13T13:52:11Z", "service": "cartservice",
+                     "total": "100", "2xx": "100", "4xx": "0", "5xx": "0",
+                     "rq_time_sum_ms": "2000", "rq_time_count": "100"},
+                ],
+            )
+            # No topfull_detect.csv written at all -- must not raise / not needed.
+            estimates = mu.estimate_run(d)
+            by_name = {e.service: e for e in estimates}
+            # W = 2000ms/100 = 20ms = 0.02s; lambda=100 -> mu=100+50=150
+            self.assertAlmostEqual(by_name["cartservice"].mu_hat_w_median, 150.0)
+
+    def test_folder_without_latency_columns_reports_gap(self):
         with TemporaryDirectory() as raw:
             d = Path(raw)
             _write(
                 d / "service_inbound.csv",
                 ["timestamp", "service", "total", "2xx", "4xx", "5xx"],
                 [
-                    {
-                        "timestamp": "2026-09-13T13:52:10Z",
-                        "service": "cartservice",
-                        "total": "0",
-                        "2xx": "0",
-                        "4xx": "0",
-                        "5xx": "0",
-                    },
-                    {
-                        "timestamp": "2026-09-13T13:52:11Z",
-                        "service": "cartservice",
-                        "total": "100",
-                        "2xx": "100",
-                        "4xx": "0",
-                        "5xx": "0",
-                    },
-                ],
-            )
-            _write(
-                d / "topfull_detect.csv",
-                [
-                    "timestamp",
-                    "service",
-                    "cadvisor_cpu",
-                    "quota",
-                    "alpha",
-                    "utilization",
-                    "overloaded",
-                ],
-                [
-                    {
-                        "timestamp": "2026-09-13T13:52:11Z",
-                        "service": "cartservice",
-                        "cadvisor_cpu": "500",
-                        "quota": "1000",
-                        "alpha": "0.8",
-                        "utilization": "0.5",
-                        "overloaded": "0",
-                    }
+                    {"timestamp": "2026-09-13T13:52:10Z", "service": "cartservice",
+                     "total": "0", "2xx": "0", "4xx": "0", "5xx": "0"},
+                    {"timestamp": "2026-09-13T13:52:11Z", "service": "cartservice",
+                     "total": "100", "2xx": "100", "4xx": "0", "5xx": "0"},
                 ],
             )
             estimates = mu.estimate_run(d)
-            by_name = {e.service: e for e in estimates}
-            self.assertEqual(by_name["cartservice"].mu_cpu, 200.0)
-            self.assertIsNone(by_name["cartservice"].mu_sat)
+            self.assertEqual(len(estimates), 1)
+            self.assertIsNone(estimates[0].mu_hat_w_median)
+            self.assertEqual(estimates[0].note, mu.NO_LATENCY_COLUMNS_NOTE)
 
-    def test_format_table_prints_na_for_sat(self):
+    def test_format_table_prints_na_and_notes(self):
         est = mu.ServiceEstimate(
-            "cartservice", 100.0, 0.5, 200.0, None, 0.5, 0.0
+            "cartservice", 100.0, None, None, None, None, 0, 0.0,
+            note=mu.NO_LATENCY_COLUMNS_NOTE,
         )
         text = mu.format_table([est])
         self.assertIn("cartservice", text)
         self.assertIn("n/a", text)
-        self.assertNotIn("getcart", text)
+        self.assertIn("Notes:", text)
+        self.assertIn(mu.NO_LATENCY_COLUMNS_NOTE, text)
+        self.assertIn("w_p50_ms", text)
+
+
+class TestHistogramPercentile(unittest.TestCase):
+    def test_p50_interpolates_within_bucket(self):
+        # 100 samples: 40 under 10ms, 100 under 50ms -> P50 is in [10, 50]
+        buckets = {"10": 40, "50": 100, "+Inf": 100}
+        p50 = mu.histogram_percentile(0.50, buckets)
+        self.assertIsNotNone(p50)
+        # rank=50; prev_le=10,prev_count=40; le=50,count=100
+        # frac=(50-40)/(100-40)=10/60; p50=10+10/60*40 ≈ 16.667
+        self.assertAlmostEqual(p50, 10.0 + (10.0 / 60.0) * 40.0, places=5)
+
+    def test_empty_or_zero_returns_none(self):
+        self.assertIsNone(mu.histogram_percentile(0.5, {}))
+        self.assertIsNone(mu.histogram_percentile(0.5, {"10": 0, "+Inf": 0}))
+
+    def test_delta_buckets_and_p50_from_rows(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        b0 = {"10": 0, "50": 0, "+Inf": 0}
+        b1 = {"10": 40, "50": 100, "+Inf": 100}
+        with tempfile.TemporaryDirectory() as td:
+            d = Path(td)
+            with open(d / "service_inbound.csv", "w", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(
+                    f,
+                    fieldnames=[
+                        "timestamp", "service", "total", "2xx", "4xx", "5xx",
+                        "resets", "rq_time_sum_ms", "rq_time_count", "rq_time_buckets",
+                    ],
+                )
+                w.writeheader()
+                w.writerow({
+                    "timestamp": "2026-09-16T12:00:00Z", "service": "frontend",
+                    "total": "0", "2xx": "0", "4xx": "0", "5xx": "0", "resets": "0",
+                    "rq_time_sum_ms": "0", "rq_time_count": "0",
+                    "rq_time_buckets": json.dumps(b0),
+                })
+                w.writerow({
+                    "timestamp": "2026-09-16T12:00:01Z", "service": "frontend",
+                    "total": "100", "2xx": "100", "4xx": "0", "5xx": "0", "resets": "0",
+                    # mean W = 2000/100 = 20ms
+                    "rq_time_sum_ms": "2000", "rq_time_count": "100",
+                    "rq_time_buckets": json.dumps(b1),
+                })
+            estimates = mu.estimate_run(d)
+            self.assertEqual(len(estimates), 1)
+            self.assertIsNotNone(estimates[0].w_p50_ms)
+            self.assertAlmostEqual(
+                estimates[0].w_p50_ms,
+                10.0 + (10.0 / 60.0) * 40.0,
+                places=5,
+            )
 
 
 class TestMain(unittest.TestCase):

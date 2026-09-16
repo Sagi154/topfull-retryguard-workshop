@@ -37,6 +37,18 @@ envoy_http_inbound_0_0_0_0_8080_downstream_rq{response_code_class="2xx"} 180
 envoy_http_inbound_0_0_0_0_8080_downstream_rq{response_code_class="4xx"} 15
 envoy_http_inbound_0_0_0_0_8080_downstream_rq{response_code_class="5xx"} 5
 envoy_http_inbound_0_0_0_0_8080_downstream_rq_completed{} 180
+envoy_cluster_upstream_rq_time_sum{cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 4500
+envoy_cluster_upstream_rq_time_count{cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 100
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_sum{} 9000
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_count{} 200
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_bucket{le="0.5"} 0
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_bucket{le="1"} 10
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_bucket{le="5"} 50
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_bucket{le="10"} 100
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_bucket{le="25"} 180
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_bucket{le="50"} 195
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_bucket{le="100"} 200
+envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_bucket{le="+Inf"} 200
 """
 
 
@@ -49,14 +61,20 @@ class TestParseEdges(unittest.TestCase):
         edges = erc.parse_edges(SAMPLE_MESH_STATS)
         self.assertEqual(
             edges["cartservice"],
-            {"total": 100, "2xx": 90, "4xx": 8, "5xx": 2, "retry": 12},
+            {
+                "total": 100, "2xx": 90, "4xx": 8, "5xx": 2, "retry": 12,
+                "rq_time_sum_ms": 4500, "rq_time_count": 100,
+            },
         )
 
     def test_missing_metrics_default_to_zero(self):
         edges = erc.parse_edges(SAMPLE_MESH_STATS)
         self.assertEqual(
             edges["productcatalogservice"],
-            {"total": 50, "2xx": 0, "4xx": 0, "5xx": 0, "retry": 3},
+            {
+                "total": 50, "2xx": 0, "4xx": 0, "5xx": 0, "retry": 3,
+                "rq_time_sum_ms": 0, "rq_time_count": 0,
+            },
         )
 
     def test_target_never_seen_is_absent_not_zero_filled(self):
@@ -68,18 +86,43 @@ class TestParseEdges(unittest.TestCase):
 
 
 class TestParseInbound(unittest.TestCase):
-    def test_extracts_all_four_metrics(self):
+    def test_extracts_all_metrics(self):
         inbound = erc.parse_inbound(SAMPLE_MESH_STATS)
-        self.assertEqual(
-            inbound, {"total": 200, "2xx": 180, "4xx": 15, "5xx": 5}
-        )
+        self.assertEqual(inbound["total"], 200)
+        self.assertEqual(inbound["2xx"], 180)
+        self.assertEqual(inbound["4xx"], 15)
+        self.assertEqual(inbound["5xx"], 5)
+        self.assertEqual(inbound["resets"], 0)
+        self.assertEqual(inbound["rq_time_sum_ms"], 9000)
+        self.assertEqual(inbound["rq_time_count"], 200)
+        import json
+        buckets = json.loads(inbound["rq_time_buckets"])
+        self.assertEqual(buckets["10"], 100)
+        self.assertEqual(buckets["+Inf"], 200)
 
     def test_no_inbound_lines_returns_zeros(self):
         inbound = erc.parse_inbound(
             "cluster.outbound|80||cartservice.default.svc.cluster.local."
             "upstream_rq_total: 100\n"
         )
-        self.assertEqual(inbound, {"total": 0, "2xx": 0, "4xx": 0, "5xx": 0})
+        self.assertEqual(
+            inbound,
+            {
+                "total": 0, "2xx": 0, "4xx": 0, "5xx": 0, "resets": 0,
+                "rq_time_sum_ms": 0, "rq_time_count": 0, "rq_time_buckets": "",
+            },
+        )
+
+    def test_rq_time_sum_and_count_parsed_independently(self):
+        text = (
+            "envoy_http_inbound_0_0_0_0_8080_downstream_rq_total{} 10\n"
+            "envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_sum{} 250\n"
+            "envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_count{} 10\n"
+        )
+        inbound = erc.parse_inbound(text)
+        self.assertEqual(inbound["rq_time_sum_ms"], 250)
+        self.assertEqual(inbound["rq_time_count"], 10)
+        self.assertEqual(inbound["rq_time_buckets"], "")
 
 class TestParsePromLabels(unittest.TestCase):
     def test_empty_braces(self):
@@ -140,12 +183,21 @@ class TestWriteEdgesCsv(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "service_edges.csv"
             edges_t0 = {
-                "cartservice": {"total": 10, "2xx": 9, "4xx": 1, "5xx": 0, "retry": 2},
-                "paymentservice": {"total": 5, "2xx": 5, "4xx": 0, "5xx": 0, "retry": 0},
+                "cartservice": {
+                    "total": 10, "2xx": 9, "4xx": 1, "5xx": 0, "retry": 2,
+                    "rq_time_sum_ms": 400, "rq_time_count": 10,
+                },
+                "paymentservice": {
+                    "total": 5, "2xx": 5, "4xx": 0, "5xx": 0, "retry": 0,
+                    "rq_time_sum_ms": 100, "rq_time_count": 5,
+                },
             }
             erc.write_edges_csv(path, "2026-09-08T12:00:00Z", "checkoutservice", edges_t0)
             edges_t1 = {
-                "cartservice": {"total": 20, "2xx": 18, "4xx": 2, "5xx": 0, "retry": 3},
+                "cartservice": {
+                    "total": 20, "2xx": 18, "4xx": 2, "5xx": 0, "retry": 3,
+                    "rq_time_sum_ms": 900, "rq_time_count": 20,
+                },
             }
             erc.write_edges_csv(path, "2026-09-08T12:00:05Z", "checkoutservice", edges_t1)
 
@@ -175,11 +227,19 @@ class TestWriteInboundCsv(unittest.TestCase):
             path = Path(td) / "service_inbound.csv"
             erc.write_inbound_csv(
                 path, "2026-09-08T12:00:00Z", "frontend",
-                {"total": 100, "2xx": 90, "4xx": 8, "5xx": 2},
+                {
+                    "total": 100, "2xx": 90, "4xx": 8, "5xx": 2, "resets": 0,
+                    "rq_time_sum_ms": 500, "rq_time_count": 100,
+                    "rq_time_buckets": '{"10":50,"+Inf":100}',
+                },
             )
             erc.write_inbound_csv(
                 path, "2026-09-08T12:00:05Z", "frontend",
-                {"total": 150, "2xx": 140, "4xx": 8, "5xx": 2},
+                {
+                    "total": 150, "2xx": 140, "4xx": 8, "5xx": 2, "resets": 0,
+                    "rq_time_sum_ms": 800, "rq_time_count": 150,
+                    "rq_time_buckets": '{"10":80,"+Inf":150}',
+                },
             )
             with open(path, newline="") as f:
                 rows = list(csv.DictReader(f))
@@ -187,6 +247,8 @@ class TestWriteInboundCsv(unittest.TestCase):
             self.assertEqual(rows[0]["service"], "frontend")
             self.assertEqual(rows[0]["total"], "100")
             self.assertEqual(rows[1]["total"], "150")
+            self.assertIn("rq_time_buckets", rows[0])
+            self.assertEqual(rows[0]["rq_time_buckets"], '{"10":50,"+Inf":100}')
 
 
 class TestPrometheusStatsUrl(unittest.TestCase):

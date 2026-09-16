@@ -11,6 +11,62 @@ two shared CSVs under {record_path}/:
     service_inbound.csv — inbound downstream_rq_* per service
 
 Retries-per-request and offered-load deltas are derived at analysis time.
+
+Latency columns (added 2026-09-16, additive — see
+docs/superpowers/specs/2026-09-16-rho-estimator-correction.md):
+Envoy's histogram stats are exposed on /stats/prometheus as three separate
+series per histogram (`_bucket`, `_sum`, `_count`). Both CSVs gained two
+trailing columns, `rq_time_sum_ms` / `rq_time_count`, cumulative counters
+just like the existing `total`/`2xx`/etc columns — diff them the same way
+(Δrq_time_sum_ms / Δrq_time_count = mean sojourn time for that tick).
+`service_inbound.csv` also gained `rq_time_buckets`: a JSON object of the
+cumulative histogram bucket counts keyed by `le` (ms), so
+`estimate_service_mu.py` can derive a per-tick P50 by differencing buckets
+between consecutive polls (more robust than the mean under long-tail
+latency). Rows from before this change simply don't have these columns;
+`csv.DictReader` consumers see them as a missing key, not a schema break.
+Outbound: `envoy_cluster_upstream_rq_time_sum`/`_count`, keyed by the same
+`cluster_name` label already used for `envoy_cluster_upstream_rq_total`.
+Inbound: `envoy_http_inbound_<listener>_downstream_rq_time_sum`/`_count`,
+matching the existing `envoy_http_inbound_<listener>_downstream_rq_total`
+naming already parsed below.
+
+**Verified live against this cluster on 2026-09-16** (see
+docs/superpowers/specs/2026-09-16-rho-estimator-correction.md §"Live
+verification follow-up"):
+
+- INBOUND is confirmed correct as written. A live `curl .../stats/prometheus`
+  against a freshly-started `frontend` pod showed
+  `envoy_http_inbound_0_0_0_0_8080_downstream_rq_time_{bucket,sum,count}`
+  present (as a `# TYPE ... histogram`) even before any traffic — Istio's
+  default minimal proxy-stats set includes per-listener HTTP connection-
+  manager stats (low cardinality: ~1 listener/pod), so `_sum`/`_count`
+  populate under real traffic exactly as this collector assumes.
+- OUTBOUND (`envoy_cluster_upstream_rq_time_{sum,count}`) does **not**
+  appear at all in this cluster's `/stats/prometheus` output — confirmed by
+  diffing the full scrape's `# TYPE ... histogram` lines: only
+  `envoy_cluster_upstream_cx_connect_ms`/`_length_ms` and the inbound HTTP
+  histogram exist; there is no `envoy_cluster_upstream_rq_time` histogram
+  for any outbound cluster. This is expected, documented Istio behavior,
+  not a bug in this collector's regex/string match: per-cluster
+  `upstream_rq_time` is a *detailed* stat Istio excludes from its default
+  minimal proxy-stats set (to bound cardinality — N clusters per pod vs. 1
+  listener per pod), and only appears if `proxyStatsMatcher.inclusionSuffixes`
+  (or `inclusionRegexps`) includes `upstream_rq_time`, set either mesh-wide
+  (`meshConfig.defaultConfig`) or per-workload (`proxy.istio.io/config`
+  annotation) — either way requiring **every Boutique pod to restart** to
+  pick up the new sidecar bootstrap config. That is a deliberate,
+  cluster-wide infra change out of scope for this collector fix (and not
+  needed today: `estimate_service_mu.py` only reads `service_inbound.csv`,
+  never `service_edges.csv`'s latency columns). Net effect: on this cluster,
+  `service_edges.csv`'s `rq_time_sum_ms`/`rq_time_count` will read
+  structurally zero on every row, forever, until that mesh-config change is
+  made — this is a **known, disclosed limitation** (the stat does not
+  exist to scrape), not a transient "no traffic yet" zero. The
+  outbound-parsing code below is left as-is (it is the correct Envoy naming
+  convention, ready to work the moment the stat is enabled) rather than
+  removed, since removing it would just delete otherwise-correct,
+  forward-compatible logic for zero benefit.
 """
 from __future__ import annotations
 
@@ -29,7 +85,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 # --------------------------------------------------------------------------- #
 #  Constants
@@ -56,8 +112,8 @@ ALL_SERVICES: List[str] = [
     "redis-cart",
 ]
 
-OUTBOUND_METRICS = ("total", "2xx", "4xx", "5xx", "retry")
-INBOUND_METRICS = ("total", "2xx", "4xx", "5xx", "resets")
+OUTBOUND_METRICS = ("total", "2xx", "4xx", "5xx", "retry", "rq_time_sum_ms", "rq_time_count")
+INBOUND_METRICS = ("total", "2xx", "4xx", "5xx", "resets", "rq_time_sum_ms", "rq_time_count")
 
 PROM_LINE_RE = re.compile(
     r"^(?P<name>[a-zA-Z_:][a-zA-Z0-9_:]*)"
@@ -78,9 +134,28 @@ INBOUND_CLASS_NAME_RE = re.compile(
 INBOUND_RESET_NAME_RE = re.compile(
     r"^envoy_http_inbound_(?P<listener>[\w]+)_downstream_rq_rx_reset$"
 )
+# Latency histogram mean, via _sum/_count (skip _bucket — see module docstring).
+INBOUND_RQ_TIME_SUM_RE = re.compile(
+    r"^envoy_http_inbound_(?P<listener>[\w]+)_downstream_rq_time_sum$"
+)
+INBOUND_RQ_TIME_COUNT_RE = re.compile(
+    r"^envoy_http_inbound_(?P<listener>[\w]+)_downstream_rq_time_count$"
+)
+INBOUND_RQ_TIME_BUCKET_RE = re.compile(
+    r"^envoy_http_inbound_(?P<listener>[\w]+)_downstream_rq_time_bucket$"
+)
 
-EDGES_CSV_COLUMNS = ["timestamp", "caller", "target", "total", "2xx", "4xx", "5xx", "retry"]
-INBOUND_CSV_COLUMNS = ["timestamp", "service", "total", "2xx", "4xx", "5xx", "resets"]
+# New trailing columns are additive — appended at the end so any consumer
+# reading by column name (csv.DictReader, retryguard.py's InboundCsvTailer)
+# is unaffected; a positional reader would break, but none exists today.
+EDGES_CSV_COLUMNS = [
+    "timestamp", "caller", "target", "total", "2xx", "4xx", "5xx", "retry",
+    "rq_time_sum_ms", "rq_time_count",
+]
+INBOUND_CSV_COLUMNS = [
+    "timestamp", "service", "total", "2xx", "4xx", "5xx", "resets",
+    "rq_time_sum_ms", "rq_time_count", "rq_time_buckets",
+]
 
 DEFAULT_POLL_INTERVAL_SECONDS = 5
 KUBECTL_TIMEOUT_SECONDS = 15
@@ -256,23 +331,36 @@ def parse_edges(stats_text: str) -> Dict[str, Dict[str, int]]:
             klass = labels.get("response_code_class")
             if klass in ("2xx", "4xx", "5xx"):
                 bucket(target)[klass] = value
+        elif name == "envoy_cluster_upstream_rq_time_sum":
+            # Verified 2026-09-16: this stat does not appear on this cluster's
+            # /stats/prometheus by default (Istio excludes per-cluster
+            # upstream_rq_time from its minimal stat set) — see module
+            # docstring. Kept for forward compatibility; will stay 0 today.
+            bucket(target)["rq_time_sum_ms"] = value
+        elif name == "envoy_cluster_upstream_rq_time_count":
+            bucket(target)["rq_time_count"] = value
     return edges
 
 
-def parse_inbound(stats_text: str) -> Dict[str, int]:
+def parse_inbound(stats_text: str) -> Dict[str, Any]:
     """
     Parse this pod's own inbound listener stats (downstream_rq_*).
 
     A pod can have more than one HTTP listener (e.g. separate ports);
     if multiple inbound listeners appear, keep the listener with the
-    largest total (do not sum). Always returns all five metrics
-    (missing -> 0).
+    largest total (do not sum). Always returns all INBOUND_METRICS
+    (missing -> 0) plus `rq_time_buckets`: a JSON object mapping histogram
+    `le` labels (ms, or "+Inf") to cumulative bucket counts. Empty string
+    when no bucket series were present. Used offline to derive P50/P95
+    sojourn-time deltas (see estimate_service_mu.histogram_percentile).
     """
-    per_listener: Dict[str, Dict[str, int]] = {}
+    per_listener: Dict[str, Dict[str, Any]] = {}
 
-    def bucket(listener: str) -> Dict[str, int]:
+    def bucket(listener: str) -> Dict[str, Any]:
         if listener not in per_listener:
-            per_listener[listener] = {k: 0 for k in INBOUND_METRICS}
+            row: Dict[str, Any] = {k: 0 for k in INBOUND_METRICS}
+            row["rq_time_buckets"] = {}  # le -> cumulative count
+            per_listener[listener] = row
         return per_listener[listener]
 
     for line in stats_text.splitlines():
@@ -293,10 +381,26 @@ def parse_inbound(stats_text: str) -> Dict[str, int]:
         elif INBOUND_RESET_NAME_RE.match(name):
             reset_m = INBOUND_RESET_NAME_RE.match(name)
             bucket(reset_m.group("listener"))["resets"] = value
+        elif INBOUND_RQ_TIME_SUM_RE.match(name):
+            sum_m = INBOUND_RQ_TIME_SUM_RE.match(name)
+            bucket(sum_m.group("listener"))["rq_time_sum_ms"] = value
+        elif INBOUND_RQ_TIME_COUNT_RE.match(name):
+            count_m = INBOUND_RQ_TIME_COUNT_RE.match(name)
+            bucket(count_m.group("listener"))["rq_time_count"] = value
+        elif INBOUND_RQ_TIME_BUCKET_RE.match(name):
+            bucket_m = INBOUND_RQ_TIME_BUCKET_RE.match(name)
+            le = labels.get("le")
+            if le is not None:
+                bucket(bucket_m.group("listener"))["rq_time_buckets"][le] = value
     if not per_listener:
-        return {k: 0 for k in INBOUND_METRICS}
+        empty = {k: 0 for k in INBOUND_METRICS}
+        empty["rq_time_buckets"] = ""
+        return empty
     chosen = max(per_listener.values(), key=lambda d: d["total"])
-    return {k: chosen[k] for k in INBOUND_METRICS}
+    out: Dict[str, Any] = {k: chosen[k] for k in INBOUND_METRICS}
+    buckets = chosen.get("rq_time_buckets") or {}
+    out["rq_time_buckets"] = json.dumps(buckets, separators=(",", ":")) if buckets else ""
+    return out
 
 
 def write_edges_csv(
@@ -324,6 +428,8 @@ def write_edges_csv(
                 "4xx": m["4xx"],
                 "5xx": m["5xx"],
                 "retry": m["retry"],
+                "rq_time_sum_ms": m["rq_time_sum_ms"],
+                "rq_time_count": m["rq_time_count"],
             })
 
 
@@ -331,7 +437,7 @@ def write_inbound_csv(
     csv_path: Path,
     timestamp: str,
     service: str,
-    inbound: Dict[str, int],
+    inbound: Dict[str, Any],
 ) -> None:
     """Append one row for this service's inbound totals this poll."""
     write_header = not csv_path.exists() or csv_path.stat().st_size == 0
@@ -347,6 +453,9 @@ def write_inbound_csv(
             "4xx": inbound["4xx"],
             "5xx": inbound["5xx"],
             "resets": inbound["resets"],
+            "rq_time_sum_ms": inbound["rq_time_sum_ms"],
+            "rq_time_count": inbound["rq_time_count"],
+            "rq_time_buckets": inbound.get("rq_time_buckets", ""),
         })
 
 
@@ -424,7 +533,7 @@ def discover_pod_ip(
 class ServiceScrapeResult:
     service: str
     edges: Optional[Dict[str, Dict[str, int]]] = None
-    inbound: Optional[Dict[str, int]] = None
+    inbound: Optional[Dict[str, Any]] = None
     evict_ip: bool = False
     warning: Optional[str] = None
 

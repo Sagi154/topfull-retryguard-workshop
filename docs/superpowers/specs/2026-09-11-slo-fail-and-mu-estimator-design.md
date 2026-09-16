@@ -2,6 +2,19 @@
 
 TopFull + RetryGuard Workshop — TAU Deepness Lab
 
+> **Correction (2026-09-16):** §5–§7 below's "Estimator B" (`mu_cpu = lambda /
+> utilization`, from `topfull_detect.csv`'s CPU-quota-relative `utilization`)
+> was a mistake — it conflated TopFull's own admission-control bookkeeping
+> with the RetryGuard paper's queueing-theoretic `rho = lambda/mu` (a
+> different system's internal signal, not this paper's model). It has been
+> **removed** from `experiments/estimate_service_mu.py`. See
+> [2026-09-16-rho-estimator-correction.md](2026-09-16-rho-estimator-correction.md)
+> for the corrected methodology (`mu_hat_w = lambda + 1/W`, from a per-service
+> latency signal added to `envoy_retry_collector.py` the same day) and why.
+> §1–§4 (the `Fail`-is-SLO-miss finding) are unaffected and still correct.
+> The rest of this document is kept as historical context for how the
+> (incorrect) Estimator B was originally motivated.
+
 > Run11 looked like “Locust Fail ≈ 100% and goproxy `/stats` timing out, but Boutique pods are not CPU-overloaded and mesh 5xx is ~0.” That is not a contradiction once Locust `Fail` is read correctly: it is TopFull’s **1-second goodput SLO**, not HTTP rejection. This spec (1) records that finding so we stop treating `Fail/RPS` as RetryGuard ρ, and (2) specifies an **analysis-only** per-service μ̂ / ρ estimator from mesh inbound + detector CPU. **No Locust user-count calibration in this work** — do not raise load until we decide whether S2 should target SLO-miss, CPU-quota overload, or HTTP 5xx.
 
 Related: [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](../../../Guides%20and%20Info/PER-SERVICE-MESH-COLLECTOR-DESIGN.md), [METRICS-GATHERED.md](../../../Guides%20and%20Info/METRICS-GATHERED.md), [METRICS-CATALOG.md](../../../Guides%20and%20Info/METRICS-CATALOG.md), [TOPFULL-THROTTLE-METRICS.md](../../../Guides%20and%20Info/TOPFULL-THROTTLE-METRICS.md), RetryGuard ρ = λ/μ ([RetryGuard.pdf](../../../context/RetryGuard.pdf) §5). Discovery evidence: `experiments/results/campaign_48/S2_sustained_overload/baseline_topfull_no_retryguard_sustained_overload_run11/`. Current full-stack confirmation (same Fail / 5xx=0 / retry=0 picture): [2026-09-13-s1-s2-baseline-metric-checkpoint.md](2026-09-13-s1-s2-baseline-metric-checkpoint.md). Live mesh transport: [2026-09-13-mesh-collector-network-scrape-design.md](2026-09-13-mesh-collector-network-scrape-design.md). Layer A cadence: [2026-09-12-throttle-collector-split-intervals-design.md](2026-09-12-throttle-collector-split-intervals-design.md).

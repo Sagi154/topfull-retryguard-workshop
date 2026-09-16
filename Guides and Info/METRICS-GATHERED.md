@@ -121,7 +121,7 @@ Prerequisite (runner does this automatically): Istio hides `upstream_rq_retry*` 
 One row per `(timestamp, caller, target)` edge seen in that poll. Cumulative Envoy counters (same diff-at-analysis-time rule as legacy retry CSVs).
 
 ```
-timestamp, caller, target, total, 2xx, 4xx, 5xx, retry
+timestamp, caller, target, total, 2xx, 4xx, 5xx, retry, rq_time_sum_ms, rq_time_count
 ```
 
 | Column | Meaning |
@@ -130,6 +130,7 @@ timestamp, caller, target, total, 2xx, 4xx, 5xx, retry
 | `target` | Callee service (parsed from `cluster.outbound\|...\|<target>`) |
 | `total` / `2xx` / `4xx` / `5xx` | Outbound request counts by status (see live caveat below) |
 | `retry` | Outbound retry attempts to that target |
+| `rq_time_sum_ms` / `rq_time_count` | Cumulative sum (ms) / count from Envoy's `upstream_rq_time` latency histogram (`_sum`/`_count` series) — added 2026-09-16, **absent from any run pulled before that date**. **On this cluster these stay structurally zero:** Istio's default minimal proxy-stats excludes per-cluster `upstream_rq_time` (confirmed live 2026-09-16); enabling it needs a mesh-wide `proxyStatsMatcher` change. Parsing code is kept for forward compatibility. Estimator only reads inbound latency. |
 
 Use for outgoing retries **and** for incoming retries at a service: sum `retry` (or `Δretry`) over all rows where `target = <service>` — Envoy has no inbound retry counter.
 
@@ -140,13 +141,16 @@ Use for outgoing retries **and** for incoming retries at a service: sum `retry` 
 One row per `(timestamp, service)` — listener stats from that service's own sidecar.
 
 ```
-timestamp, service, total, 2xx, 4xx, 5xx
+timestamp, service, total, 2xx, 4xx, 5xx, resets, rq_time_sum_ms, rq_time_count, rq_time_buckets
 ```
 
 | Column | Meaning |
 |---|---|
 | `total` | Inbound requests received (offered load at this hop) |
 | `2xx` / `4xx` / `5xx` | Inbound status split |
+| `resets` | `downstream_rq_rx_reset` — connection resets on this service's inbound listener; RetryGuard's rejection surrogate is `Δ(5xx+resets)/Δtotal` |
+| `rq_time_sum_ms` / `rq_time_count` | Cumulative sum (ms) / count from Envoy's inbound `downstream_rq_time` latency histogram — added 2026-09-16, **absent from any run pulled before that date**. `Δrq_time_sum_ms / Δrq_time_count` between polls = this service's own mean inbound sojourn time (`W`) for that interval — the per-service latency input to `estimate_service_mu.py`'s `mu_hat_w = lambda + 1/W` (see `docs/superpowers/specs/2026-09-16-rho-estimator-correction.md`). Not the same as end-to-end/multi-hop Locust latency. **Live-verified 2026-09-16** on this cluster. |
+| `rq_time_buckets` | JSON object of cumulative histogram bucket counts keyed by Envoy `le` (ms, plus `+Inf`) — added 2026-09-16 (inbound only). Differenced between polls to derive a per-tick P50 (`w_p50_ms`) as a robustness check alongside the mean. Outbound edges CSV does **not** have this column (and outbound `upstream_rq_time` is excluded by Istio's default minimal proxy-stats on this cluster — structural zero). |
 
 Derived goodput / RPS / rejection = diffs between consecutive polls of the same `service` row, same as Layer 2 CPU/memory.
 
