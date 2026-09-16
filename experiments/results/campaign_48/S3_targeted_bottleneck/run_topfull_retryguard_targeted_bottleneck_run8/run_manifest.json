@@ -1,0 +1,62 @@
+{
+  "scenario_id": 3,
+  "scenario_name": "targeted_bottleneck",
+  "condition": "retryguard",
+  "run_number": 8,
+  "duration_seconds": 600,
+  "retryguard": {
+    "enabled": true,
+    "rejection_threshold": 0.2,
+    "sample_interval_seconds": 1,
+    "interval_samples": 30
+  },
+  "topfull_rl": {
+    "enabled": true
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1,
+    "transport": "network_prometheus",
+    "max_workers": 4,
+    "exec_host": "topfull-master"
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "topfull_throttle_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1
+  },
+  "scale_constraints": [
+    {
+      "deployment": "checkoutservice",
+      "namespace": "default",
+      "method": "cpu_limit",
+      "cpu_limit_fraction": 0.1,
+      "container": "server"
+    }
+  ],
+  "paper_cpu_quotas": {
+    "cartservice": 1000,
+    "currencyservice": 1000,
+    "frontend": 1000,
+    "adservice": 1000,
+    "productcatalogservice": 500,
+    "checkoutservice": 1000,
+    "recommendationservice": 2000,
+    "paymentservice": 1000
+  },
+  "effective_cpu_quotas": {
+    "cartservice": 1000,
+    "currencyservice": 1000,
+    "frontend": 1000,
+    "adservice": 1000,
+    "productcatalogservice": 500,
+    "checkoutservice": 100,
+    "recommendationservice": 2000,
+    "paymentservice": 1000
+  },
+  "log_folder": "run_topfull_retryguard_targeted_bottleneck_run8",
+  "collected_at": "2026-09-16T20:55:05.329064Z"
+}
