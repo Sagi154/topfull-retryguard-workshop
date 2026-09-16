@@ -1,0 +1,3 @@
+2026-09-16T21:32:06Z  START  poll_interval=1s services=11 transport=network_prometheus max_workers=4
+2026-09-16T21:38:35Z  SHUTDOWN  signal=15
+2026-09-16T21:38:36Z  EXIT
