@@ -1,0 +1,141 @@
+{
+  "generated_at": "2026-09-17T20:02:45Z",
+  "run_dir": "experiments\\results\\campaign_48\\S2_sustained_overload\\baseline_frontend_2x_sustained_overload_run1",
+  "estimates": [
+    {
+      "service": "adservice",
+      "lambda_mean": 143.44645799011533,
+      "mu_hat_w_median": 554.8658743633277,
+      "rho_w_median": 0.26132441496132375,
+      "mu_sat": null,
+      "w_mean_ms": 2.7310115273881466,
+      "n_ticks_with_latency": 121,
+      "inbound_5xx_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 3.171073094867807
+    },
+    {
+      "service": "cartservice",
+      "lambda_mean": 610.2413793103449,
+      "mu_hat_w_median": 812.2933730454207,
+      "rho_w_median": 0.7620399483000431,
+      "mu_sat": null,
+      "w_mean_ms": 5.904453802969551,
+      "n_ticks_with_latency": 121,
+      "inbound_5xx_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 4.854477611940299
+    },
+    {
+      "service": "checkoutservice",
+      "lambda_mean": 19.90625,
+      "mu_hat_w_median": 31.12287340075523,
+      "rho_w_median": 0.642614187400662,
+      "mu_sat": null,
+      "w_mean_ms": 90.22750294975025,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 89.76744186046511
+    },
+    {
+      "service": "currencyservice",
+      "lambda_mean": 943.743842364532,
+      "mu_hat_w_median": 1108.1261886489115,
+      "rho_w_median": 0.8600103578112798,
+      "mu_sat": null,
+      "w_mean_ms": 7.590707691746806,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 6.6328163166108745
+    },
+    {
+      "service": "emailservice",
+      "lambda_mean": 19.90625,
+      "mu_hat_w_median": 268.1404856903601,
+      "rho_w_median": 0.07458776673916877,
+      "mu_sat": null,
+      "w_mean_ms": 4.20981431685555,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 3.9411764705882355
+    },
+    {
+      "service": "frontend",
+      "lambda_mean": 590.6699507389162,
+      "mu_hat_w_median": 602.7187601592915,
+      "rho_w_median": 0.9954891728298403,
+      "mu_sat": null,
+      "w_mean_ms": 334.20307721558424,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 337.47840244550775
+    },
+    {
+      "service": "paymentservice",
+      "lambda_mean": 19.90625,
+      "mu_hat_w_median": 403.1417624521073,
+      "rho_w_median": 0.049610340239498195,
+      "mu_sat": null,
+      "w_mean_ms": 2.868190259097903,
+      "n_ticks_with_latency": 121,
+      "inbound_5xx_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 3.247191011235955
+    },
+    {
+      "service": "productcatalogservice",
+      "lambda_mean": 2697.535303776683,
+      "mu_hat_w_median": 2823.8477590880398,
+      "rho_w_median": 0.9660577455779721,
+      "mu_sat": null,
+      "w_mean_ms": 9.179572856533104,
+      "n_ticks_with_latency": 121,
+      "inbound_5xx_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 8.467997465145753
+    },
+    {
+      "service": "recommendationservice",
+      "lambda_mean": 377.9671052631579,
+      "mu_hat_w_median": 395.4320396571777,
+      "rho_w_median": 0.9660319895453522,
+      "mu_sat": null,
+      "w_mean_ms": 77.74681412222309,
+      "n_ticks_with_latency": 121,
+      "inbound_5xx_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 60.53511705685619
+    },
+    {
+      "service": "redis-cart",
+      "lambda_mean": null,
+      "mu_hat_w_median": null,
+      "rho_w_median": null,
+      "mu_sat": null,
+      "w_mean_ms": null,
+      "n_ticks_with_latency": 0,
+      "inbound_5xx_fraction": 0.0,
+      "note": "no ticks with traffic",
+      "w_p50_ms": null
+    },
+    {
+      "service": "shippingservice",
+      "lambda_mean": 254.49013157894737,
+      "mu_hat_w_median": 732.2307692307692,
+      "rho_w_median": 0.3468851770143923,
+      "mu_sat": null,
+      "w_mean_ms": 2.1662685029316258,
+      "n_ticks_with_latency": 121,
+      "inbound_5xx_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 2.9424184261036466
+    }
+  ],
+  "estimate_error": null,
+  "retryguard_log_present": false,
+  "toggle_events": []
+}

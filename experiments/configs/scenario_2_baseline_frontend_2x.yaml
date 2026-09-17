@@ -1,0 +1,82 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 2 — Sustained Overload  |  Probe: frontend CPU 2× paper (BASELINE)
+#
+# Same Locust mix / 600 s hold / collectors / TopFull RL ON as
+# scenario_2_baseline.yaml. Only change: frontend K8s limit + Detector quota
+# raised to 2000m (cpu_limit_fraction: 2.0 × paper 1000m). Hypothesis: with
+# more headroom at the aggregator, a backend (catalog was closest at ~442 m
+# vs 475 m gate) may trip Detector and mesh retries / RetryGuard may appear.
+#
+# Independent run_number / log_folder — does NOT consume slots from
+# scenario_2_baseline.yaml. Compare against paper-quota e2-16 S2 baseline
+# run23; do not overwrite that folder.
+# ─────────────────────────────────────────────────────────────────────────────
+
+scenario_id: 2
+scenario_name: sustained_overload
+condition: baseline
+run_number: 2                  # run1 completed 2026-09-17 — bumped to avoid overwrite
+description: >
+  Ramp to ρ > 1, hold 10 minutes. TopFull active, Istio default retries on,
+  RetryGuard OFF. Frontend CPU limit+quota at 2× paper (2000m); backends
+  stay on paper table.
+
+duration_seconds: 600
+
+locust:
+  user_counts:
+    getproduct:   100
+    postcheckout: 20
+    getcart:      100
+    postcart:     100
+    emptycart:    300
+  spawn_rate: 90
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+
+scale_constraints:
+  - deployment: frontend
+    namespace: default
+    method: cpu_limit
+    cpu_limit_fraction: 2.0   # paper 1000m → 2000m K8s + Detector
+    container: server
+
+retries:
+  attempts_on: 3
+  attempts_off: 0
+  per_try_timeout_ms: 500
+
+retryguard:
+  enabled: false
+  rejection_threshold: 0.20
+  sample_interval_seconds: 1
+  interval_samples: 30
+
+envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 1
+  transport: network_prometheus
+  max_workers: 4
+
+resource_usage_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
+topfull_throttle_collector:
+  enabled: true
+  poll_interval_seconds: 1
+
+log_folder: baseline_frontend_2x_sustained_overload_run2
+
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py
+  envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py
+  resource_usage_collector_script: /home/idozacharia/experiments/resource_usage_collector.py
+  topfull_throttle_collector_script: /home/idozacharia/experiments/topfull_throttle_collector.py

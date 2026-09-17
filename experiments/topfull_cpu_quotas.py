@@ -70,9 +70,17 @@ def paper_request_for(service: str) -> int:
     return paper_limit_for(service)
 
 
+# Upper bound prevents typo disasters (e.g. 50 cores). Values > 1 are allowed
+# for probes that raise a service above the paper table (S2 frontend 2×).
+MAX_CPU_LIMIT_FRACTION = 4.0
+
+
 def millicores_from_fraction(paper_limit: int, fraction: float) -> int:
-    if fraction <= 0 or fraction > 1:
-        raise ValueError(f"cpu_limit_fraction must be in (0, 1], got {fraction}")
+    if fraction <= 0 or fraction > MAX_CPU_LIMIT_FRACTION:
+        raise ValueError(
+            f"cpu_limit_fraction must be in (0, {MAX_CPU_LIMIT_FRACTION}], "
+            f"got {fraction}"
+        )
     return int(paper_limit * fraction)
 
 
