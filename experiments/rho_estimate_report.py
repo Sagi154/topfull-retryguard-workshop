@@ -1,43 +1,57 @@
-"""rho_estimate_report.py — combine estimate_service_mu.py's offline rho/mu
-estimates with a run folder's RetryGuard toggle log into one report.
+"""rho_estimate_report.py — combine estimate_service_mu.py's offline
+lambda/W/mu_sat observations with a run folder's RetryGuard toggle log into
+one report.
 
 Writes `rho_estimate_report.md` (+ `rho_estimate_report.json`) into the run
 folder itself, so the numbers live alongside the run's other result files.
 
 This is a read-only, local-only tool: it never touches topfull-master, never
 modifies existing run CSVs, and degrades gracefully (never raises) when a
-run folder is missing service_inbound.csv / topfull_detect.csv (pre-2026-09-09
-folders) or retryguard.log (baseline runs, or RetryGuard not enabled).
+run folder is missing service_inbound.csv (pre-2026-09-09 folders) or
+retryguard.log (baseline runs, or RetryGuard not enabled).
 
 Usage:
     python experiments/rho_estimate_report.py <run_dir>
 
-Design notes (Part A context — why this exists as a *supplementary*
-diagnostic, not ground truth):
+Design notes (why this report does NOT compute a `rho` today):
 
 - `experiments/retryguard.py`'s live controller does NOT use rho = lambda/mu.
   It acts on a mesh rejection-rate surrogate (Delta(5xx+resets)/Delta total
   from service_inbound.csv), matching the RetryGuard paper's own live Istio
-  deployment (Sec 6.2: mesh rejection rate, 20% threshold, 30s window).
+  deployment (Sec 6.2: mesh rejection rate, 20% threshold, 30s window). That
+  is unaffected by anything below.
 - Corrected 2026-09-16 (see
   docs/superpowers/specs/2026-09-16-rho-estimator-correction.md):
   `estimate_service_mu.py` used to compute `mu_cpu = lambda / utilization`
   from `topfull_detect.csv`'s `utilization` (TopFull's own CPU-quota
-  admission-control bookkeeping) and called that "rho". That is a
+  admission-control bookkeeping) and called that "rho". That was a
   different system's internal signal, not the RetryGuard paper's
-  queueing-theoretic rho = lambda/mu (Sec 5, M/M/1(/m) load ratio). It has
-  been removed entirely. The estimator now computes `mu_hat_w = lambda +
-  1/W` (the standard M/M/1 steady-state relation, rearranged), where W is
-  this service's own mean inbound sojourn time from Envoy's
-  `downstream_rq_time` histogram (`rq_time_sum_ms`/`rq_time_count` in
-  `service_inbound.csv`, added to `envoy_retry_collector.py` on
-  2026-09-16). `rho_w = lambda / mu_hat_w`. Runs from before 2026-09-16
-  lack those two columns and report `mu_hat_w`/`rho_w` as `n/a` with an
-  explicit note, not a silent wrong number.
-- The saturated-goodput cross-check (`mu_sat = Delta2xx/Delta t` on ticks
-  with a high 5xx fraction) is unchanged and kept as an independent sanity
-  check — it does not depend on the CPU-quota signal and did not need
-  correcting.
+  queueing-theoretic rho = lambda/mu (Sec 5, M/M/1(/m) load ratio). Removed.
+- Corrected-again 2026-09-17 (see
+  docs/superpowers/specs/2026-09-17-frozen-capacity-rho-design.md): the
+  2026-09-16 replacement, `mu_hat_w = lambda + 1/W` (M/M/1 steady-state
+  relation, rearranged), was itself removed. It is circular by
+  construction — solving `W = 1/(mu - lambda)` for `mu` can only return a
+  value just above the observed `lambda`, so the resulting
+  `rho_w = lambda/mu_hat_w` reduces algebraically to `L/(L+1)` (Little's
+  Law concurrency, `L = lambda*W`), a quantity that is always below 1 and
+  therefore cannot represent the `rho > 1` miscoordination regime the paper
+  (and this project) cares about. It also reported ~0.93 for a healthy,
+  6.9ms-latency service under normal load, purely from having many
+  requests in flight — see the design doc for the full derivation and
+  worked counter-examples.
+- This report now shows only what `estimate_service_mu.py` can honestly
+  compute from a single run: `lambda_mean` (admitted arrival rate),
+  `w_mean_ms`/`w_p50_ms` (this service's own inbound sojourn time — a
+  latency observation, not a capacity stand-in), and `mu_sat`
+  (Δ2xx/Δt on ticks with real 5xx — an independent, though sparse,
+  saturation-based capacity signal). No `rho` is reported here.
+- A `rho_hat = lambda_offered / mu_this_run` diagnostic, freezing
+  `mu_per_millicore` from a dedicated saturation run and rescaling by
+  each run's Kubernetes CPU limit (`service_capacity.json`), is designed
+  in docs/superpowers/specs/2026-09-17-frozen-capacity-rho-design.md
+  (`experiments/capacity_frozen.py` / `experiments/rho_frozen_report.py`)
+  but is a separate tool from this one — not yet wired in here.
 """
 from __future__ import annotations
 
@@ -69,30 +83,36 @@ TOGGLE_LINE_RE = re.compile(
 )
 
 CONTEXT_NOTE = (
-    "`experiments/retryguard.py`'s live controller does not use this rho estimate — "
+    "`experiments/retryguard.py`'s live controller does not use anything in this report — "
     "it acts on a mesh rejection-rate surrogate (`\u0394(5xx+resets)/\u0394total` from "
     "`service_inbound.csv`), matching the RetryGuard paper's own live Istio deployment "
-    "(Sec 6.2: mesh rejection rate, 20% threshold, 30s window). The rho = lambda/mu.hat "
-    "estimate below (`experiments/estimate_service_mu.py`) is an offline, supplementary "
-    "diagnostic, not the controller's decision input and not a validated ground-truth rho.\n\n"
-    "**Methodology (corrected 2026-09-16 — see "
-    "`docs/superpowers/specs/2026-09-16-rho-estimator-correction.md`):** "
-    "`mu_hat_w = lambda + 1/W` (M/M/1 steady-state relation, rearranged), where `lambda` is "
-    "this service's inbound arrival rate (`\u0394total/\u0394t` from `service_inbound.csv`) "
-    "and `W` is this service's own mean inbound sojourn time, from Envoy's "
-    "`downstream_rq_time` histogram (`rq_time_sum_ms`/`rq_time_count`, added to "
-    "`envoy_retry_collector.py` on 2026-09-16). `rho_w = lambda / mu_hat_w`. This replaced "
-    "an earlier, incorrect estimator (`mu_cpu = lambda / utilization` from "
-    "`topfull_detect.csv`) that conflated TopFull's own CPU-quota admission-control "
-    "bookkeeping with the RetryGuard paper's queueing-theoretic rho \u2014 a different "
-    "system's internal signal, not this paper's model. Runs from before 2026-09-16 lack the "
-    "`rq_time_*` columns; `mu_hat_w`/`rho_w` come back `n/a` with an explicit note in that "
-    "case, not a silently wrong number. The M/M/1 `W` formula assumes steady state "
-    "(`rho < 1`); when a service's `lambda_mean` reaches or exceeds its own `mu_hat_w`, the "
-    "report flags that the assumption is likely violated (finite buffer, admission control "
-    "upstream, or non-Poisson/non-exponential real traffic) rather than trusting the number "
-    "at face value. The saturated-goodput cross-check (`mu_sat = \u0394 2xx/\u0394t` on ticks "
-    "with a high 5xx fraction) is unchanged and independent of the above."
+    "(Sec 6.2: mesh rejection rate, 20% threshold, 30s window). Everything below is an "
+    "offline, supplementary diagnostic, not the controller's decision input.\n\n"
+    "**No `rho` is computed by this report.** An earlier version reported "
+    "`rho_w = lambda / mu_hat_w` using `mu_hat_w = lambda + 1/W` (the M/M/1 steady-state "
+    "relation, rearranged) \u2014 removed 2026-09-17 "
+    "(`docs/superpowers/specs/2026-09-17-frozen-capacity-rho-design.md`) because it is "
+    "circular by construction: `W = 1/(mu-lambda)` presupposes `mu > lambda`, so solving "
+    "for `mu` can only ever return a value just above the observed `lambda`. Algebraically "
+    "`rho_w = lambda/mu_hat_w = L/(L+1)` where `L = lambda*W` is mean concurrency (Little's "
+    "Law) \u2014 always below 1 by construction, unable to represent the `rho > 1` "
+    "miscoordination regime this whole exercise exists to detect, and it reported ~0.93 for "
+    "a healthy 6.9ms-latency service under normal load purely from having many requests in "
+    "flight. Before that, an even earlier estimator, `mu_cpu = lambda / utilization` from "
+    "`topfull_detect.csv`, conflated TopFull's own CPU-quota admission-control bookkeeping "
+    "with the RetryGuard paper's queueing-theoretic rho \u2014 also removed "
+    "(`docs/superpowers/specs/2026-09-16-rho-estimator-correction.md`).\n\n"
+    "**What this report shows instead:** `lambda_mean` (this service's admitted inbound "
+    "arrival rate, `\u0394total/\u0394t` from `service_inbound.csv`); `w_mean_ms`/`w_p50_ms` "
+    "(this service's own mean/P50 inbound sojourn time, from Envoy's `downstream_rq_time` "
+    "histogram \u2014 reported as a latency observation, never as a stand-in for capacity); "
+    "and `mu_sat` (`\u0394 2xx/\u0394t` on ticks with a high 5xx fraction \u2014 the one "
+    "capacity signal this report can produce from a single run, but only available on ticks "
+    "with real rejection, so most runs show `mu_sat = n/a`). A `rho_hat = lambda_offered / "
+    "mu_this_run` diagnostic that freezes `mu_per_millicore` from a dedicated saturation "
+    "run and rescales by each run's Kubernetes CPU limit (`service_capacity.json`) is "
+    "designed but not yet wired into this report \u2014 see "
+    "`docs/superpowers/specs/2026-09-17-frozen-capacity-rho-design.md`."
 )
 
 
@@ -138,12 +158,12 @@ def compute_rho_estimates(
     Exactly one of the two return values is not None (unless there is no
     per-service data at all, in which case estimates is an empty list).
 
-    Only `service_inbound.csv` is required (since the 2026-09-16 correction,
-    `topfull_detect.csv` is no longer read by `estimate_service_mu.py` at
-    all). A folder that has `service_inbound.csv` but predates the
-    2026-09-16 `rq_time_sum_ms`/`rq_time_count` columns still returns
-    estimates — just with `mu_hat_w`/`rho_w` as `n/a` and a note on each
-    ServiceEstimate (see NO_LATENCY_COLUMNS_NOTE), not an error here.
+    Only `service_inbound.csv` is required (`topfull_detect.csv` is not
+    read by `estimate_service_mu.py` at all). A folder that has
+    `service_inbound.csv` but predates the 2026-09-16 `rq_time_sum_ms`/
+    `rq_time_count` columns still returns estimates — just with
+    `w_mean_ms`/`w_p50_ms` as `n/a` and a note on each ServiceEstimate (see
+    NO_LATENCY_COLUMNS_NOTE), not an error here.
     """
     try:
         estimates = mu.estimate_run(run_dir)
@@ -177,7 +197,7 @@ def build_markdown_report(
     if estimate_error is not None:
         lines.append(f"**Not computed:** {estimate_error}")
     elif not estimates:
-        lines.append("No per-service rows found in `service_inbound.csv` / `topfull_detect.csv`.")
+        lines.append("No per-service rows found in `service_inbound.csv`.")
     else:
         lines.append("```")
         lines.append(mu.format_table(estimates).rstrip("\n"))
@@ -188,8 +208,7 @@ def build_markdown_report(
     if not retryguard_log_present:
         lines.append(
             "No `retryguard.log` in this run folder — likely a baseline run "
-            "(RetryGuard not enabled) or a run predating the toggle log. "
-            "Skipping toggle-vs-rho comparison."
+            "(RetryGuard not enabled) or a run predating the toggle log."
         )
     elif not toggles:
         lines.append(
@@ -208,8 +227,9 @@ def build_markdown_report(
         lines.append("")
         if estimates:
             by_service = {e.service: e for e in estimates}
-            lines.append("**rho_w at the services that toggled** (for cross-reference only "
-                          "— see the caveat above; RetryGuard did not use this number):")
+            lines.append("**lambda/W/mu_sat at the services that toggled** (for "
+                          "cross-reference only; RetryGuard did not use these numbers — "
+                          "no `rho` is reported, see the caveat above):")
             lines.append("")
             seen = set()
             for ev in toggles:
@@ -221,8 +241,7 @@ def build_markdown_report(
                 if est is None:
                     continue
                 lines.append(
-                    f"- `{svc}`: rho_w_median={mu._fmt(est.rho_w_median)}  "
-                    f"mu_hat_w={mu._fmt(est.mu_hat_w_median)}  "
+                    f"- `{svc}`: lambda_mean={mu._fmt(est.lambda_mean)}  "
                     f"mu_sat={mu._fmt(est.mu_sat)}  "
                     f"w_mean_ms={mu._fmt(est.w_mean_ms)}  "
                     f"inbound_5xx_fraction={mu._fmt(est.inbound_5xx_fraction)}"

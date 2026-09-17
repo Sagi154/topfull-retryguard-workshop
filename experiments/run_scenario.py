@@ -333,13 +333,15 @@ def parse_cpu_to_millicores(cpu_str):
 
 def capture_service_capacity(cfg: dict, services: list) -> dict:
     """
-    Snapshot each service's *original* CPU limit/request and declared
-    replica count, before any scale_constraints are applied.
+    Snapshot each service's CPU limit/request and declared replica
+    count from the live Deployment spec (`kubectl get deploy -o json`).
 
-    Returns {service: {cpu_limit_millicores, cpu_request_millicores,
-    replica_count}}. Missing/unparseable CPU values are None. Services
-    with no matching Deployment (or on any kubectl/JSON failure) are
-    simply omitted.
+    Called after `apply_constraints`, so the numbers are the
+    post-constraint cgroup limits for this run (e.g. S3 checkout at
+    100m, S1 checkout at 1000m) — which is what per-run ρ rescaling
+    needs. Missing/unparseable CPU values are None. Services with no
+    matching Deployment (or on any kubectl/JSON failure) are simply
+    omitted.
     """
     master = cfg["infra"]["master_ssh_host"]
     r = ssh(master, "kubectl get deploy -n default -o json", check=False)

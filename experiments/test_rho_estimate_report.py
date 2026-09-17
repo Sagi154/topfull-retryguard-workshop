@@ -1,9 +1,13 @@
-"""test_rho_estimate_report.py — unit tests for the combined rho/toggle report.
+"""test_rho_estimate_report.py — unit tests for the combined lambda/W/mu_sat
++ toggle-log report.
 
 Corrected 2026-09-16: estimate_service_mu.py no longer reads
-topfull_detect.csv (see estimate_service_mu.py / test_estimate_service_mu.py
-docstrings for the mu_hat_w = lambda + 1/W correction). Fixtures below write
-only service_inbound.csv, with the new rq_time_sum_ms/rq_time_count columns.
+topfull_detect.csv. Corrected-again 2026-09-17 (see
+docs/superpowers/specs/2026-09-17-frozen-capacity-rho-design.md): the
+mu_hat_w/rho_w fields were removed entirely (circular by construction —
+see the design doc). Fixtures below write only service_inbound.csv, with
+the rq_time_sum_ms/rq_time_count columns; assertions check for
+lambda/w_mean_ms/mu_sat, not mu_hat_w/rho_w.
 
 Run:
     python -m pytest experiments/test_rho_estimate_report.py -v
@@ -136,8 +140,9 @@ class TestComputeRhoEstimates(unittest.TestCase):
             self.assertIsNone(err)
             self.assertEqual(len(estimates), 1)
             self.assertEqual(estimates[0].service, "checkoutservice")
-            # W = 2000ms/100 = 20ms; lambda=100 -> mu_hat_w=100+50=150
-            self.assertAlmostEqual(estimates[0].mu_hat_w_median, 150.0)
+            # W = 2000ms/100 = 20ms; lambda=100
+            self.assertAlmostEqual(estimates[0].w_mean_ms, 20.0)
+            self.assertAlmostEqual(estimates[0].lambda_mean, 100.0)
 
     def test_no_topfull_detect_csv_needed_at_all(self):
         """The corrected estimator does not require topfull_detect.csv."""
@@ -157,7 +162,7 @@ class TestComputeRhoEstimates(unittest.TestCase):
             estimates, err = report.compute_rho_estimates(d)
             self.assertIsNone(err)
             self.assertEqual(len(estimates), 1)
-            self.assertIsNone(estimates[0].mu_hat_w_median)
+            self.assertIsNone(estimates[0].w_mean_ms)
             self.assertEqual(estimates[0].note, mu.NO_LATENCY_COLUMNS_NOTE)
 
 
@@ -210,7 +215,8 @@ class TestGenerateReport(unittest.TestCase):
             self.assertIn("ON\u2192OFF", text)
             self.assertIn("OFF\u2192ON", text)
             self.assertIn("checkoutservice", text)
-            self.assertIn("rho_w_median", text)
+            self.assertIn("lambda_mean", text)
+            self.assertNotIn("rho_w_median", text)
             payload = json.loads((d / report.REPORT_JSON_NAME).read_text(encoding="utf-8"))
             self.assertTrue(payload["retryguard_log_present"])
             self.assertEqual(len(payload["toggle_events"]), 2)
