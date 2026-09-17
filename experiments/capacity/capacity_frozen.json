@@ -1,0 +1,59 @@
+{
+  "generated_at": "2026-09-17T20:28:34Z",
+  "cluster_shape": "topfull-worker-1=e2-standard-16",
+  "schema_version": 1,
+  "capacities": {
+    "frontend": {
+      "service": "frontend",
+      "mu_per_millicore": null,
+      "unit": "req/s per millicore",
+      "calibrated_at_cpu_limit_millicores": null,
+      "calibrated_at_replica_count": null,
+      "throughput_at_calibration": null,
+      "method": "not_yet_calibrated",
+      "cpu_source": "service_capacity.json",
+      "source_run": null,
+      "n_sat_ticks": null,
+      "note": null
+    },
+    "checkoutservice": {
+      "service": "checkoutservice",
+      "mu_per_millicore": null,
+      "unit": "req/s per millicore",
+      "calibrated_at_cpu_limit_millicores": null,
+      "calibrated_at_replica_count": null,
+      "throughput_at_calibration": null,
+      "method": "not_yet_calibrated",
+      "cpu_source": "service_capacity.json",
+      "source_run": null,
+      "n_sat_ticks": null,
+      "note": null
+    },
+    "productcatalogservice": {
+      "service": "productcatalogservice",
+      "mu_per_millicore": null,
+      "unit": "req/s per millicore",
+      "calibrated_at_cpu_limit_millicores": null,
+      "calibrated_at_replica_count": null,
+      "throughput_at_calibration": null,
+      "method": "not_yet_calibrated",
+      "cpu_source": "service_capacity.json",
+      "source_run": null,
+      "n_sat_ticks": null,
+      "note": null
+    },
+    "paymentservice": {
+      "service": "paymentservice",
+      "mu_per_millicore": null,
+      "unit": "req/s per millicore",
+      "calibrated_at_cpu_limit_millicores": null,
+      "calibrated_at_replica_count": null,
+      "throughput_at_calibration": null,
+      "method": "not_yet_calibrated",
+      "cpu_source": "service_capacity.json",
+      "source_run": null,
+      "n_sat_ticks": null,
+      "note": null
+    }
+  }
+}
