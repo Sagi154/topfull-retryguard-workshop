@@ -1,41 +1,40 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Scenario 2 — Sustained Overload  |  Probe: frontend 2× + Locust 1.5× users
+# Scenario 2 — Sustained Overload  |  Probe: frontend 2× + Locust 3× users
 #
 # Same as scenario_2_baseline_frontend_2x.yaml (frontend cpu_limit_fraction
 # 2.0 → 2000m K8s + Detector, TopFull ON, RetryGuard OFF, 600 s) but Locust
-# user_counts and spawn_rate scaled ×1.5. Hypothesis: unused frontend headroom
-# from baseline_frontend_2x_sustained_overload_run1 gets consumed; a backend
-# may trip Detector / Envoy retries may rise.
-#
-# Independent run_number / log_folder — does NOT overwrite the 1.0×-users
-# frontend-2× folder or scenario_2_baseline.yaml slots. Compare against
-# baseline_frontend_2x_sustained_overload_run1.
+# user_counts and spawn_rate scaled ×3. Run after the 1.5× / 2× probe arms
+# with a 300 s cool-off between arms.
 #
 # Locust scripts: uses online_boutique_create_probe.sh (-r $RATE = spawn_rate
 # users/sec) so this scale actually reaches target in ~3 s. Shared
 # online_boutique_create.sh is UNCHANGED for S1–S6 / teammates.
+#
+# Independent run_number / log_folder — does NOT overwrite prior frontend-2×
+# folders or scenario_2_baseline.yaml slots. Compare against
+# baseline_frontend_2x_sustained_overload_run1.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 3                  # run2 completed 2026-09-18 (probe launcher) — bumped to avoid overwrite
+run_number: 1
 description: >
   Ramp to ρ > 1, hold 10 minutes. TopFull active, Istio default retries on,
   RetryGuard OFF. Frontend CPU limit+quota at 2× paper (2000m); Locust users
-  at 1.5× deck S2 (spawn 135). Backends stay on paper table.
+  at 3× deck S2 (spawn 270). Backends stay on paper table.
   Probe launcher: create_probe.sh (-r $RATE).
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   150
-    postcheckout: 30
-    getcart:      150
-    postcart:     150
-    emptycart:    450
-  spawn_rate: 135
+    getproduct:   300
+    postcheckout: 60
+    getcart:      300
+    postcart:     300
+    emptycart:    900
+  spawn_rate: 270
   scripts:
     - online_boutique_create_probe.sh
     - online_boutique_create2.sh
@@ -72,7 +71,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_frontend_2x_users15_sustained_overload_run3
+log_folder: baseline_frontend_2x_users3_sustained_overload_run1
 
 infra:
   master_ssh_host: topfull-master

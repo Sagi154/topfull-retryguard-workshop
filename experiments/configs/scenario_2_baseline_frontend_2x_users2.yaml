@@ -9,16 +9,21 @@
 # Independent run_number / log_folder — does NOT overwrite the 1.0×-users
 # frontend-2× folder or scenario_2_baseline.yaml slots. Compare against
 # baseline_frontend_2x_sustained_overload_run1.
+#
+# Locust scripts: uses online_boutique_create_probe.sh (-r $RATE = spawn_rate
+# users/sec) so this scale actually reaches target in ~3 s. Shared
+# online_boutique_create.sh is UNCHANGED for S1–S6 / teammates.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 2                  # run1 completed 2026-09-18 — bumped to avoid overwrite
+run_number: 3                  # run2 completed 2026-09-18 (probe launcher) — bumped to avoid overwrite
 description: >
   Ramp to ρ > 1, hold 10 minutes. TopFull active, Istio default retries on,
   RetryGuard OFF. Frontend CPU limit+quota at 2× paper (2000m); Locust users
   at 2× deck S2 (spawn 180). Backends stay on paper table.
+  Probe launcher: create_probe.sh (-r $RATE).
 
 duration_seconds: 600
 
@@ -31,7 +36,7 @@ locust:
     emptycart:    600
   spawn_rate: 180
   scripts:
-    - online_boutique_create.sh
+    - online_boutique_create_probe.sh
     - online_boutique_create2.sh
 
 scale_constraints:
@@ -66,7 +71,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_frontend_2x_users2_sustained_overload_run2
+log_folder: baseline_frontend_2x_users2_sustained_overload_run3
 
 infra:
   master_ssh_host: topfull-master
