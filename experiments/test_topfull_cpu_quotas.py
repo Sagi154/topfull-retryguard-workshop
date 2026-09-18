@@ -26,15 +26,9 @@ class TestMillicoresFromFraction(unittest.TestCase):
         with self.assertRaises(ValueError):
             q.millicores_from_fraction(1000, 0.0)
 
-    def test_frontend_double(self):
-        self.assertEqual(q.millicores_from_fraction(1000, 2.0), 2000)
-
-    def test_allows_above_one_within_cap(self):
-        self.assertEqual(q.millicores_from_fraction(1000, 1.1), 1100)
-
-    def test_rejects_above_max(self):
+    def test_rejects_above_one(self):
         with self.assertRaises(ValueError):
-            q.millicores_from_fraction(1000, 5.0)
+            q.millicores_from_fraction(1000, 1.1)
 
 
 class TestPaperTable(unittest.TestCase):
@@ -109,20 +103,6 @@ class TestEffectiveCpuQuotas(unittest.TestCase):
         self.assertEqual(got["checkoutservice"], 100)
         self.assertEqual(got["productcatalogservice"], 500)
         self.assertEqual(got["paymentservice"], 1000)
-
-    def test_frontend_2x_raises_quota(self):
-        got = q.effective_cpu_quotas(
-            [
-                {
-                    "deployment": "frontend",
-                    "method": "cpu_limit",
-                    "cpu_limit_fraction": 2.0,
-                }
-            ]
-        )
-        self.assertEqual(got["frontend"], 2000)
-        self.assertEqual(got["checkoutservice"], 1000)
-        self.assertEqual(got["productcatalogservice"], 500)
 
 
 if __name__ == "__main__":

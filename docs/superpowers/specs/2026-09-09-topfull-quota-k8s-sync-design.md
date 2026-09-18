@@ -83,7 +83,7 @@ cpu_limit_fraction: 0.1
 
 S4A is **not** comparable to campaign_48 S4A (that was 100m = 20% of 500). New slots only. Changing the pinch later is one YAML number.
 
-**Compute:** `millicores = int(paper_limit * fraction)` (truncate toward zero). Reject `fraction <= 0` or `fraction > 4` at config-load (`MAX_CPU_LIMIT_FRACTION`; values > 1 are allowed for probes that raise a service above paper, e.g. S2 frontend 2× — see [2026-09-17-s2-frontend-2x-quota-design.md](2026-09-17-s2-frontend-2x-quota-design.md)). Format the kubectl quantity as `f"{millicores}m"`. For the constrained pod, set **both** `limits.cpu` and `requests.cpu` to that quantity (same as today’s patch: request must be ≤ limit).
+**Compute:** `millicores = int(paper_limit * fraction)` (truncate toward zero). Reject `fraction <= 0` or `fraction > 1` at config-load. Format the kubectl quantity as `f"{millicores}m"`. For the constrained pod, set **both** `limits.cpu` and `requests.cpu` to that quantity (same as today’s patch: request must be ≤ limit).
 
 S1 / S2 / S5 / S6 keep `scale_constraints: []`. After the start-of-run reconcile they sit on the paper table.
 
