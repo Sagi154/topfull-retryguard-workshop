@@ -18,7 +18,7 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 3                  # run2 completed 2026-09-18 (probe launcher) — bumped to avoid overwrite
+run_number: 4                  # run3 completed 2026-09-18 (loadgen CPU diagnostic) — bumped to avoid overwrite
 description: >
   Ramp to ρ > 1, hold 10 minutes. TopFull active, Istio default retries on,
   RetryGuard OFF. Frontend CPU limit+quota at 2× paper (2000m); Locust users
@@ -71,7 +71,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_frontend_2x_users2_sustained_overload_run3
+log_folder: baseline_frontend_2x_users2_sustained_overload_run4
 
 infra:
   master_ssh_host: topfull-master
