@@ -1,20 +1,20 @@
 {
-  "generated_at": "2026-09-19T14:32:45Z",
+  "generated_at": "2026-09-19T16:19:08Z",
   "cluster_shape": "topfull-worker-1=e2-standard-16",
   "schema_version": 1,
   "capacities": {
     "frontend": {
       "service": "frontend",
-      "mu_per_millicore": 0.238,
+      "mu_per_millicore": 0.37,
       "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": 1000,
+      "calibrated_at_cpu_limit_millicores": 100,
       "calibrated_at_replica_count": 1,
-      "throughput_at_calibration": 238.0,
+      "throughput_at_calibration": 37.0,
       "method": "mu_sat",
       "cpu_source": "service_capacity.json",
-      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\S2_sustained_overload\\baseline_no_topfull_sustained_overload_run2",
-      "n_sat_ticks": 2,
-      "note": "low confidence: n_sat_ticks=2 < 10"
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_frontend_constrained_run1",
+      "n_sat_ticks": 9,
+      "note": "low confidence: n_sat_ticks=9 < 10"
     },
     "checkoutservice": {
       "service": "checkoutservice",
@@ -31,16 +31,16 @@
     },
     "productcatalogservice": {
       "service": "productcatalogservice",
-      "mu_per_millicore": 1.399,
+      "mu_per_millicore": 8.95,
       "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": 500,
+      "calibrated_at_cpu_limit_millicores": 50,
       "calibrated_at_replica_count": 1,
-      "throughput_at_calibration": 699.5,
+      "throughput_at_calibration": 447.5,
       "method": "mu_sat",
       "cpu_source": "service_capacity.json",
-      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_productcatalog_full_cpu_run1",
-      "n_sat_ticks": 2,
-      "note": "low confidence: n_sat_ticks=2 < 10"
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_productcatalog_constrained_run1",
+      "n_sat_ticks": 60,
+      "note": null
     },
     "paymentservice": {
       "service": "paymentservice",
