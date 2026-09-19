@@ -176,10 +176,7 @@ def count_sat_ticks(run_dir: Path, service: str) -> int:
         return 0
     rows = [r for r in mu._read_csv(inbound) if r.get("service") == service]
     ticks = mu.ticks_from_rows(rows)
-    return sum(
-        1 for t in ticks
-        if t.delta_total > 0 and t.failure_fraction >= mu.SAT_5XX_FRACTION
-    )
+    return len(mu.saturating_ticks(ticks))
 
 
 def freeze_service(

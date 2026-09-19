@@ -83,6 +83,37 @@ class TestFrozenTableRoundTrip(unittest.TestCase):
             self.assertEqual(loaded.capacities["frontend"].method, cf.METHOD_NOT_YET)
 
 
+def _saturating_then_healthy_tail(
+    service: str, *, two="50", five="50", resets="0",
+) -> list[dict]:
+    """One saturating second at t=1, then 5 healthy seconds so the sat
+    tick is not in SAT_TAIL_TRIM_TICKS."""
+    rows = [
+        {"timestamp": "2026-09-17T00:00:00Z", "service": service,
+         "total": "0", "2xx": "0", "4xx": "0", "5xx": "0", "resets": "0",
+         "rq_time_sum_ms": "0", "rq_time_count": "0"},
+        {"timestamp": "2026-09-17T00:00:01Z", "service": service,
+         "total": "100", "2xx": two, "4xx": "0", "5xx": five, "resets": resets,
+         "rq_time_sum_ms": "0", "rq_time_count": "0"},
+    ]
+    total, two_i, five_i, reset_i = 100, int(two), int(five), int(resets)
+    for i in range(5):
+        total += 100
+        two_i += 100
+        rows.append({
+            "timestamp": f"2026-09-17T00:00:{i + 2:02d}Z",
+            "service": service,
+            "total": str(total),
+            "2xx": str(two_i),
+            "4xx": "0",
+            "5xx": str(five_i),
+            "resets": str(reset_i),
+            "rq_time_sum_ms": "0",
+            "rq_time_count": "0",
+        })
+    return rows
+
+
 def _write_inbound(d: Path, rows: list[dict]) -> None:
     fields = ["timestamp", "service", "total", "2xx", "4xx", "5xx",
               "resets", "rq_time_sum_ms", "rq_time_count"]
@@ -112,14 +143,7 @@ class TestFreezeService(unittest.TestCase):
         with TemporaryDirectory() as raw:
             d = Path(raw)
             _write_capacity(d, "checkoutservice", 100)
-            _write_inbound(d, [
-                {"timestamp": "2026-09-17T00:00:00Z", "service": "checkoutservice",
-                 "total": "0", "2xx": "0", "4xx": "0", "5xx": "0",
-                 "rq_time_sum_ms": "0", "rq_time_count": "0"},
-                {"timestamp": "2026-09-17T00:00:01Z", "service": "checkoutservice",
-                 "total": "100", "2xx": "50", "4xx": "0", "5xx": "50",
-                 "rq_time_sum_ms": "0", "rq_time_count": "0"},
-            ])
+            _write_inbound(d, _saturating_then_healthy_tail("checkoutservice"))
             out = d / "capacity_frozen.json"
             cf.save_table(cf.empty_table(), out)
             entry = cf.freeze_service(
@@ -130,7 +154,7 @@ class TestFreezeService(unittest.TestCase):
             self.assertEqual(entry.calibrated_at_cpu_limit_millicores, 100)
             self.assertAlmostEqual(entry.mu_per_millicore, 0.5)
             self.assertEqual(entry.method, cf.METHOD_MU_SAT)
-            self.assertGreaterEqual(entry.n_sat_ticks, 1)
+            self.assertEqual(entry.n_sat_ticks, 1)
             loaded = cf.load_table(out)
             self.assertAlmostEqual(
                 loaded.capacities["checkoutservice"].mu_per_millicore, 0.5
@@ -167,14 +191,12 @@ class TestFreezeService(unittest.TestCase):
         with TemporaryDirectory() as raw:
             d = Path(raw)
             _write_capacity(d, "checkoutservice", 100)
-            _write_inbound(d, [
-                {"timestamp": "2026-09-17T00:00:00Z", "service": "checkoutservice",
-                 "total": "0", "2xx": "0", "4xx": "0", "5xx": "0", "resets": "0",
-                 "rq_time_sum_ms": "0", "rq_time_count": "0"},
-                {"timestamp": "2026-09-17T00:00:01Z", "service": "checkoutservice",
-                 "total": "100", "2xx": "50", "4xx": "0", "5xx": "0", "resets": "50",
-                 "rq_time_sum_ms": "0", "rq_time_count": "0"},
-            ])
+            _write_inbound(
+                d,
+                _saturating_then_healthy_tail(
+                    "checkoutservice", five="0", resets="50",
+                ),
+            )
             out = d / "capacity_frozen.json"
             cf.save_table(cf.empty_table(), out)
             entry = cf.freeze_service(
@@ -182,20 +204,13 @@ class TestFreezeService(unittest.TestCase):
             )
             self.assertAlmostEqual(entry.throughput_at_calibration, 50.0)
             self.assertAlmostEqual(entry.mu_per_millicore, 0.5)
-            self.assertGreaterEqual(entry.n_sat_ticks, 1)
+            self.assertEqual(entry.n_sat_ticks, 1)
 
     def test_refuses_overwrite_without_force(self):
         with TemporaryDirectory() as raw:
             d = Path(raw)
             _write_capacity(d, "checkoutservice", 100)
-            _write_inbound(d, [
-                {"timestamp": "2026-09-17T00:00:00Z", "service": "checkoutservice",
-                 "total": "0", "2xx": "0", "4xx": "0", "5xx": "0",
-                 "rq_time_sum_ms": "0", "rq_time_count": "0"},
-                {"timestamp": "2026-09-17T00:00:01Z", "service": "checkoutservice",
-                 "total": "100", "2xx": "50", "4xx": "0", "5xx": "50",
-                 "rq_time_sum_ms": "0", "rq_time_count": "0"},
-            ])
+            _write_inbound(d, _saturating_then_healthy_tail("checkoutservice"))
             out = d / "capacity_frozen.json"
             cf.save_table(cf.empty_table(), out)
             cf.freeze_service(d, "checkoutservice", table_path=out, force=True)

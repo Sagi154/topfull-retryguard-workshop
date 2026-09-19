@@ -73,6 +73,7 @@ from typing import Dict, List, Optional, Tuple
 
 
 SAT_5XX_FRACTION = 0.05
+SAT_TAIL_TRIM_TICKS = 5
 INBOUND_NAME = "service_inbound.csv"
 
 # service_inbound.csv columns needed for the latency (W) observation. Older
@@ -301,6 +302,22 @@ def ticks_from_rows(rows: List[dict]) -> List[Tick]:
     ]
 
 
+def saturating_ticks(ticks: List[Tick]) -> List[Tick]:
+    """Ticks eligible for mu_sat: failure_fraction gate, last SAT_TAIL_TRIM_TICKS excluded.
+
+    Run teardown produces a reset burst on the last few inbound rows. Those
+    are not saturation. If the series is shorter than the trim, nothing is
+    eligible.
+    """
+    if len(ticks) <= SAT_TAIL_TRIM_TICKS:
+        return []
+    eligible = ticks[:-SAT_TAIL_TRIM_TICKS]
+    return [
+        t for t in eligible
+        if t.delta_total > 0 and t.failure_fraction >= SAT_5XX_FRACTION
+    ]
+
+
 def summarize_service(service: str, ticks: List[Tick]) -> ServiceEstimate:
     if not ticks:
         return ServiceEstimate(
@@ -318,11 +335,8 @@ def summarize_service(service: str, ticks: List[Tick]) -> ServiceEstimate:
 
     # Only capacity signal this script produces: near-saturation admitted
     # throughput. Requires real rejection; most runs will have no samples.
-    sat_samples = [
-        t.delta_2xx / t.dt_seconds
-        for t in ticks
-        if t.delta_total > 0 and t.failure_fraction >= SAT_5XX_FRACTION
-    ]
+    sat = saturating_ticks(ticks)
+    sat_samples = [t.delta_2xx / t.dt_seconds for t in sat]
     mu_sat = median(sat_samples) if sat_samples else None
 
     if not any(t.has_latency_cols for t in ticks):

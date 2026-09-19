@@ -132,6 +132,10 @@ def _tick(lambda_s, w_seconds, dtotal=100, d2xx=100, d5xx=0, dt=1.0,
     )
 
 
+def _healthy_tail(n=5):
+    return [_tick(80.0, 0.02) for _ in range(n)]
+
+
 class TestTickFiveXxFraction(unittest.TestCase):
     def test_fraction_computed_from_deltas(self):
         t = _tick(80.0, 0.02, dtotal=100, d5xx=10)
@@ -182,14 +186,12 @@ class TestSummarizeService(unittest.TestCase):
         self.assertEqual(est.note, mu.NO_LATENCY_TICKS_NOTE)
 
     def test_high_five_xx_uses_sat_mu_independent_of_latency(self):
-        # Delta5xx/Deltatotal = 10/100 = 0.10 >= 0.05; mu_sat = Delta2xx/Deltat = 90
+        sat = _tick(100.0, 0.01, dtotal=100, d2xx=90, d5xx=10)
         est = mu.summarize_service(
-            "checkoutservice",
-            [_tick(100.0, 0.01, dtotal=100, d2xx=90, d5xx=10)],
+            "checkoutservice", [sat] + _healthy_tail(),
         )
         self.assertEqual(est.mu_sat, 90.0)
-        # w_mean_ms still computed independently of mu_sat.
-        self.assertAlmostEqual(est.w_mean_ms, 10.0)
+        self.assertAlmostEqual(est.w_mean_ms, (10.0 + 20.0 * 5) / 6)
 
     def test_zero_five_xx_means_no_sat_mu(self):
         ticks = [_tick(80.0, 0.02), _tick(90.0, 0.02)]
@@ -197,14 +199,13 @@ class TestSummarizeService(unittest.TestCase):
         self.assertIsNone(est.mu_sat)
 
     def test_high_resets_zero_5xx_uses_sat_mu(self):
-        # failure_fraction = 20/100 = 0.20 >= 0.05; mu_sat = 80
+        sat = _tick(100.0, 0.01, dtotal=100, d2xx=80, d5xx=0, dresets=20)
         est = mu.summarize_service(
-            "checkoutservice",
-            [_tick(100.0, 0.01, dtotal=100, d2xx=80, d5xx=0, dresets=20)],
+            "checkoutservice", [sat] + _healthy_tail(),
         )
         self.assertEqual(est.mu_sat, 80.0)
         self.assertEqual(est.inbound_5xx_fraction, 0.0)
-        self.assertAlmostEqual(est.inbound_failure_fraction, 0.20)
+        self.assertAlmostEqual(est.inbound_failure_fraction, 20 / 600)
 
     def test_no_ticks_at_all(self):
         est = mu.summarize_service("frontend", [])
@@ -213,6 +214,25 @@ class TestSummarizeService(unittest.TestCase):
         self.assertIsNone(est.mu_sat)
         self.assertEqual(est.n_ticks_with_latency, 0)
         self.assertEqual(est.note, "no ticks with traffic")
+
+    def test_sat_only_in_last_five_ticks_is_ignored(self):
+        # 10 healthy + 2 shutdown-style reset bursts at the end —
+        # the frontend/productcatalog failure mode.
+        healthy = [_tick(500.0, 0.02, dtotal=500, d2xx=500) for _ in range(10)]
+        shutdown = [
+            _tick(470.0, 0.02, dtotal=470, d2xx=238, dresets=339),
+            _tick(52.0, 0.02, dtotal=52, d2xx=52, dresets=134),
+        ]
+        est = mu.summarize_service("frontend", healthy + shutdown)
+        self.assertIsNone(est.mu_sat)
+
+    def test_mid_series_sat_survives_tail_trim(self):
+        healthy = [_tick(80.0, 0.02) for _ in range(5)]
+        sat = [_tick(100.0, 0.01, dtotal=100, d2xx=80, d5xx=0, dresets=20)
+               for _ in range(10)]
+        tail = [_tick(80.0, 0.02) for _ in range(5)]
+        est = mu.summarize_service("checkoutservice", healthy + sat + tail)
+        self.assertEqual(est.mu_sat, 80.0)
 
 
 def _write(path, fieldnames, rows):
@@ -284,12 +304,22 @@ class TestEstimateRun(unittest.TestCase):
                      "total": "0", "2xx": "0", "4xx": "0", "5xx": "0"},
                     {"timestamp": "2026-09-13T13:52:11Z", "service": "cartservice",
                      "total": "100", "2xx": "90", "4xx": "0", "5xx": "10"},
+                    {"timestamp": "2026-09-13T13:52:12Z", "service": "cartservice",
+                     "total": "200", "2xx": "190", "4xx": "0", "5xx": "10"},
+                    {"timestamp": "2026-09-13T13:52:13Z", "service": "cartservice",
+                     "total": "300", "2xx": "290", "4xx": "0", "5xx": "10"},
+                    {"timestamp": "2026-09-13T13:52:14Z", "service": "cartservice",
+                     "total": "400", "2xx": "390", "4xx": "0", "5xx": "10"},
+                    {"timestamp": "2026-09-13T13:52:15Z", "service": "cartservice",
+                     "total": "500", "2xx": "490", "4xx": "0", "5xx": "10"},
+                    {"timestamp": "2026-09-13T13:52:16Z", "service": "cartservice",
+                     "total": "600", "2xx": "590", "4xx": "0", "5xx": "10"},
                 ],
             )
             estimates = mu.estimate_run(d)
             self.assertEqual(len(estimates), 1)
-            self.assertAlmostEqual(estimates[0].inbound_5xx_fraction, 0.10)
-            self.assertAlmostEqual(estimates[0].inbound_failure_fraction, 0.10)
+            self.assertAlmostEqual(estimates[0].inbound_5xx_fraction, 10 / 600)
+            self.assertAlmostEqual(estimates[0].inbound_failure_fraction, 10 / 600)
             self.assertEqual(estimates[0].mu_sat, 90.0)
 
     def test_format_table_prints_na_and_notes(self):
