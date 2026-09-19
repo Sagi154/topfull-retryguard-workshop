@@ -5,12 +5,15 @@
 # constrained cal (scenario_calibration_frontend_constrained.yaml).
 # Constrain to cpu_limit_fraction 0.05 × paper 1000m → 50m.
 # scenario_id 43 so scenario_dir_name() returns "" (results under campaign_48/).
+#
+# run1 (calibration_frontend_constrained_50m_run1) is the completed 50m
+# calibration and must not be overwritten. This slot is run2.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 43
 scenario_name: calibration_frontend_constrained_50m
 condition: calibration
-run_number: 1
+run_number: 2
 description: >
   Calibration-only run. frontend CPU constrained to 50m (0.05 x paper 1000m).
   TopFull RL off, RetryGuard off. Same Locust mix as the 100m constrained cal.
@@ -64,7 +67,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_frontend_constrained_50m_run1
+log_folder: calibration_frontend_constrained_50m_run2
 
 infra:
   master_ssh_host: topfull-master
