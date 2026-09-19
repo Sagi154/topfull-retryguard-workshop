@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T16:19:17Z",
+  "generated_at": "2026-09-19T17:26:28Z",
   "run_dir": "experiments\\results\\campaign_48\\S1_normal_op\\baseline_topfull_no_retryguard_normal_op_run24",
   "table_path": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\capacity\\capacity_frozen.json",
   "cluster_shape": "topfull-worker-1=e2-standard-16",
@@ -9,16 +9,16 @@
       "service": "frontend",
       "lambda_offered": 388.4788461538462,
       "lambda_retry": null,
-      "mu_per_millicore": 0.37,
-      "mu_this_run": 370.0,
-      "rho_hat": 1.0499428274428275,
+      "mu_per_millicore": 0.3,
+      "mu_this_run": 300.0,
+      "rho_hat": 1.2949294871794872,
       "cpu_limit_millicores": 1000,
-      "calibrated_at_cpu_limit_millicores": 100,
+      "calibrated_at_cpu_limit_millicores": 50,
       "replica_count": 1,
-      "n_sat_ticks": 9,
-      "low_confidence": true,
+      "n_sat_ticks": 26,
+      "low_confidence": false,
       "warnings": [
-        "millicore rescale 100m -> 1000m (ratio 10.0); assuming linear CPU scaling"
+        "millicore rescale 50m -> 1000m (ratio 20.0); assuming linear CPU scaling"
       ],
       "na_reason": null
     },

@@ -1,20 +1,20 @@
 {
-  "generated_at": "2026-09-19T16:19:08Z",
+  "generated_at": "2026-09-19T17:26:20Z",
   "cluster_shape": "topfull-worker-1=e2-standard-16",
   "schema_version": 1,
   "capacities": {
     "frontend": {
       "service": "frontend",
-      "mu_per_millicore": 0.37,
+      "mu_per_millicore": 0.3,
       "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": 100,
+      "calibrated_at_cpu_limit_millicores": 50,
       "calibrated_at_replica_count": 1,
-      "throughput_at_calibration": 37.0,
+      "throughput_at_calibration": 15.0,
       "method": "mu_sat",
       "cpu_source": "service_capacity.json",
-      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_frontend_constrained_run1",
-      "n_sat_ticks": 9,
-      "note": "low confidence: n_sat_ticks=9 < 10"
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_frontend_constrained_50m_run1",
+      "n_sat_ticks": 26,
+      "note": null
     },
     "checkoutservice": {
       "service": "checkoutservice",
