@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-17T20:28:34Z",
+  "generated_at": "2026-09-19T11:30:00Z",
   "cluster_shape": "topfull-worker-1=e2-standard-16",
   "schema_version": 1,
   "capacities": {
@@ -14,7 +14,7 @@
       "cpu_source": "service_capacity.json",
       "source_run": null,
       "n_sat_ticks": null,
-      "note": null
+      "note": "2026-09-19 best-effort TopFull/RG-off cal (baseline_no_topfull_sustained_overload_run2): inbound_5xx_fraction=0 so mu_sat null; overload was reset-driven (max Delta resets/Delta total >> 0). Deferred \u2014 do not re-boost Locust for another attempt without a new plan."
     },
     "checkoutservice": {
       "service": "checkoutservice",
@@ -27,7 +27,7 @@
       "cpu_source": "service_capacity.json",
       "source_run": null,
       "n_sat_ticks": null,
-      "note": null
+      "note": "2026-09-19 best-effort full-CPU TopFull/RG-off cal (calibration_checkout_payment_full_cpu_run1, postcheckout=500): inbound_5xx_fraction=0 so mu_sat null; same reset-driven pattern as S3 RG run8. Deferred."
     },
     "productcatalogservice": {
       "service": "productcatalogservice",
@@ -40,7 +40,7 @@
       "cpu_source": "service_capacity.json",
       "source_run": null,
       "n_sat_ticks": null,
-      "note": null
+      "note": "2026-09-19 best-effort full-CPU TopFull/RG-off cal (calibration_productcatalog_full_cpu_run1, getproduct=800): inbound_5xx_fraction=0 so mu_sat null; overload was reset-driven. Deferred."
     },
     "paymentservice": {
       "service": "paymentservice",
@@ -53,7 +53,7 @@
       "cpu_source": "service_capacity.json",
       "source_run": null,
       "n_sat_ticks": null,
-      "note": null
+      "note": "2026-09-19 best-effort full-CPU TopFull/RG-off cal (calibration_checkout_payment_full_cpu_run1): inbound_5xx_fraction=0 so mu_sat null; overload was reset-driven. Deferred."
     }
   }
 }
