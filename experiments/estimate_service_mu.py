@@ -42,7 +42,7 @@ conclusion:
   2026-09-16 to `envoy_retry_collector.py`). Reported as a latency
   observation, never as a stand-in for capacity. `w_p50_ms` is the same via
   differenced histogram buckets, for robustness against long-tail outliers.
-- `mu_sat = Δ2xx/Δt` on ticks with a high 5xx fraction — an
+- `mu_sat = Δ2xx/Δt` on ticks with a high (5xx+resets) fraction — an
   M/M/1/m-adjacent argument (near/at saturation, admitted throughput
   directly approximates capacity) that does not depend on W at all. This is
   the **only** capacity signal this script can produce from an arbitrary
@@ -209,6 +209,7 @@ def difference_inbound(rows: List[dict]) -> List[dict]:
             continue
         delta_2xx = _int(cur, "2xx") - _int(prev, "2xx")
         delta_5xx = _int(cur, "5xx") - _int(prev, "5xx")
+        delta_resets = _int(cur, "resets") - _int(prev, "resets")
 
         has_latency_cols = LATENCY_SUM_COL in cur and LATENCY_COUNT_COL in cur
         delta_rq_time_sum_ms = _int(cur, LATENCY_SUM_COL) - _int(prev, LATENCY_SUM_COL)
@@ -233,6 +234,7 @@ def difference_inbound(rows: List[dict]) -> List[dict]:
                 "delta_total": delta_total,
                 "delta_2xx": delta_2xx,
                 "delta_5xx": delta_5xx,
+                "delta_resets": delta_resets,
                 "lambda_s": delta_total / dt,
                 "has_latency_cols": has_latency_cols,
                 "w_seconds": w_seconds,
@@ -253,12 +255,19 @@ class Tick:
     has_latency_cols: bool
     w_seconds: Optional[float]
     w_p50_ms: Optional[float] = None
+    delta_resets: int = 0
 
     @property
     def five_xx_fraction(self) -> float:
         if self.delta_total <= 0:
             return 0.0
         return self.delta_5xx / self.delta_total
+
+    @property
+    def failure_fraction(self) -> float:
+        if self.delta_total <= 0:
+            return 0.0
+        return (self.delta_5xx + self.delta_resets) / self.delta_total
 
 
 @dataclass(frozen=True)
@@ -269,6 +278,7 @@ class ServiceEstimate:
     w_mean_ms: Optional[float]
     n_ticks_with_latency: int
     inbound_5xx_fraction: float
+    inbound_failure_fraction: float = 0.0
     note: Optional[str] = None
     w_p50_ms: Optional[float] = None
 
@@ -285,6 +295,7 @@ def ticks_from_rows(rows: List[dict]) -> List[Tick]:
             has_latency_cols=d["has_latency_cols"],
             w_seconds=d["w_seconds"],
             w_p50_ms=d.get("w_p50_ms"),
+            delta_resets=d.get("delta_resets", 0),
         )
         for d in difference_inbound(rows)
     ]
@@ -300,15 +311,17 @@ def summarize_service(service: str, ticks: List[Tick]) -> ServiceEstimate:
     lambda_mean = sum(lambdas) / len(lambdas)
 
     d5 = sum(t.delta_5xx for t in ticks)
+    dreset = sum(t.delta_resets for t in ticks)
     dtot = sum(t.delta_total for t in ticks)
     inbound_5xx_fraction = (d5 / dtot) if dtot else 0.0
+    inbound_failure_fraction = ((d5 + dreset) / dtot) if dtot else 0.0
 
     # Only capacity signal this script produces: near-saturation admitted
     # throughput. Requires real rejection; most runs will have no samples.
     sat_samples = [
         t.delta_2xx / t.dt_seconds
         for t in ticks
-        if t.delta_total > 0 and t.five_xx_fraction >= SAT_5XX_FRACTION
+        if t.delta_total > 0 and t.failure_fraction >= SAT_5XX_FRACTION
     ]
     mu_sat = median(sat_samples) if sat_samples else None
 
@@ -320,6 +333,7 @@ def summarize_service(service: str, ticks: List[Tick]) -> ServiceEstimate:
             w_mean_ms=None,
             n_ticks_with_latency=0,
             inbound_5xx_fraction=inbound_5xx_fraction,
+            inbound_failure_fraction=inbound_failure_fraction,
             note=NO_LATENCY_COLUMNS_NOTE,
         )
 
@@ -335,6 +349,7 @@ def summarize_service(service: str, ticks: List[Tick]) -> ServiceEstimate:
             w_mean_ms=None,
             n_ticks_with_latency=0,
             inbound_5xx_fraction=inbound_5xx_fraction,
+            inbound_failure_fraction=inbound_failure_fraction,
             note=NO_LATENCY_TICKS_NOTE,
             w_p50_ms=w_p50_ms,
         )
@@ -348,6 +363,7 @@ def summarize_service(service: str, ticks: List[Tick]) -> ServiceEstimate:
         w_mean_ms=w_mean_ms,
         n_ticks_with_latency=len(w_samples_ms),
         inbound_5xx_fraction=inbound_5xx_fraction,
+        inbound_failure_fraction=inbound_failure_fraction,
         note=None,
         w_p50_ms=w_p50_ms,
     )
@@ -396,6 +412,7 @@ def format_table(estimates: List[ServiceEstimate]) -> str:
         "w_p50_ms",
         "n_ticks",
         "inbound_5xx_fraction",
+        "inbound_failure_fraction",
     )
     rows: List[tuple] = [headers]
     for e in estimates:
@@ -408,6 +425,7 @@ def format_table(estimates: List[ServiceEstimate]) -> str:
                 _fmt(e.w_p50_ms),
                 str(e.n_ticks_with_latency),
                 _fmt(e.inbound_5xx_fraction),
+                _fmt(e.inbound_failure_fraction),
             )
         )
     widths = [max(len(r[i]) for r in rows) for i in range(len(headers))]

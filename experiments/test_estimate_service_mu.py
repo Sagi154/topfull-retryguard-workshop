@@ -118,7 +118,7 @@ class TestDifferenceInbound(unittest.TestCase):
 
 
 def _tick(lambda_s, w_seconds, dtotal=100, d2xx=100, d5xx=0, dt=1.0,
-          ts="2026-09-13T13:52:11Z", has_latency_cols=True):
+          ts="2026-09-13T13:52:11Z", has_latency_cols=True, dresets=0):
     return mu.Tick(
         timestamp=ts,
         dt_seconds=dt,
@@ -128,6 +128,7 @@ def _tick(lambda_s, w_seconds, dtotal=100, d2xx=100, d5xx=0, dt=1.0,
         delta_5xx=d5xx,
         has_latency_cols=has_latency_cols,
         w_seconds=w_seconds,
+        delta_resets=dresets,
     )
 
 
@@ -139,6 +140,17 @@ class TestTickFiveXxFraction(unittest.TestCase):
     def test_zero_when_no_total(self):
         t = _tick(0.0, None, dtotal=0)
         self.assertEqual(t.five_xx_fraction, 0.0)
+
+
+class TestTickFailureFraction(unittest.TestCase):
+    def test_resets_only_can_exceed_one(self):
+        t = _tick(80.0, 0.02, dtotal=100, d5xx=0, dresets=260)
+        self.assertAlmostEqual(t.five_xx_fraction, 0.0)
+        self.assertAlmostEqual(t.failure_fraction, 2.6)
+
+    def test_zero_when_no_total(self):
+        t = _tick(0.0, None, dtotal=0, dresets=10)
+        self.assertEqual(t.failure_fraction, 0.0)
 
 
 class TestSummarizeService(unittest.TestCase):
@@ -183,6 +195,16 @@ class TestSummarizeService(unittest.TestCase):
         ticks = [_tick(80.0, 0.02), _tick(90.0, 0.02)]
         est = mu.summarize_service("frontend", ticks)
         self.assertIsNone(est.mu_sat)
+
+    def test_high_resets_zero_5xx_uses_sat_mu(self):
+        # failure_fraction = 20/100 = 0.20 >= 0.05; mu_sat = 80
+        est = mu.summarize_service(
+            "checkoutservice",
+            [_tick(100.0, 0.01, dtotal=100, d2xx=80, d5xx=0, dresets=20)],
+        )
+        self.assertEqual(est.mu_sat, 80.0)
+        self.assertEqual(est.inbound_5xx_fraction, 0.0)
+        self.assertAlmostEqual(est.inbound_failure_fraction, 0.20)
 
     def test_no_ticks_at_all(self):
         est = mu.summarize_service("frontend", [])
@@ -250,6 +272,26 @@ class TestEstimateRun(unittest.TestCase):
             self.assertIsNone(estimates[0].w_mean_ms)
             self.assertEqual(estimates[0].note, mu.NO_LATENCY_COLUMNS_NOTE)
 
+    def test_missing_resets_column_diffs_as_zero(self):
+        """Older inbound CSVs lack `resets`; `_int` treats that as 0."""
+        with TemporaryDirectory() as raw:
+            d = Path(raw)
+            _write(
+                d / "service_inbound.csv",
+                ["timestamp", "service", "total", "2xx", "4xx", "5xx"],
+                [
+                    {"timestamp": "2026-09-13T13:52:10Z", "service": "cartservice",
+                     "total": "0", "2xx": "0", "4xx": "0", "5xx": "0"},
+                    {"timestamp": "2026-09-13T13:52:11Z", "service": "cartservice",
+                     "total": "100", "2xx": "90", "4xx": "0", "5xx": "10"},
+                ],
+            )
+            estimates = mu.estimate_run(d)
+            self.assertEqual(len(estimates), 1)
+            self.assertAlmostEqual(estimates[0].inbound_5xx_fraction, 0.10)
+            self.assertAlmostEqual(estimates[0].inbound_failure_fraction, 0.10)
+            self.assertEqual(estimates[0].mu_sat, 90.0)
+
     def test_format_table_prints_na_and_notes(self):
         est = mu.ServiceEstimate(
             "cartservice", 100.0, None, None, 0, 0.0,
@@ -261,6 +303,7 @@ class TestEstimateRun(unittest.TestCase):
         self.assertIn("Notes:", text)
         self.assertIn(mu.NO_LATENCY_COLUMNS_NOTE, text)
         self.assertIn("w_p50_ms", text)
+        self.assertIn("inbound_failure_fraction", text)
         self.assertNotIn("mu_hat_w", text)
         self.assertNotIn("rho_w", text)
 
