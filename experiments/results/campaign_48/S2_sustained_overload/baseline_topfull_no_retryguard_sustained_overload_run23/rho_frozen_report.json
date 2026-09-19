@@ -1,0 +1,70 @@
+{
+  "generated_at": "2026-09-19T11:27:28Z",
+  "run_dir": "experiments\\results\\campaign_48\\S2_sustained_overload\\baseline_topfull_no_retryguard_sustained_overload_run23",
+  "table_path": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\capacity\\capacity_frozen.json",
+  "cluster_shape": "topfull-worker-1=e2-standard-16",
+  "table_cluster_shape": "topfull-worker-1=e2-standard-16",
+  "rows": [
+    {
+      "service": "frontend",
+      "lambda_offered": null,
+      "lambda_retry": null,
+      "mu_per_millicore": null,
+      "mu_this_run": null,
+      "rho_hat": null,
+      "cpu_limit_millicores": null,
+      "calibrated_at_cpu_limit_millicores": null,
+      "replica_count": null,
+      "n_sat_ticks": null,
+      "low_confidence": false,
+      "warnings": [],
+      "na_reason": "not_yet_calibrated"
+    },
+    {
+      "service": "checkoutservice",
+      "lambda_offered": null,
+      "lambda_retry": null,
+      "mu_per_millicore": null,
+      "mu_this_run": null,
+      "rho_hat": null,
+      "cpu_limit_millicores": null,
+      "calibrated_at_cpu_limit_millicores": null,
+      "replica_count": null,
+      "n_sat_ticks": null,
+      "low_confidence": false,
+      "warnings": [],
+      "na_reason": "not_yet_calibrated"
+    },
+    {
+      "service": "productcatalogservice",
+      "lambda_offered": null,
+      "lambda_retry": null,
+      "mu_per_millicore": null,
+      "mu_this_run": null,
+      "rho_hat": null,
+      "cpu_limit_millicores": null,
+      "calibrated_at_cpu_limit_millicores": null,
+      "replica_count": null,
+      "n_sat_ticks": null,
+      "low_confidence": false,
+      "warnings": [],
+      "na_reason": "not_yet_calibrated"
+    },
+    {
+      "service": "paymentservice",
+      "lambda_offered": null,
+      "lambda_retry": null,
+      "mu_per_millicore": null,
+      "mu_this_run": null,
+      "rho_hat": null,
+      "cpu_limit_millicores": null,
+      "calibrated_at_cpu_limit_millicores": null,
+      "replica_count": null,
+      "n_sat_ticks": null,
+      "low_confidence": false,
+      "warnings": [],
+      "na_reason": "not_yet_calibrated"
+    }
+  ],
+  "warnings": []
+}

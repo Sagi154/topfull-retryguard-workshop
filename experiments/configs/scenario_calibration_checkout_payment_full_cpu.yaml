@@ -18,7 +18,7 @@
 scenario_id: 30
 scenario_name: calibration_checkout_payment_full_cpu
 condition: calibration
-run_number: 1
+run_number: 2                  # run1 = 2026-09-19 cal attempt (mu_sat null) — bumped to avoid overwrite
 description: >
   Calibration-only run. Full (unconstrained) CPU for checkoutservice and
   paymentservice. TopFull RL off, RetryGuard off. Heavy postcheckout load to
@@ -68,7 +68,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_checkout_payment_full_cpu_run1
+log_folder: calibration_checkout_payment_full_cpu_run2
 
 infra:
   master_ssh_host: topfull-master
