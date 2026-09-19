@@ -106,7 +106,7 @@ CONTEXT_NOTE = (
     "arrival rate, `\u0394total/\u0394t` from `service_inbound.csv`); `w_mean_ms`/`w_p50_ms` "
     "(this service's own mean/P50 inbound sojourn time, from Envoy's `downstream_rq_time` "
     "histogram \u2014 reported as a latency observation, never as a stand-in for capacity); "
-    "and `mu_sat` (`\u0394 2xx/\u0394t` on ticks with a high 5xx fraction \u2014 the one "
+    "and `mu_sat` (`\u0394 2xx/\u0394t` on ticks with a high (5xx+resets) fraction \u2014 the one "
     "capacity signal this report can produce from a single run, but only available on ticks "
     "with real rejection, so most runs show `mu_sat = n/a`). A `rho_hat = lambda_offered / "
     "mu_this_run` diagnostic that freezes `mu_per_millicore` from a dedicated saturation "
@@ -245,6 +245,7 @@ def build_markdown_report(
                     f"mu_sat={mu._fmt(est.mu_sat)}  "
                     f"w_mean_ms={mu._fmt(est.w_mean_ms)}  "
                     f"inbound_5xx_fraction={mu._fmt(est.inbound_5xx_fraction)}"
+                    f" inbound_failure_fraction={mu._fmt(est.inbound_failure_fraction)}"
                     + (f"  note: {est.note}" if est.note else "")
                 )
             lines.append("")

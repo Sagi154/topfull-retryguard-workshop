@@ -178,7 +178,7 @@ def count_sat_ticks(run_dir: Path, service: str) -> int:
     ticks = mu.ticks_from_rows(rows)
     return sum(
         1 for t in ticks
-        if t.delta_total > 0 and t.five_xx_fraction >= mu.SAT_5XX_FRACTION
+        if t.delta_total > 0 and t.failure_fraction >= mu.SAT_5XX_FRACTION
     )
 
 
@@ -226,7 +226,7 @@ def freeze_service(
     by_name = {e.service: e for e in estimates}
     if service not in by_name or by_name[service].mu_sat is None:
         raise FrozenCapacityError(
-            f"mu_sat unavailable for {service} (no saturating 5xx ticks)"
+            f"mu_sat unavailable for {service} (no saturating 5xx/reset ticks)"
         )
     throughput = float(by_name[service].mu_sat)
     n_sat = count_sat_ticks(run_dir, service)

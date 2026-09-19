@@ -85,11 +85,12 @@ class TestFrozenTableRoundTrip(unittest.TestCase):
 
 def _write_inbound(d: Path, rows: list[dict]) -> None:
     fields = ["timestamp", "service", "total", "2xx", "4xx", "5xx",
-              "rq_time_sum_ms", "rq_time_count"]
+              "resets", "rq_time_sum_ms", "rq_time_count"]
     with open(d / "service_inbound.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         for row in rows:
+            row.setdefault("resets", "0")
             w.writerow(row)
 
 
@@ -161,6 +162,27 @@ class TestFreezeService(unittest.TestCase):
             with self.assertRaises(cf.FrozenCapacityError) as ctx:
                 cf.freeze_service(d, "checkoutservice", table_path=out)
             self.assertIn("mu_sat", str(ctx.exception))
+
+    def test_freeze_succeeds_on_reset_only_saturation(self):
+        with TemporaryDirectory() as raw:
+            d = Path(raw)
+            _write_capacity(d, "checkoutservice", 100)
+            _write_inbound(d, [
+                {"timestamp": "2026-09-17T00:00:00Z", "service": "checkoutservice",
+                 "total": "0", "2xx": "0", "4xx": "0", "5xx": "0", "resets": "0",
+                 "rq_time_sum_ms": "0", "rq_time_count": "0"},
+                {"timestamp": "2026-09-17T00:00:01Z", "service": "checkoutservice",
+                 "total": "100", "2xx": "50", "4xx": "0", "5xx": "0", "resets": "50",
+                 "rq_time_sum_ms": "0", "rq_time_count": "0"},
+            ])
+            out = d / "capacity_frozen.json"
+            cf.save_table(cf.empty_table(), out)
+            entry = cf.freeze_service(
+                d, "checkoutservice", table_path=out, force=True
+            )
+            self.assertAlmostEqual(entry.throughput_at_calibration, 50.0)
+            self.assertAlmostEqual(entry.mu_per_millicore, 0.5)
+            self.assertGreaterEqual(entry.n_sat_ticks, 1)
 
     def test_refuses_overwrite_without_force(self):
         with TemporaryDirectory() as raw:
