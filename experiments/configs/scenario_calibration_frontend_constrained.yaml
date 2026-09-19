@@ -8,13 +8,13 @@
 # scenario_2_baseline_no_topfull.yaml (that file stays the full-CPU control).
 #
 # run1 (calibration_frontend_constrained_run1) was the 9-tick freeze source
-# and must not be overwritten. This slot is run2.
+# and must not be overwritten. run2 is the completed 100m replay. This slot is run3.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 41
 scenario_name: calibration_frontend_constrained
 condition: calibration
-run_number: 2
+run_number: 3
 description: >
   Calibration-only run. frontend CPU constrained to 100m. TopFull RL off,
   RetryGuard off. Same Locust mix as S2 / no-TopFull control.
@@ -68,7 +68,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_frontend_constrained_run2
+log_folder: calibration_frontend_constrained_run3
 
 infra:
   master_ssh_host: topfull-master
