@@ -1,6 +1,6 @@
 # frozen-capacity rho_hat report — `baseline_topfull_no_retryguard_sustained_overload_run23`
 
-Generated: 2026-09-19T11:27:28Z
+Generated: 2026-09-19T14:32:51Z
 Run folder: `experiments\results\campaign_48\S2_sustained_overload\baseline_topfull_no_retryguard_sustained_overload_run23`
 Frozen table: `C:\Users\sagi1\Projects\Workshop\experiments\capacity\capacity_frozen.json` (cluster_shape=topfull-worker-1=e2-standard-16)
 
@@ -8,7 +8,7 @@ This is a **supplementary** offline diagnostic, not RetryGuard's live input. Fro
 
 | service | lambda_offered | lambda_retry | mu_per_millicore | mu_this_run | rho_hat | cpu_limit_m | calibrated_at_m | n_sat_ticks | low_confidence | na_reason |
 |---|---|---|---|---|---|---|---|---|---|---|
-| frontend | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | not_yet_calibrated |
-| checkoutservice | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | not_yet_calibrated |
-| productcatalogservice | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | not_yet_calibrated |
-| paymentservice | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | False | not_yet_calibrated |
+| frontend | 551.2 | n/a | 0.238 | 238 | 2.316 | 1000 | 1000 | 2 | True | n/a |
+| checkoutservice | 19.91 | 0 | 0.1615 | 161.5 | 0.1233 | 1000 | 1000 | 34 | False | n/a |
+| productcatalogservice | 2424 | 0 | 1.399 | 699.5 | 3.466 | 500 | 500 | 2 | True | n/a |
+| paymentservice | 19.9 | 0 | 0.0195 | 19.5 | 1.021 | 1000 | 1000 | 20 | False | n/a |
