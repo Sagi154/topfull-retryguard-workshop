@@ -1,0 +1,83 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Calibration — checkoutservice + paymentservice, FULL CPU, TopFull+RG OFF
+#
+# Not part of the S1-S6 scenario matrix. Purpose: drive checkoutservice and
+# paymentservice (paymentservice is only reachable via checkout) toward their
+# own saturation at their normal, unconstrained paper CPU limits (checkout
+# 1000m, payment 1000m) — NOT the artificially-starved S3/S4B limits
+# (100m each). TopFull RL and RetryGuard are both off so neither one's
+# admission control / retry suppression masks the raw ceiling.
+#
+# Lever: postcheckout is the only Locust flow that reaches both checkout and
+# payment, so it is pushed far above every existing scenario's postcheckout
+# count (20) to have any chance of reaching a 1000m ceiling. Best-effort:
+# if this still does not produce a mu_sat sample, do not extend this config
+# further — record as not_yet_calibrated per this plan's Task 4/5.
+# ─────────────────────────────────────────────────────────────────────────────
+
+scenario_id: 30
+scenario_name: calibration_checkout_payment_full_cpu
+condition: calibration
+run_number: 1
+description: >
+  Calibration-only run. Full (unconstrained) CPU for checkoutservice and
+  paymentservice. TopFull RL off, RetryGuard off. Heavy postcheckout load to
+  attempt real saturation for mu_sat.
+
+duration_seconds: 900
+
+locust:
+  user_counts:
+    getproduct:   50
+    postcheckout: 500
+    getcart:      50
+    postcart:     50
+    emptycart:    50
+  spawn_rate: 150
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+
+scale_constraints: []
+
+retries:
+  attempts_on: 3
+  attempts_off: 0
+  per_try_timeout_ms: 500
+
+topfull_rl:
+  enabled: false
+
+retryguard:
+  enabled: false
+  rejection_threshold: 0.20
+  sample_interval_seconds: 1
+  interval_samples: 30
+
+envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 1
+  transport: network_prometheus
+  max_workers: 4
+
+resource_usage_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
+topfull_throttle_collector:
+  enabled: true
+  poll_interval_seconds: 1
+
+log_folder: calibration_checkout_payment_full_cpu_run1
+
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py
+  envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py
+  resource_usage_collector_script: /home/idozacharia/experiments/resource_usage_collector.py
+  topfull_throttle_collector_script: /home/idozacharia/experiments/topfull_throttle_collector.py
