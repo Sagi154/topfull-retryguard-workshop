@@ -1,59 +1,59 @@
 {
-  "generated_at": "2026-09-19T11:30:00Z",
+  "generated_at": "2026-09-19T14:32:45Z",
   "cluster_shape": "topfull-worker-1=e2-standard-16",
   "schema_version": 1,
   "capacities": {
     "frontend": {
       "service": "frontend",
-      "mu_per_millicore": null,
+      "mu_per_millicore": 0.238,
       "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": null,
-      "calibrated_at_replica_count": null,
-      "throughput_at_calibration": null,
-      "method": "not_yet_calibrated",
+      "calibrated_at_cpu_limit_millicores": 1000,
+      "calibrated_at_replica_count": 1,
+      "throughput_at_calibration": 238.0,
+      "method": "mu_sat",
       "cpu_source": "service_capacity.json",
-      "source_run": null,
-      "n_sat_ticks": null,
-      "note": "2026-09-19 best-effort TopFull/RG-off cal (baseline_no_topfull_sustained_overload_run2): inbound_5xx_fraction=0 so mu_sat null; overload was reset-driven (max Delta resets/Delta total >> 0). Deferred \u2014 do not re-boost Locust for another attempt without a new plan."
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\S2_sustained_overload\\baseline_no_topfull_sustained_overload_run2",
+      "n_sat_ticks": 2,
+      "note": "low confidence: n_sat_ticks=2 < 10"
     },
     "checkoutservice": {
       "service": "checkoutservice",
-      "mu_per_millicore": null,
+      "mu_per_millicore": 0.1615,
       "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": null,
-      "calibrated_at_replica_count": null,
-      "throughput_at_calibration": null,
-      "method": "not_yet_calibrated",
+      "calibrated_at_cpu_limit_millicores": 1000,
+      "calibrated_at_replica_count": 1,
+      "throughput_at_calibration": 161.5,
+      "method": "mu_sat",
       "cpu_source": "service_capacity.json",
-      "source_run": null,
-      "n_sat_ticks": null,
-      "note": "2026-09-19 best-effort full-CPU TopFull/RG-off cal (calibration_checkout_payment_full_cpu_run1, postcheckout=500): inbound_5xx_fraction=0 so mu_sat null; same reset-driven pattern as S3 RG run8. Deferred."
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_checkout_payment_full_cpu_run1",
+      "n_sat_ticks": 34,
+      "note": null
     },
     "productcatalogservice": {
       "service": "productcatalogservice",
-      "mu_per_millicore": null,
+      "mu_per_millicore": 1.399,
       "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": null,
-      "calibrated_at_replica_count": null,
-      "throughput_at_calibration": null,
-      "method": "not_yet_calibrated",
+      "calibrated_at_cpu_limit_millicores": 500,
+      "calibrated_at_replica_count": 1,
+      "throughput_at_calibration": 699.5,
+      "method": "mu_sat",
       "cpu_source": "service_capacity.json",
-      "source_run": null,
-      "n_sat_ticks": null,
-      "note": "2026-09-19 best-effort full-CPU TopFull/RG-off cal (calibration_productcatalog_full_cpu_run1, getproduct=800): inbound_5xx_fraction=0 so mu_sat null; overload was reset-driven. Deferred."
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_productcatalog_full_cpu_run1",
+      "n_sat_ticks": 2,
+      "note": "low confidence: n_sat_ticks=2 < 10"
     },
     "paymentservice": {
       "service": "paymentservice",
-      "mu_per_millicore": null,
+      "mu_per_millicore": 0.0195,
       "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": null,
-      "calibrated_at_replica_count": null,
-      "throughput_at_calibration": null,
-      "method": "not_yet_calibrated",
+      "calibrated_at_cpu_limit_millicores": 1000,
+      "calibrated_at_replica_count": 1,
+      "throughput_at_calibration": 19.5,
+      "method": "mu_sat",
       "cpu_source": "service_capacity.json",
-      "source_run": null,
-      "n_sat_ticks": null,
-      "note": "2026-09-19 best-effort full-CPU TopFull/RG-off cal (calibration_checkout_payment_full_cpu_run1): inbound_5xx_fraction=0 so mu_sat null; overload was reset-driven. Deferred."
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_checkout_payment_full_cpu_run1",
+      "n_sat_ticks": 20,
+      "note": null
     }
   }
 }

@@ -5,21 +5,23 @@ set (frontend, checkoutservice, productcatalogservice, paymentservice).
 
 ## Calibration status (2026-09-19)
 
-All four entries remain `method: "not_yet_calibrated"`. A best-effort
-TopFull-off + RetryGuard-off battery at full paper CPU limits was run:
+All four minimum-set services are `method: "mu_sat"`, frozen from the
+three full-CPU TopFull-off + RetryGuard-off calibration folders after
+`mu_sat` started gating on `(Δ5xx+Δresets)/Δtotal` (reset-driven
+trigger; `SAT_5XX_FRACTION` still 0.05). Do **not** freeze from S3 RG
+run8 (checkout is 100m there, not paper 1000m).
 
-| Service | Calibration folder | `mu_sat` | Why |
-|---|---|---|---|
-| frontend | `campaign_48/S2_sustained_overload/baseline_no_topfull_sustained_overload_run2` | null | inbound 5xx = 0; overload was reset-driven |
-| checkoutservice | `campaign_48/calibration_checkout_payment_full_cpu_run1` | null | same (matches S3 RG run8 diagnosis) |
-| paymentservice | same as checkout | null | same |
-| productcatalogservice | `campaign_48/calibration_productcatalog_full_cpu_run1` | null | inbound 5xx = 0; overload was reset-driven |
+| Service | Source run | millicores | `mu_per_millicore` | `n_sat_ticks` |
+|---|---|---|---|---|
+| frontend | `campaign_48/S2_sustained_overload/baseline_no_topfull_sustained_overload_run2` | 1000m × 1 | 0.238 | 2 (low confidence) |
+| checkoutservice | `campaign_48/calibration_checkout_payment_full_cpu_run1` | 1000m × 1 | 0.1615 | 34 |
+| paymentservice | same as checkout | 1000m × 1 | 0.0195 | 20 |
+| productcatalogservice | `campaign_48/calibration_productcatalog_full_cpu_run1` | 500m × 1 | 1.399 | 2 (low confidence) |
 
-`capacity_frozen.py freeze` correctly refused each service
-(`mu_sat unavailable … no saturating 5xx ticks`). Per the calibration
-plan's best-effort rule: do **not** re-boost Locust or build a direct
-gRPC micro-benchmark until the team decides how to handle reset-driven
-saturation (v1 `mu_sat` is 5xx-only).
+Sanity `rho_frozen_report.py` on S1 baseline run24 / S2 baseline run23:
+frontend `rho_hat` 1.632 / 2.316. Informal band was S1 entry ~0.5–0.8,
+S2 entry >1 — S2 matches; S1 is above the band, consistent with
+frontend/productcatalog μ coming from only two saturating ticks.
 
 Freeze (does not modify the run folder):
 
@@ -30,6 +32,7 @@ Report (writes rho_frozen_report.md into the run folder):
     python experiments/rho_frozen_report.py <run_dir>
 
 Do not freeze from a TopFull-on plateau and call it the service's true
-ceiling. v1 freeze method is mu_sat only. cluster_shape must stay
-`topfull-worker-1=e2-standard-16` until a full re-calibration after a
-VM resize. This table is not auto-applied by pull_results.py.
+ceiling. v1 freeze method is mu_sat only (reset-aware trigger).
+cluster_shape must stay `topfull-worker-1=e2-standard-16` until a full
+re-calibration after a VM resize. This table is not auto-applied by
+pull_results.py.
