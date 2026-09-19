@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T17:26:28Z",
+  "generated_at": "2026-09-19T19:52:53Z",
   "run_dir": "experiments\\results\\campaign_48\\S1_normal_op\\baseline_topfull_no_retryguard_normal_op_run24",
   "table_path": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\capacity\\capacity_frozen.json",
   "cluster_shape": "topfull-worker-1=e2-standard-16",
@@ -26,15 +26,17 @@
       "service": "checkoutservice",
       "lambda_offered": 9.961290322580645,
       "lambda_retry": 0.0,
-      "mu_per_millicore": 0.1615,
-      "mu_this_run": 161.5,
-      "rho_hat": 0.06167981623888944,
+      "mu_per_millicore": 10.82,
+      "mu_this_run": 10820.0,
+      "rho_hat": 0.0009206368135471945,
       "cpu_limit_millicores": 1000,
-      "calibrated_at_cpu_limit_millicores": 1000,
+      "calibrated_at_cpu_limit_millicores": 50,
       "replica_count": 1,
-      "n_sat_ticks": 34,
+      "n_sat_ticks": 210,
       "low_confidence": false,
-      "warnings": [],
+      "warnings": [
+        "millicore rescale 50m -> 1000m (ratio 20.0); assuming linear CPU scaling"
+      ],
       "na_reason": null
     },
     {
@@ -58,15 +60,17 @@
       "service": "paymentservice",
       "lambda_offered": 9.961290322580645,
       "lambda_retry": 0.0,
-      "mu_per_millicore": 0.0195,
-      "mu_this_run": 19.5,
-      "rho_hat": 0.5108354011579818,
+      "mu_per_millicore": 0.72,
+      "mu_this_run": 720.0,
+      "rho_hat": 0.013835125448028673,
       "cpu_limit_millicores": 1000,
-      "calibrated_at_cpu_limit_millicores": 1000,
+      "calibrated_at_cpu_limit_millicores": 50,
       "replica_count": 1,
-      "n_sat_ticks": 20,
+      "n_sat_ticks": 26,
       "low_confidence": false,
-      "warnings": [],
+      "warnings": [
+        "millicore rescale 50m -> 1000m (ratio 20.0); assuming linear CPU scaling"
+      ],
       "na_reason": null
     }
   ],

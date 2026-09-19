@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T17:26:20Z",
+  "generated_at": "2026-09-19T19:52:45Z",
   "cluster_shape": "topfull-worker-1=e2-standard-16",
   "schema_version": 1,
   "capacities": {
@@ -18,15 +18,15 @@
     },
     "checkoutservice": {
       "service": "checkoutservice",
-      "mu_per_millicore": 0.1615,
+      "mu_per_millicore": 10.82,
       "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": 1000,
+      "calibrated_at_cpu_limit_millicores": 50,
       "calibrated_at_replica_count": 1,
-      "throughput_at_calibration": 161.5,
+      "throughput_at_calibration": 541.0,
       "method": "mu_sat",
       "cpu_source": "service_capacity.json",
-      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_checkout_payment_full_cpu_run1",
-      "n_sat_ticks": 34,
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_checkout_constrained_50m_run1",
+      "n_sat_ticks": 210,
       "note": null
     },
     "productcatalogservice": {
@@ -44,15 +44,15 @@
     },
     "paymentservice": {
       "service": "paymentservice",
-      "mu_per_millicore": 0.0195,
+      "mu_per_millicore": 0.72,
       "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": 1000,
+      "calibrated_at_cpu_limit_millicores": 50,
       "calibrated_at_replica_count": 1,
-      "throughput_at_calibration": 19.5,
+      "throughput_at_calibration": 36.0,
       "method": "mu_sat",
       "cpu_source": "service_capacity.json",
-      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_checkout_payment_full_cpu_run1",
-      "n_sat_ticks": 20,
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_payment_constrained_50m_run1",
+      "n_sat_ticks": 26,
       "note": null
     }
   }
