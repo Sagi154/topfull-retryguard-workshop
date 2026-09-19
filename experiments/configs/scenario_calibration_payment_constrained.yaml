@@ -11,7 +11,7 @@
 scenario_id: 44
 scenario_name: calibration_payment_constrained
 condition: calibration
-run_number: 1
+run_number: 2
 description: >
   Calibration-only run. paymentservice CPU constrained to 100m.
   checkoutservice stays paper 1000m. TopFull RL off, RetryGuard off.
@@ -65,7 +65,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_payment_constrained_run1
+log_folder: calibration_payment_constrained_run2
 
 infra:
   master_ssh_host: topfull-master
