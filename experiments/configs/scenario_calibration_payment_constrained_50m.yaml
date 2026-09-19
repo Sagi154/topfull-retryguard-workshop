@@ -1,0 +1,81 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Calibration — paymentservice, CONSTRAINED CPU (50m), TopFull+RG OFF
+#
+# Not part of the S1-S6 scenario matrix. Same Locust mix as the 100m
+# payment constrained cal. Constrain only paymentservice to
+# cpu_limit_fraction 0.05 × paper 1000m → 50m. checkoutservice stays paper
+# 1000m. TopFull RL and RetryGuard off.
+# scenario_id 45 so scenario_dir_name() returns "" (results under campaign_48/).
+# ─────────────────────────────────────────────────────────────────────────────
+
+scenario_id: 45
+scenario_name: calibration_payment_constrained_50m
+condition: calibration
+run_number: 1
+description: >
+  Calibration-only run. paymentservice CPU constrained to 50m
+  (0.05 x paper 1000m). checkoutservice stays paper 1000m.
+  TopFull RL off, RetryGuard off.
+
+duration_seconds: 600
+
+locust:
+  user_counts:
+    getproduct:   50
+    postcheckout: 500
+    getcart:      50
+    postcart:     50
+    emptycart:    50
+  spawn_rate: 150
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+
+scale_constraints:
+  - deployment: paymentservice
+    namespace: default
+    method: cpu_limit
+    cpu_limit_fraction: 0.05    # 0.05 x paper 1000m -> 50m
+    container: server
+
+retries:
+  attempts_on: 3
+  attempts_off: 0
+  per_try_timeout_ms: 500
+
+topfull_rl:
+  enabled: false
+
+retryguard:
+  enabled: false
+  rejection_threshold: 0.20
+  sample_interval_seconds: 1
+  interval_samples: 30
+
+envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 1
+  transport: network_prometheus
+  max_workers: 4
+
+resource_usage_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
+topfull_throttle_collector:
+  enabled: true
+  poll_interval_seconds: 1
+
+log_folder: calibration_payment_constrained_50m_run1
+
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py
+  envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py
+  resource_usage_collector_script: /home/idozacharia/experiments/resource_usage_collector.py
+  topfull_throttle_collector_script: /home/idozacharia/experiments/topfull_throttle_collector.py
