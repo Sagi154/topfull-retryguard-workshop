@@ -10,37 +10,61 @@ from typing import Dict, List
 
 DEFAULT_PAPER_LIMIT_MILLICORES = 1000
 
+# Ron-Nezer base migration (2026-09-20 design spec §4d). All 11 Boutique
+# services, request == limit (Ron's own January YAML has request ==
+# limit for every service; these are his per-replica values trimmed by
+# ~77% — spec §4b/§4c/§4d — to fit topfull-worker1's 16 vCPU allocatable
+# after cAdvisor/istiod/calico-node/metrics-server + istio-proxy sidecar
+# overhead). These are PROVISIONAL pending Ron's reply (spec §3/§9) — if
+# he confirms different real numbers, redo this table with the same
+# budget-then-trim method, nothing else in this module changes.
 PAPER_CPU_LIMIT_MILLICORES: Dict[str, int] = {
-    "cartservice": 1000,
-    "currencyservice": 1000,
-    "frontend": 1000,
-    "adservice": 1000,
-    "productcatalogservice": 500,
-    "checkoutservice": 1000,
-    "recommendationservice": 2000,
+    "frontend": 1150,               # x1-4 replicas under its HPA (Task 5)
+    "checkoutservice": 615,
+    "recommendationservice": 1150,
+    "productcatalogservice": 1535,
+    "cartservice": 1920,
+    "currencyservice": 770,
+    "shippingservice": 770,
+    "redis-cart": 540,
+    "emailservice": 155,
+    "paymentservice": 155,
+    "adservice": 1150,
 }
 
-PAPER_CPU_REQUEST_MILLICORES: Dict[str, int] = {
-    "cartservice": 500,
-    "currencyservice": 500,
-    "frontend": 500,
-    "adservice": 500,
-    "productcatalogservice": 250,
-    "checkoutservice": 500,
-    "recommendationservice": 1000,
-    "paymentservice": 200,
-}
+# Ron-config regime: request == limit for every service (unlike the old
+# KAIST-paper-quota table, which halved request relative to limit for
+# some services). paper_request_for() falls back to paper_limit_for()
+# below when a service has no explicit override here — leave this dict
+# empty rather than duplicating PAPER_CPU_LIMIT_MILLICORES.
+PAPER_CPU_REQUEST_MILLICORES: Dict[str, int] = {}
 
 RECONCILE_SERVICES = (
-    "cartservice",
-    "currencyservice",
     "frontend",
-    "adservice",
-    "productcatalogservice",
     "checkoutservice",
     "recommendationservice",
+    "productcatalogservice",
+    "cartservice",
+    "currencyservice",
+    "shippingservice",
+    "redis-cart",
+    "emailservice",
     "paymentservice",
+    "adservice",
 )
+
+# redis-cart's pod template container is named "redis", not "server"
+# (confirmed live 2026-09-20: `kubectl get deploy redis-cart -o
+# jsonpath={.spec.template.spec.containers[0].name}` -> "redis"). Every
+# other of the 11 Boutique Deployments uses "server".
+CONTAINER_NAME_OVERRIDES: Dict[str, str] = {
+    "redis-cart": "redis",
+}
+
+
+def container_name_for(service: str) -> str:
+    return CONTAINER_NAME_OVERRIDES.get(service, "server")
+
 
 RUN_QUOTAS_JSON_PATH = "/home/idozacharia/experiments/topfull_run_quotas.json"
 OVERLAY_MARKER = "TOPFULL_RUN_QUOTAS_OVERLAY"

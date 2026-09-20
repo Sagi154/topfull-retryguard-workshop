@@ -32,12 +32,49 @@ class TestMillicoresFromFraction(unittest.TestCase):
 
 
 class TestPaperTable(unittest.TestCase):
-    def test_known_and_default(self):
-        self.assertEqual(q.paper_limit_for("checkoutservice"), 1000)
-        self.assertEqual(q.paper_limit_for("productcatalogservice"), 500)
-        self.assertEqual(q.paper_limit_for("paymentservice"), 1000)
-        self.assertEqual(q.paper_request_for("paymentservice"), 200)
-        self.assertEqual(q.paper_request_for("checkoutservice"), 500)
+    # Ron-Nezer base migration (2026-09-20 design spec §4d): all 11
+    # Boutique services, request == limit for every one (Ron's own
+    # January YAML has request == limit; the workshop trims his numbers
+    # by ~77% to fit topfull-worker1's 16 vCPU — see spec §4).
+    def test_all_eleven_services_have_explicit_trimmed_values(self):
+        self.assertEqual(q.paper_limit_for("frontend"), 1150)
+        self.assertEqual(q.paper_limit_for("checkoutservice"), 615)
+        self.assertEqual(q.paper_limit_for("recommendationservice"), 1150)
+        self.assertEqual(q.paper_limit_for("productcatalogservice"), 1535)
+        self.assertEqual(q.paper_limit_for("cartservice"), 1920)
+        self.assertEqual(q.paper_limit_for("currencyservice"), 770)
+        self.assertEqual(q.paper_limit_for("shippingservice"), 770)
+        self.assertEqual(q.paper_limit_for("redis-cart"), 540)
+        self.assertEqual(q.paper_limit_for("emailservice"), 155)
+        self.assertEqual(q.paper_limit_for("paymentservice"), 155)
+        self.assertEqual(q.paper_limit_for("adservice"), 1150)
+
+    def test_request_equals_limit_for_every_service(self):
+        for svc in q.PAPER_CPU_LIMIT_MILLICORES:
+            self.assertEqual(
+                q.paper_request_for(svc), q.paper_limit_for(svc),
+                msg=f"{svc}: request must equal limit in the Ron-config regime",
+            )
+
+    def test_reconcile_services_covers_all_eleven(self):
+        self.assertEqual(
+            set(q.RECONCILE_SERVICES),
+            {
+                "frontend", "checkoutservice", "recommendationservice",
+                "productcatalogservice", "cartservice", "currencyservice",
+                "shippingservice", "redis-cart", "emailservice",
+                "paymentservice", "adservice",
+            },
+        )
+
+
+class TestContainerNameFor(unittest.TestCase):
+    def test_redis_cart_container_is_named_redis(self):
+        self.assertEqual(q.container_name_for("redis-cart"), "redis")
+
+    def test_default_container_name_is_server(self):
+        self.assertEqual(q.container_name_for("frontend"), "server")
+        self.assertEqual(q.container_name_for("checkoutservice"), "server")
 
 
 class TestValidateScaleConstraints(unittest.TestCase):
@@ -100,9 +137,9 @@ class TestEffectiveCpuQuotas(unittest.TestCase):
                 }
             ]
         )
-        self.assertEqual(got["checkoutservice"], 100)
-        self.assertEqual(got["productcatalogservice"], 500)
-        self.assertEqual(got["paymentservice"], 1000)
+        self.assertEqual(got["checkoutservice"], 61)  # int(615 * 0.1)
+        self.assertEqual(got["productcatalogservice"], 1535)
+        self.assertEqual(got["paymentservice"], 155)
 
 
 if __name__ == "__main__":

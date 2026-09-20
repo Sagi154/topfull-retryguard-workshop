@@ -780,7 +780,7 @@ class TestServiceCapacity(unittest.TestCase):
 
 
 class TestApplyCpuLimitFraction(unittest.TestCase):
-    def test_patches_catalog_to_50m(self):
+    def test_patches_catalog_to_153m(self):
         cfg = {
             "infra": {"master_ssh_host": "topfull-master"},
             "scale_constraints": [{
@@ -803,12 +803,12 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
              mock.patch.object(run_scenario, "step", lambda *a, **k: None):
             run_scenario.apply_constraints(cfg)
         joined = "\n".join(patches)
-        self.assertIn("50m", joined)
+        self.assertIn("153m", joined)  # int(1535 * 0.1)
         self.assertNotIn("100m", joined)
 
 
 class TestReconcilePaperCpuLimits(unittest.TestCase):
-    def test_patches_checkout_to_1000m_500m(self):
+    def test_patches_checkout_to_615m(self):
         cfg = {"infra": {"master_ssh_host": "topfull-master"}}
         cmds = []
 
@@ -822,7 +822,7 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
              mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None):
             run_scenario.reconcile_paper_cpu_limits(cfg)
         checkout_cmds = [c for c in cmds if "checkoutservice" in c]
-        self.assertTrue(any("1000m" in c and "500m" in c for c in checkout_cmds))
+        self.assertTrue(any("615m" in c for c in checkout_cmds))
 
 
 class TestScenarioYamlsUseFraction(unittest.TestCase):
@@ -878,7 +878,7 @@ class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
             "cpu_limit_fraction": 0.1,
         }]
         got = topfull_cpu_quotas.effective_cpu_quotas(constraints)
-        self.assertEqual(got["checkoutservice"], 100)
+        self.assertEqual(got["checkoutservice"], 61)  # int(615 * 0.1)
 
 
 class TestMeshCollectorNetworkWiring(unittest.TestCase):

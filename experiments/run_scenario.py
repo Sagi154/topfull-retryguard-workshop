@@ -458,10 +458,11 @@ def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
         req = topfull_cpu_quotas.kubectl_cpu_quantity(
             topfull_cpu_quotas.paper_request_for(dep)
         )
-        step(f"{dep}: limits.cpu={lim} requests.cpu={req}")
+        container = topfull_cpu_quotas.container_name_for(dep)
+        step(f"{dep}: limits.cpu={lim} requests.cpu={req} (container={container})")
         patch = json.dumps({
             "spec": {"template": {"spec": {"containers": [
-                {"name": "server", "resources": {
+                {"name": container, "resources": {
                     "limits": {"cpu": lim},
                     "requests": {"cpu": req},
                 }}
