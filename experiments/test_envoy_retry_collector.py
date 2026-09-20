@@ -321,6 +321,46 @@ class TestJoinIpList(unittest.TestCase):
         self.assertEqual(erc.join_ip_list([]), "")
 
 
+class TestDiscoverPodIps(unittest.TestCase):
+    def test_returns_every_pod_ip_not_just_first(self):
+        def runner(cmd):
+            return SimpleNamespace(
+                returncode=0, stdout="192.168.1.10\n192.168.1.11\n", stderr=""
+            )
+
+        ips = erc.discover_pod_ips("frontend", run_cmd=runner)
+        self.assertEqual(ips, ["192.168.1.10", "192.168.1.11"])
+
+    def test_single_pod_service(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=0, stdout="192.168.1.10\n", stderr="")
+
+        self.assertEqual(erc.discover_pod_ips("checkoutservice", run_cmd=runner), ["192.168.1.10"])
+
+    def test_returns_empty_list_on_failure(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=1, stdout="", stderr="error")
+
+        self.assertEqual(erc.discover_pod_ips("frontend", run_cmd=runner), [])
+
+    def test_returns_empty_list_on_empty_stdout(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=0, stdout="\n", stderr="")
+
+        self.assertEqual(erc.discover_pod_ips("frontend", run_cmd=runner), [])
+
+    def test_uses_range_jsonpath_over_all_items(self):
+        calls = []
+
+        def runner(cmd):
+            calls.append(cmd)
+            return SimpleNamespace(returncode=0, stdout="192.168.1.10\n", stderr="")
+
+        erc.discover_pod_ips("frontend", run_cmd=runner)
+        self.assertIn("app=frontend", calls[0])
+        self.assertIn("range .items[*]", calls[0][-1])
+
+
 class TestFetchStatsTextHttp(unittest.TestCase):
     def test_requests_prometheus_url(self):
         calls = []

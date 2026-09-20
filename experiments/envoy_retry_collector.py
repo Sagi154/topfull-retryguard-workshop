@@ -547,6 +547,43 @@ def discover_pod_ip(
     return ip or None
 
 
+def discover_pod_ips(
+    service: str,
+    run_cmd: Optional[CommandRunner] = None,
+    namespace: str = NAMESPACE,
+) -> List[str]:
+    """
+    Return every Running pod IP for `service` — not just the first.
+    Needed once a service (frontend, under its 2026-09-20 HPA) can have
+    more than one replica; the older discover_pod_ip() (jsonpath
+    `.items[0]`) would silently scrape only 1 of up to 4 frontend
+    replicas. Returns [] on any kubectl failure or no pods yet.
+    """
+    runner = run_cmd or default_run_cmd
+    cmd = [
+        "kubectl", "get", "pods",
+        "-n", namespace,
+        "-l", f"app={service}",
+        "-o", 'jsonpath={range .items[*]}{.status.podIP}{"\\n"}{end}',
+    ]
+    try:
+        result = runner(cmd)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("%s  WARNING  discover ips %s failed: %s", utc_now(), service, exc)
+        return []
+    if getattr(result, "returncode", 1) != 0:
+        log.warning(
+            "%s  WARNING  discover ips %s exit=%s stderr=%s",
+            utc_now(),
+            service,
+            getattr(result, "returncode", "?"),
+            (getattr(result, "stderr", "") or "").strip(),
+        )
+        return []
+    stdout = getattr(result, "stdout", "") or ""
+    return [ip.strip() for ip in stdout.splitlines() if ip.strip()]
+
+
 @dataclass
 class ServiceScrapeResult:
     service: str
