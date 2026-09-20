@@ -361,6 +361,30 @@ class TestContainerIdsFromPodList(unittest.TestCase):
         self.assertEqual(ids["frontend"], ["front123"])
         self.assertEqual(ids["adservice"], [])
 
+    def test_collects_multiple_container_ids_for_same_service(self):
+        # Regression guard for the 2026-09-20 Ron-Nezer migration: frontend
+        # can have up to 4 replicas under its new HPA. aggregate_cpu()
+        # already averages a list — this locks in that the list itself can
+        # have more than one entry for one service.
+        pod_list = {
+            "items": [
+                {
+                    "metadata": {"name": "frontend-abc123-11111"},
+                    "status": {"containerStatuses": [
+                        {"name": "server", "containerID": "docker://front111"},
+                    ]},
+                },
+                {
+                    "metadata": {"name": "frontend-abc123-22222"},
+                    "status": {"containerStatuses": [
+                        {"name": "server", "containerID": "docker://front222"},
+                    ]},
+                },
+            ],
+        }
+        ids = ttc.container_ids_from_pod_list(pod_list, ["frontend"])
+        self.assertEqual(ids["frontend"], ["front111", "front222"])
+
 
 class TestAggregateCpu(unittest.TestCase):
     def test_skips_values_at_or_below_threshold_then_averages(self):
