@@ -775,6 +775,35 @@ class TestTier2Reseed(unittest.TestCase):
                 )
         self.assertEqual(len(kubectl_calls), 1)
 
+    def test_partial_failure_reseed_replaces_full_ip_list(self):
+        import tempfile
+
+        def fetch(url):
+            if "10.0.0.1" in url:
+                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+            return SimpleNamespace(returncode=1, stdout="", stderr="refused")
+
+        def runner(cmd):
+            joined = " ".join(cmd)
+            if "app=frontend" in joined:
+                # Cluster now reports 2 healthy replica IPs.
+                return SimpleNamespace(returncode=0, stdout="10.0.0.1\n10.0.0.3\n", stderr="")
+            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
+
+        cache = {"frontend": "10.0.0.1,10.0.0.2"}
+        with tempfile.TemporaryDirectory() as td:
+            erc.poll_once(
+                Path(td),
+                ["frontend"],
+                timestamp="2026-09-20T12:00:00Z",
+                run_cmd=runner,
+                fetch_url=fetch,
+                ip_cache=cache,
+                poll_index=0,
+                tier2_warn_state={},
+            )
+        self.assertEqual(cache.get("frontend"), "10.0.0.1,10.0.0.3")
+
 
 class TestRunCollectorNetwork(unittest.TestCase):
     def test_uses_seeded_pod_ips(self):

@@ -773,9 +773,9 @@ def _apply_scrape_results(
             if "tier2" in result.warning:
                 if should_log_tier2(result.service, poll_index, tier2_warn_state):
                     log.warning("%s  WARNING  %s", utc_now(), result.warning)
-                    new_ip = discover_pod_ip(result.service, run_cmd=run_cmd)
-                    if new_ip:
-                        ip_cache[result.service] = new_ip
+                    new_ips = discover_pod_ips(result.service, run_cmd=run_cmd)
+                    if new_ips:
+                        ip_cache[result.service] = join_ip_list(new_ips)
             else:
                 log.warning("%s  WARNING  %s", utc_now(), result.warning)
         if result.edges is not None and result.inbound is not None:
