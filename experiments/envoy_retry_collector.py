@@ -645,6 +645,7 @@ class ServiceScrapeResult:
     edges: Optional[Dict[str, Dict[str, int]]] = None
     inbound: Optional[Dict[str, Any]] = None
     evict_ip: bool = False
+    had_partial_failure: bool = False
     warning: Optional[str] = None
 
 
@@ -661,21 +662,42 @@ def scrape_one_service(
     pod_ip: Optional[str],
     fetch_url: HttpFetcher,
 ) -> ServiceScrapeResult:
-    if not pod_ip:
+    ips = parse_ip_list(pod_ip)
+    if not ips:
         return ServiceScrapeResult(
             service=service, warning=f"no seeded ip for service={service}"
         )
-    stats_text = fetch_stats_text(pod_ip, fetch_url=fetch_url)
-    if stats_text is None:
+
+    edge_maps: List[Dict[str, Dict[str, int]]] = []
+    inbound_maps: List[Dict[str, Any]] = []
+    failed_ips: List[str] = []
+    for ip in ips:
+        stats_text = fetch_stats_text(ip, fetch_url=fetch_url)
+        if stats_text is None:
+            failed_ips.append(ip)
+            continue
+        edge_maps.append(parse_edges(stats_text))
+        inbound_maps.append(parse_inbound(stats_text))
+
+    if not edge_maps:
         return ServiceScrapeResult(
             service=service,
             evict_ip=True,
             warning=f"tier2 fetch failed service={service} ip={pod_ip}",
         )
+
+    warning = None
+    if failed_ips:
+        warning = (
+            f"tier2 partial fetch failure service={service} "
+            f"failed_ips={','.join(failed_ips)} of {len(ips)} total"
+        )
     return ServiceScrapeResult(
         service=service,
-        edges=parse_edges(stats_text),
-        inbound=parse_inbound(stats_text),
+        edges=sum_edge_maps(edge_maps),
+        inbound=sum_inbound_maps(inbound_maps),
+        had_partial_failure=bool(failed_ips),
+        warning=warning,
     )
 
 

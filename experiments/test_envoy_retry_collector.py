@@ -533,6 +533,53 @@ class TestScrapeOneServiceHttp(unittest.TestCase):
         self.assertIsNone(result.edges)
         self.assertIsNotNone(result.warning)
 
+    def test_scrapes_and_sums_multiple_comma_joined_ips(self):
+        fetch_log = []
+
+        def fetch(url):
+            fetch_log.append(url)
+            if "192.168.1.10" in url:
+                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+            # Second replica: half the traffic of the first, same shape.
+            stats = SAMPLE_MESH_STATS.replace(
+                'cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 100',
+                'cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 40',
+            )
+            return SimpleNamespace(returncode=0, stdout=stats, stderr="")
+
+        result = erc.scrape_one_service(
+            "frontend", "192.168.1.10,192.168.1.11", fetch
+        )
+        self.assertEqual(len(fetch_log), 2)
+        self.assertIsNone(result.warning)
+        self.assertEqual(result.edges["cartservice"]["total"], 140)
+        self.assertEqual(result.inbound["total"], 400)  # 200 + 200
+
+    def test_partial_failure_sums_only_surviving_ips_and_warns(self):
+        def fetch(url):
+            if "192.168.1.10" in url:
+                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+            return SimpleNamespace(returncode=1, stdout="", stderr="connection refused")
+
+        result = erc.scrape_one_service(
+            "frontend", "192.168.1.10,192.168.1.11", fetch
+        )
+        self.assertIsNotNone(result.edges)
+        self.assertEqual(result.edges["cartservice"]["total"], 100)
+        self.assertTrue(result.had_partial_failure)
+        self.assertIn("tier2", result.warning)
+        self.assertIn("192.168.1.11", result.warning)
+
+    def test_all_ips_fail_evicts_like_single_ip_failure(self):
+        def fetch(url):
+            return SimpleNamespace(returncode=1, stdout="", stderr="connection refused")
+
+        result = erc.scrape_one_service(
+            "frontend", "192.168.1.10,192.168.1.11", fetch
+        )
+        self.assertTrue(result.evict_ip)
+        self.assertIsNone(result.edges)
+
 
 class TestPollOnceNetwork(unittest.TestCase):
     def test_writes_edges_and_inbound_for_every_service(self):
