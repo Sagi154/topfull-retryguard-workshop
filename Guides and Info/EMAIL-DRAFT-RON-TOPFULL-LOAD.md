@@ -4,6 +4,10 @@
 > TopFull's admission cap never dropping below the `10000` sentinel and Layer B `overloaded = 0`.
 > Decision was to try solving it ourselves first. Send this only if our own load/quota
 > calibration fails. Context: [../docs/superpowers/specs/2026-09-13-s1-s2-baseline-metric-checkpoint.md](../docs/superpowers/specs/2026-09-13-s1-s2-baseline-metric-checkpoint.md) §10.
+>
+> **2026-09-20:** this draft assumes we cloned his 3-VM setup *and* his Locust/`instance_scaling` recipe.
+> The VM copy is true; the recipe is not. See [RON-NEZER-SETUP-VS-WORKSHOP.md](RON-NEZER-SETUP-VS-WORKSHOP.md)
+> before sending — rewrite the "we use create.sh defaults" paragraph if this email ever goes out.
 
 ---
 

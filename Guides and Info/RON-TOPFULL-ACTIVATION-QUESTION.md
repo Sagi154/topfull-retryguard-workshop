@@ -1,6 +1,8 @@
 # Asking Ron: how to make TopFull actually engage
 
 > **Purpose:** record the problem we want to ask Ron Nezer about — in some scenarios TopFull's overload control never activates — and keep the outreach email in one place so it can be edited/resent without rewriting it. Ron provided the original 3-VM TopFull environment this cluster was copied from ([MENTOR-UPDATE.md](mentor-update/MENTOR-UPDATE.md) §1).
+>
+> **2026-09-20 caveat:** we copied his **VMs**, not his experiment setup. Live runs use `/home/idozacharia/TopFull` (stock KAIST + our patches). His load mix, detector quotas, HPA, and custom images are still on disk at `/home/user/` and were never used by `run_scenario.py`. Full audit: [RON-NEZER-SETUP-VS-WORKSHOP.md](RON-NEZER-SETUP-VS-WORKSHOP.md). The email below still assumes we were mimicking his recipe — that assumption is now known to be wrong.
 
 ---
 

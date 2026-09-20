@@ -10,7 +10,9 @@
 
 This cluster is based on **Ron Nezer's** working TopFull environment: he provided three VMs already running TopFull, and we copied them into this project's GCP account, then made the changes needed for this workshop (Istio retry control, RetryGuard, collectors, experiment runner).
 
-That inherited stack runs every Online Boutique service at a fixed **1 replica** (TopFull's `instance_scaling.py`, on a single worker node rather than the paper's five). We therefore did not take autoscaling or replica-count changes into account: there is nothing to scale down from, over-scaling from retries cannot show up, and Scenarios 3/4 create bottlenecks with a CPU limit instead of reducing replicas.
+The copy is the **machines and kubeadm cluster**, not his experiment config. Live runs use a separate TopFull tree (`/home/idozacharia/TopFull`, stock KAIST plus our patches). His Locust mix, detector CPU table, HPA, and custom images remain unused under `/home/user/` — see [RON-NEZER-SETUP-VS-WORKSHOP.md](../RON-NEZER-SETUP-VS-WORKSHOP.md).
+
+That inherited *cluster* runs every Online Boutique service at a fixed **1 replica** (our `instance_scaling.py` on a single worker node rather than the paper's five; Ron's own file had 8 frontend replicas). We therefore did not take autoscaling or replica-count changes into account: there is nothing to scale down from, over-scaling from retries cannot show up, and Scenarios 3/4 create bottlenecks with a CPU limit instead of reducing replicas.
 
 We run on those 3 Google Cloud VMs (project `networks-workshop`, zone `us-central1-a`):
 
