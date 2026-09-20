@@ -738,18 +738,26 @@ def ensure_envoy_stats_enabled(cfg: dict, caller_pods: list):
 
 
 def discover_service_pod_ips(cfg: dict, services: list) -> dict:
+    """
+    Seed the mesh collector's per-service pod-IP cache with EVERY
+    Running pod IP for that service, comma-joined
+    (envoy_retry_collector.parse_ip_list splits on comma) — not just the
+    first pod. Needed once a service (frontend, under its 2026-09-20
+    HPA) can have more than one replica; seeding only the first pod's IP
+    would silently scrape 1 of up to 4 frontend replicas forever.
+    """
     master = cfg["infra"]["master_ssh_host"]
     out = {}
     for svc in services:
         r = ssh(
             master,
             f"kubectl get pods -n default -l app={svc} "
-            f"-o jsonpath={{.items[0].status.podIP}}",
+            "-o jsonpath='{range .items[*]}{.status.podIP}{\"\\n\"}{end}'",
             check=False,
         )
-        ip = (r.stdout or "").strip()
-        if ip:
-            out[svc] = ip
+        ips = [ip.strip() for ip in (r.stdout or "").splitlines() if ip.strip()]
+        if ips:
+            out[svc] = ",".join(ips)
         else:
             print(f"[WARN] No pod IP for app={svc} during mesh seed "
                   f"(stderr={(r.stderr or '').strip()})")

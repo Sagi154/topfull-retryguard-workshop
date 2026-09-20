@@ -912,7 +912,15 @@ class TestMeshCollectorNetworkWiring(unittest.TestCase):
         )
         self.assertEqual(mock_ssh.call_args_list[0].args[0], "topfull-master")
         self.assertIn("app=frontend", mock_ssh.call_args_list[0].args[1])
-        self.assertIn("jsonpath={.items[0].status.podIP}", mock_ssh.call_args_list[0].args[1])
+        self.assertIn("range .items[*]", mock_ssh.call_args_list[0].args[1])
+
+    @mock.patch("run_scenario.ssh")
+    def test_discover_service_pod_ips_joins_multiple_replicas_with_comma(self, mock_ssh):
+        mock_ssh.side_effect = [
+            SimpleNamespace(returncode=0, stdout="192.168.1.10\n192.168.1.20\n", stderr=""),
+        ]
+        got = run_scenario.discover_service_pod_ips(self._cfg(), ["frontend"])
+        self.assertEqual(got, {"frontend": "192.168.1.10,192.168.1.20"})
 
     @mock.patch("run_scenario.wait_with_progress")
     @mock.patch("run_scenario.write_remote_script")
