@@ -176,6 +176,68 @@ class TestParseInboundDoesNotMergeListeners(unittest.TestCase):
         self.assertEqual(inbound["2xx"], 90)
 
 
+class TestSumEdgeMaps(unittest.TestCase):
+    def test_sums_matching_targets_across_pods(self):
+        pod_a = {"cartservice": {"total": 10, "2xx": 9, "4xx": 1, "5xx": 0,
+                                  "retry": 2, "rq_time_sum_ms": 100, "rq_time_count": 10}}
+        pod_b = {"cartservice": {"total": 20, "2xx": 18, "4xx": 2, "5xx": 0,
+                                  "retry": 3, "rq_time_sum_ms": 200, "rq_time_count": 20}}
+        summed = erc.sum_edge_maps([pod_a, pod_b])
+        self.assertEqual(summed["cartservice"], {
+            "total": 30, "2xx": 27, "4xx": 3, "5xx": 0,
+            "retry": 5, "rq_time_sum_ms": 300, "rq_time_count": 30,
+        })
+
+    def test_target_seen_by_only_one_pod_is_not_lost(self):
+        pod_a = {"cartservice": {"total": 10, "2xx": 9, "4xx": 1, "5xx": 0,
+                                  "retry": 2, "rq_time_sum_ms": 100, "rq_time_count": 10}}
+        pod_b = {"paymentservice": {"total": 5, "2xx": 5, "4xx": 0, "5xx": 0,
+                                     "retry": 0, "rq_time_sum_ms": 50, "rq_time_count": 5}}
+        summed = erc.sum_edge_maps([pod_a, pod_b])
+        self.assertEqual(set(summed.keys()), {"cartservice", "paymentservice"})
+        self.assertEqual(summed["paymentservice"]["total"], 5)
+
+    def test_empty_list_returns_empty_dict(self):
+        self.assertEqual(erc.sum_edge_maps([]), {})
+
+
+class TestSumInboundMaps(unittest.TestCase):
+    def test_sums_scalar_metrics_across_pods(self):
+        pod_a = {"total": 100, "2xx": 90, "4xx": 8, "5xx": 2, "resets": 0,
+                  "rq_time_sum_ms": 500, "rq_time_count": 100, "rq_time_buckets": '{"10":50,"+Inf":100}'}
+        pod_b = {"total": 50, "2xx": 45, "4xx": 4, "5xx": 1, "resets": 0,
+                  "rq_time_sum_ms": 250, "rq_time_count": 50, "rq_time_buckets": '{"10":25,"+Inf":50}'}
+        summed = erc.sum_inbound_maps([pod_a, pod_b])
+        self.assertEqual(summed["total"], 150)
+        self.assertEqual(summed["2xx"], 135)
+        self.assertEqual(summed["4xx"], 12)
+        self.assertEqual(summed["5xx"], 3)
+        self.assertEqual(summed["rq_time_sum_ms"], 750)
+        self.assertEqual(summed["rq_time_count"], 150)
+        import json
+        buckets = json.loads(summed["rq_time_buckets"])
+        self.assertEqual(buckets["10"], 75)
+        self.assertEqual(buckets["+Inf"], 150)
+
+    def test_single_pod_passthrough(self):
+        pod_a = {"total": 100, "2xx": 90, "4xx": 8, "5xx": 2, "resets": 0,
+                  "rq_time_sum_ms": 500, "rq_time_count": 100, "rq_time_buckets": ""}
+        self.assertEqual(erc.sum_inbound_maps([pod_a])["total"], 100)
+
+    def test_empty_list_returns_zeros(self):
+        summed = erc.sum_inbound_maps([])
+        self.assertEqual(summed["total"], 0)
+        self.assertEqual(summed["rq_time_buckets"], "")
+
+    def test_no_buckets_present_leaves_empty_string(self):
+        pod_a = {"total": 10, "2xx": 10, "4xx": 0, "5xx": 0, "resets": 0,
+                  "rq_time_sum_ms": 0, "rq_time_count": 0, "rq_time_buckets": ""}
+        pod_b = {"total": 20, "2xx": 20, "4xx": 0, "5xx": 0, "resets": 0,
+                  "rq_time_sum_ms": 0, "rq_time_count": 0, "rq_time_buckets": ""}
+        summed = erc.sum_inbound_maps([pod_a, pod_b])
+        self.assertEqual(summed["rq_time_buckets"], "")
+
+
 class TestWriteEdgesCsv(unittest.TestCase):
     def test_writes_header_once_then_appends_multiple_targets(self):
         import tempfile

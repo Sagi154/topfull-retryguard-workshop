@@ -403,6 +403,61 @@ def parse_inbound(stats_text: str) -> Dict[str, Any]:
     return out
 
 
+def sum_edge_maps(
+    edge_maps: List[Dict[str, Dict[str, int]]],
+) -> Dict[str, Dict[str, int]]:
+    """
+    Sum per-target outbound metrics across multiple pods of the same
+    calling service (e.g. frontend at replicas=1..4 under its HPA, see
+    the 2026-09-20 Ron-Nezer migration). Each element of `edge_maps` is
+    one pod's parse_edges() output. A target missing from one pod's map
+    contributes 0 for that pod, not a dropped row.
+    """
+    summed: Dict[str, Dict[str, int]] = {}
+    for edges in edge_maps:
+        for target, metrics in edges.items():
+            bucket = summed.setdefault(target, {k: 0 for k in OUTBOUND_METRICS})
+            for key in OUTBOUND_METRICS:
+                bucket[key] += metrics.get(key, 0)
+    return summed
+
+
+def sum_inbound_maps(inbound_maps: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Sum inbound listener metrics across multiple pods of the same callee
+    service. Scalar counters (total/2xx/4xx/5xx/resets/rq_time_sum_ms/
+    rq_time_count) sum linearly across independent pods. rq_time_buckets
+    (cumulative histogram counts keyed by `le`, JSON-encoded by
+    parse_inbound()) also sum per-bucket across pods — each pod's
+    buckets are independent cumulative counters over that pod's own
+    requests, so bucket-for-bucket addition is the correct merge.
+    """
+    if not inbound_maps:
+        empty: Dict[str, Any] = {k: 0 for k in INBOUND_METRICS}
+        empty["rq_time_buckets"] = ""
+        return empty
+
+    totals: Dict[str, Any] = {k: 0 for k in INBOUND_METRICS}
+    bucket_totals: Dict[str, int] = {}
+    for inbound in inbound_maps:
+        for key in INBOUND_METRICS:
+            totals[key] += inbound.get(key, 0)
+        buckets_raw = inbound.get("rq_time_buckets") or ""
+        if buckets_raw:
+            try:
+                buckets = json.loads(buckets_raw) if isinstance(buckets_raw, str) else buckets_raw
+            except (TypeError, ValueError, json.JSONDecodeError):
+                buckets = {}
+            for le, count in buckets.items():
+                bucket_totals[le] = bucket_totals.get(le, 0) + int(count)
+
+    out: Dict[str, Any] = dict(totals)
+    out["rq_time_buckets"] = (
+        json.dumps(bucket_totals, separators=(",", ":")) if bucket_totals else ""
+    )
+    return out
+
+
 def write_edges_csv(
     csv_path: Path,
     timestamp: str,
