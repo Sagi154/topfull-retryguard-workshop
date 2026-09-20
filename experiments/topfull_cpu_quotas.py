@@ -107,7 +107,15 @@ def kubectl_cpu_quantity(millicores: int) -> str:
 def validate_scale_constraints(constraints: List[dict]) -> None:
     known = set(PAPER_CPU_LIMIT_MILLICORES) | set(RECONCILE_SERVICES)
     for c in constraints or []:
-        if c.get("method") != "cpu_limit":
+        method = c.get("method")
+        if method == "replicas" and c.get("deployment") == "frontend":
+            raise ValueError(
+                "scale_constraints cannot set replicas on frontend - its "
+                "replica count is HPA-managed (minReplicas=1, maxReplicas=4, "
+                "Ron-Nezer base migration); a fixed replicas constraint would "
+                "fight the autoscaler"
+            )
+        if method != "cpu_limit":
             continue
         if "cpu_limit" in c:
             raise ValueError(

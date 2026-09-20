@@ -125,6 +125,20 @@ class TestValidateScaleConstraints(unittest.TestCase):
                 ]
             )
 
+    def test_frontend_replicas_constraint_is_rejected(self):
+        # Ron-Nezer migration (2026-09-20): frontend's replica count is
+        # HPA-managed (spec §4c/§10 #5) — a scenario YAML that still
+        # tries to pin it would fight the autoscaler.
+        with self.assertRaises(ValueError):
+            q.validate_scale_constraints([
+                {"deployment": "frontend", "method": "replicas", "replicas": 1}
+            ])
+
+    def test_other_services_replicas_constraint_is_still_allowed(self):
+        q.validate_scale_constraints([
+            {"deployment": "checkoutservice", "method": "replicas", "replicas": 2}
+        ])
+
 
 class TestEffectiveCpuQuotas(unittest.TestCase):
     def test_paper_plus_overwrite(self):
