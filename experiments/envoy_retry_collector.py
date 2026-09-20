@@ -499,6 +499,24 @@ def fetch_stats_text(
     return getattr(result, "stdout", None)
 
 
+def parse_ip_list(raw: Optional[str]) -> List[str]:
+    """
+    Split a cached pod-IP field into individual IPs. A field with no
+    comma is a single IP (the shape every service had before any
+    service could have more than one replica) and returns a one-element
+    list; a multi-replica service (e.g. frontend under its HPA, see the
+    2026-09-20 Ron-Nezer migration) is comma-joined, e.g.
+    "10.0.0.1,10.0.0.2".
+    """
+    if not raw:
+        return []
+    return [ip.strip() for ip in raw.split(",") if ip.strip()]
+
+
+def join_ip_list(ips: List[str]) -> str:
+    return ",".join(ips)
+
+
 def discover_pod_ip(
     service: str,
     run_cmd: Optional[CommandRunner] = None,

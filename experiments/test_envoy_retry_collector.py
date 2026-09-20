@@ -286,6 +286,41 @@ class TestDiscoverPodIp(unittest.TestCase):
         self.assertIsNone(erc.discover_pod_ip("frontend", run_cmd=runner))
 
 
+class TestParseIpList(unittest.TestCase):
+    def test_single_ip_no_comma(self):
+        self.assertEqual(erc.parse_ip_list("192.168.1.10"), ["192.168.1.10"])
+
+    def test_multiple_comma_joined_ips(self):
+        self.assertEqual(
+            erc.parse_ip_list("192.168.1.10,192.168.1.11"),
+            ["192.168.1.10", "192.168.1.11"],
+        )
+
+    def test_none_or_empty_returns_empty_list(self):
+        self.assertEqual(erc.parse_ip_list(None), [])
+        self.assertEqual(erc.parse_ip_list(""), [])
+
+    def test_strips_whitespace_around_commas(self):
+        self.assertEqual(
+            erc.parse_ip_list("192.168.1.10, 192.168.1.11"),
+            ["192.168.1.10", "192.168.1.11"],
+        )
+
+
+class TestJoinIpList(unittest.TestCase):
+    def test_single_ip(self):
+        self.assertEqual(erc.join_ip_list(["192.168.1.10"]), "192.168.1.10")
+
+    def test_multiple_ips(self):
+        self.assertEqual(
+            erc.join_ip_list(["192.168.1.10", "192.168.1.11"]),
+            "192.168.1.10,192.168.1.11",
+        )
+
+    def test_empty_list(self):
+        self.assertEqual(erc.join_ip_list([]), "")
+
+
 class TestFetchStatsTextHttp(unittest.TestCase):
     def test_requests_prometheus_url(self):
         calls = []
