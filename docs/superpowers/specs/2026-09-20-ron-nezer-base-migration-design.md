@@ -201,11 +201,13 @@ Sum at full scale-out (4× frontend): `4×1150 + 615+1150+1535+1920+770+770+540+
 
 ---
 
-## 5. Structural fix: permanent quota-sync, not a two-places-hardcoded table
+## 5. Structural fix: permanent quota-sync — already built, just needs new values
 
-Decision 11 generalizes what already exists for S3/S4 scenario-time constraints
-([2026-09-09-topfull-quota-k8s-sync-design.md](2026-09-09-topfull-quota-k8s-sync-design.md)):
-the Detector's CPU table should **always** be derived from the live K8s Deployment CPU limit for that service, for every scenario, not just when a scenario deliberately constrains one service. This makes the exact bug found in §2d (checkout 4500m-believed vs. 800m-real) structurally impossible to reintroduce, regardless of whether our numbers ever drift from Ron's again. Concretely: `run_scenario.py`'s existing `topfull_run_quotas.json` overlay mechanism stops being S3/S4-conditional and becomes unconditional — every run writes the live map, and the Detector always reads it.
+Decision 11 wanted the Detector's CPU table to **always** be derived from the live K8s Deployment CPU limit for that service, for every scenario, not just when a scenario deliberately constrains one service — to make the exact bug found in §2d (checkout 4500m-believed vs. 800m-real) structurally impossible to reintroduce.
+
+**Correction (found 2026-09-20, while writing the implementation plan — see `docs/superpowers/plans/2026-09-20-ron-nezer-base-migration-implementation.md` Task 2):** this doc originally assumed `run_scenario.py`'s quota-sync overlay was still S3/S4-conditional and needed to be generalized. Reading the live code shows that's **already false** — `reconcile_paper_cpu_limits()` (patches live K8s Deployment CPU) and `write_run_quotas_json()` + `ensure_detector_quota_overlay()` (write/apply the Detector overlay) are all called **unconditionally** in `run_scenario.py`'s main run flow (not gated on `has_constraints`/`scale_constraints`), for every scenario. Both draw from the same single source: `experiments/topfull_cpu_quotas.py`'s `PAPER_CPU_LIMIT_MILLICORES`/`PAPER_CPU_REQUEST_MILLICORES` dicts (a **local repo file**, not something living only on the remote `idozacharia` tree) — `scale_constraints` only *override* specific services on top of that shared table via `effective_cpu_quotas()`.
+
+So the mechanism decision 11 asked for already exists and needs no new code. **The actual remaining work is just: replace `topfull_cpu_quotas.py`'s table values with the §4d Ron-config-regime numbers.** Once that one file changes, both the live K8s limits and the Detector's belief update together automatically, for every scenario, with no separate sync step to build. This significantly de-risks §10 item #1/#2 below — it's a values change to a well-isolated local file with existing test coverage patterns to follow (see `docs/superpowers/plans/2026-09-20-ron-nezer-base-migration-implementation.md` Task 2 for the exact diff), not new cross-cutting logic.
 
 ---
 
@@ -257,8 +259,8 @@ Only §3 (source-of-truth table) and §4 (the arithmetic derived from it) are pr
 
 | # | File / target (on `/home/idozacharia/TopFull` unless noted) | Change |
 |---|---|---|
-| 1 | `TopFull_master/online_boutique_scripts/src/overload_detection.py` | Per §5: stop hardcoding the Detector's per-service `cpu` table. Make it read the live map `run_scenario.py` already writes (`topfull_run_quotas.json`, currently S3/S4-conditional) unconditionally, every run, for every service. |
-| 2 | `experiments/run_scenario.py` | Generalize the quota-sync overlay call (§5) so it runs on every scenario, not only when `scale_constraints` is set. Add a step to apply the §4d CPU table to the live Boutique Deployments at run start (or bake it into the base manifests — see #3). |
+| 1 | ~~`overload_detection.py`~~ **`experiments/topfull_cpu_quotas.py`** (local repo file) | **Corrected per §5:** no remote code change needed — `overload_detection.py` is already patched by `ensure_detector_quota_overlay()` to read the live overlay every run. Just replace `PAPER_CPU_LIMIT_MILLICORES`/`PAPER_CPU_REQUEST_MILLICORES` with the §4d Ron-config-regime values. |
+| 2 | ~~`experiments/run_scenario.py`~~ *(no change needed)* | **Corrected per §5:** `reconcile_paper_cpu_limits()`/`write_run_quotas_json()`/`ensure_detector_quota_overlay()` already run unconditionally every scenario. Once #1's table changes, live K8s limits and the Detector overlay update together automatically — nothing to generalize. |
 | 3 | Live Boutique Deployments (`kubectl` manifests, or wherever they're currently applied from) | Patch `resources.requests.cpu`/`resources.limits.cpu` to the §4d trimmed values for all 11 services. **Do not** touch the images or probes fields — decision 5 keeps our stock `qkrwogud676/...` images and existing readiness/liveness probes; only the CPU numbers come from Ron's file. |
 | 4 | New `frontend` HPA manifest | Create and apply per §4c: `minReplicas: 1, maxReplicas: 4`, target 85% CPU utilization (same shape as Ron's `deployments/hpa.yaml`, just a lower ceiling). `productcatalogservice` HPA: do **not** create yet (deferred, decision 9). |
 | 5 | `instance_scaling.py`-equivalent logic (wherever our tree currently pins replica counts, e.g. the `[2,1,1,...]` snapshot noted in `AGENTS.md` §2) | `frontend`'s replica count becomes HPA-managed (#4), so anything that currently force-sets it to a fixed number at run start needs to stop doing that for `frontend` specifically, or it will fight the autoscaler. Other 10 services stay pinned at ×1, unchanged. |

@@ -8,4 +8,6 @@ Ron's Detector CPU table and his Boutique YAML disagree on four services (checko
 
 **Consequences:** scenario "squeeze one backend" knobs must change the live limit and let sync follow; they must not write a Detector-only number. Numeric millicores remain **provisional numbers** until Ron confirms the YAML.
 
+**Correction (2026-09-20, found while planning the implementation):** the always-on sync this ADR calls for already exists in `run_scenario.py` (`reconcile_paper_cpu_limits()` + `write_run_quotas_json()`/`ensure_detector_quota_overlay()` run unconditionally every scenario, both reading `experiments/topfull_cpu_quotas.py`). No new sync mechanism needs to be built — landing this ADR is just a values change to that one local file. See spec §5.
+
 Detail: [2026-09-20-ron-nezer-base-migration-design.md](../superpowers/specs/2026-09-20-ron-nezer-base-migration-design.md) §2d, §5.

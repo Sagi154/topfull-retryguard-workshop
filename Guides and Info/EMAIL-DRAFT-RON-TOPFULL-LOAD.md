@@ -8,6 +8,16 @@
 > **2026-09-20:** this draft assumes we cloned his 3-VM setup *and* his Locust/`instance_scaling` recipe.
 > The VM copy is true; the recipe is not. See [RON-NEZER-SETUP-VS-WORKSHOP.md](RON-NEZER-SETUP-VS-WORKSHOP.md)
 > before sending — rewrite the "we use create.sh defaults" paragraph if this email ever goes out.
+>
+> **2026-09-20 update:** rewrote the "ask" section below to be specific and evidence-grounded, based on
+> a full archaeology of his still-present `/home/user/` home directory on the shared VMs (`.bashrc`,
+> `.bash_history`, on-disk YAMLs) — see
+> [docs/superpowers/specs/2026-09-20-ron-nezer-base-migration-design.md](../docs/superpowers/specs/2026-09-20-ron-nezer-base-migration-design.md)
+> §2/§3 for the full findings. His config turned out to be a ~5-month, hands-on-tuned moving target
+> with several internally-contradictory on-disk snapshots (two HPA files, a namespace quota he kept
+> editing, live-patched frontend/productcatalog CPU via shell functions), not one static recipe — so
+> instead of asking generically "how did you get it to engage," we ask him to pin down which specific
+> values were live at the moment he actually saw it happen.
 
 ---
 
@@ -40,18 +50,37 @@ Our current Locust **user counts** (same as the create-script defaults, spawn ra
 S3/S4 also pin one service to 10% of the paper CPU quota; S2 is a flat 10-minute hold at the peak
 counts above, **no** CPU limit. S2 is the one where we most clearly see TopFull not throttling.
 
-Could you tell us how you actually ran it when TopFull *did* engage?
+We poked around your old home directory on the shared VMs (`/home/user/`, still there from your
+sessions — hope that's fine) trying to reconstruct what was running when TopFull actually engaged for
+you, and it turns out there isn't one clean answer sitting on disk. A few things we found, and where
+we'd love your memory (or any notes) to fill the gaps:
 
-1. **Which workloads / figures / scripts** — `online_boutique_create.sh`, `create2.sh`,
-   `run_fig8_loadgen.sh`, `run_fig15_online_boutique.sh`, something else?
-2. **Exact Locust user counts** per API (`GETPRODUCT`, `POSTCHECKOUT`, `GETCART`, `POSTCART`, `CART`)
-   and spawn rate / how long you held the load.
-3. **Cluster shape** — how many worker nodes, replica counts, any CPU limits, and whether you used
-   `instance_scaling.py` the same way we did (1 replica each).
-4. **How you knew TopFull had activated** — e.g. `/thresholds` dropping below 10000, detector
-   overload, `num_agent.csv`, goodput flattening, etc.
-5. Anything else that mattered (warmup, RL already trained vs cold, starting proxy/`deploy_rl` order,
-   periodic vs flat load).
+**Frontend/productcatalog CPU.** Your `.bashrc` has `fcpu()`/`pcpu()` helpers that live-patch the
+running frontend/productcatalog Deployments' CPU directly (not just a YAML edit), and `.bash_history`
+shows you swept a huge range with them — frontend from 100m up to 3000m (100, 200, 300, 350, 400, 450,
+1900, 2000, 2300, 2400, 2600, 3000), productcatalog from 0 to 700m (0, 200, 300, 600, 700). Do you
+recall (or have notes on) roughly which value(s) were actually live when you saw TopFull visibly
+throttling/engaging?
+
+**The namespace quota.** We also found `compute-resources.yaml`, a ResourceQuota capping the whole
+namespace at 2600m — and history shows you were repeatedly creating/deleting/reapplying it,
+interleaved with the `fcpu`/`pcpu` sweeps above, like you were hunting for where frontend gets
+throttled against a quota you kept adjusting. Was that quota active (and at what value) at the moment
+things worked?
+
+**Which bigger setup was live together, if any.** There's also a later, larger combination on disk —
+`instance_scaling.py` scaling frontend to 8 replicas, plus a custom Boutique YAML
+(`online_boutique_original_custom.yaml`) with checkoutservice=800m, cartservice=2500m,
+productcatalogservice=2000m, frontend/adservice/recommendationservice=1500m each. Were the 8×
+frontend replicas and those specific YAML CPU values actually running at the same time as whichever
+`fcpu`/quota values you land on above, or are they from a separate, unrelated session? And relatedly:
+we found two different frontend HPA files (one from August 2025 capping `maxReplicas` at 2, one from
+September 2025 allowing 20) — any idea which (if either) was actually applied when it worked?
+
+Totally understand if a lot of this is hard to reconstruct exactly — if you happen to have any saved
+notes, screenshots, or logs from a run where you saw it engage, that would settle all of the above at
+once and save you from digging through memory. Otherwise, best-guess ballparks are still very useful
+to us.
 
 We're trying to mimic your working recipe rather than guess a new load. Happy to hop on a short call
 if that's easier.
