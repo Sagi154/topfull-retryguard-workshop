@@ -1,8 +1,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Calibration — paymentservice, CONSTRAINED CPU (50m), TopFull+RG OFF
 #
-# Not part of the S1-S6 scenario matrix. Same Locust mix as the 100m
-# payment constrained cal. Constrain only paymentservice to
+# Not part of the S1-S6 scenario matrix. Ron-config ~3× measured 50m
+# mu_sat goodput (payment≈12 rps) — postcheckout:40 as the target tag,
+# light non-target tags at 10 because v2's float count/RATE actually
+# spawns them; spawn_rate: 50 is Ron's divisor.
+# Constrain only paymentservice to
 # cpu_limit_millicores: 50 (ADR-0006). A fraction 0.05 of the current
 # Ron-config paper value (155m) would land on 7.75m, not 50m.
 # checkoutservice stays unconstrained (reconciles to Ron-config 615m).
@@ -23,12 +26,12 @@ duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   50
-    postcheckout: 500
-    getcart:      50
-    postcart:     50
-    emptycart:    50
-  spawn_rate: 150
+    getproduct:   10
+    postcheckout: 40
+    getcart:      10
+    postcart:     10
+    emptycart:    10
+  spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
