@@ -114,13 +114,49 @@ fi
 
 # Locust's SimpleHTTPRequestHandler stats server (module-level in
 # locust_online_boutique.py) reads one port number from stdin at process
-# startup, for every process (master, worker, or standalone) — the upstream
-# scripts feed this from small `ports/<port>` files checked into
-# TopFull/TopFull_loadgen/ports/. Rather than depend on that checked-in
-# range (shared with create.sh/create2.sh, and only covering ports up to
-# 8930), this script creates its own port files on demand in a private
-# `ports_v2/` directory, in an unused range (91xx-93xx) so it can never
-# collide with a concurrently-running upstream script.
+# startup, for every process (master, worker, or standalone).
+# metric_collector.py scrapes locust_url:(8888 + i) for i in
+# range(locust_port). Live master global_config has locust_port=43, so
+# 8888-8930. Legacy create.sh puts worker/standalone stats in that range
+# (masters sit at 8885-8887, outside the scrape) via TopFull_loadgen/ports/.
+# v2 originally used a private 91xx-93xx range so it could never collide
+# with a concurrently-running upstream script — but then the collector
+# never saw traffic and Locust CSVs came back header-only. Point every
+# v2 stats process at 8888+ so the existing collector just works. Port
+# *files* stay in ports_v2/ — we never write TopFull_loadgen/ports/.
+# Locust master/worker RPC bind ports stay 9001/9002 (not stats).
+#
+# Layout at defaults (WORKERS_POSTCHECKOUT=2, WORKERS_GETPRODUCT=4):
+#   postcheckout master 8888, workers 8889-8890
+#   getproduct   master 8891, workers 8892-8895
+#   getcart 8896 / postcart 8897 / emptycart 8898
+# Masters report zeros (mapStats is process-local; --master does not run
+# users). Collector sums workers + standalone by API name. Set DRY_PORTS=1
+# to print the map and exit (no tmux / no locust).
+STATS_BASE=8888
+STATS_LAST=$((STATS_BASE + 42))   # locust_port=43 → 8888-8930 inclusive
+
+POSTCHECKOUT_MASTER_PORT=$STATS_BASE
+GETPRODUCT_MASTER_PORT=$((STATS_BASE + 1 + WORKERS_POSTCHECKOUT))
+CART_PORT_BASE=$((GETPRODUCT_MASTER_PORT + 1 + WORKERS_GETPRODUCT))
+GETCART_PORT=$CART_PORT_BASE
+POSTCART_PORT=$((CART_PORT_BASE + 1))
+EMPTYCART_PORT=$((CART_PORT_BASE + 2))
+
+if [[ "$EMPTYCART_PORT" -gt "$STATS_LAST" ]]; then
+  echo "ERROR: v2 stats ports ${STATS_BASE}-${EMPTYCART_PORT} exceed collector range ${STATS_BASE}-${STATS_LAST} (locust_port=43)" >&2
+  exit 1
+fi
+
+echo "v2 stats ports (metric_collector scrape ${STATS_BASE}-${STATS_LAST}):"
+echo "  postcheckout master ${POSTCHECKOUT_MASTER_PORT} workers $(seq -s, $((POSTCHECKOUT_MASTER_PORT + 1)) $((POSTCHECKOUT_MASTER_PORT + WORKERS_POSTCHECKOUT)))"
+echo "  getproduct   master ${GETPRODUCT_MASTER_PORT} workers $(seq -s, $((GETPRODUCT_MASTER_PORT + 1)) $((GETPRODUCT_MASTER_PORT + WORKERS_GETPRODUCT)))"
+echo "  getcart ${GETCART_PORT}  postcart ${POSTCART_PORT}  emptycart ${EMPTYCART_PORT}"
+
+if [[ "${DRY_PORTS:-}" == "1" ]]; then
+  exit 0
+fi
+
 mkdir -p ports_v2
 ensure_port() {
   local port="$1"
@@ -131,14 +167,14 @@ ensure_port() {
 tmux kill-session -t v2_postcheckout 2>/dev/null
 tmux new-session -d -s v2_postcheckout
 
-ensure_port 9101
+ensure_port "$POSTCHECKOUT_MASTER_PORT"
 tmux new-window -d -t v2_postcheckout \
   "$LOCUST_BIN -f locust_online_boutique.py --host=$HOST --tags postcheckout \
    --master-bind-port=9001 --master --expect-workers=$WORKERS_POSTCHECKOUT \
    --headless -u $POSTCHECKOUT -r $POSTCHECKOUT_R ${TIME_FLAG[@]+"${TIME_FLAG[@]}"} \
-   < ports_v2/9101"
+   < ports_v2/$POSTCHECKOUT_MASTER_PORT"
 for i in $(seq 1 "$WORKERS_POSTCHECKOUT"); do
-  port=$((9101 + i))
+  port=$((POSTCHECKOUT_MASTER_PORT + i))
   ensure_port "$port"
   tmux new-window -d -t v2_postcheckout \
     "$LOCUST_BIN -f locust_online_boutique.py --host=$HOST --tags postcheckout \
@@ -149,14 +185,14 @@ done
 tmux kill-session -t v2_getproduct 2>/dev/null
 tmux new-session -d -s v2_getproduct
 
-ensure_port 9201
+ensure_port "$GETPRODUCT_MASTER_PORT"
 tmux new-window -d -t v2_getproduct \
   "$LOCUST_BIN -f locust_online_boutique.py --host=$HOST --tags getproduct \
    --master-bind-port=9002 --master --expect-workers=$WORKERS_GETPRODUCT \
    --headless -u $GETPRODUCT -r $GETPRODUCT_R ${TIME_FLAG[@]+"${TIME_FLAG[@]}"} \
-   < ports_v2/9201"
+   < ports_v2/$GETPRODUCT_MASTER_PORT"
 for i in $(seq 1 "$WORKERS_GETPRODUCT"); do
-  port=$((9201 + i))
+  port=$((GETPRODUCT_MASTER_PORT + i))
   ensure_port "$port"
   tmux new-window -d -t v2_getproduct \
     "$LOCUST_BIN -f locust_online_boutique.py --host=$HOST --tags getproduct \
@@ -171,7 +207,7 @@ done
 #    more than a few hundred rps out of one of these three tags.
 declare -A CART_TAG_COUNT=( [getcart]="$GETCART" [postcart]="$POSTCART" [emptycart]="$EMPTYCART" )
 declare -A CART_TAG_RATE=( [getcart]="$GETCART_R" [postcart]="$POSTCART_R" [emptycart]="$EMPTYCART_R" )
-declare -A CART_TAG_PORT=( [getcart]=9301 [postcart]=9302 [emptycart]=9303 )
+declare -A CART_TAG_PORT=( [getcart]="$GETCART_PORT" [postcart]="$POSTCART_PORT" [emptycart]="$EMPTYCART_PORT" )
 
 for tag in getcart postcart emptycart; do
   session="v2_${tag}"

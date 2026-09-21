@@ -84,12 +84,20 @@ this combined recipe into S3/S4A/S4B.
   Much milder than Task 8's `postcheckout: 500` compound (checkout fail
   0.764). Pinning payment still does not keep checkout fully healthy.
 
-### Locust CSV caveat (v2 vs metric_collector ports)
+### Locust CSV caveat (Task 8b folders only)
 
-v2 serves Locust stats on `ports_v2/` 91xx–93xx. `metric_collector.py`
-still scrapes the legacy 8888+ range, so Locust CSVs in these v2 folders
-are header-only. Freeze and the ρ report use `service_inbound.csv` (live).
-Do not treat empty `getcart.csv` as "no traffic."
+Task 8b v2 folders are header-only on Locust CSVs: that battery's
+`online_boutique_create_v2.sh` served stats on `ports_v2/` 91xx–93xx,
+outside `metric_collector.py`'s scrape (`8888 + range(locust_port)`,
+live `locust_port=43` → 8888–8930). Freeze and the ρ report used
+`service_inbound.csv` (live). Do not treat those empty `getcart.csv`
+files as "no traffic."
+
+v2 now assigns one stdin stats port per Locust process in that 8888+
+range (files still in `ports_v2/`, never `TopFull_loadgen/ports/`).
+The next `run_scenario.py` deploy of v2 is what Task 9 needs for
+goodput/P95. Do not re-freeze from the header-only Task 8b folders
+to "fill in" Locust CSVs.
 
 Historical (do **not** reuse — Task 8 legacy launcher, 2026-09-21):
 
