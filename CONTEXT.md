@@ -49,3 +49,17 @@ _Avoid_: his exact cluster (we cannot grow to his replica/CPU footprint)
 **Provisional numbers**:
 The millicores and frontend replica ceiling in the migration spec, taken from Ron's January Boutique YAML and trimmed to fit this node, until Ron confirms what was live when TopFull engaged.
 _Avoid_: final CPU table, calibrated limits
+
+### Loadgen
+
+**Loadgen shape**:
+How Locust tags are grouped into swarms: one independent single-tag swarm per tag (no `@task` weight ever arbitrates between tags) versus a merged swarm where several tags share one pool and weights split it. Ron's `frontend.sh` uses the independent shape; his `online_boutique_create.sh` merges the cart family into one weighted swarm. We adopt the independent shape.
+_Avoid_: launcher script, split-cart (both conflate the shape decision with one specific file or one specific tag family)
+
+**Loadgen numbers**:
+The actual per-tag user counts and spawn rate. Decided separately from shape. Not copied from either of Ron's scripts — deferred to a fresh calibration pass run under the Ron-config regime, together with the S1–S6 scenario methodology rework.
+_Avoid_: sizing, load level (too vague to mean this specifically)
+
+**Task-weight remix**:
+Ron's edited `@task()` values in `locust_online_boutique.py` (postcheckout 500, getcart 100, postcart 1, emptycart 1, getproduct 100, vs. the paper's 50/30/15/15/150). Adopted for fidelity with his tree, but inert under our loadgen shape: no scenario ever merges tags into one swarm where a weight would matter.
+_Avoid_: "the mix" (ambiguous with loadgen numbers)
