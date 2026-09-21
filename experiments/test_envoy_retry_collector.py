@@ -423,6 +423,166 @@ class TestDiscoverPodIps(unittest.TestCase):
         self.assertIn("range .items[*]", calls[0][-1])
 
 
+class TestFetchPodList(unittest.TestCase):
+    def test_returns_parsed_json_on_success(self):
+        def runner(cmd):
+            return SimpleNamespace(
+                returncode=0,
+                stdout='{"items": [{"metadata": {"name": "frontend-abc"}}]}',
+                stderr="",
+            )
+
+        result = erc.fetch_pod_list(run_cmd=runner)
+        self.assertEqual(result, {"items": [{"metadata": {"name": "frontend-abc"}}]})
+
+    def test_builds_whole_namespace_kubectl_command(self):
+        calls = []
+
+        def runner(cmd):
+            calls.append(cmd)
+            return SimpleNamespace(returncode=0, stdout="{}", stderr="")
+
+        erc.fetch_pod_list(run_cmd=runner)
+        self.assertEqual(
+            calls[0],
+            ["kubectl", "get", "pods", "-n", "default", "-o", "json"],
+        )
+
+    def test_returns_none_on_nonzero_exit(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=1, stdout="", stderr="connection refused")
+
+        self.assertIsNone(erc.fetch_pod_list(run_cmd=runner))
+
+    def test_returns_none_on_exception(self):
+        def runner(cmd):
+            raise TimeoutError("timed out")
+
+        self.assertIsNone(erc.fetch_pod_list(run_cmd=runner))
+
+    def test_returns_none_on_invalid_json(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=0, stdout="not-json", stderr="")
+
+        self.assertIsNone(erc.fetch_pod_list(run_cmd=runner))
+
+
+class TestPodServiceName(unittest.TestCase):
+    def test_matches_exact_and_prefix(self):
+        services = ["frontend", "checkoutservice"]
+        self.assertEqual(
+            erc.pod_service_name("frontend-abc123-11111", services), "frontend"
+        )
+        self.assertEqual(
+            erc.pod_service_name("checkoutservice-def456-22222", services),
+            "checkoutservice",
+        )
+
+    def test_no_match_returns_none(self):
+        self.assertIsNone(erc.pod_service_name("istiod-abc123", ["frontend"]))
+
+    def test_prefers_longest_matching_service_name(self):
+        # Same tie-break rule as topfull_throttle_collector.py's
+        # _pod_service_name, in case two service names ever overlap.
+        services = ["cart", "cartservice"]
+        self.assertEqual(
+            erc.pod_service_name("cartservice-xyz-1", services), "cartservice"
+        )
+
+
+SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS = {
+    "items": [
+        {
+            "metadata": {"name": "frontend-abc123-11111"},
+            "status": {"phase": "Running", "podIP": "10.0.0.5"},
+        },
+        {
+            "metadata": {"name": "frontend-abc123-22222"},
+            "status": {"phase": "Running", "podIP": "10.0.0.9"},
+        },
+        {
+            "metadata": {"name": "checkoutservice-def456-1"},
+            "status": {"phase": "Running", "podIP": "10.0.0.20"},
+        },
+        {
+            "metadata": {"name": "frontend-abc123-33333"},
+            "status": {"phase": "Pending"},
+        },
+        {
+            "metadata": {"name": "frontend-abc123-44444"},
+            "status": {"phase": "Terminating", "podIP": "10.0.0.99"},
+        },
+    ],
+}
+
+
+class TestPodIpsFromPodList(unittest.TestCase):
+    def test_groups_running_pods_by_service(self):
+        ips = erc.pod_ips_from_pod_list(
+            SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS, ["frontend", "checkoutservice"]
+        )
+        self.assertEqual(ips["frontend"], ["10.0.0.5", "10.0.0.9"])
+        self.assertEqual(ips["checkoutservice"], ["10.0.0.20"])
+
+    def test_excludes_pending_and_terminating_pods(self):
+        ips = erc.pod_ips_from_pod_list(
+            SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS, ["frontend"]
+        )
+        self.assertNotIn("10.0.0.99", ips["frontend"])
+        self.assertEqual(len(ips["frontend"]), 2)
+
+    def test_service_with_no_running_pods_is_empty_list_not_missing_key(self):
+        ips = erc.pod_ips_from_pod_list({"items": []}, ["adservice"])
+        self.assertEqual(ips["adservice"], [])
+
+
+class TestRefreshIpCache(unittest.TestCase):
+    def test_replaces_cache_with_fresh_snapshot(self):
+        import json
+
+        def runner(cmd):
+            return SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps(SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS),
+                stderr="",
+            )
+
+        cache = {"frontend": "10.0.0.1"}  # stale single IP
+        erc.refresh_ip_cache(cache, ["frontend", "checkoutservice"], run_cmd=runner)
+        self.assertEqual(cache["frontend"], "10.0.0.5,10.0.0.9")
+        self.assertEqual(cache["checkoutservice"], "10.0.0.20")
+
+    def test_kubectl_failure_leaves_cache_untouched(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=1, stdout="", stderr="refused")
+
+        cache = {"frontend": "10.0.0.1"}
+        erc.refresh_ip_cache(cache, ["frontend"], run_cmd=runner)
+        self.assertEqual(cache, {"frontend": "10.0.0.1"})
+
+    def test_service_with_no_pods_is_dropped_from_cache(self):
+        import json
+
+        def runner(cmd):
+            return SimpleNamespace(
+                returncode=0, stdout=json.dumps({"items": []}), stderr=""
+            )
+
+        cache = {"frontend": "10.0.0.1"}
+        erc.refresh_ip_cache(cache, ["frontend"], run_cmd=runner)
+        self.assertEqual(cache, {})
+
+    def test_mutates_in_place_same_object(self):
+        cache = {"frontend": "10.0.0.1"}
+        original_id = id(cache)
+
+        def runner(cmd):
+            return SimpleNamespace(returncode=1, stdout="", stderr="refused")
+
+        erc.refresh_ip_cache(cache, ["frontend"], run_cmd=runner)
+        self.assertEqual(id(cache), original_id)
+
+
 class TestFetchStatsTextHttp(unittest.TestCase):
     def test_requests_prometheus_url(self):
         calls = []

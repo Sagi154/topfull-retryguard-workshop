@@ -572,6 +572,107 @@ def join_ip_list(ips: List[str]) -> str:
     return ",".join(ips)
 
 
+def fetch_pod_list(
+    run_cmd: Optional[CommandRunner] = None,
+    namespace: str = NAMESPACE,
+) -> Optional[dict]:
+    """
+    One kubectl call for every pod in the namespace (all 11 Boutique
+    services, every replica) — mirrors resource_usage_collector.py's
+    fetch_deployments_json() and topfull_throttle_collector.py's
+    _pod_list(), both of which already issue this exact call shape every
+    poll tick in production. Returns None on any kubectl failure or
+    malformed JSON so callers (refresh_ip_cache) can keep their
+    last-known-good IP cache instead of going blind for one tick.
+    """
+    runner = run_cmd or default_run_cmd
+    cmd = ["kubectl", "get", "pods", "-n", namespace, "-o", "json"]
+    try:
+        result = runner(cmd)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("%s  WARNING  fetch pod list failed: %s", utc_now(), exc)
+        return None
+    if getattr(result, "returncode", 1) != 0:
+        log.warning(
+            "%s  WARNING  fetch pod list exit=%s stderr=%s",
+            utc_now(),
+            getattr(result, "returncode", "?"),
+            (getattr(result, "stderr", "") or "").strip(),
+        )
+        return None
+    try:
+        return json.loads(getattr(result, "stdout", "") or "{}")
+    except json.JSONDecodeError:
+        log.warning("%s  WARNING  fetch pod list returned invalid JSON", utc_now())
+        return None
+
+
+def pod_service_name(pod_name: str, services: List[str]) -> Optional[str]:
+    """
+    Match a pod name to one of `services` by Deployment-name prefix —
+    identical rule to topfull_throttle_collector.py's _pod_service_name:
+    longest service name checked first, so e.g. "cartservice-..." can't
+    accidentally match a shorter, unrelated service name that happens to
+    be a string prefix of it.
+    """
+    for svc in sorted(services, key=len, reverse=True):
+        if pod_name == svc or pod_name.startswith(svc + "-"):
+            return svc
+    return None
+
+
+def pod_ips_from_pod_list(
+    pod_list: dict, services: List[str]
+) -> Dict[str, List[str]]:
+    """
+    Group every Running pod's IP by service, from one whole-namespace
+    `kubectl get pods -o json` snapshot. Pending pods (no podIP yet) and
+    Terminating pods (sidecar may already be shutting down, refusing new
+    connections) are excluded. Unlike the retired per-service jsonpath
+    discovery, this single call sees every replica of every service in
+    one shot, so noticing a scaled-up replica never depends on a fetch
+    to it failing first.
+    """
+    out: Dict[str, List[str]] = {s: [] for s in services}
+    for item in pod_list.get("items") or []:
+        name = (item.get("metadata") or {}).get("name") or ""
+        svc = pod_service_name(name, services)
+        if svc is None:
+            continue
+        status = item.get("status") or {}
+        if status.get("phase") != "Running":
+            continue
+        pod_ip = status.get("podIP")
+        if pod_ip:
+            out[svc].append(pod_ip)
+    return out
+
+
+def refresh_ip_cache(
+    ip_cache: Dict[str, str],
+    services: List[str],
+    run_cmd: Optional[CommandRunner] = None,
+    namespace: str = NAMESPACE,
+) -> None:
+    """
+    Replace ip_cache **in place** with a fresh whole-namespace snapshot,
+    so a healthy HPA-driven pod addition is scraped on the very next poll
+    tick without needing a prior fetch failure (the bug the 2026-09-20
+    Ron-Nezer migration review flagged: the old per-service, failure-
+    triggered reseed never noticed a *successful* extra replica). On a
+    kubectl failure this tick, ip_cache is left untouched — one bad tick
+    keeps scraping last-known-good IPs rather than going blind.
+    """
+    pod_list = fetch_pod_list(run_cmd=run_cmd, namespace=namespace)
+    if pod_list is None:
+        return
+    ips_by_service = pod_ips_from_pod_list(pod_list, services)
+    ip_cache.clear()
+    for service, ips in ips_by_service.items():
+        if ips:
+            ip_cache[service] = join_ip_list(ips)
+
+
 def discover_pod_ip(
     service: str,
     run_cmd: Optional[CommandRunner] = None,
