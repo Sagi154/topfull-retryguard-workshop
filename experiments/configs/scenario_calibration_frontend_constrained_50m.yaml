@@ -30,8 +30,7 @@ locust:
     emptycart:    300
   spawn_rate: 90
   scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+    - online_boutique_create_v2.sh
 
 # 2026-09-21: frontend now has a live HPA (frontend-hpa.yaml). Before running
 # this calibration, pin it off so the reading is a single-replica ceiling:

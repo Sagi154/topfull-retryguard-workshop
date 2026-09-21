@@ -30,8 +30,7 @@ locust:
     emptycart:    50
   spawn_rate: 150
   scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+    - online_boutique_create_v2.sh
 
 scale_constraints:
   - deployment: paymentservice

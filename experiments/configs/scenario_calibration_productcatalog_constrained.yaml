@@ -29,8 +29,7 @@ locust:
     emptycart:    50
   spawn_rate: 150
   scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+    - online_boutique_create_v2.sh
 
 # 2026-09-21: productcatalog now has a live HPA (productcatalogservice-hpa.yaml,
 # ADR-0005). Before running this calibration, pin it off so the reading is a

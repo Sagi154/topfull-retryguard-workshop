@@ -31,8 +31,7 @@ locust:
     emptycart:    150
   spawn_rate: 45               # RATE / 2
   scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+    - online_boutique_create_v2.sh
 
 # ── Topology constraints ─────────────────────────────────────────────────────
 # None — full replica counts, no CPU limits. Baseline cluster state.
