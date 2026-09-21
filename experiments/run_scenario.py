@@ -932,13 +932,20 @@ def _launch_locust(cfg: dict, user_counts: dict, spawn_rate) -> None:
         "postcheckout": "POSTCHECKOUT",
         "getcart":      "GETCART",
         "postcart":     "POSTCART",
-        "emptycart":    "CART",      # create scripts use CART, not EMPTYCART
+        "emptycart":    "CART",      # legacy create.sh/create2.sh read CART, not EMPTYCART
     }
 
     exports = []
     for yaml_key, shell_var in ENV_MAP.items():
         if yaml_key in user_counts:
             exports.append(f"export {shell_var}={user_counts[yaml_key]}")
+    # online_boutique_create_v2.sh (2026-09-21 loadgen shape design, decision 3)
+    # reads EMPTYCART directly instead of the legacy merged CART variable.
+    # Export both: existing scenario YAMLs keep driving the legacy scripts
+    # via CART unchanged, and v2 becomes usable once a scenario points a
+    # locust.scripts entry at it, with zero YAML schema change required.
+    if "emptycart" in user_counts:
+        exports.append(f"export EMPTYCART={user_counts['emptycart']}")
     if spawn_rate is not None:
         exports.append(f"export RATE={spawn_rate}")
     env_prefix = "; ".join(exports) + "; " if exports else ""

@@ -181,6 +181,7 @@ class TestLaunchLocustWiring(unittest.TestCase):
         self.assertEqual(written_path, "/tmp/rg_locust_launch.sh")
         self.assertIn("export GETPRODUCT=25", written_content)
         self.assertIn("export CART=75", written_content)
+        self.assertIn("export EMPTYCART=75", written_content)
         self.assertIn("export RATE=90", written_content)
 
         kill_calls = [
@@ -188,6 +189,25 @@ class TestLaunchLocustWiring(unittest.TestCase):
             if "pkill" in c.args[1] or "kill-server" in c.args[1]
         ]
         self.assertTrue(kill_calls, "expected a Locust kill command before relaunch")
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.ssh")
+    def test_launch_locust_omits_emptycart_exports_when_key_absent(
+        self, mock_ssh, mock_write_script, mock_wait
+    ):
+        mock_ssh.return_value = SimpleNamespace(stdout="3")
+        cfg = self._base_cfg()
+
+        run_scenario._launch_locust(
+            cfg,
+            user_counts={"getproduct": 25},
+            spawn_rate=90,
+        )
+
+        _, written_content = mock_write_script.call_args[0][1:3]
+        self.assertNotIn("CART=", written_content)
+        self.assertNotIn("EMPTYCART=", written_content)
 
     @mock.patch("run_scenario.wait_with_progress")
     @mock.patch("run_scenario.write_remote_script")
