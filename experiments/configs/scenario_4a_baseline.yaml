@@ -9,8 +9,9 @@
 # Comparison point (vs 4B): does RetryGuard add meaningful value on top of
 # TopFull when TopFull already has a clean, direct signal to act on?
 #
-# Constraint: cpu_limit_fraction: 0.1 × paper productcatalog 500m → 50m
-# (campaign_48 used absolute 100m — new runs are not comparable to that set).
+# Constraint: absolute cpu_limit_millicores: 50 (ADR-0006), same value used
+# for S3 (checkoutservice) and S4B (paymentservice) — "limit different
+# services in a similar way." Not comparable to campaign_48's absolute 100m.
 #
 # Call path: Frontend → ProductCatalog  (also via Checkout → ProductCatalog)
 # Primary affected API: getproduct
@@ -42,7 +43,7 @@ scale_constraints:
   - deployment: productcatalogservice
     namespace: default
     method: cpu_limit
-    cpu_limit_fraction: 0.1    # 0.1 × paper 500m → 50m (not comparable to campaign_48 100m)
+    cpu_limit_millicores: 50   # absolute cap (ADR-0006), same value as S3/S4B
     container: server
 
 # ── Retry policy (Istio VirtualService — applies both arms) ──────────────────

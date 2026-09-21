@@ -1,7 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 4B — Topology Position: Checkout-Mediated  |  RETRYGUARD ON
 #
-# Constraint: cpu_limit_fraction: 0.1 × paper payment 1000m → 100m.
+# Constraint: absolute cpu_limit_millicores: 50 (ADR-0006), same value used
+# for S3 (checkoutservice) and S4A (productcatalogservice) — "limit different
+# services in a similar way."
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 4
@@ -31,7 +33,7 @@ scale_constraints:
   - deployment: paymentservice
     namespace: default
     method: cpu_limit
-    cpu_limit_fraction: 0.1    # 0.1 × paper 1000m → 100m
+    cpu_limit_millicores: 50   # absolute cap (ADR-0006), same value as S3/S4A
     container: server
 
 # ── Retry policy (Istio VirtualService — applies both arms) ──────────────────
