@@ -100,6 +100,34 @@ def millicores_from_fraction(paper_limit: int, fraction: float) -> int:
     return int(paper_limit * fraction)
 
 
+def cpu_limit_millicores_for(constraint: dict) -> int:
+    """
+    Resolve a `method: "cpu_limit"` constraint's absolute millicore value.
+
+    Exactly one of `cpu_limit_millicores` (new, absolute — ADR-0006) or
+    `cpu_limit_fraction` (legacy, relative to paper_limit_for(deployment))
+    must be present.
+    """
+    has_millicores = "cpu_limit_millicores" in constraint
+    has_fraction = "cpu_limit_fraction" in constraint
+    if has_millicores and has_fraction:
+        raise ValueError(
+            "cpu_limit constraint cannot set both cpu_limit_millicores and "
+            "cpu_limit_fraction - pick one"
+        )
+    if has_millicores:
+        return int(constraint["cpu_limit_millicores"])
+    if has_fraction:
+        dep = constraint["deployment"]
+        return millicores_from_fraction(
+            paper_limit_for(dep), float(constraint["cpu_limit_fraction"])
+        )
+    raise ValueError(
+        "cpu_limit constraint requires either cpu_limit_millicores or "
+        "cpu_limit_fraction"
+    )
+
+
 def kubectl_cpu_quantity(millicores: int) -> str:
     return f"{int(millicores)}m"
 
@@ -119,14 +147,13 @@ def validate_scale_constraints(constraints: List[dict]) -> None:
             continue
         if "cpu_limit" in c:
             raise ValueError(
-                "scale_constraints cpu_limit is removed; use cpu_limit_fraction"
+                "scale_constraints cpu_limit is removed; use cpu_limit_fraction "
+                "or cpu_limit_millicores"
             )
-        if "cpu_limit_fraction" not in c:
-            raise ValueError("cpu_limit constraint requires cpu_limit_fraction")
         dep = c.get("deployment")
         if dep not in known:
             raise ValueError(f"no paper quota for deployment {dep}")
-        millicores_from_fraction(paper_limit_for(dep), float(c["cpu_limit_fraction"]))
+        cpu_limit_millicores_for(c)
 
 
 def effective_cpu_quotas(constraints: List[dict]) -> Dict[str, int]:
@@ -136,8 +163,5 @@ def effective_cpu_quotas(constraints: List[dict]) -> Dict[str, int]:
     for c in constraints or []:
         if c.get("method") != "cpu_limit":
             continue
-        dep = c["deployment"]
-        out[dep] = millicores_from_fraction(
-            paper_limit_for(dep), float(c["cpu_limit_fraction"])
-        )
+        out[c["deployment"]] = cpu_limit_millicores_for(c)
     return out

@@ -139,6 +139,45 @@ class TestValidateScaleConstraints(unittest.TestCase):
             {"deployment": "checkoutservice", "method": "replicas", "replicas": 2}
         ])
 
+    def test_millicores_ok(self):
+        q.validate_scale_constraints(
+            [
+                {
+                    "deployment": "checkoutservice",
+                    "method": "cpu_limit",
+                    "cpu_limit_millicores": 50,
+                    "container": "server",
+                }
+            ]
+        )
+
+    def test_millicores_and_fraction_together_is_error(self):
+        with self.assertRaises(ValueError):
+            q.validate_scale_constraints([
+                {
+                    "deployment": "checkoutservice",
+                    "method": "cpu_limit",
+                    "cpu_limit_fraction": 0.1,
+                    "cpu_limit_millicores": 50,
+                }
+            ])
+
+    def test_neither_millicores_nor_fraction_is_error(self):
+        with self.assertRaises(ValueError):
+            q.validate_scale_constraints([
+                {"deployment": "checkoutservice", "method": "cpu_limit"}
+            ])
+
+    def test_unknown_service_millicores_is_error(self):
+        with self.assertRaises(ValueError):
+            q.validate_scale_constraints([
+                {
+                    "deployment": "not-a-boutique-service",
+                    "method": "cpu_limit",
+                    "cpu_limit_millicores": 50,
+                }
+            ])
+
 
 class TestEffectiveCpuQuotas(unittest.TestCase):
     def test_paper_plus_overwrite(self):
@@ -154,6 +193,45 @@ class TestEffectiveCpuQuotas(unittest.TestCase):
         self.assertEqual(got["checkoutservice"], 61)  # int(615 * 0.1)
         self.assertEqual(got["productcatalogservice"], 1535)
         self.assertEqual(got["paymentservice"], 155)
+
+    def test_millicores_overwrite(self):
+        got = q.effective_cpu_quotas(
+            [
+                {
+                    "deployment": "checkoutservice",
+                    "method": "cpu_limit",
+                    "cpu_limit_millicores": 50,
+                }
+            ]
+        )
+        self.assertEqual(got["checkoutservice"], 50)
+        self.assertEqual(got["productcatalogservice"], 1535)
+
+
+class TestCpuLimitMillicoresFor(unittest.TestCase):
+    def test_millicores_key_used_directly(self):
+        got = q.cpu_limit_millicores_for(
+            {"deployment": "checkoutservice", "cpu_limit_millicores": 50}
+        )
+        self.assertEqual(got, 50)
+
+    def test_fraction_key_still_computed_from_paper_limit(self):
+        got = q.cpu_limit_millicores_for(
+            {"deployment": "checkoutservice", "cpu_limit_fraction": 0.1}
+        )
+        self.assertEqual(got, 61)  # int(615 * 0.1)
+
+    def test_both_keys_is_error(self):
+        with self.assertRaises(ValueError):
+            q.cpu_limit_millicores_for({
+                "deployment": "checkoutservice",
+                "cpu_limit_fraction": 0.1,
+                "cpu_limit_millicores": 50,
+            })
+
+    def test_neither_key_is_error(self):
+        with self.assertRaises(ValueError):
+            q.cpu_limit_millicores_for({"deployment": "checkoutservice"})
 
 
 if __name__ == "__main__":
