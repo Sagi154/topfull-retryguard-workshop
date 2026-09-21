@@ -61,6 +61,12 @@ CONTAINER_NAME_OVERRIDES: Dict[str, str] = {
     "redis-cart": "redis",
 }
 
+# Ron-config regime: both of these services' replica counts are HPA-managed
+# (frontend since the 2026-09-20 base migration; productcatalogservice since
+# the 2026-09-21 methodology rework, ADR-0005) — a fixed `replicas`
+# scale_constraint on either would fight the autoscaler.
+HPA_MANAGED_DEPLOYMENTS = frozenset({"frontend", "productcatalogservice"})
+
 
 def container_name_for(service: str) -> str:
     return CONTAINER_NAME_OVERRIDES.get(service, "server")
@@ -136,12 +142,11 @@ def validate_scale_constraints(constraints: List[dict]) -> None:
     known = set(PAPER_CPU_LIMIT_MILLICORES) | set(RECONCILE_SERVICES)
     for c in constraints or []:
         method = c.get("method")
-        if method == "replicas" and c.get("deployment") == "frontend":
+        if method == "replicas" and c.get("deployment") in HPA_MANAGED_DEPLOYMENTS:
             raise ValueError(
-                "scale_constraints cannot set replicas on frontend - its "
-                "replica count is HPA-managed (minReplicas=1, maxReplicas=4, "
-                "Ron-Nezer base migration); a fixed replicas constraint would "
-                "fight the autoscaler"
+                f"scale_constraints cannot set replicas on {c['deployment']} - "
+                "its replica count is HPA-managed; a fixed replicas constraint "
+                "would fight the autoscaler"
             )
         if method != "cpu_limit":
             continue

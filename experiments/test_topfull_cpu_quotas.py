@@ -134,6 +134,14 @@ class TestValidateScaleConstraints(unittest.TestCase):
                 {"deployment": "frontend", "method": "replicas", "replicas": 1}
             ])
 
+    def test_productcatalog_replicas_constraint_is_rejected(self):
+        # HPA enabled on productcatalog (design doc decision 6 / ADR-0005) —
+        # same reasoning as the frontend guard above.
+        with self.assertRaises(ValueError):
+            q.validate_scale_constraints([
+                {"deployment": "productcatalogservice", "method": "replicas", "replicas": 1}
+            ])
+
     def test_other_services_replicas_constraint_is_still_allowed(self):
         q.validate_scale_constraints([
             {"deployment": "checkoutservice", "method": "replicas", "replicas": 2}
