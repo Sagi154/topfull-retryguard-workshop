@@ -3,7 +3,8 @@
 #
 # Not part of the S1-S6 scenario matrix. Same Locust mix as the 100m
 # constrained cal (scenario_calibration_frontend_constrained.yaml).
-# Constrain to cpu_limit_fraction 0.05 × paper 1000m → 50m.
+# Constrain with cpu_limit_millicores: 50 (ADR-0006). A fraction 0.05 of the
+# current Ron-config paper value (1150m) would land on 57.5m, not 50m.
 # scenario_id 43 so scenario_dir_name() returns "" (results under campaign_48/).
 #
 # run1 (calibration_frontend_constrained_50m_run1) is the completed 50m
@@ -15,8 +16,9 @@ scenario_name: calibration_frontend_constrained_50m
 condition: calibration
 run_number: 2
 description: >
-  Calibration-only run. frontend CPU constrained to 50m (0.05 x paper 1000m).
-  TopFull RL off, RetryGuard off. Same Locust mix as the 100m constrained cal.
+  Calibration-only run. frontend CPU constrained to 50m
+  (cpu_limit_millicores, ADR-0006). TopFull RL off, RetryGuard off.
+  Same Locust mix as the 100m constrained cal.
 
 duration_seconds: 600
 
@@ -32,11 +34,19 @@ locust:
     - online_boutique_create.sh
     - online_boutique_create2.sh
 
+# 2026-09-21: frontend now has a live HPA (frontend-hpa.yaml). Before running
+# this calibration, pin it off so the reading is a single-replica ceiling:
+#   ssh topfull-master "kubectl delete hpa frontend-hpa -n default"
+# After the run, restore it:
+#   ssh topfull-master "kubectl apply -f /tmp/frontend-hpa.yaml"
+# (re-scp experiments/manifests/frontend-hpa.yaml first if /tmp is stale).
 scale_constraints:
   - deployment: frontend
     namespace: default
     method: cpu_limit
-    cpu_limit_fraction: 0.05    # 0.05 x paper 1000m -> 50m
+    cpu_limit_millicores: 50    # absolute (ADR-0006) — fraction 0.05 now computes
+                                 # against the Ron-config 1150m paper value (57.5m),
+                                 # not the intended 50m
     container: server
 
 retries:

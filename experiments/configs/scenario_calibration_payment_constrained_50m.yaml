@@ -3,8 +3,10 @@
 #
 # Not part of the S1-S6 scenario matrix. Same Locust mix as the 100m
 # payment constrained cal. Constrain only paymentservice to
-# cpu_limit_fraction 0.05 × paper 1000m → 50m. checkoutservice stays paper
-# 1000m. TopFull RL and RetryGuard off.
+# cpu_limit_millicores: 50 (ADR-0006). A fraction 0.05 of the current
+# Ron-config paper value (155m) would land on 7.75m, not 50m.
+# checkoutservice stays unconstrained (reconciles to Ron-config 615m).
+# TopFull RL and RetryGuard off.
 # scenario_id 45 so scenario_dir_name() returns "" (results under campaign_48/).
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -14,8 +16,8 @@ condition: calibration
 run_number: 2
 description: >
   Calibration-only run. paymentservice CPU constrained to 50m
-  (0.05 x paper 1000m). checkoutservice stays paper 1000m.
-  TopFull RL off, RetryGuard off.
+  (cpu_limit_millicores, ADR-0006). checkoutservice stays unconstrained
+  (reconciles to Ron-config 615m). TopFull RL off, RetryGuard off.
 
 duration_seconds: 600
 
@@ -35,7 +37,9 @@ scale_constraints:
   - deployment: paymentservice
     namespace: default
     method: cpu_limit
-    cpu_limit_fraction: 0.05    # 0.05 x paper 1000m -> 50m
+    cpu_limit_millicores: 50    # absolute (ADR-0006) — fraction 0.05 now computes
+                                 # against the Ron-config 155m paper value (7.75m),
+                                 # not the intended 50m
     container: server
 
 retries:

@@ -3,8 +3,9 @@
 #
 # Not part of the S1-S6 scenario matrix. Full-CPU productcatalog never
 # saturated (~2400–2900 req/s, zero 5xx/resets; mu_sat ticks were shutdown
-# tail). Constrain to cpu_limit_fraction 0.1 × paper 500m → 50m (same as
-# Scenario 4A). Same Locust mix as calibration_productcatalog_full_cpu.
+# tail). Constrain with cpu_limit_millicores: 50 (ADR-0006, same as S4A).
+# A fraction 0.1 of the current Ron-config paper value (1535m) would land
+# on 153.5m, not 50m. Same Locust mix as calibration_productcatalog_full_cpu.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 42
@@ -29,11 +30,20 @@ locust:
     - online_boutique_create.sh
     - online_boutique_create2.sh
 
+# 2026-09-21: productcatalog now has a live HPA (productcatalogservice-hpa.yaml,
+# ADR-0005). Before running this calibration, pin it off so the reading is a
+# single-replica ceiling:
+#   ssh topfull-master "kubectl delete hpa productcatalogservice-hpa -n default"
+# After the run, restore it:
+#   ssh topfull-master "kubectl apply -f /tmp/productcatalogservice-hpa.yaml"
+# (re-scp experiments/manifests/productcatalogservice-hpa.yaml first if /tmp is stale).
 scale_constraints:
   - deployment: productcatalogservice
     namespace: default
     method: cpu_limit
-    cpu_limit_fraction: 0.1    # 0.1 × paper 500m → 50m (same as S4A)
+    cpu_limit_millicores: 50   # absolute (ADR-0006) — fraction 0.1 now computes
+                                # against the Ron-config 1535m paper value (153.5m),
+                                # not the intended 50m
     container: server
 
 retries:
