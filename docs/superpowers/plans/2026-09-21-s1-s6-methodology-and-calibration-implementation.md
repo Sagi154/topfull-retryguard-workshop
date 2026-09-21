@@ -1026,9 +1026,104 @@ _Do not commit the pulled `experiments/results/campaign_48/calibration_*_run<N>/
 
 ---
 
+> **SUPERSEDED (2026-09-21, mid-execution): Task 8 above ran on the legacy `online_boutique_create.sh`/`create2.sh` launcher, not `online_boutique_create_v2.sh`.** See design doc [§9 decision 16](../specs/2026-09-21-s1-s6-methodology-and-calibration-design.md#9-session-amendment-2026-09-21-discovered-mid-execution-after-task-8-landed). The legacy launcher's `RATE`-as-divisor bug and merged getcart/postcart/emptycart process mean Task 8's five runs did not measure the load their YAMLs specify. **Task 8a and Task 8b below re-run this work correctly before Task 9 proceeds.** The `capacity_frozen.json` values this Task 8 committed (frontend 0.26, checkout 1.47, payment 0.24, productcatalog 1.62) are superseded by Task 8b, not ground truth.
+
+---
+
+## Task 8a: Swap all scenario + calibration YAMLs to `online_boutique_create_v2.sh`
+
+**Files (21):**
+- Modify all 16 scenario YAMLs: `scenario_1_baseline.yaml`, `scenario_1_retryguard.yaml`, `scenario_2_baseline.yaml`, `scenario_2_retryguard.yaml`, `scenario_3_baseline.yaml`, `scenario_3_retryguard.yaml`, `scenario_4a_baseline.yaml`, `scenario_4a_retryguard.yaml`, `scenario_4b_baseline.yaml`, `scenario_4b_retryguard.yaml`, `scenario_5_interval_10s.yaml`, `scenario_5_interval_20s.yaml`, `scenario_5_interval_30s.yaml`, `scenario_5_interval_60s.yaml`, `scenario_6_recovery_baseline.yaml`, `scenario_6_recovery_retryguard.yaml`
+- Modify the 5 Task 8 calibration YAMLs: `scenario_calibration_frontend_constrained_50m.yaml`, `scenario_calibration_checkout_constrained_50m.yaml`, `scenario_calibration_payment_constrained_50m.yaml`, `scenario_calibration_productcatalog_constrained.yaml`, `scenario_calibration_bottleneck_reference.yaml`
+
+Mechanical only. No code change (`run_scenario.py`'s `_launch_locust()` already dual-exports `EMPTYCART`; a bare `spawn_rate` already maps to v2's shared `RATE`, applied to all 5 tags). No `user_counts`/`spawn_rate`/`run_number` changes in this task.
+
+- [ ] **Step 1: For each of the 21 files, replace**
+
+```yaml
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+```
+
+with:
+
+```yaml
+  scripts:
+    - online_boutique_create_v2.sh
+```
+
+(both the top-level `locust.scripts` for single-phase files, and the shared top-level `locust.scripts` key for S5/S6's phase-based files.)
+
+- [ ] **Step 2: Verify all 21 files**
+
+```bash
+python -c "
+import yaml, glob
+files = [
+    'scenario_1_baseline','scenario_1_retryguard','scenario_2_baseline','scenario_2_retryguard',
+    'scenario_3_baseline','scenario_3_retryguard','scenario_4a_baseline','scenario_4a_retryguard',
+    'scenario_4b_baseline','scenario_4b_retryguard','scenario_5_interval_10s','scenario_5_interval_20s',
+    'scenario_5_interval_30s','scenario_5_interval_60s','scenario_6_recovery_baseline','scenario_6_recovery_retryguard',
+    'scenario_calibration_frontend_constrained_50m','scenario_calibration_checkout_constrained_50m',
+    'scenario_calibration_payment_constrained_50m','scenario_calibration_productcatalog_constrained',
+    'scenario_calibration_bottleneck_reference',
+]
+for f in files:
+    cfg = yaml.safe_load(open(f'experiments/configs/{f}.yaml', encoding='utf-8'))
+    scripts = cfg['locust'].get('scripts', [])
+    assert scripts == ['online_boutique_create_v2.sh'], f'{f}: unexpected scripts {scripts}'
+    print(f, 'ok')
+"
+```
+
+Expected: 21 lines, all `ok`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add experiments/configs/scenario_1_baseline.yaml experiments/configs/scenario_1_retryguard.yaml experiments/configs/scenario_2_baseline.yaml experiments/configs/scenario_2_retryguard.yaml experiments/configs/scenario_3_baseline.yaml experiments/configs/scenario_3_retryguard.yaml experiments/configs/scenario_4a_baseline.yaml experiments/configs/scenario_4a_retryguard.yaml experiments/configs/scenario_4b_baseline.yaml experiments/configs/scenario_4b_retryguard.yaml experiments/configs/scenario_5_interval_10s.yaml experiments/configs/scenario_5_interval_20s.yaml experiments/configs/scenario_5_interval_30s.yaml experiments/configs/scenario_5_interval_60s.yaml experiments/configs/scenario_6_recovery_baseline.yaml experiments/configs/scenario_6_recovery_retryguard.yaml experiments/configs/scenario_calibration_frontend_constrained_50m.yaml experiments/configs/scenario_calibration_checkout_constrained_50m.yaml experiments/configs/scenario_calibration_payment_constrained_50m.yaml experiments/configs/scenario_calibration_productcatalog_constrained.yaml experiments/configs/scenario_calibration_bottleneck_reference.yaml
+git commit -m "fix: switch all scenario and calibration YAMLs onto online_boutique_create_v2.sh (design doc decision 16a) - legacy launcher's RATE-as-divisor and merged getcart/postcart/emptycart process invalidated prior live runs"
+```
+
+---
+
+## Task 8b: Re-run the 5-run bottleneck-cap recalibration battery under v2 (supersedes Task 8)
+
+**Pre-check:** Task 8a committed. This is a verbatim repeat of Task 8's Steps 0–8, with two differences: (1) the 5 calibration YAMLs now use `online_boutique_create_v2.sh` (already true after Task 8a — no further script edit needed here); (2) every YAML's `run_number`/`log_folder` must be bumped past Task 8's own already-used slots (e.g. `calibration_frontend_constrained_50m_run2` → `run3`; check `AGENTS.md` §4/§6 and the local + master folders for the actual next-free slot, since other sessions may have advanced it).
+
+- [ ] **Step 0: Start VMs (if stopped), refresh SSH HostNames, wait for cluster health** — same as Task 8 Step 0 (worker must be `e2-standard-16`; both `frontend-hpa` and `productcatalogservice-hpa` present).
+
+- [ ] **Step 1: Clear stale `/tmp` runner scripts on master** — same as Task 8 Step 1.
+
+- [ ] **Step 2: Run 1 — frontend, 50m, HPA pinned off** — same as Task 8 Step 2, but bump `scenario_calibration_frontend_constrained_50m.yaml`'s `run_number`/`log_folder` past `run2` first.
+
+- [ ] **Step 3: Cool off 300s, then Run 2 — checkoutservice, 50m** — same as Task 8 Step 3, bump past `run2`.
+
+- [ ] **Step 4: Cool off 300s, then Run 3 — paymentservice, 50m** — same as Task 8 Step 4, bump past `run2`.
+
+- [ ] **Step 5: Cool off 300s, then Run 4 — productcatalogservice, 50m, HPA pinned off** — same as Task 8 Step 5, bump past `run2`.
+
+- [ ] **Step 6: Cool off 300s, then Run 5 — bottleneck reference load, unconstrained** — same as Task 8 Step 6, bump past `run1`. Re-evaluate the shared-vs-three-separate decision fresh under v2 — do not assume Task 8's "three separate" verdict still holds; v2's real per-tag application may change which services show overload.
+
+- [ ] **Step 7: Freeze the results and update `experiments/capacity/capacity_frozen.json` / `README.md`** — same `--force` process as Task 8 Step 7. In the README update, explicitly note these 2026-09-21-v2-dated freezes supersede *both* the 2026-09-19 pre-migration freezes *and* Task 8's same-day legacy-launcher freezes (0.26/1.47/0.24/1.62) — three generations of values for these four services, only this one measured under the correct launcher.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add experiments/capacity/capacity_frozen.json experiments/capacity/README.md
+git commit -m "fix: re-freeze mu_per_millicore under online_boutique_create_v2.sh (design doc decision 16b) - supersedes Task 8's legacy-launcher freeze"
+```
+
+Same result-folder-commit caveat as Task 8 Step 8 applies here.
+
+---
+
 ## Task 9: Run the S1/S2/S6 empirical system-load calibration (live VM execution, ≤3 tries each)
 
-**Pre-check:** Task 8 complete (bottleneck-cap battery informs nothing about S1/S2/S6 directly, per design doc §3a, but should be done first so the VMs' state is known-clean going into this task). Cool off 300s after Task 8's last run before starting S1. If VMs were stopped between Task 8 and Task 9, re-run Task 8 Step 0 (start + IP refresh + cluster health) before any try.
+**Pre-check:** Task 8a and Task 8b complete (script swap done; battery re-frozen under v2). Cool off 300s after Task 8b's last run before starting S1. If VMs were stopped between Task 8b and Task 9, re-run Task 8 Step 0 (start + IP refresh + cluster health) before any try.
+
+**S1 `run27` is discarded** (ran on the legacy launcher before this defect was found — see design doc decision 16c). It does not count against S1's 3-try cap. Fresh S1 try 1 below re-runs the *same* YAML numbers, now genuinely applied via v2.
 
 **Human approval gate (mandatory):** after every try (S1 try 1, S1 try 2, …, S2 try 1, …, S6 try N), the agent must (1) pull results, (2) report the metric checks below, (3) **stop and wait for explicit user approval** before adjusting numbers, starting the next try, or moving to the next scenario. The user's judgment is whether the run matches what they had in mind for that scenario — that can diverge from (or tighten) the agent's checklist. Do **not** auto-decide "this try passed / failed / next adjustment is X" without user sign-off. Cap remains 3 tries per scenario; if still unresolved after 3 approved tries, stop and record it as an open item.
 
@@ -1104,7 +1199,7 @@ _No code or config commit for this task by itself — it is data-gathering only.
 
 ## Task 10: Rewire all 16 scenario YAMLs
 
-**Pre-check:** Tasks 5, 8, and 9 complete — S3/S4A/S4B already point at `cpu_limit_millicores: 50` (Task 5); the bottleneck-cap battery (Task 8) has produced final `user_counts` for S3/S4A/S4B's target tag (and non-target tags, from whichever reference-load path Task 8 Step 6 settled on); the system-load calibration (Task 9) has produced **user-approved** final `user_counts`/`spawn_rate` for S1/S2/S6 (do not rewrite those YAMLs from agent-only metric checks).
+**Pre-check:** Tasks 5, 8a, 8b, and 9 complete — S3/S4A/S4B already point at `cpu_limit_millicores: 50` (Task 5); all 16 files already point at `online_boutique_create_v2.sh` (Task 8a — Step 1 below is now a verify-only step, not an edit); the bottleneck-cap battery (Task 8b, the v2 re-run) has produced final `user_counts` for S3/S4A/S4B's target tag (and non-target tags, from whichever reference-load path Task 8b Step 6 settled on); the system-load calibration (Task 9, run on v2) has produced **user-approved** final `user_counts`/`spawn_rate` for S1/S2/S6 (do not rewrite those YAMLs from agent-only metric checks).
 
 **Files (all 16):**
 - Modify: `experiments/configs/scenario_1_baseline.yaml`, `scenario_1_retryguard.yaml`
@@ -1115,24 +1210,21 @@ _No code or config commit for this task by itself — it is data-gathering only.
 - Modify: `experiments/configs/scenario_5_interval_10s.yaml`, `scenario_5_interval_20s.yaml`, `scenario_5_interval_30s.yaml`, `scenario_5_interval_60s.yaml`
 - Modify: `experiments/configs/scenario_6_recovery_baseline.yaml`, `scenario_6_recovery_retryguard.yaml`
 
-- [ ] **Step 1: For every one of the 16 files, swap the launcher scripts**
+- [ ] **Step 1: Verify all 16 files already use `online_boutique_create_v2.sh`** (Task 8a should have already made this edit — this is a check, not a fresh edit)
 
-Replace:
-
-```yaml
-  scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+```bash
+python -c "
+import yaml
+files = ['scenario_1_baseline','scenario_1_retryguard','scenario_2_baseline','scenario_2_retryguard','scenario_3_baseline','scenario_3_retryguard','scenario_4a_baseline','scenario_4a_retryguard','scenario_4b_baseline','scenario_4b_retryguard','scenario_5_interval_10s','scenario_5_interval_20s','scenario_5_interval_30s','scenario_5_interval_60s','scenario_6_recovery_baseline','scenario_6_recovery_retryguard']
+for f in files:
+    cfg = yaml.safe_load(open(f'experiments/configs/{f}.yaml', encoding='utf-8'))
+    scripts = cfg['locust'].get('scripts', [])
+    assert scripts == ['online_boutique_create_v2.sh'], f'{f}: unexpected scripts {scripts} - Task 8a did not land or was reverted'
+    print(f, 'ok')
+"
 ```
 
-with:
-
-```yaml
-  scripts:
-    - online_boutique_create_v2.sh
-```
-
-in every `locust:` block (both the top-level `locust.scripts` for single-phase files, and — for S6/S5, which use `locust.phases` — the shared top-level `locust.scripts` key, unaffected by phases). No code change needed — `run_scenario.py`'s `_launch_locust()` already dual-exports `EMPTYCART` alongside legacy `CART`, and `online_boutique_create_v2.sh` reads `EMPTYCART` directly (confirmed during design, decision 15).
+If any file fails this check, Task 8a's commit is missing or was reverted — stop and fix that before continuing; do not silently re-edit here without figuring out why.
 
 - [ ] **Step 2: Write S1's final numbers**
 

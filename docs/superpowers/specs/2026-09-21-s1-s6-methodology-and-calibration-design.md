@@ -179,3 +179,28 @@ Suggested order: #1+#2 together (new mechanism, then point the YAMLs at it, so #
 - Did not create `productcatalogservice-hpa.yaml` or apply anything to the live cluster (the HPA/CPU-limit reads done during grilling were all `kubectl get`, read-only).
 - Did not run any part of the §3/§3b recalibration battery — the VMs were found `TERMINATED` mid-session and were not restarted.
 - Did not decide S1/S2/S6's actual final numbers (only their methodology and target criteria) or plan the fresh campaign (§6 above — still open, last in the dependency order).
+
+---
+
+## 9. Session amendment (2026-09-21, discovered mid-execution after Task 8 landed)
+
+**Trigger:** while starting Task 9 (S1 try 1), inspecting S1's `run27` result surfaced that the run used `online_boutique_create.sh`/`create2.sh` (the legacy launcher), not `online_boutique_create_v2.sh`. Task 8's five battery runs — already committed and task-reviewed clean — used the same legacy launcher, because §7's implementation checklist scheduled the script swap (decision 15) as part of #6 (Task 10, after both #4 and #5), not before #4/#5.
+
+**Why that's a real problem, not a formatting nit:** the legacy launcher has two behaviors `online_boutique_create_v2.sh` exists specifically to fix (see its header comment and [2026-09-20-loadgen-getcart-postcart-and-load-scaling-design.md](2026-09-20-loadgen-getcart-postcart-and-load-scaling-design.md)):
+
+1. **`RATE` is a divisor**, not users/sec — `-r $((count / RATE))`. Integer division on the small counts this project uses (`getproduct: 50`, `spawn_rate: 45` → `-r 1`; `postcheckout: 10` → `-r 0`) means most tags never ramp anywhere near their target population before a 300–900s hold ends.
+2. **`getcart`/`postcart`/`emptycart` are merged into one Locust process** sized by `emptycart`'s count alone (`--tags getcart postcart emptycart -u $CART`), split by the locustfile's fixed 30:15:15 task weights — the YAML's separate `getcart`/`postcart` values are silently ignored, not applied at all.
+
+Both bugs mean every legacy-launcher run in this plan (Task 8's five battery runs, S1 `run27`) measured a materially different load than its YAML claims to specify. This is not noise-level — it changes which tags get real traffic and at what rate.
+
+**Decision 16 — reopen Task 8, execute the script swap before it, not after:**
+
+| Sub-decision | Answer |
+|---|---|
+| 16a | Swap `locust.scripts` to `[online_boutique_create_v2.sh]` in **all 21** relevant files now, before any further live run: the 16 scenario YAMLs (originally Task 10 Step 1) **and** the 5 Task 8 calibration YAMLs (`scenario_calibration_{frontend,checkout,payment}_constrained_50m.yaml`, `scenario_calibration_productcatalog_constrained.yaml`, `scenario_calibration_bottleneck_reference.yaml`) — mechanical only, no code change (`run_scenario.py` already dual-exports `EMPTYCART`; a bare `spawn_rate` already maps to v2's single shared `RATE` applied to all 5 tags, zero YAML schema change needed). |
+| 16b | **Task 8's five battery runs and their `capacity_frozen.json` freeze are invalidated by the same defect** they were meant to measure precisely — re-run the full 5-run battery under v2 before proceeding to Task 9. The already-committed 2026-09-21 freeze (`0.26`/`1.47`/`0.24`/`1.62`) is **not** the Ron-config-topology ground truth; it is a legacy-launcher artifact, same status as the pre-migration 2026-09-19 values it was meant to replace. Superseded, not deleted from history (git log preserves it; `capacity_frozen.json`/`README.md` get re-frozen again, `--force`). |
+| 16c | S1's `run27` is discarded as invalid data — not counted against the 3-try cap. Fresh S1 try 1 re-runs the *same* YAML numbers (unchanged), now genuinely applied via v2, as the plan's Step 1a always intended. |
+| 16d | Task 10 shrinks: its Step 1 (script swap) is already done as of 16a; that step becomes a no-op verification. Steps 2–9 (writing real numbers, run_number bump, commit) are unaffected. |
+| 16e | No YAML schema change and no per-tag `RATE_*` override support added at this time — a bare `spawn_rate` continues to map to v2's shared `RATE`, applied identically to all 5 independent tag processes. If a future session wants genuinely different per-tag ramp rates, that is a new, separately-decided schema addition, not implied by this amendment. |
+
+This amendment does not change decisions 1–15 above (methodology, `cpu_limit_millicores`, HPA, target criteria) — only the *execution order* of already-decided decision 15's script swap, and the consequence that Task 8's specific numeric outputs must be re-measured.
