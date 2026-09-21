@@ -28,11 +28,11 @@ What's still open is everything that depends on **loadgen numbers** and **scenar
 
 ## 1. Fresh calibration pass (blocker for everything else)
 
-**Methodology decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md). Not yet executed.
+**Methodology decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md). Bottleneck-cap half executed as Task 8b (v2).
 
-- [ ] Run the 5-run recalibration battery (design doc §3): frontend, checkoutservice, productcatalogservice, paymentservice at 50m under the current Ron-config topology, plus one unconstrained bottleneck reference load
-- [ ] Re-calibrate S1/S2/S5/S6 per-tag user counts and spawn rate under the Ron-config regime (separate from the battery above — no mechanism dependency, just new numbers)
-- [ ] Update `experiments/capacity/capacity_frozen.json` / `README.md` from the battery's results
+- [x] Run the 5-run recalibration battery (design doc §3): frontend, checkoutservice, productcatalogservice, paymentservice at 50m under the current Ron-config topology, plus one unconstrained bottleneck reference load — Task 8b, 2026-09-21-v2 (`online_boutique_create_v2.sh`). Task 8's legacy-launcher freeze is superseded.
+- [ ] Re-calibrate S1/S2/S5/S6 per-tag user counts and spawn rate under the Ron-config regime (separate from the battery above — no mechanism dependency, just new numbers) — Task 9, not started
+- [x] Update `experiments/capacity/capacity_frozen.json` / `README.md` from the battery's results — Task 8b freeze (frontend 0.79 low_confidence / checkout 1.34 / payment 0.30 / catalog 5.35 low_confidence). Reference-load path: **three separate**.
 
 All 16 scenario YAMLs' current `locust.user_counts` / `spawn_rate` (example: S3 baseline `getproduct: 100, postcheckout: 20, getcart: 100, postcart: 100, emptycart: 300, spawn_rate: 90`) were calibrated against the **paper-config regime** — old CPU limits, no frontend HPA, old Detector table.
 
@@ -71,7 +71,7 @@ Resolved issues (previously open, now settled by the design doc):
 
 **Mechanics decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md) §5. Only the actual numbers are still blocked on §1's battery (including its S1/S2/S6 system-load half); everything else below is decidable/executable independent of that.
 
-- [ ] Point `locust.scripts` at `online_boutique_create_v2.sh` (drop `create2.sh`; no trickle-pattern replacement) — no code change needed, `run_scenario.py` already dual-exports `EMPTYCART`
+- [x] Point `locust.scripts` at `online_boutique_create_v2.sh` (drop `create2.sh`; no trickle-pattern replacement) — Task 8a
 - [ ] Update `scale_constraints` on S3 / S4A / S4B to `cpu_limit_millicores: 50` (ADR-0006) — mechanical once the new constraint kind (§2's checklist item 1) exists
 - [ ] Write new `locust.user_counts` / `spawn_rate` from §1's completed battery (bottleneck-cap half for S3/S4A/S4B, system-load half for S1/S2/S6; S5's 4 files just inherit S6's numbers)
 - [ ] Bump `log_folder` / `run_number` to new slots (these are new runs, not resumes) — use whatever's next-free at execution time, not a number fixed today

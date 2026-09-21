@@ -9,13 +9,14 @@
 # current Ron-config paper value (1150m) would land on 57.5m, not 50m.
 # scenario_id 43 so scenario_dir_name() returns "" (results under campaign_48/).
 #
-# run1–run2 are completed (run2 is the 2026-09-21 freeze). This slot is run3.
+# run1–run2 are Task 8 (legacy launcher). run3 discarded (wrong HOST).
+# run4 is the 2026-09-21-v2 freeze (low_confidence, n_sat=2). This slot is run5.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 43
 scenario_name: calibration_frontend_constrained_50m
 condition: calibration
-run_number: 3
+run_number: 5
 description: >
   Calibration-only run. frontend CPU constrained to 50m
   (cpu_limit_millicores, ADR-0006). TopFull RL off, RetryGuard off.
@@ -77,7 +78,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_frontend_constrained_50m_run3
+log_folder: calibration_frontend_constrained_50m_run5
 
 infra:
   master_ssh_host: topfull-master

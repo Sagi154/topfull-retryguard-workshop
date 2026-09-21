@@ -16,7 +16,7 @@
 scenario_id: 45
 scenario_name: calibration_payment_constrained_50m
 condition: calibration
-run_number: 3
+run_number: 4
 description: >
   Calibration-only run. paymentservice CPU constrained to 50m
   (cpu_limit_millicores, ADR-0006). checkoutservice stays unconstrained
@@ -72,7 +72,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_payment_constrained_50m_run3
+log_folder: calibration_payment_constrained_50m_run4
 
 infra:
   master_ssh_host: topfull-master

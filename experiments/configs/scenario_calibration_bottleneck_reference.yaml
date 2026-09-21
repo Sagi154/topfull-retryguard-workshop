@@ -18,7 +18,7 @@
 scenario_id: 48
 scenario_name: calibration_bottleneck_reference
 condition: calibration
-run_number: 2
+run_number: 3
 description: >
   Calibration-only run. No scale_constraints — everything at its real
   Ron-config paper CPU. Combined ~3× 50m-goodput load (getproduct:250 +
@@ -69,7 +69,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_bottleneck_reference_run2
+log_folder: calibration_bottleneck_reference_run3
 
 infra:
   master_ssh_host: topfull-master

@@ -10,13 +10,14 @@
 # tags at 10 because v2's float count/RATE actually spawns them;
 # spawn_rate: 50 is Ron's divisor.
 #
-# run1–run2 are completed (run2 is the 2026-09-21 freeze). This slot is run3.
+# run1–run2 are Task 8 (legacy launcher). run3 is the 2026-09-21-v2 freeze.
+# This slot is run4.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 42
 scenario_name: calibration_productcatalog_constrained
 condition: calibration
-run_number: 3
+run_number: 4
 description: >
   Calibration-only run. productcatalogservice CPU constrained to 50m.
   TopFull RL off, RetryGuard off. Ron-config ~3× 50m mu_sat load
@@ -79,7 +80,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_productcatalog_constrained_run3
+log_folder: calibration_productcatalog_constrained_run4
 
 infra:
   master_ssh_host: topfull-master

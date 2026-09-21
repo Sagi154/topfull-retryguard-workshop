@@ -44,8 +44,8 @@
 #    Guides and Info/PHASE5-EXPERIMENTS-GUIDE.md §7) ──────────────────────
 #
 #   HOST                  Locust --host target.
-#                          Default: http://10.8.0.4:30440 (Istio ingress NodePort;
-#                          same fixed value the upstream scripts hardcode)
+#                          Default: http://10.128.0.3:30440 (frontend NodePort
+#                          on the master node — same value create.sh hardcodes)
 #   GETPRODUCT            getproduct user count.              Default: 300
 #   POSTCHECKOUT          postcheckout user count.             Default: 60
 #   GETCART               getcart user count (own process).    Default: 150
@@ -79,7 +79,7 @@
 #
 set -u
 
-HOST="${HOST:-http://10.8.0.4:30440}"
+HOST="${HOST:-http://10.128.0.3:30440}"
 
 GETPRODUCT="${GETPRODUCT:-300}"
 POSTCHECKOUT="${POSTCHECKOUT:-60}"
