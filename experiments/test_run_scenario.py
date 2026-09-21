@@ -887,16 +887,10 @@ class TestServiceCapacity(unittest.TestCase):
 
 
 class TestApplyCpuLimitFraction(unittest.TestCase):
-    def test_patches_catalog_to_153m(self):
+    def _apply(self, constraint, steps=None):
         cfg = {
             "infra": {"master_ssh_host": "topfull-master"},
-            "scale_constraints": [{
-                "deployment": "productcatalogservice",
-                "namespace": "default",
-                "method": "cpu_limit",
-                "cpu_limit_fraction": 0.1,
-                "container": "server",
-            }],
+            "scale_constraints": [constraint],
         }
         patches = []
 
@@ -904,14 +898,40 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
             patches.append(cmd)
             return SimpleNamespace(stdout="{}", returncode=0)
 
+        step_fn = (lambda msg: steps.append(msg)) if steps is not None else (lambda *a, **k: None)
         with mock.patch.object(run_scenario, "ssh", fake_ssh), \
              mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None), \
              mock.patch.object(run_scenario, "banner", lambda *a, **k: None), \
-             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+             mock.patch.object(run_scenario, "step", step_fn):
             run_scenario.apply_constraints(cfg)
-        joined = "\n".join(patches)
+        return "\n".join(patches)
+
+    def test_patches_catalog_to_153m(self):
+        joined = self._apply({
+            "deployment": "productcatalogservice",
+            "namespace": "default",
+            "method": "cpu_limit",
+            "cpu_limit_fraction": 0.1,
+            "container": "server",
+        })
         self.assertIn("153m", joined)  # int(1535 * 0.1)
         self.assertNotIn("100m", joined)
+
+    def test_patches_checkout_to_50m_from_millicores(self):
+        steps = []
+        joined = self._apply({
+            "deployment": "checkoutservice",
+            "namespace": "default",
+            "method": "cpu_limit",
+            "cpu_limit_millicores": 50,
+            "container": "server",
+        }, steps=steps)
+        self.assertIn("50m", joined)
+        self.assertNotIn("61m", joined)  # would be int(615 * 0.1) if fraction leaked
+        self.assertTrue(
+            any("millicores=50" in s for s in steps),
+            msg=steps,
+        )
 
 
 class TestReconcilePaperCpuLimits(unittest.TestCase):
