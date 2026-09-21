@@ -17,7 +17,7 @@
 scenario_id: 48
 scenario_name: calibration_bottleneck_reference
 condition: calibration
-run_number: 1
+run_number: 2
 description: >
   Calibration-only run. No scale_constraints — everything at its real
   Ron-config paper CPU. Combined heavy load (postcheckout + getproduct)
@@ -68,7 +68,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_bottleneck_reference_run1
+log_folder: calibration_bottleneck_reference_run2
 
 infra:
   master_ssh_host: topfull-master
