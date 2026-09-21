@@ -1,0 +1,83 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Calibration — bottleneck reference load, UNCONSTRAINED, TopFull+RG OFF
+#
+# Not part of the S1-S6 scenario matrix. 5th run of the bottleneck-cap
+# recalibration battery (design doc §3, decision 8). Combines the two heavy
+# tags from the checkout/payment (postcheckout:500) and productcatalog
+# (getproduct:800) calibrations with light cart-family traffic. Purpose:
+# check whether this single load recipe keeps every service OTHER than
+# checkout/productcatalog/payment healthy when nothing is capped — if so,
+# it becomes the shared reference load for S3/S4A/S4B (decision 8's
+# shared-first attempt). If something else (most likely cartservice, since
+# checkout calls it) is pulled into overload as a side effect, fall back to
+# three separate per-scenario reference loads instead.
+# scenario_id 48 so scenario_dir_name() returns "" (results under campaign_48/).
+# ─────────────────────────────────────────────────────────────────────────────
+
+scenario_id: 48
+scenario_name: calibration_bottleneck_reference
+condition: calibration
+run_number: 1
+description: >
+  Calibration-only run. No scale_constraints — everything at its real
+  Ron-config paper CPU. Combined heavy load (postcheckout + getproduct)
+  used to check whether one shared reference load works for S3/S4A/S4B.
+  TopFull RL off, RetryGuard off.
+
+duration_seconds: 600
+
+locust:
+  user_counts:
+    getproduct:   800
+    postcheckout: 500
+    getcart:      50
+    postcart:     50
+    emptycart:    50
+  spawn_rate: 150
+  scripts:
+    - online_boutique_create.sh
+    - online_boutique_create2.sh
+
+scale_constraints: []
+
+retries:
+  attempts_on: 3
+  attempts_off: 0
+  per_try_timeout_ms: 500
+
+topfull_rl:
+  enabled: false
+
+retryguard:
+  enabled: false
+  rejection_threshold: 0.20
+  sample_interval_seconds: 1
+  interval_samples: 30
+
+envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 1
+  transport: network_prometheus
+  max_workers: 4
+
+resource_usage_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
+topfull_throttle_collector:
+  enabled: true
+  poll_interval_seconds: 1
+
+log_folder: calibration_bottleneck_reference_run1
+
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py
+  envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py
+  resource_usage_collector_script: /home/idozacharia/experiments/resource_usage_collector.py
+  topfull_throttle_collector_script: /home/idozacharia/experiments/topfull_throttle_collector.py
