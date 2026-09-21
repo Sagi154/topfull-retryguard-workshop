@@ -124,7 +124,7 @@ def deploy_repo_script(host: str, filename: str, remote_path: str) -> None:
         print(f"[ERROR] Local script missing: {local}")
         sys.exit(1)
 
-    tmp = f"/tmp/rg_deploy_{filename}"
+    tmp = f"/tmp/rg_deploy_{Path(filename).name}"
     ssh(host, f"sudo rm -f {tmp}", check=False)
     scp_to(str(local), host, tmp)
 
@@ -919,12 +919,30 @@ def start_topfull_throttle_collector(cfg: dict):
 #  Locust
 # --------------------------------------------------------------------------- #
 
+def _deploy_local_loadgen_scripts(cfg: dict, scripts: list[str]) -> None:
+    """
+    Redeploy any of `scripts` that this repo tracks under experiments/loadgen/
+    onto the loadgen host before launching — the same "never trust a stale
+    remote copy" treatment deploy_repo_script already gives master's
+    collectors. Scripts not present locally (the legacy
+    online_boutique_create.sh / create2.sh, hand-patched directly on
+    topfull-load per PHASE5-EXPERIMENTS-GUIDE.md §7) are left untouched.
+    """
+    loadgen = cfg["infra"]["loadgen_ssh_host"]
+    loadgen_path = cfg["infra"]["topfull_loadgen_path"]
+    for s in scripts:
+        local = EXPERIMENTS_DIR / "loadgen" / s
+        if local.is_file():
+            deploy_repo_script(loadgen, f"loadgen/{s}", f"{loadgen_path}/{s}")
+
+
 def _launch_locust(cfg: dict, user_counts: dict, spawn_rate) -> None:
     """Kill any running Locust and start it fresh at the given load level."""
     loadgen = cfg["infra"]["loadgen_ssh_host"]
     loadgen_path = cfg["infra"]["topfull_loadgen_path"]
     lc = cfg.get("locust", {})
     scripts = lc.get("scripts", ["online_boutique_create.sh", "online_boutique_create2.sh"])
+    _deploy_local_loadgen_scripts(cfg, scripts)
 
     # Env var mapping: YAML key -> shell variable name in create scripts
     ENV_MAP = {

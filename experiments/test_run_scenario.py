@@ -8,6 +8,7 @@ Run:
 """
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -165,8 +166,9 @@ class TestLaunchLocustWiring(unittest.TestCase):
     @mock.patch("run_scenario.wait_with_progress")
     @mock.patch("run_scenario.write_remote_script")
     @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario._deploy_local_loadgen_scripts")
     def test_launch_locust_exports_user_counts_and_spawn_rate(
-        self, mock_ssh, mock_write_script, mock_wait
+        self, mock_deploy_scripts, mock_ssh, mock_write_script, mock_wait
     ):
         mock_ssh.return_value = SimpleNamespace(stdout="3")
         cfg = self._base_cfg()
@@ -183,6 +185,9 @@ class TestLaunchLocustWiring(unittest.TestCase):
         self.assertIn("export CART=75", written_content)
         self.assertIn("export EMPTYCART=75", written_content)
         self.assertIn("export RATE=90", written_content)
+        mock_deploy_scripts.assert_called_once_with(
+            cfg, ["online_boutique_create.sh", "online_boutique_create2.sh"]
+        )
 
         kill_calls = [
             c for c in mock_ssh.call_args_list
@@ -193,8 +198,9 @@ class TestLaunchLocustWiring(unittest.TestCase):
     @mock.patch("run_scenario.wait_with_progress")
     @mock.patch("run_scenario.write_remote_script")
     @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario._deploy_local_loadgen_scripts")
     def test_launch_locust_omits_emptycart_exports_when_key_absent(
-        self, mock_ssh, mock_write_script, mock_wait
+        self, mock_deploy_scripts, mock_ssh, mock_write_script, mock_wait
     ):
         mock_ssh.return_value = SimpleNamespace(stdout="3")
         cfg = self._base_cfg()
@@ -212,8 +218,9 @@ class TestLaunchLocustWiring(unittest.TestCase):
     @mock.patch("run_scenario.wait_with_progress")
     @mock.patch("run_scenario.write_remote_script")
     @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario._deploy_local_loadgen_scripts")
     def test_launch_locust_exits_if_no_locust_processes_found(
-        self, mock_ssh, mock_write_script, mock_wait
+        self, mock_deploy_scripts, mock_ssh, mock_write_script, mock_wait
     ):
         mock_ssh.return_value = SimpleNamespace(stdout="0")
         cfg = self._base_cfg()
@@ -237,6 +244,64 @@ class TestLaunchLocustWiring(unittest.TestCase):
         phase = {"at_seconds": 300, "user_counts": {"getproduct": 25}, "spawn_rate": 20}
         run_scenario.switch_locust_phase(cfg, phase)
         mock_launch.assert_called_once_with(cfg, {"getproduct": 25}, 20)
+
+
+class TestDeployLocalLoadgenScripts(unittest.TestCase):
+    def _cfg(self):
+        return {
+            "infra": {
+                "loadgen_ssh_host": "topfull-load",
+                "topfull_loadgen_path": "/home/idozacharia/TopFull/TopFull_loadgen",
+            },
+        }
+
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_deploys_scripts_present_under_experiments_loadgen(self, mock_deploy):
+        with tempfile.TemporaryDirectory() as tmp:
+            loadgen_dir = Path(tmp) / "loadgen"
+            loadgen_dir.mkdir()
+            (loadgen_dir / "online_boutique_create_v2.sh").write_text("#!/bin/bash\n")
+
+            with mock.patch.object(run_scenario, "EXPERIMENTS_DIR", Path(tmp)):
+                run_scenario._deploy_local_loadgen_scripts(
+                    self._cfg(), ["online_boutique_create_v2.sh"]
+                )
+
+        mock_deploy.assert_called_once_with(
+            "topfull-load",
+            "loadgen/online_boutique_create_v2.sh",
+            "/home/idozacharia/TopFull/TopFull_loadgen/online_boutique_create_v2.sh",
+        )
+
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_skips_scripts_not_present_locally(self, mock_deploy):
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(run_scenario, "EXPERIMENTS_DIR", Path(tmp)):
+                run_scenario._deploy_local_loadgen_scripts(
+                    self._cfg(),
+                    ["online_boutique_create.sh", "online_boutique_create2.sh"],
+                )
+
+        mock_deploy.assert_not_called()
+
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_mixed_list_deploys_only_the_locally_tracked_one(self, mock_deploy):
+        with tempfile.TemporaryDirectory() as tmp:
+            loadgen_dir = Path(tmp) / "loadgen"
+            loadgen_dir.mkdir()
+            (loadgen_dir / "online_boutique_create_v2.sh").write_text("#!/bin/bash\n")
+
+            with mock.patch.object(run_scenario, "EXPERIMENTS_DIR", Path(tmp)):
+                run_scenario._deploy_local_loadgen_scripts(
+                    self._cfg(),
+                    ["online_boutique_create.sh", "online_boutique_create_v2.sh"],
+                )
+
+        mock_deploy.assert_called_once_with(
+            "topfull-load",
+            "loadgen/online_boutique_create_v2.sh",
+            "/home/idozacharia/TopFull/TopFull_loadgen/online_boutique_create_v2.sh",
+        )
 
 
 class TestStartRetryGuardWiring(unittest.TestCase):
@@ -644,6 +709,28 @@ class TestDeployRepoScript(unittest.TestCase):
         ]
         self.assertTrue(any(cmd.startswith("cp ") for cmd in dest_copies))
         self.assertFalse(any("sudo cp" in cmd for cmd in dest_copies))
+
+    @mock.patch("run_scenario.step")
+    @mock.patch("run_scenario.scp_to")
+    @mock.patch("run_scenario.ssh")
+    def test_tmp_path_uses_basename_when_filename_has_slash(
+        self, mock_ssh, mock_scp, mock_step
+    ):
+        mock_ssh.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
+        with tempfile.TemporaryDirectory() as tmp:
+            loadgen_dir = Path(tmp) / "loadgen"
+            loadgen_dir.mkdir()
+            (loadgen_dir / "online_boutique_create_v2.sh").write_text("#!/bin/bash\n")
+            with mock.patch.object(run_scenario, "EXPERIMENTS_DIR", Path(tmp)):
+                run_scenario.deploy_repo_script(
+                    "topfull-load",
+                    "loadgen/online_boutique_create_v2.sh",
+                    "/home/idozacharia/TopFull/TopFull_loadgen/online_boutique_create_v2.sh",
+                )
+        self.assertEqual(
+            mock_scp.call_args[0][2],
+            "/tmp/rg_deploy_online_boutique_create_v2.sh",
+        )
 
     @mock.patch("run_scenario.step")
     @mock.patch("run_scenario.scp_to")
