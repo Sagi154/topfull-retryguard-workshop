@@ -28,8 +28,11 @@ What's still open is everything that depends on **loadgen numbers** and **scenar
 
 ## 1. Fresh calibration pass (blocker for everything else)
 
-- [ ] Re-calibrate per-tag user counts and spawn rate under the Ron-config regime
-- [ ] Re-freeze `experiments/capacity/capacity_frozen.json` (and the μ-per-millicore values `estimate_service_mu.py` depends on) under the new CPU numbers before using them as a sizing aid
+**Methodology decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md). Not yet executed.
+
+- [ ] Run the 5-run recalibration battery (design doc §3): frontend, checkoutservice, productcatalogservice, paymentservice at 50m under the current Ron-config topology, plus one unconstrained bottleneck reference load
+- [ ] Re-calibrate S1/S2/S5/S6 per-tag user counts and spawn rate under the Ron-config regime (separate from the battery above — no mechanism dependency, just new numbers)
+- [ ] Update `experiments/capacity/capacity_frozen.json` / `README.md` from the battery's results
 
 All 16 scenario YAMLs' current `locust.user_counts` / `spawn_rate` (example: S3 baseline `getproduct: 100, postcheckout: 20, getcart: 100, postcart: 100, emptycart: 300, spawn_rate: 90`) were calibrated against the **paper-config regime** — old CPU limits, no frontend HPA, old Detector table.
 
@@ -38,7 +41,7 @@ Those numbers are stale for two independent reasons:
 1. The cluster's compute shape changed (Ron-config CPU trims, frontend now HPA 1→4 instead of fixed).
 2. The loadgen launcher shape changed (five fully independent single-tag swarms instead of a merged `$CART` swarm) — so even "the same total user count" distributes differently across services than before.
 
-This needs a real calibration exercise: find out what per-tag rate each of S1–S6 needs to hit their intended load *character* ("normal", "sustained overload", "moderate load with one bottleneck saturated", etc.) under the new cluster.
+This needs a real calibration exercise: find out what per-tag rate each of S1–S6 needs to hit their intended load *character* ("normal", "sustained overload", "moderate load with one bottleneck saturated", etc.) under the new cluster. The design doc's §1 (methodology) settles *how*: a rough `mu_sat`-based starting guess, reused only at the exact CPU value it was measured at (never extrapolated across CPU values — see `CONTEXT.md`'s "`mu_per_millicore`'s trust boundary"), always confirmed live before locking a number.
 
 Neither Ron's launcher-script numbers nor the 2026-09-20 loadgen-redesign §4 numbers are reused.
 
@@ -48,26 +51,30 @@ Neither Ron's launcher-script numbers nor the 2026-09-20 loadgen-redesign §4 nu
 
 Some scenarios' *mechanism*, not just their load numbers, assumed the old regime.
 
-- [ ] Rebuild S3 / S4 targeted-bottleneck mechanism against Ron-config CPU numbers
-- [ ] Resolve S4A vs productcatalog HPA conflict (decision still open)
-- [ ] Verify S1 / S2 / S5 / S6 still only need new numbers, not new mechanism
+**Decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md), [ADR-0005](../../adr/0005-productcatalog-hpa-max-replicas-2.md), [ADR-0006](../../adr/0006-absolute-bottleneck-cap-not-fraction.md). Not yet implemented.
 
-Concrete open issues:
+- [ ] Add `cpu_limit_millicores` (absolute) as a new `scale_constraints` method in `topfull_cpu_quotas.py`/`run_scenario.py`
+- [ ] Switch S3/S4A/S4B's `scale_constraints` from `cpu_limit_fraction: 0.1` to `cpu_limit_millicores: 50`; fix stale pre-migration docstrings
+- [ ] Create `productcatalogservice-hpa.yaml` (`minReplicas: 1, maxReplicas: 2`); stop force-pinning productcatalog's replica count at run start
+- [ ] Verify S1 / S2 / S5 / S6 still only need new numbers, not new mechanism — **confirmed during grilling**: `resolve_locust_phases()`/`switch_locust_phase()` are script-shape-agnostic, no further verification needed
+- [ ] After HPA is implemented: note the productcatalog/frontend simultaneous-max-replica node-overcommit risk in `RON-NEZER-BASE-MIGRATION.md` (ADR-0005)
 
-- **S3 / S4 "targeted bottleneck"** — currently `cpu_limit_fraction: 0.1` applied to the paper-quota CPU number for one service (e.g. checkout 1000m → 100m). Under the Ron-config regime the baseline CPU per service is different (already uniformly trimmed ~77% to fit the 16-vCPU worker), so what a "0.1 fraction" bottleneck even means, and whether it still produces a real bottleneck relative to everything else's new smaller CPU, has to be rebuilt. (Migration design, decision 3's note.)
-- **S4A (productcatalog as the topology target)** — conflicts with the `productcatalogservice` HPA decision (disabled for now, but the premise "productcatalog is a fixed, non-compensating bottleneck" assumed no autoscaling). Options still open: re-enable HPA there and treat autoscale-compensation as a finding, pick a different S4A target service, or something else. (Migration design, decision 9.)
-- **S1 / S2 / S6 / S5** — probably just need new numbers, not new mechanism, but that still needs to be verified case by case once real calibration data exists.
+Resolved issues (previously open, now settled by the design doc):
+
+- **S3 / S4 "targeted bottleneck"** — was `cpu_limit_fraction: 0.1` on the Ron-config-trimmed number (untested small absolutes: 61.5m/153.5m/15.5m, all different). **Now**: absolute `cpu_limit_millicores: 50` for all three, same value, matching the one CPU point each service has real `mu_sat` data for.
+- **S4A vs. `productcatalogservice` HPA** — **now**: enable HPA on productcatalog universally (`maxReplicas: 2`), no mechanism change to the bottleneck cap itself (K8s CPU limits are per-pod-template regardless of replica count). Explicit, accepted node-overcommit risk if frontend and productcatalog are both maxed simultaneously — see ADR-0005.
+- **S1 / S2 / S6 / S5** — confirmed: only need new numbers, no mechanism change.
 
 ---
 
 ## 3. Rewire the 16 scenario YAMLs
 
-Once §1 and §2 produce real numbers / mechanisms:
+**Mechanics decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md) §5. Only the actual numbers are still blocked on §1's battery (including its S1/S2/S6 system-load half); everything else below is decidable/executable independent of that.
 
-- [ ] Point `locust.scripts` at `online_boutique_create_v2.sh` (drop `create2.sh`; no trickle-pattern replacement)
-- [ ] Write new `locust.user_counts` / `spawn_rate` from the calibration
-- [ ] Update `scale_constraints` on S3 / S4 once §2 is resolved
-- [ ] Bump `log_folder` / `run_number` to new slots (these are new runs, not resumes)
+- [ ] Point `locust.scripts` at `online_boutique_create_v2.sh` (drop `create2.sh`; no trickle-pattern replacement) — no code change needed, `run_scenario.py` already dual-exports `EMPTYCART`
+- [ ] Update `scale_constraints` on S3 / S4A / S4B to `cpu_limit_millicores: 50` (ADR-0006) — mechanical once the new constraint kind (§2's checklist item 1) exists
+- [ ] Write new `locust.user_counts` / `spawn_rate` from §1's completed battery (bottleneck-cap half for S3/S4A/S4B, system-load half for S1/S2/S6; S5's 4 files just inherit S6's numbers)
+- [ ] Bump `log_folder` / `run_number` to new slots (these are new runs, not resumes) — use whatever's next-free at execution time, not a number fixed today
 
 The 16 files (all currently still on the legacy `online_boutique_create.sh` + `online_boutique_create2.sh` pair):
 
