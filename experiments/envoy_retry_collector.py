@@ -828,6 +828,13 @@ def poll_once(
         ip_cache = {}
     if tier2_warn_state is None:
         tier2_warn_state = {}
+    # Tick 0 uses run_scenario.py's one-time seed as-is (zero kubectl calls,
+    # matching today's start-of-run behavior). Every later tick refreshes
+    # the whole cache from a fresh whole-namespace pod list, so a healthy
+    # HPA-driven replica addition is scraped on the very next tick without
+    # needing a prior fetch failure first.
+    if poll_index > 0:
+        refresh_ip_cache(ip_cache, services, run_cmd=run_cmd)
     fetcher = fetch_url or default_fetch_url
     edges_path = record_path / "service_edges.csv"
     inbound_path = record_path / "service_inbound.csv"
@@ -853,7 +860,6 @@ def poll_once(
         timestamp,
         poll_index,
         tier2_warn_state,
-        run_cmd,
     )
 
 
@@ -865,18 +871,21 @@ def _apply_scrape_results(
     timestamp: str,
     poll_index: int,
     tier2_warn_state: Dict[str, int],
-    run_cmd: Optional[CommandRunner] = None,
 ) -> None:
     for result in sorted(results, key=lambda r: r.service):
         if result.evict_ip:
+            # Only matters on tick 0 (before the first refresh_ip_cache
+            # call ever runs) — every later tick already rebuilds ip_cache
+            # from scratch in poll_once, so a stale/dead IP cannot survive
+            # past the next tick regardless of this eviction.
             ip_cache.pop(result.service, None)
         if result.warning:
             if "tier2" in result.warning:
+                # Rate-limited log line only now — rediscovery itself is
+                # handled unconditionally every tick by refresh_ip_cache()
+                # in poll_once, not by this failure signal.
                 if should_log_tier2(result.service, poll_index, tier2_warn_state):
                     log.warning("%s  WARNING  %s", utc_now(), result.warning)
-                    new_ips = discover_pod_ips(result.service, run_cmd=run_cmd)
-                    if new_ips:
-                        ip_cache[result.service] = join_ip_list(new_ips)
             else:
                 log.warning("%s  WARNING  %s", utc_now(), result.warning)
         if result.edges is not None and result.inbound is not None:

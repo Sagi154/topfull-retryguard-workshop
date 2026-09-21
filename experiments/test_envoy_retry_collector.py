@@ -860,109 +860,167 @@ class TestPollOnceThreadPoolSerialWrites(unittest.TestCase):
         self.assertIn("as_completed", src)
 
 
-class TestTier2Reseed(unittest.TestCase):
-    def test_fetch_failure_reseeds_new_ip_next_poll(self):
+class TestPollOnceIpCacheRefresh(unittest.TestCase):
+    def test_first_tick_uses_seeded_cache_without_any_kubectl_call(self):
         import tempfile
 
-        state = {"fetches": []}
-
-        def fetch(url):
-            state["fetches"].append(url)
-            if "10.0.0.1" in url:
-                return SimpleNamespace(returncode=1, stdout="", stderr="refused")
-            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+        kubectl_calls = []
 
         def runner(cmd):
-            joined = " ".join(cmd)
-            if "app=frontend" in joined:
-                return SimpleNamespace(returncode=0, stdout="10.0.0.2\n", stderr="")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
+            kubectl_calls.append(cmd)
+            return SimpleNamespace(returncode=0, stdout="{}", stderr="")
 
-        cache = {"frontend": "10.0.0.1"}
+        def fetch(url):
+            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+
+        cache = {"frontend": "192.168.1.10"}
         with tempfile.TemporaryDirectory() as td:
-            record_path = Path(td)
             erc.poll_once(
-                record_path,
+                Path(td),
                 ["frontend"],
-                timestamp="2026-09-13T12:00:00Z",
+                timestamp="2026-09-21T12:00:00Z",
                 run_cmd=runner,
                 fetch_url=fetch,
                 ip_cache=cache,
                 poll_index=0,
                 tier2_warn_state={},
             )
-            self.assertEqual(cache.get("frontend"), "10.0.0.2")
-            self.assertFalse((record_path / "service_inbound.csv").exists())
+        self.assertEqual(kubectl_calls, [])
+        self.assertEqual(cache, {"frontend": "192.168.1.10"})
+
+    def test_healthy_scale_up_is_scraped_next_tick_with_zero_fetch_failures(self):
+        import json
+        import tempfile
+
+        pod_list = {
+            "items": [
+                {
+                    "metadata": {"name": "frontend-abc-11111"},
+                    "status": {"phase": "Running", "podIP": "192.168.1.10"},
+                },
+                {
+                    "metadata": {"name": "frontend-abc-22222"},
+                    "status": {"phase": "Running", "podIP": "192.168.1.11"},
+                },
+            ],
+        }
+
+        def runner(cmd):
+            return SimpleNamespace(returncode=0, stdout=json.dumps(pod_list), stderr="")
+
+        fetch_log = []
+
+        def fetch(url):
+            fetch_log.append(url)
+            # Both replicas answer successfully — no fetch failure at all,
+            # unlike the retired reseed mechanism this test replaces.
+            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+
+        cache = {"frontend": "192.168.1.10"}  # seeded with only the original replica
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
             erc.poll_once(
                 record_path,
                 ["frontend"],
-                timestamp="2026-09-13T12:00:01Z",
+                timestamp="2026-09-21T12:00:01Z",
                 run_cmd=runner,
                 fetch_url=fetch,
                 ip_cache=cache,
                 poll_index=1,
                 tier2_warn_state={},
             )
-            inbound = list(csv.DictReader((record_path / "service_inbound.csv").open(newline="")))
+            inbound = list(
+                csv.DictReader((record_path / "service_inbound.csv").open(newline=""))
+            )
+        self.assertEqual(cache["frontend"], "192.168.1.10,192.168.1.11")
+        self.assertEqual(len(fetch_log), 2)
         self.assertEqual(len(inbound), 1)
-        self.assertTrue(any("10.0.0.2" in u for u in state["fetches"]))
+        self.assertEqual(inbound[0]["total"], "400")  # 200 + 200, both replicas summed
 
-    def test_reseed_is_rate_limited(self):
+    def test_refresh_runs_every_tick_from_poll_index_one_onward(self):
+        import json
         import tempfile
 
         kubectl_calls = []
 
-        def fetch(url):
-            return SimpleNamespace(returncode=1, stdout="", stderr="refused")
-
         def runner(cmd):
             kubectl_calls.append(cmd)
-            return SimpleNamespace(returncode=0, stdout="10.0.0.9\n", stderr="")
+            return SimpleNamespace(returncode=0, stdout=json.dumps({"items": []}), stderr="")
 
-        cache = {"frontend": "10.0.0.1"}
-        warn_state = {}
+        def fetch(url):
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        cache = {}
         with tempfile.TemporaryDirectory() as td:
             for i in range(5):
                 erc.poll_once(
                     Path(td),
                     ["frontend"],
-                    timestamp="2026-09-13T12:00:00Z",
+                    timestamp="2026-09-21T12:00:00Z",
                     run_cmd=runner,
                     fetch_url=fetch,
                     ip_cache=cache,
                     poll_index=i,
-                    tier2_warn_state=warn_state,
+                    tier2_warn_state={},
                 )
-        self.assertEqual(len(kubectl_calls), 1)
+        # poll_index 0 skips the refresh (seeded tick); 1,2,3,4 each refresh
+        # once — the accepted cost model (one whole-namespace kubectl call
+        # per tick), not rate-limited like the retired per-service reseed.
+        self.assertEqual(len(kubectl_calls), 4)
 
-    def test_partial_failure_reseed_replaces_full_ip_list(self):
+    def test_kubectl_failure_this_tick_keeps_previous_cache_and_keeps_scraping(self):
         import tempfile
 
-        def fetch(url):
-            if "10.0.0.1" in url:
-                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+        def runner(cmd):
             return SimpleNamespace(returncode=1, stdout="", stderr="refused")
 
-        def runner(cmd):
-            joined = " ".join(cmd)
-            if "app=frontend" in joined:
-                # Cluster now reports 2 healthy replica IPs.
-                return SimpleNamespace(returncode=0, stdout="10.0.0.1\n10.0.0.3\n", stderr="")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
+        def fetch(url):
+            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
 
-        cache = {"frontend": "10.0.0.1,10.0.0.2"}
+        cache = {"frontend": "192.168.1.10"}
         with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
             erc.poll_once(
-                Path(td),
+                record_path,
                 ["frontend"],
-                timestamp="2026-09-20T12:00:00Z",
+                timestamp="2026-09-21T12:00:01Z",
                 run_cmd=runner,
                 fetch_url=fetch,
                 ip_cache=cache,
-                poll_index=0,
+                poll_index=1,
                 tier2_warn_state={},
             )
-        self.assertEqual(cache.get("frontend"), "10.0.0.1,10.0.0.3")
+            inbound = list(
+                csv.DictReader((record_path / "service_inbound.csv").open(newline=""))
+            )
+        self.assertEqual(cache, {"frontend": "192.168.1.10"})  # untouched, not wiped
+        self.assertEqual(len(inbound), 1)  # scrape still happened, using the old IP
+
+    def test_departed_service_is_dropped_from_cache_next_tick(self):
+        import json
+        import tempfile
+
+        pod_list = {"items": []}  # checkoutservice's pod is gone this tick
+
+        def runner(cmd):
+            return SimpleNamespace(returncode=0, stdout=json.dumps(pod_list), stderr="")
+
+        def fetch(url):
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        cache = {"checkoutservice": "10.0.0.50"}
+        with tempfile.TemporaryDirectory() as td:
+            erc.poll_once(
+                Path(td),
+                ["checkoutservice"],
+                timestamp="2026-09-21T12:00:01Z",
+                run_cmd=runner,
+                fetch_url=fetch,
+                ip_cache=cache,
+                poll_index=1,
+                tier2_warn_state={},
+            )
+        self.assertEqual(cache, {})
 
 
 class TestRunCollectorNetwork(unittest.TestCase):
