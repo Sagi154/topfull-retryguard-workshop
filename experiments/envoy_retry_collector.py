@@ -627,17 +627,21 @@ def pod_ips_from_pod_list(
     """
     Group every Running pod's IP by service, from one whole-namespace
     `kubectl get pods -o json` snapshot. Pending pods (no podIP yet) and
-    Terminating pods (sidecar may already be shutting down, refusing new
-    connections) are excluded. Unlike the retired per-service jsonpath
-    discovery, this single call sees every replica of every service in
-    one shot, so noticing a scaled-up replica never depends on a fetch
-    to it failing first.
+    deleting pods (`metadata.deletionTimestamp` set — Kubernetes keeps
+    phase=Running until the object is gone; there is no phase=Terminating)
+    are excluded. Unlike the retired per-service jsonpath discovery, this
+    single call sees every replica of every service in one shot, so
+    noticing a scaled-up replica never depends on a fetch to it failing
+    first.
     """
     out: Dict[str, List[str]] = {s: [] for s in services}
     for item in pod_list.get("items") or []:
-        name = (item.get("metadata") or {}).get("name") or ""
+        metadata = item.get("metadata") or {}
+        name = metadata.get("name") or ""
         svc = pod_service_name(name, services)
         if svc is None:
+            continue
+        if metadata.get("deletionTimestamp"):
             continue
         status = item.get("status") or {}
         if status.get("phase") != "Running":
@@ -662,15 +666,28 @@ def refresh_ip_cache(
     triggered reseed never noticed a *successful* extra replica). On a
     kubectl failure this tick, ip_cache is left untouched — one bad tick
     keeps scraping last-known-good IPs rather than going blind.
+    Logs one INFO line per service whose comma-joined IP list changed
+    (scale-up/down proof for live runs).
     """
     pod_list = fetch_pod_list(run_cmd=run_cmd, namespace=namespace)
     if pod_list is None:
         return
     ips_by_service = pod_ips_from_pod_list(pod_list, services)
+    previous = dict(ip_cache)
     ip_cache.clear()
     for service, ips in ips_by_service.items():
         if ips:
             ip_cache[service] = join_ip_list(ips)
+    for service in sorted(set(previous) | set(ip_cache)):
+        old = previous.get(service, "")
+        new = ip_cache.get(service, "")
+        if old != new:
+            log.info(
+                "%s  IPS  service=%s ips=%s",
+                utc_now(),
+                service,
+                new if new else "(none)",
+            )
 
 
 def discover_pod_ip(

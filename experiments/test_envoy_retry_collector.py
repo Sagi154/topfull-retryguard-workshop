@@ -509,8 +509,11 @@ SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS = {
             "status": {"phase": "Pending"},
         },
         {
-            "metadata": {"name": "frontend-abc123-44444"},
-            "status": {"phase": "Terminating", "podIP": "10.0.0.99"},
+            "metadata": {
+                "name": "frontend-abc123-44444",
+                "deletionTimestamp": "2026-09-21T12:00:00Z",
+            },
+            "status": {"phase": "Running", "podIP": "10.0.0.99"},
         },
     ],
 }
@@ -530,6 +533,13 @@ class TestPodIpsFromPodList(unittest.TestCase):
         )
         self.assertNotIn("10.0.0.99", ips["frontend"])
         self.assertEqual(len(ips["frontend"]), 2)
+
+    def test_deletion_timestamp_running_pod_is_omitted(self):
+        # Real deleting pods stay phase=Running with deletionTimestamp set.
+        ips = erc.pod_ips_from_pod_list(
+            SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS, ["frontend"]
+        )
+        self.assertNotIn("10.0.0.99", ips["frontend"])
 
     def test_service_with_no_running_pods_is_empty_list_not_missing_key(self):
         ips = erc.pod_ips_from_pod_list({"items": []}, ["adservice"])
@@ -551,6 +561,39 @@ class TestRefreshIpCache(unittest.TestCase):
         erc.refresh_ip_cache(cache, ["frontend", "checkoutservice"], run_cmd=runner)
         self.assertEqual(cache["frontend"], "10.0.0.5,10.0.0.9")
         self.assertEqual(cache["checkoutservice"], "10.0.0.20")
+        # deletionTimestamp pod 10.0.0.99 must not appear in the joined list
+        self.assertNotIn("10.0.0.99", cache["frontend"])
+
+    def test_logs_ips_line_only_when_ip_list_changes(self):
+        import json
+        from unittest import mock
+
+        def runner(cmd):
+            return SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps(SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS),
+                stderr="",
+            )
+
+        cache = {"frontend": "10.0.0.1"}
+        with mock.patch.object(erc.log, "info") as mock_info:
+            erc.refresh_ip_cache(cache, ["frontend"], run_cmd=runner)
+        ips_calls = [
+            c for c in mock_info.call_args_list
+            if len(c.args) >= 2 and "IPS" in str(c.args[0])
+        ]
+        self.assertEqual(len(ips_calls), 1)
+        self.assertIn("frontend", ips_calls[0].args[2])
+        self.assertEqual(ips_calls[0].args[3], "10.0.0.5,10.0.0.9")
+
+        # Second refresh with the same snapshot: no IPS log (no change).
+        with mock.patch.object(erc.log, "info") as mock_info2:
+            erc.refresh_ip_cache(cache, ["frontend"], run_cmd=runner)
+        ips_calls2 = [
+            c for c in mock_info2.call_args_list
+            if len(c.args) >= 2 and "IPS" in str(c.args[0])
+        ]
+        self.assertEqual(ips_calls2, [])
 
     def test_kubectl_failure_leaves_cache_untouched(self):
         def runner(cmd):
