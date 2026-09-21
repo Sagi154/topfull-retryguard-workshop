@@ -61,7 +61,7 @@ How Locust tags are grouped into swarms: one independent single-tag swarm per ta
 _Avoid_: launcher script, split-cart (both conflate the shape decision with one specific file or one specific tag family)
 
 **Loadgen numbers**:
-The actual per-tag user counts and spawn rate. Decided separately from shape. Not copied from either of Ron's scripts — deferred to a fresh calibration pass run under the Ron-config regime, together with the S1–S6 scenario methodology rework.
+The actual per-tag user counts and spawn rate. Decided separately from shape. Not copied from either of Ron's scripts — deferred to a fresh calibration pass run under the Ron-config regime, together with the S1–S6 scenario methodology rework. `spawn_rate` is Ron's `RATE` divisor: Locust `-r` = that tag's user count / `spawn_rate`, computed with awk so the result is a float. It is not users/sec. Steady offered load is still about one request per second per user (`constant_throughput(1)`); `-r` only sets the ramp.
 _Avoid_: sizing, load level (too vague to mean this specifically)
 
 **Task-weight remix**:

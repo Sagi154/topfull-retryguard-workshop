@@ -56,6 +56,9 @@ settled:
   built to fix our own bugs — but the grilling in this doc concluded on the
   same shape independently, before treating v2 as part of the answer (see
   decision 4).
+- **Amendment (2026-09-22):** the independent-swarm shape above is unchanged.
+  The spawn-rate half of the original v2 fix was reverted to Ron's formula:
+  `-r` is `count / RATE`, computed with awk (a float), not `RATE` as users/sec.
 
 ---
 

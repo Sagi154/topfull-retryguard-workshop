@@ -1026,17 +1026,19 @@ _Do not commit the pulled `experiments/results/campaign_48/calibration_*_run<N>/
 
 ---
 
-> **SUPERSEDED (2026-09-21, mid-execution): Task 8 above ran on the legacy `online_boutique_create.sh`/`create2.sh` launcher, not `online_boutique_create_v2.sh`.** See design doc [§9 decision 16](../specs/2026-09-21-s1-s6-methodology-and-calibration-design.md#9-session-amendment-2026-09-21-discovered-mid-execution-after-task-8-landed). The legacy launcher's `RATE`-as-divisor bug and merged getcart/postcart/emptycart process mean Task 8's five runs did not measure the load their YAMLs specify. **Task 8a and Task 8b below re-run this work correctly before Task 9 proceeds.** The `capacity_frozen.json` values this Task 8 committed (frontend 0.26, checkout 1.47, payment 0.24, productcatalog 1.62) are superseded by Task 8b, not ground truth.
+> **SUPERSEDED (2026-09-21, mid-execution): Task 8 above ran on the legacy `online_boutique_create.sh`/`create2.sh` launcher, not `online_boutique_create_v2.sh`.** See design doc [§9 decision 16](../specs/2026-09-21-s1-s6-methodology-and-calibration-design.md#9-session-amendment-2026-09-21-discovered-mid-execution-after-task-8-landed). The legacy launcher's bash integer `count / RATE` (often `-r 0`) and merged getcart/postcart/emptycart process mean Task 8's five runs did not measure the load their YAMLs specify. v2 keeps Ron's divisor (`-r = count / RATE` via awk, a float) and gives each tag its own swarm. **Task 8a and Task 8b below re-run this work correctly before Task 9 proceeds.** The `capacity_frozen.json` values this Task 8 committed (frontend 0.26, checkout 1.47, payment 0.24, productcatalog 1.62) are superseded by Task 8b, not ground truth.
 
 ---
 
-## Task 8a: Swap all scenario + calibration YAMLs to `online_boutique_create_v2.sh`
+## Task 8a: Swap all scenario + calibration YAMLs to `online_boutique_create_v2.sh` + resize calibration loads
 
-**Files (21):**
+**Files (21 scripts + 5 number edits):**
 - Modify all 16 scenario YAMLs: `scenario_1_baseline.yaml`, `scenario_1_retryguard.yaml`, `scenario_2_baseline.yaml`, `scenario_2_retryguard.yaml`, `scenario_3_baseline.yaml`, `scenario_3_retryguard.yaml`, `scenario_4a_baseline.yaml`, `scenario_4a_retryguard.yaml`, `scenario_4b_baseline.yaml`, `scenario_4b_retryguard.yaml`, `scenario_5_interval_10s.yaml`, `scenario_5_interval_20s.yaml`, `scenario_5_interval_30s.yaml`, `scenario_5_interval_60s.yaml`, `scenario_6_recovery_baseline.yaml`, `scenario_6_recovery_retryguard.yaml`
 - Modify the 5 Task 8 calibration YAMLs: `scenario_calibration_frontend_constrained_50m.yaml`, `scenario_calibration_checkout_constrained_50m.yaml`, `scenario_calibration_payment_constrained_50m.yaml`, `scenario_calibration_productcatalog_constrained.yaml`, `scenario_calibration_bottleneck_reference.yaml`
 
-Mechanical only. No code change (`run_scenario.py`'s `_launch_locust()` already dual-exports `EMPTYCART`; a bare `spawn_rate` already maps to v2's shared `RATE`, applied to all 5 tags). No `user_counts`/`spawn_rate`/`run_number` changes in this task.
+No code change (`run_scenario.py`'s `_launch_locust()` already dual-exports `EMPTYCART`; a bare `spawn_rate` maps to v2's shared `RATE` divisor, applied as awk `count / RATE` on all 5 tags — not as Locust users/sec).
+
+**Why Step 1b exists:** the five calibration YAMLs still carry pre-migration "far above scenario default" counts (`postcheckout: 500`, `getproduct: 800`, frontend S2 mix, `spawn_rate: 90`/`150`). Under Ron-config topology those overshoot the 50m goodput (~13 / 74 / 12 / 81 rps from Task 8's constrained holds) and peg helper services (frontend / recommendations / checkout). Replace with ~3× measured 50m goodput on the target tag, light non-target tags at 10 (they now actually spawn under v2's float divisor), and `spawn_rate: 50` (Ron's divisor — full population in ~50s). Do **not** change S1–S6 scenario `user_counts`/`spawn_rate` here — that is Task 9/10.
 
 - [ ] **Step 1: For each of the 21 files, replace**
 
@@ -1053,13 +1055,25 @@ with:
     - online_boutique_create_v2.sh
 ```
 
-(both the top-level `locust.scripts` for single-phase files, and the shared top-level `locust.scripts` key for S5/S6's phase-based files.)
+(both the top-level `locust.scripts` for single-phase files, and the shared top-level `locust.scripts` key for S5/S6's phase-based files. Some calibration files may already be on v2 — leave them as `['online_boutique_create_v2.sh']`.)
 
-- [ ] **Step 2: Verify all 21 files**
+- [ ] **Step 1b: Rewrite `user_counts` / `spawn_rate` on the 5 calibration YAMLs only**
+
+| File | getproduct | postcheckout | getcart | postcart | emptycart | spawn_rate |
+|---|---:|---:|---:|---:|---:|---:|
+| `scenario_calibration_frontend_constrained_50m.yaml` | 10 | 5 | 10 | 5 | 20 | 50 |
+| `scenario_calibration_checkout_constrained_50m.yaml` | 10 | 220 | 10 | 10 | 10 | 50 |
+| `scenario_calibration_payment_constrained_50m.yaml` | 10 | 40 | 10 | 10 | 10 | 50 |
+| `scenario_calibration_productcatalog_constrained.yaml` | 250 | 10 | 10 | 10 | 10 | 50 |
+| `scenario_calibration_bottleneck_reference.yaml` | 250 | 220 | 10 | 10 | 10 | 50 |
+
+Update each file's header comment if it still says "same Locust mix as …" the old heavy counts — note the Ron-config ~3×-goodput rationale briefly. Leave `run_number` / `log_folder` alone in this task (Task 8b bumps them).
+
+- [ ] **Step 2: Verify all 21 files + calibration numbers**
 
 ```bash
 python -c "
-import yaml, glob
+import yaml
 files = [
     'scenario_1_baseline','scenario_1_retryguard','scenario_2_baseline','scenario_2_retryguard',
     'scenario_3_baseline','scenario_3_retryguard','scenario_4a_baseline','scenario_4a_retryguard',
@@ -1069,10 +1083,23 @@ files = [
     'scenario_calibration_payment_constrained_50m','scenario_calibration_productcatalog_constrained',
     'scenario_calibration_bottleneck_reference',
 ]
+expected = {
+    'scenario_calibration_frontend_constrained_50m': dict(getproduct=10, postcheckout=5, getcart=10, postcart=5, emptycart=20, spawn_rate=50),
+    'scenario_calibration_checkout_constrained_50m': dict(getproduct=10, postcheckout=220, getcart=10, postcart=10, emptycart=10, spawn_rate=50),
+    'scenario_calibration_payment_constrained_50m': dict(getproduct=10, postcheckout=40, getcart=10, postcart=10, emptycart=10, spawn_rate=50),
+    'scenario_calibration_productcatalog_constrained': dict(getproduct=250, postcheckout=10, getcart=10, postcart=10, emptycart=10, spawn_rate=50),
+    'scenario_calibration_bottleneck_reference': dict(getproduct=250, postcheckout=220, getcart=10, postcart=10, emptycart=10, spawn_rate=50),
+}
 for f in files:
     cfg = yaml.safe_load(open(f'experiments/configs/{f}.yaml', encoding='utf-8'))
     scripts = cfg['locust'].get('scripts', [])
     assert scripts == ['online_boutique_create_v2.sh'], f'{f}: unexpected scripts {scripts}'
+    if f in expected:
+        uc = cfg['locust']['user_counts']
+        exp = expected[f]
+        for k in ('getproduct','postcheckout','getcart','postcart','emptycart'):
+            assert uc[k] == exp[k], f'{f}: {k}={uc[k]} want {exp[k]}'
+        assert cfg['locust']['spawn_rate'] == exp['spawn_rate'], f'{f}: spawn_rate'
     print(f, 'ok')
 "
 ```
@@ -1083,7 +1110,7 @@ Expected: 21 lines, all `ok`.
 
 ```bash
 git add experiments/configs/scenario_1_baseline.yaml experiments/configs/scenario_1_retryguard.yaml experiments/configs/scenario_2_baseline.yaml experiments/configs/scenario_2_retryguard.yaml experiments/configs/scenario_3_baseline.yaml experiments/configs/scenario_3_retryguard.yaml experiments/configs/scenario_4a_baseline.yaml experiments/configs/scenario_4a_retryguard.yaml experiments/configs/scenario_4b_baseline.yaml experiments/configs/scenario_4b_retryguard.yaml experiments/configs/scenario_5_interval_10s.yaml experiments/configs/scenario_5_interval_20s.yaml experiments/configs/scenario_5_interval_30s.yaml experiments/configs/scenario_5_interval_60s.yaml experiments/configs/scenario_6_recovery_baseline.yaml experiments/configs/scenario_6_recovery_retryguard.yaml experiments/configs/scenario_calibration_frontend_constrained_50m.yaml experiments/configs/scenario_calibration_checkout_constrained_50m.yaml experiments/configs/scenario_calibration_payment_constrained_50m.yaml experiments/configs/scenario_calibration_productcatalog_constrained.yaml experiments/configs/scenario_calibration_bottleneck_reference.yaml
-git commit -m "fix: switch all scenario and calibration YAMLs onto online_boutique_create_v2.sh (design doc decision 16a) - legacy launcher's RATE-as-divisor and merged getcart/postcart/emptycart process invalidated prior live runs"
+git commit -m "fix: point all scenario/calibration YAMLs at v2 and resize bottleneck-cap loads for Ron-config 50m goodput (~3x mu_sat, RATE=50 divisor)"
 ```
 
 ---
@@ -1091,6 +1118,8 @@ git commit -m "fix: switch all scenario and calibration YAMLs onto online_boutiq
 ## Task 8b: Re-run the 5-run bottleneck-cap recalibration battery under v2 (supersedes Task 8)
 
 **Pre-check:** Task 8a committed. This is a verbatim repeat of Task 8's Steps 0–8, with two differences: (1) the 5 calibration YAMLs now use `online_boutique_create_v2.sh` (already true after Task 8a — no further script edit needed here); (2) every YAML's `run_number`/`log_folder` must be bumped past Task 8's own already-used slots (e.g. `calibration_frontend_constrained_50m_run2` → `run3`; check `AGENTS.md` §4/§6 and the local + master folders for the actual next-free slot, since other sessions may have advanced it).
+
+**Spawn math (do not misread the YAML):** v2 matches Ron. Locust `-r` = that tag's `user_count / spawn_rate`, computed with awk so the result is a float. `spawn_rate: 90` or `150` is the divisor, not users/sec. Example: checkout's `postcheckout: 500` at `spawn_rate: 150` ramps at ≈3.3 users/sec and reaches 500 users in ~150s. Steady offered rps, once spawned, is still ~1 per user (`constant_throughput(1)`).
 
 - [ ] **Step 0: Start VMs (if stopped), refresh SSH HostNames, wait for cluster health** — same as Task 8 Step 0 (worker must be `e2-standard-16`; both `frontend-hpa` and `productcatalogservice-hpa` present).
 
@@ -1236,7 +1265,7 @@ In both `scenario_2_baseline.yaml` and `scenario_2_retryguard.yaml`, set `locust
 
 - [ ] **Step 4: Write S3/S4A/S4B's final numbers**
 
-In `scenario_3_{baseline,retryguard}.yaml`, `scenario_4a_{baseline,retryguard}.yaml`, `scenario_4b_{baseline,retryguard}.yaml`: set `locust.user_counts`/`spawn_rate` to Task 8's finalized reference load (shared or per-scenario, per whichever path Step 6 of Task 8 took) — the target tag (`postcheckout` for S3, `getproduct` for S4A, `postcheckout` for S4B — confirm S4B's actual primary tag by reading the file's header comment, since payment is reached via checkout) at the heavy value, the rest at the light reference values.
+In `scenario_3_{baseline,retryguard}.yaml`, `scenario_4a_{baseline,retryguard}.yaml`, `scenario_4b_{baseline,retryguard}.yaml`: set `locust.user_counts`/`spawn_rate` to Task 8b's finalized reference load (shared or per-scenario, per whichever path Step 6 of Task 8b took) — the target tag (`postcheckout` for S3, `getproduct` for S4A, `postcheckout` for S4B — confirm S4B's actual primary tag by reading the file's header comment, since payment is reached via checkout) at the heavy value, the rest at the light reference values. `spawn_rate` stays Ron's divisor (`-r = count / spawn_rate`), not users/sec.
 
 - [ ] **Step 5: Write S6's final numbers**
 

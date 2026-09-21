@@ -14,12 +14,15 @@
 #      Locust process with its own `-u`, driven by its own env var
 #      (GETCART / POSTCART / EMPTYCART).
 #
-#   2. `-r` (spawn rate) used to be computed as `$((count / RATE))` — i.e. a
-#      BIGGER RATE produced a SLOWER ramp (fewer users/sec), the opposite of
-#      what the name suggests, and for our (much smaller than TopFull's)
-#      target user counts this integer division often rounded down to 0-3
-#      users/sec, taking minutes to reach target population. Here, RATE (or
-#      a per-tag RATE_* override) is used DIRECTLY as Locust's `-r` users/sec.
+#   2. Upstream create.sh computes `-r` as bash `$((count / RATE))`. RATE
+#      is a divisor (a bigger RATE is a slower ramp), and integer division
+#      on our user counts often rounds to 0, so that tag never spawns.
+#      Ron's own launchers (frontend.sh and his create.sh) keep the same
+#      divisor but compute it with awk, so `-r` is the float `count / RATE`.
+#      This script matches that. YAML `spawn_rate` is that divisor, not
+#      Locust users/sec. Optional RATE_* env vars override the divisor per
+#      tag. Steady offered load is still ~1 request/sec per user
+#      (`constant_throughput(1)`); `-r` only controls the ramp.
 #
 # This file lives under experiments/ (NOT under TopFull/, which is a
 # read-only upstream submodule) and is meant to be deployed next to the
@@ -48,11 +51,12 @@
 #   GETCART               getcart user count (own process).    Default: 150
 #   POSTCART              postcart user count (own process).   Default: 150
 #   EMPTYCART             emptycart user count (own process).  Default: 150
-#   RATE                  Global spawn rate (users/sec), used DIRECTLY as
-#                         Locust `-r` for every tag unless overridden below.
-#                         Default: 50
+#   RATE                  Global spawn-rate divisor. Locust `-r` for a tag
+#                         is `count / RATE` (awk float) unless that tag's
+#                         RATE_* override is set. A bigger RATE is a slower
+#                         ramp. Default: 50 (Ron's frontend.sh divisor).
 #   RATE_GETPRODUCT / RATE_POSTCHECKOUT / RATE_GETCART / RATE_POSTCART /
-#   RATE_EMPTYCART        Optional per-tag spawn-rate override. Default: $RATE.
+#   RATE_EMPTYCART        Optional per-tag divisor override. Default: $RATE.
 #   DURATION_MIN          Locust `-t` in minutes. Empty = run untimed;
 #                         run_scenario.py already stops Locust itself at
 #                         `duration_seconds` via stop_locust(), so this is a
@@ -90,6 +94,14 @@ RATE_GETCART="${RATE_GETCART:-$RATE}"
 RATE_POSTCART="${RATE_POSTCART:-$RATE}"
 RATE_EMPTYCART="${RATE_EMPTYCART:-$RATE}"
 
+# Ron's spawn math (frontend.sh / his create.sh): -r = count / RATE, float
+# via awk. Bash $((count / RATE)) truncates and often yields 0.
+GETPRODUCT_R=$(awk "BEGIN {print $GETPRODUCT/$RATE_GETPRODUCT}")
+POSTCHECKOUT_R=$(awk "BEGIN {print $POSTCHECKOUT/$RATE_POSTCHECKOUT}")
+GETCART_R=$(awk "BEGIN {print $GETCART/$RATE_GETCART}")
+POSTCART_R=$(awk "BEGIN {print $POSTCART/$RATE_POSTCART}")
+EMPTYCART_R=$(awk "BEGIN {print $EMPTYCART/$RATE_EMPTYCART}")
+
 DURATION_MIN="${DURATION_MIN:-}"
 WORKERS_GETPRODUCT="${WORKERS_GETPRODUCT:-4}"
 WORKERS_POSTCHECKOUT="${WORKERS_POSTCHECKOUT:-2}"
@@ -123,7 +135,7 @@ ensure_port 9101
 tmux new-window -d -t v2_postcheckout \
   "$LOCUST_BIN -f locust_online_boutique.py --host=$HOST --tags postcheckout \
    --master-bind-port=9001 --master --expect-workers=$WORKERS_POSTCHECKOUT \
-   --headless -u $POSTCHECKOUT -r $RATE_POSTCHECKOUT ${TIME_FLAG[@]+"${TIME_FLAG[@]}"} \
+   --headless -u $POSTCHECKOUT -r $POSTCHECKOUT_R ${TIME_FLAG[@]+"${TIME_FLAG[@]}"} \
    < ports_v2/9101"
 for i in $(seq 1 "$WORKERS_POSTCHECKOUT"); do
   port=$((9101 + i))
@@ -141,7 +153,7 @@ ensure_port 9201
 tmux new-window -d -t v2_getproduct \
   "$LOCUST_BIN -f locust_online_boutique.py --host=$HOST --tags getproduct \
    --master-bind-port=9002 --master --expect-workers=$WORKERS_GETPRODUCT \
-   --headless -u $GETPRODUCT -r $RATE_GETPRODUCT ${TIME_FLAG[@]+"${TIME_FLAG[@]}"} \
+   --headless -u $GETPRODUCT -r $GETPRODUCT_R ${TIME_FLAG[@]+"${TIME_FLAG[@]}"} \
    < ports_v2/9201"
 for i in $(seq 1 "$WORKERS_GETPRODUCT"); do
   port=$((9201 + i))
@@ -158,7 +170,7 @@ done
 #    (copy the master/worker block above) only if a future scenario needs
 #    more than a few hundred rps out of one of these three tags.
 declare -A CART_TAG_COUNT=( [getcart]="$GETCART" [postcart]="$POSTCART" [emptycart]="$EMPTYCART" )
-declare -A CART_TAG_RATE=( [getcart]="$RATE_GETCART" [postcart]="$RATE_POSTCART" [emptycart]="$RATE_EMPTYCART" )
+declare -A CART_TAG_RATE=( [getcart]="$GETCART_R" [postcart]="$POSTCART_R" [emptycart]="$EMPTYCART_R" )
 declare -A CART_TAG_PORT=( [getcart]=9301 [postcart]=9302 [emptycart]=9303 )
 
 for tag in getcart postcart emptycart; do
