@@ -19,6 +19,7 @@
 - 300s+ cool-off between every live run in the battery and the S1/S2/S6 calibration loop (matches the established precedent in `AGENTS.md` §4's calibration history).
 - Do not reuse the pre-migration `capacity_frozen.json` values (all four dated 2026-09-19, predate the Ron-Nezer migration) as anything other than *starting guesses* for the battery's `locust.user_counts` (design doc §2b/§2c).
 - **Task 9 human gate:** after every S1/S2/S6 calibration try, stop and wait for explicit user approval before adjusting numbers or moving to the next try/scenario. The agent's metric checks are necessary but not sufficient — the user also judges whether the run matches what they had in mind for that scenario.
+- **Task 9 per-try readout:** before that approval ask, show the load this try actually used, plus TopFull, the mesh collector, Locust storefront outcomes, and kubelet CPU/memory (see Task 9 "Per-try readout"). A pass/fail sentence is not a substitute for those tables.
 
 ---
 
@@ -1154,9 +1155,23 @@ Same result-folder-commit caveat as Task 8 Step 8 applies here.
 
 **S1 `run27` is discarded** (ran on the legacy launcher before this defect was found — see design doc decision 16c). It does not count against S1's 3-try cap. Fresh S1 try 1 below re-runs the *same* YAML numbers, now genuinely applied via v2.
 
-**Human approval gate (mandatory):** after every try (S1 try 1, S1 try 2, …, S2 try 1, …, S6 try N), the agent must (1) pull results, (2) report the metric checks below, (3) **stop and wait for explicit user approval** before adjusting numbers, starting the next try, or moving to the next scenario. The user's judgment is whether the run matches what they had in mind for that scenario — that can diverge from (or tighten) the agent's checklist. Do **not** auto-decide "this try passed / failed / next adjustment is X" without user sign-off. Cap remains 3 tries per scenario; if still unresolved after 3 approved tries, stop and record it as an open item.
+**Human approval gate (mandatory):** after every try (S1 try 1, S1 try 2, …, S2 try 1, …, S6 try N), the agent must (1) pull results, (2) present the **per-try readout** below, including the scenario checklist, (3) **stop and wait for explicit user approval** before adjusting numbers, starting the next try, or moving to the next scenario. The user's judgment is whether the run matches what they had in mind for that scenario — that can diverge from (or tighten) the agent's checklist. Do **not** auto-decide "this try passed / failed / next adjustment is X" without user sign-off. Cap remains 3 tries per scenario; if still unresolved after 3 approved tries, stop and record it as an open item.
 
-**Method (design doc §3b), applied per scenario below:** run at the scenario's current YAML numbers unchanged as try 1, report metrics + wait for user, then only if the user says so: adjust and re-run (try 2 / try 3).
+**Per-try readout (mandatory, every try):** show what this run used and the collector series, in this order. Do not replace the tables with a one-line pass/fail.
+
+1. **Load table** — the `user_counts` and `spawn_rate` written into the YAML for this try, one row per tag, plus `spawn_rate`. `spawn_rate` is Ron's divisor (`Locust -r = count / spawn_rate`, a float via awk in `online_boutique_create_v2.sh`), not users/sec. Name the `log_folder`.
+2. **TopFull** — `topfull_detect.csv` (Layer B, overload detection): per service, sample count, `overloaded=1` count, max and mean `utilization`, max `cadvisor_cpu`, and `quota`. `topfull_throttle.csv` (Layer A, admission): per API, whether `threshold` left the inactive sentinel, plus max/mean `threshold` and max/mean `admitted_rps`.
+3. **Mesh collector** — `service_inbound.csv`: per service, Δ`total`, Δ`5xx`, Δ`resets`, max `Δ(5xx+resets)/Δtotal`, the longest streak of that ratio above 0.20, and mean inbound latency from Δ`rq_time_sum_ms` / Δ`rq_time_count` (milliseconds). `service_edges.csv`: Δ`retry` and Δ`total` on each caller→target edge, with the largest retry edges listed explicitly (a storm vs a few counts).
+4. **Locust storefront** — each tag CSV (`getproduct`, `postcheckout`, `getcart`, `postcart`, `emptycart`) and `total.csv` when present: row count, mean `RPS`, mean `Fail`, mean `Goodput`, mean `Latency95`. `Fail` is a 1-second SLO miss, not a Boutique 5xx. This is the client-visible outcome of the load in the table above.
+5. **Pod CPU and memory** — `resource_usage.csv`: per service, max and mean `cpu_millicores`, max `memory_working_set_bytes`, and max `replica_count` (so a frontend HPA scale-out is visible). Include the `__master_node__` row when the file has one. Also, if `num_agent.csv` has samples, report its max — that is whether TopFull's RL loop left zero.
+
+Skip `rho_estimate_report` and frozen `rho_hat` in this readout. Those μ values are still low-confidence on frontend and productcatalog, so they would not help decide whether the load is the one the user wants.
+
+The S1 / S2 / S6 checklists below are read off these same tables. They do not replace the tables.
+
+**Method (design doc §3b), applied per scenario below:** run at the scenario's current YAML numbers unchanged as try 1, present the per-try readout, wait for the user, then only if the user says so: adjust and re-run (try 2 / try 3).
+
+**Status (2026-09-22):** S1 is **locked**. Do not start another S1 calibration try, and do not start S2 until the user says so. Locked mix, both S1 YAMLs once the extra holds below finish: getproduct 50, postcheckout 15, getcart 50, postcart 50, emptycart 50, `spawn_rate` 50 (Ron's divisor). This mix was not itself a live hold. The user asked for two extra baseline holds that do **not** reopen the lock and do not replace it: `…_run34` getproduct 50 / postcheckout 20 / getcart 75 / postcart 50 / emptycart 50, divisor 50; then 300s cool-off; then `…_run35` same except getcart 50 and postcart 75. After `…_run35`, put the locked mix back on the next free baseline slot. RetryGuard YAML stays `…_run8` (that folder does not exist yet) and already has the locked mix. Earlier tries: run28 50/10/50/50/150 divisor 45; run29 100/100/100/100/50; run30 100/50/50/50/50; run31 50/25/50/50/25; run32 50/20/25/25/25; run33 50/20/50/50/50. Runs 29–33 used divisor 50.
 
 - [ ] **Step 1a: S1 — try 1 (current numbers, unchanged)**
 
@@ -1183,7 +1198,7 @@ Also check `service_inbound.csv` for any service whose `Δ(5xx+resets)/Δtotal` 
 
 - [ ] **Step 1b: STOP — user approval for S1 try 1**
 
-Present the metric summary and the pulled folder path. Ask: accept these numbers for S1 / try again with adjustment / leave S1 open? Do not start try 2 or move to S2 until the user replies. If the user wants try 2/3: apply their requested adjustment (agent may *suggest* e.g. −20–30% on overload, but the user chooses), bump `run_number`/`log_folder`, cool off 300s, re-run, then repeat this approval gate. Stop after try 3 regardless.
+Present the per-try readout (load table, TopFull detect + throttle, mesh inbound + edges, Locust goodput/Fail/P95, pod CPU/memory/replicas) and the pulled folder path. Ask: accept these numbers for S1 / try again with adjustment / leave S1 open? Do not start try 2 or move to S2 until the user replies. If the user wants try 2/3: apply their requested adjustment (agent may *suggest* e.g. −20–30% on overload, but the user chooses), bump `run_number`/`log_folder`, cool off 300s, re-run, then repeat this approval gate. Stop after try 3 regardless.
 
 - [ ] **Step 2a: S2 — try 1 (current numbers, unchanged)** — only after S1 is accepted or explicitly left open
 

@@ -9,6 +9,8 @@ This is an inventory, not a design. Check a box when the work is actually done. 
 
 Related (stale numbers — do not reuse as-is): [2026-09-20-loadgen-getcart-postcart-and-load-scaling-design.md](2026-09-20-loadgen-getcart-postcart-and-load-scaling-design.md).
 
+Related (Task 9 S1 try runs 28–33): which Locust API drives which Boutique service — [2026-09-22-locust-api-to-boutique-service-mapping.md](2026-09-22-locust-api-to-boutique-service-mapping.md).
+
 ---
 
 ## Already done (not part of this tracker)
@@ -31,7 +33,7 @@ What's still open is everything that depends on **loadgen numbers** and **scenar
 **Methodology decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md). Bottleneck-cap half executed as Task 8b (v2).
 
 - [x] Run the 5-run recalibration battery (design doc §3): frontend, checkoutservice, productcatalogservice, paymentservice at 50m under the current Ron-config topology, plus one unconstrained bottleneck reference load — Task 8b, 2026-09-21-v2 (`online_boutique_create_v2.sh`). Task 8's legacy-launcher freeze is superseded.
-- [ ] Re-calibrate S1/S2/S5/S6 per-tag user counts and spawn rate under the Ron-config regime (separate from the battery above — no mechanism dependency, just new numbers) — Task 9, not started
+- [ ] Re-calibrate S1/S2/S5/S6 per-tag user counts and spawn rate under the Ron-config regime (separate from the battery above — no mechanism dependency, just new numbers) — Task 9. **S1 locked 2026-09-22** (not run as its own hold): getproduct 50, postcheckout 15, getcart 50, postcart 50, emptycart 50, `spawn_rate` 50. Written into both S1 YAMLs. S2/S6 not started.
 - [x] Update `experiments/capacity/capacity_frozen.json` / `README.md` from the battery's results — Task 8b freeze (frontend 0.79 low_confidence / checkout 1.34 / payment 0.30 / catalog 5.35 low_confidence). Reference-load path: **three separate**.
 - [x] 2026-09-22 second holds after 8888 Locust fix (`run5`/`run6` frontend; catalog `run4`/`run5`) — Locust CSVs live; **neither service re-frozen** (frontend streak gate fail; catalog recommendations co-saturation / low `n_sat` on midpoint). Freezes left at 0.79 / 5.35. **Decision (2026-09-22): accept and move on** — both failures are structural (frontend queues rather than rejects at 50m; catalog load always fans out through `recommendationservice`), not fixable by another storefront-load number. A real fix needs a method/load-path change, deferred and not scheduled. Task 9 proceeds without a higher-confidence freeze for these two.
 
