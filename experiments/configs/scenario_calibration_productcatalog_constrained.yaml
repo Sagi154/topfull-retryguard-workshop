@@ -11,23 +11,24 @@
 # spawn_rate: 50 is Ron's divisor.
 #
 # run1–run2 are Task 8 (legacy launcher). run3 is the 2026-09-21-v2 freeze.
-# This slot is run4.
+# run4 is getproduct:400 (co-saturated recommendations). run5 is midpoint
+# getproduct:300 (n_sat=3; freeze left at 5.35). This slot is run6 (next free).
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 42
 scenario_name: calibration_productcatalog_constrained
 condition: calibration
-run_number: 4
+run_number: 6
 description: >
   Calibration-only run. productcatalogservice CPU constrained to 50m.
-  TopFull RL off, RetryGuard off. Ron-config ~3× 50m mu_sat load
-  (catalog≈81 rps); spawn_rate 50.
+  TopFull RL off, RetryGuard off. Next-free slot after run5 midpoint;
+  spawn_rate 50.
 
 duration_seconds: 900
 
 locust:
   user_counts:
-    getproduct:   250
+    getproduct:   300
     postcheckout: 10
     getcart:      10
     postcart:     10
@@ -80,7 +81,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_productcatalog_constrained_run4
+log_folder: calibration_productcatalog_constrained_run6
 
 infra:
   master_ssh_host: topfull-master

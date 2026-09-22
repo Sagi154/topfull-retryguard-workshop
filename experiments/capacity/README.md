@@ -43,8 +43,35 @@ Catalog `n_sat=8` is just under the gate (fail only 0.0067) while
 (fail 0.54). Accepted as low_confidence because no better v2 reading
 exists in this battery.
 
-YAML next-free after this battery: frontend 50m **run5**; checkout 50m
-**run4**; payment 50m **run4**; productcatalog constrained **run4**;
+### 2026-09-22 second holds (8888+ Locust live) — freezes left in place
+
+After the Locust stats-port fix (`46dcdb8`), two follow-up holds ran; neither
+cleared the freeze gate, so `capacity_frozen.json` still points at the
+2026-09-21-v2 table above.
+
+| Hold | Folder | Mix | Outcome |
+|---|---|---|---|
+| Frontend 3× | `calibration_frontend_constrained_50m_run5` | `30/15/30/15/60` | Locust 565 rows (8888 PASS). `n_sat=6`, longest streak 3, cpu_max 56m. No freeze. |
+| Frontend 5× | `calibration_frontend_constrained_50m_run6` | `50/25/50/25/100` | Locust 567 rows. `n_sat=10` but longest streak **4** (need ≥10 consecutive). cpu_max 57m. **Left frontend at 0.79.** |
+| Catalog 400 | `calibration_productcatalog_constrained_run4` | `getproduct:400`, FE×4 | Catalog `n_sat=112` / `mu_sat≈394`, but CPU only half-pegged and recommendations co-saturated (`n_sat=252`). Frontend inbound fail 0.97. No freeze. |
+| Catalog 300 | `calibration_productcatalog_constrained_run5` | `getproduct:300`, FE×3 | Catalog `n_sat=3`, CPU not mostly at cap, recommendations `n_sat=152`. **Left catalog at 5.35.** |
+
+Do **not** raise storefront load again for these two services without a
+method change (frontend: rejection plateau vs latency-only peg; catalog:
+load that does not fan out through recommendations).
+
+**Decision (2026-09-22): accept and move on.** Two live attempts each for
+frontend and productcatalog failed the same gates for structural reasons,
+not bad luck — frontend queues instead of rejecting at 50m, and any
+`getproduct` load heavy enough to saturate catalog also saturates
+`recommendationservice` (same fan-out). A third storefront-load attempt at
+either service would not fix this; it needs a method change (see above),
+which is deferred, not scheduled. `capacity_frozen.json` keeps frontend
+`0.79` and productcatalog `5.35`, both `low_confidence`. Proceeding to
+Task 9 without a higher-confidence freeze for these two.
+
+YAML next-free after these holds: frontend 50m **run7**; checkout 50m
+**run4**; payment 50m **run4**; productcatalog constrained **run6**;
 bottleneck reference **run3**. Unused 100m constrained slots unchanged
 (frontend **run3**, payment **run2**, checkout stays **run1**).
 

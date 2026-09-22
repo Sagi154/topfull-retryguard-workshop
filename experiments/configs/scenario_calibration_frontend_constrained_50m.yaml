@@ -1,36 +1,36 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Calibration — frontend, CONSTRAINED CPU (50m), TopFull+RG OFF
 #
-# Not part of the S1-S6 scenario matrix. Ron-config ~3× measured 50m
-# mu_sat goodput (frontend≈13 rps) — emptycart:20 as the target tag,
-# light non-target tags at 10/5 because v2's float count/RATE actually
-# spawns them; spawn_rate: 50 is Ron's divisor.
+# Not part of the S1-S6 scenario matrix. Next free is run7 after the 5× hold
+# (run6: 50/25/50/25/100). spawn_rate: 50 is Ron's divisor.
 # Constrain with cpu_limit_millicores: 50 (ADR-0006). A fraction 0.05 of the
 # current Ron-config paper value (1150m) would land on 57.5m, not 50m.
 # scenario_id 43 so scenario_dir_name() returns "" (results under campaign_48/).
 #
 # run1–run2 are Task 8 (legacy launcher). run3 discarded (wrong HOST).
-# run4 is the 2026-09-21-v2 freeze (low_confidence, n_sat=2). This slot is run5.
+# run4 is the 2026-09-21-v2 freeze (low_confidence, n_sat=2).
+# run5 is the 3× hold (n_sat=6). run6 is the 5× hold (n_sat=10, streak 4 —
+# freeze left at 0.79). This slot is run7 (next free).
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 43
 scenario_name: calibration_frontend_constrained_50m
 condition: calibration
-run_number: 5
+run_number: 7
 description: >
   Calibration-only run. frontend CPU constrained to 50m
   (cpu_limit_millicores, ADR-0006). TopFull RL off, RetryGuard off.
-  Ron-config ~3× 50m mu_sat load (frontend≈13 rps); spawn_rate 50.
+  Next-free slot after run6 5× hold; spawn_rate 50.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   10
-    postcheckout: 5
-    getcart:      10
-    postcart:     5
-    emptycart:    20
+    getproduct:   50
+    postcheckout: 25
+    getcart:      50
+    postcart:     25
+    emptycart:    100
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
@@ -78,7 +78,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_frontend_constrained_50m_run5
+log_folder: calibration_frontend_constrained_50m_run7
 
 infra:
   master_ssh_host: topfull-master

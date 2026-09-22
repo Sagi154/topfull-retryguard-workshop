@@ -1,0 +1,68 @@
+{
+  "scenario_id": 42,
+  "scenario_name": "calibration_productcatalog_constrained",
+  "condition": "calibration",
+  "run_number": 5,
+  "duration_seconds": 900,
+  "retryguard": {
+    "enabled": false,
+    "rejection_threshold": 0.2,
+    "sample_interval_seconds": 1,
+    "interval_samples": 30
+  },
+  "topfull_rl": {
+    "enabled": false
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1,
+    "transport": "network_prometheus",
+    "max_workers": 4,
+    "exec_host": "topfull-master"
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "topfull_throttle_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1
+  },
+  "scale_constraints": [
+    {
+      "deployment": "productcatalogservice",
+      "namespace": "default",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 50,
+      "container": "server"
+    }
+  ],
+  "paper_cpu_quotas": {
+    "frontend": 1150,
+    "checkoutservice": 615,
+    "recommendationservice": 1150,
+    "productcatalogservice": 1535,
+    "cartservice": 1920,
+    "currencyservice": 770,
+    "shippingservice": 770,
+    "redis-cart": 540,
+    "emailservice": 155,
+    "paymentservice": 155,
+    "adservice": 1150
+  },
+  "effective_cpu_quotas": {
+    "frontend": 1150,
+    "checkoutservice": 615,
+    "recommendationservice": 1150,
+    "productcatalogservice": 50,
+    "cartservice": 1920,
+    "currencyservice": 770,
+    "shippingservice": 770,
+    "redis-cart": 540,
+    "emailservice": 155,
+    "paymentservice": 155,
+    "adservice": 1150
+  },
+  "log_folder": "calibration_productcatalog_constrained_run5",
+  "collected_at": "2026-09-22T08:39:18.986035Z"
+}
