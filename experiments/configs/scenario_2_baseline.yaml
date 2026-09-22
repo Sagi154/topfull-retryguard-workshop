@@ -25,7 +25,7 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 24
+run_number: 26
 description: >
   Ramp to ρ > 1, hold 10 minutes. TopFull active, Istio default retries on,
   RetryGuard OFF. Captures the retry storm as the unmanaged baseline.
@@ -38,12 +38,12 @@ duration_seconds: 600          # 10 minutes — deck hold, not the S6 recovery p
 # 1-worker setup. Increase if rejection rates don't exceed 20% after ~2 min.
 locust:
   user_counts:
-    getproduct:   100
-    postcheckout: 20
-    getcart:      100
-    postcart:     100
-    emptycart:    300
-  spawn_rate: 90
+    getproduct:   200
+    postcheckout: 60
+    getcart:      140
+    postcart:     50
+    emptycart:    50
+  spawn_rate: 50               # Ron's divisor: Locust -r = count / RATE
   scripts:
     - online_boutique_create_v2.sh
 
@@ -81,7 +81,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_topfull_no_retryguard_sustained_overload_run24
+log_folder: baseline_topfull_no_retryguard_sustained_overload_run26
 
 infra:
   master_ssh_host: topfull-master
