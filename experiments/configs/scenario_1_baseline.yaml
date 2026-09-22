@@ -12,7 +12,7 @@
 scenario_id: 1
 scenario_name: normal_operation
 condition: baseline            # baseline = RetryGuard OFF
-run_number: 34
+run_number: 36
 description: >
   Flat RPS well within cluster capacity. TopFull active, retries on (default),
   RetryGuard NOT running. Establishes the healthy-system reference point.
@@ -25,8 +25,8 @@ duration_seconds: 300          # 5 minutes is sufficient for a sanity check
 locust:
   user_counts:
     getproduct:   50
-    postcheckout: 20
-    getcart:      75
+    postcheckout: 15
+    getcart:      50
     postcart:     50
     emptycart:    50
   spawn_rate: 50               # Ron's divisor: Locust -r = count / RATE
@@ -73,7 +73,7 @@ topfull_throttle_collector:
   poll_interval_seconds: 1
 
 # ── Output ───────────────────────────────────────────────────────────────────
-log_folder: baseline_topfull_no_retryguard_normal_op_run34
+log_folder: baseline_topfull_no_retryguard_normal_op_run36
 
 # ── Infrastructure ───────────────────────────────────────────────────────────
 # Matches infra/vm-ips.env. Override here if your setup differs.
