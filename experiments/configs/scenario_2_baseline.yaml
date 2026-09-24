@@ -25,10 +25,10 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 26
+run_number: 31                  # run30 = 2026-09-24 controller trio TF-only 340/100/240/5/5
 description: >
-  Ramp to ρ > 1, hold 10 minutes. TopFull active, Istio default retries on,
-  RetryGuard OFF. Captures the retry storm as the unmanaged baseline.
+  Controller trio TF-only. Counts 340/100/240/5/5. TopFull RL ON, RetryGuard
+  OFF. Frontend pinned at 4; catalog HPA max 1; sidecar request 90m.
 
 # ── Timing ──────────────────────────────────────────────────────────────────
 duration_seconds: 600          # 10 minutes — deck hold, not the S6 recovery profile
@@ -38,11 +38,11 @@ duration_seconds: 600          # 10 minutes — deck hold, not the S6 recovery p
 # 1-worker setup. Increase if rejection rates don't exceed 20% after ~2 min.
 locust:
   user_counts:
-    getproduct:   200
-    postcheckout: 60
-    getcart:      140
-    postcart:     50
-    emptycart:    50
+    getproduct:   340
+    postcheckout: 100
+    getcart:      240
+    postcart:     5
+    emptycart:    5
   spawn_rate: 50               # Ron's divisor: Locust -r = count / RATE
   scripts:
     - online_boutique_create_v2.sh
@@ -55,6 +55,9 @@ retries:
   attempts_on: 3            # retries.attempts when ON
   attempts_off: 0           # 0 = omit retries block entirely (Istio rejects attempts: 0)
   per_try_timeout_ms: 500   # perTryTimeout — makes slow responses retriable via reset
+
+topfull_rl:
+  enabled: true
 
 # ── RetryGuard controller ─────────────────────────────────────────────────────
 retryguard:
@@ -81,7 +84,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_topfull_no_retryguard_sustained_overload_run26
+log_folder: baseline_topfull_no_retryguard_sustained_overload_run31
 
 infra:
   master_ssh_host: topfull-master

@@ -1,12 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Scenario 2 — Sustained Overload  |  Control: TopFull RL OFF (proxy only)
+# Scenario 2 — Sustained Overload  |  Both controllers OFF (proxy only)
 #
-# Deliberate TopFull-off A/B against baseline_topfull_no_retryguard_sustained_
-# overload_run21 (e2-standard-16, TopFull RL ON). Same Locust load, same
-# perTryTimeout 500ms, same collectors — only difference is deploy_rl.py is
-# NOT started. Proxy stays up (Locust must route through :8090); admission
-# caps stay at the 10000 sentinel. Purpose: isolate whether TopFull's
-# throttling is what suppressed Envoy outbound retries on run21.
+# Next free slot is run14. Runs 9–13 (2026-09-24) are the both-off sweep.
+# Counts below are still the run13 mix until the next session edits them.
 #
 # Independent run_number / log_folder — does NOT consume slots from
 # scenario_2_baseline.yaml (baseline_topfull_no_retryguard_sustained_overload_*).
@@ -15,25 +11,24 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 3                  # run2 = 2026-09-19 frontend μ-cal attempt — bumped to avoid overwrite
+run_number: 14                  # run9-run13 = 2026-09-24 both-off sweep
 description: >
-  Ramp to ρ > 1, hold 10 minutes. Go proxy ON, TopFull RL OFF (no admission
-  control), Istio default retries on, RetryGuard OFF. Control run to test
-  whether TopFull throttling suppresses Envoy retries.
+  Both controllers off, frontend pinned at 4, catalog HPA max 1, sidecar
+  request 90m. Counts 50/150/50/100/5. Proxy ON, deploy_rl.py skipped,
+  RetryGuard OFF, Istio default retries.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   100
-    postcheckout: 20
-    getcart:      100
+    getproduct:   50
+    postcheckout: 150
+    getcart:      50
     postcart:     100
-    emptycart:    300
-  spawn_rate: 90
+    emptycart:    5
+  spawn_rate: 50
   scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+    - online_boutique_create_v2.sh
 
 scale_constraints: []
 
@@ -66,7 +61,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run3
+log_folder: baseline_no_topfull_sustained_overload_run14
 
 infra:
   master_ssh_host: topfull-master
