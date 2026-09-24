@@ -1,0 +1,363 @@
+{
+  "generated_at": "2026-09-24T15:08:12Z",
+  "run_dir": "experiments\\results\\campaign_48\\S2_sustained_overload\\run_retryguard_no_topfull_sustained_overload_run2",
+  "estimates": [
+    {
+      "service": "adservice",
+      "lambda_mean": 168.6748366013072,
+      "mu_sat": 6.0,
+      "w_mean_ms": 1.4322693646946978,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 2.906160090672195e-05,
+      "note": null,
+      "w_p50_ms": 2.9445702323991796
+    },
+    {
+      "service": "cartservice",
+      "lambda_mean": 464.3957654723127,
+      "mu_sat": null,
+      "w_mean_ms": 2.760922827725891,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0027495361911208218,
+      "note": null,
+      "w_p50_ms": 3.221825396825397
+    },
+    {
+      "service": "checkoutservice",
+      "lambda_mean": 64.16503267973856,
+      "mu_sat": 41.0,
+      "w_mean_ms": 306.7513087404284,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.4231836817846138,
+      "note": null,
+      "w_p50_ms": 300.49668874172187
+    },
+    {
+      "service": "currencyservice",
+      "lambda_mean": 784.6840390879479,
+      "mu_sat": null,
+      "w_mean_ms": 3.4868223584914366,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 8.302269010120465e-06,
+      "note": null,
+      "w_p50_ms": 3.4926174496644293
+    },
+    {
+      "service": "emailservice",
+      "lambda_mean": 23.83877159309021,
+      "mu_sat": 2.0,
+      "w_mean_ms": 6.533506994448291,
+      "n_ticks_with_latency": 105,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.01819645732689211,
+      "note": null,
+      "w_p50_ms": 3.4489795918367347
+    },
+    {
+      "service": "frontend",
+      "lambda_mean": 418.739837398374,
+      "mu_sat": 313.0,
+      "w_mean_ms": 955.5888333474314,
+      "n_ticks_with_latency": 369,
+      "inbound_5xx_fraction": 0.23781768760314534,
+      "inbound_failure_fraction": 0.23958838947674982,
+      "note": null,
+      "w_p50_ms": 847.9938271604938
+    },
+    {
+      "service": "paymentservice",
+      "lambda_mean": 58.30882352941177,
+      "mu_sat": 81.0,
+      "w_mean_ms": 7.357742191637959,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.045873616365419645,
+      "note": null,
+      "w_p50_ms": 3.736842105263158
+    },
+    {
+      "service": "productcatalogservice",
+      "lambda_mean": 2293.330081300813,
+      "mu_sat": null,
+      "w_mean_ms": 2.6592702677906512,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 9.926276129149361e-06,
+      "note": null,
+      "w_p50_ms": 2.8271791767554477
+    },
+    {
+      "service": "recommendationservice",
+      "lambda_mean": 621.231647634584,
+      "mu_sat": 596.0,
+      "w_mean_ms": 572.5439698476226,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.18043932093011042,
+      "note": null,
+      "w_p50_ms": 666.7446697488938
+    },
+    {
+      "service": "redis-cart",
+      "lambda_mean": null,
+      "mu_sat": null,
+      "w_mean_ms": null,
+      "n_ticks_with_latency": 0,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0,
+      "note": "no ticks with traffic",
+      "w_p50_ms": null
+    },
+    {
+      "service": "shippingservice",
+      "lambda_mean": 228.60522022838498,
+      "mu_sat": 303.0,
+      "w_mean_ms": 1.046420580752391,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.007928069361686945,
+      "note": null,
+      "w_p50_ms": 2.1110806105435755
+    }
+  ],
+  "estimate_error": null,
+  "retryguard_log_present": true,
+  "toggle_events": [
+    {
+      "timestamp": "2026-09-24T14:57:02Z",
+      "service": "recommendationservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.22,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T14:57:34Z",
+      "service": "recommendationservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T14:57:36Z",
+      "service": "checkoutservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.69,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T14:58:08Z",
+      "service": "recommendationservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.21,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T14:58:09Z",
+      "service": "checkoutservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T14:58:44Z",
+      "service": "recommendationservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T14:58:46Z",
+      "service": "checkoutservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.58,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T14:59:16Z",
+      "service": "recommendationservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.29,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T14:59:19Z",
+      "service": "checkoutservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T14:59:48Z",
+      "service": "recommendationservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T14:59:51Z",
+      "service": "checkoutservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.57,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T15:00:24Z",
+      "service": "checkoutservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T15:00:24Z",
+      "service": "recommendationservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.3,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T15:00:56Z",
+      "service": "recommendationservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T15:00:58Z",
+      "service": "checkoutservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.57,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T15:01:31Z",
+      "service": "checkoutservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T15:02:02Z",
+      "service": "recommendationservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.25,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T15:02:34Z",
+      "service": "recommendationservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T15:02:37Z",
+      "service": "checkoutservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.7,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T15:03:06Z",
+      "service": "recommendationservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.22,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T15:03:09Z",
+      "service": "checkoutservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T15:03:38Z",
+      "service": "recommendationservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T15:04:18Z",
+      "service": "recommendationservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.3,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T15:04:54Z",
+      "service": "recommendationservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T15:04:55Z",
+      "service": "checkoutservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.62,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T15:05:25Z",
+      "service": "recommendationservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.22,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    },
+    {
+      "timestamp": "2026-09-24T15:05:27Z",
+      "service": "checkoutservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T15:05:57Z",
+      "service": "recommendationservice",
+      "direction": "OFF\u2192ON",
+      "rejection": 0.0,
+      "counter": "consecutive_low=30",
+      "attempts": 3
+    },
+    {
+      "timestamp": "2026-09-24T15:05:59Z",
+      "service": "checkoutservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 0.68,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    }
+  ]
+}
