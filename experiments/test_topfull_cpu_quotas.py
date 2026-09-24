@@ -56,6 +56,28 @@ class TestPaperTable(unittest.TestCase):
                 msg=f"{svc}: request must equal limit in the Ron-config regime",
             )
 
+    def test_request_fraction_halves_checkout(self):
+        self.assertEqual(q.paper_request_for("checkoutservice", 0.5), 307)
+        self.assertEqual(q.paper_limit_for("checkoutservice"), 615)
+
+    def test_request_fraction_default_is_one(self):
+        self.assertEqual(
+            q.paper_request_for("frontend"),
+            q.paper_request_for("frontend", 1.0),
+        )
+
+    def test_request_fraction_rejects_zero(self):
+        with self.assertRaises(ValueError):
+            q.paper_request_for("frontend", 0.0)
+
+    def test_request_fraction_rejects_above_one(self):
+        with self.assertRaises(ValueError):
+            q.validate_request_fraction(1.1)
+
+    def test_request_fraction_rejects_non_number(self):
+        with self.assertRaises(ValueError):
+            q.validate_request_fraction("half")
+
     def test_reconcile_services_covers_all_eleven(self):
         self.assertEqual(
             set(q.RECONCILE_SERVICES),

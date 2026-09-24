@@ -94,10 +94,28 @@ def paper_limit_for(service: str) -> int:
     return int(PAPER_CPU_LIMIT_MILLICORES.get(service, DEFAULT_PAPER_LIMIT_MILLICORES))
 
 
-def paper_request_for(service: str) -> int:
+def validate_request_fraction(request_fraction: float) -> float:
+    """cpu_request_fraction must be in (0, 1]. Default 1.0 keeps request == limit."""
+    try:
+        fraction = float(request_fraction)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"cpu_request_fraction must be a number in (0, 1], got {request_fraction!r}"
+        ) from exc
+    if fraction <= 0 or fraction > 1:
+        raise ValueError(
+            f"cpu_request_fraction must be in (0, 1], got {request_fraction}"
+        )
+    return fraction
+
+
+def paper_request_for(service: str, request_fraction: float = 1.0) -> int:
+    fraction = validate_request_fraction(request_fraction)
     if service in PAPER_CPU_REQUEST_MILLICORES:
-        return int(PAPER_CPU_REQUEST_MILLICORES[service])
-    return paper_limit_for(service)
+        base = int(PAPER_CPU_REQUEST_MILLICORES[service])
+    else:
+        base = paper_limit_for(service)
+    return int(base * fraction)
 
 
 def millicores_from_fraction(paper_limit: int, fraction: float) -> int:

@@ -862,6 +862,7 @@ class TestServiceCapacity(unittest.TestCase):
         ]
         self.assertEqual(len(manifest_calls), 1)
         self.assertIn("topfull_throttle_collector", manifest_calls[0].args[2])
+        self.assertEqual(manifest_calls[0].args[2]["cpu_request_fraction"], 1.0)
 
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ssh")
@@ -935,8 +936,7 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
 
 
 class TestReconcilePaperCpuLimits(unittest.TestCase):
-    def test_patches_checkout_to_615m(self):
-        cfg = {"infra": {"master_ssh_host": "topfull-master"}}
+    def _reconcile(self, cfg):
         cmds = []
 
         def fake_ssh(host, cmd, check=True):
@@ -948,8 +948,28 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
              mock.patch.object(run_scenario, "step", lambda *a, **k: None), \
              mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None):
             run_scenario.reconcile_paper_cpu_limits(cfg)
+        return cmds
+
+    def test_patches_checkout_to_615m(self):
+        cmds = self._reconcile({"infra": {"master_ssh_host": "topfull-master"}})
         checkout_cmds = [c for c in cmds if "checkoutservice" in c]
         self.assertTrue(any("615m" in c for c in checkout_cmds))
+
+    def test_request_fraction_halves_request_keeps_limit(self):
+        cmds = self._reconcile({
+            "infra": {"master_ssh_host": "topfull-master"},
+            "cpu_request_fraction": 0.5,
+        })
+        checkout_cmds = [c for c in cmds if "checkoutservice" in c]
+        self.assertTrue(any("615m" in c for c in checkout_cmds))
+        self.assertTrue(any("307m" in c for c in checkout_cmds))
+
+    def test_cpu_request_fraction_from_cfg_defaults_to_one(self):
+        self.assertEqual(run_scenario.cpu_request_fraction_from_cfg({}), 1.0)
+
+    def test_cpu_request_fraction_from_cfg_rejects_zero(self):
+        with self.assertRaises(ValueError):
+            run_scenario.cpu_request_fraction_from_cfg({"cpu_request_fraction": 0})
 
 
 class TestScenarioYamlsUseFraction(unittest.TestCase):

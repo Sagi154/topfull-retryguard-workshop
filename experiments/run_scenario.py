@@ -124,9 +124,19 @@ def deploy_repo_script(host: str, filename: str, remote_path: str) -> None:
         print(f"[ERROR] Local script missing: {local}")
         sys.exit(1)
 
+    # Windows checkouts are often CRLF. Bash treats the CR as part of the
+    # command (`set -u\r`), so a deployed .sh exits before Locust starts.
+    payload = local.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=local.suffix, delete=False) as f:
+        f.write(payload)
+        staged = f.name
+
     tmp = f"/tmp/rg_deploy_{Path(filename).name}"
-    ssh(host, f"sudo rm -f {tmp}", check=False)
-    scp_to(str(local), host, tmp)
+    try:
+        ssh(host, f"sudo rm -f {tmp}", check=False)
+        scp_to(staged, host, tmp)
+    finally:
+        os.unlink(staged)
 
     r = ssh(host, f"cp {tmp} {remote_path} && chmod a+r {remote_path}", check=False)
     if r.returncode != 0:
@@ -447,16 +457,28 @@ def apply_constraints(cfg: dict) -> list:
     return restore_records
 
 
+def cpu_request_fraction_from_cfg(cfg: dict) -> float:
+    """Optional YAML key; default 1.0 keeps request == limit."""
+    return topfull_cpu_quotas.validate_request_fraction(
+        cfg.get("cpu_request_fraction", 1.0)
+    )
+
+
 def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
     """Patch Boutique Deployments to the paper CPU limit/request table."""
     banner("Reconciling CPU limits to paper quotas")
     master = cfg["infra"]["master_ssh_host"]
+    request_fraction = cpu_request_fraction_from_cfg(cfg)
+    if request_fraction != 1.0:
+        step(f"cpu_request_fraction={request_fraction} (limits unchanged)")
     for dep in topfull_cpu_quotas.RECONCILE_SERVICES:
         lim = topfull_cpu_quotas.kubectl_cpu_quantity(
             topfull_cpu_quotas.paper_limit_for(dep)
         )
         req = topfull_cpu_quotas.kubectl_cpu_quantity(
-            topfull_cpu_quotas.paper_request_for(dep)
+            topfull_cpu_quotas.paper_request_for(
+                dep, request_fraction=request_fraction
+            )
         )
         container = topfull_cpu_quotas.container_name_for(dep)
         step(f"{dep}: limits.cpu={lim} requests.cpu={req} (container={container})")
@@ -988,8 +1010,11 @@ def _launch_locust(cfg: dict, user_counts: dict, spawn_rate) -> None:
 
     wait_with_progress(8, "Locust workers connecting")
 
-    r = ssh(loadgen, "pgrep -c locust 2>/dev/null || echo 0")
-    count = int(r.stdout.strip())
+    # pgrep -c prints 0 and exits 1 when nothing matches. `|| echo 0`
+    # then appends a second 0, and int("0\n0") crashes the runner.
+    r = ssh(loadgen, "pgrep -c locust 2>/dev/null || true")
+    lines = (r.stdout or "").strip().split()
+    count = int(lines[-1]) if lines else 0
     if count == 0:
         print("[ERROR] No Locust processes found. Check the create scripts on the loadgen.")
         sys.exit(1)
@@ -1188,6 +1213,7 @@ def collect_results(
         "resource_usage_collector": cfg.get("resource_usage_collector", {}),
         "topfull_throttle_collector": cfg.get("topfull_throttle_collector", {}),
         "scale_constraints": cfg.get("scale_constraints", []),
+        "cpu_request_fraction": cpu_request_fraction_from_cfg(cfg),
         "paper_cpu_quotas": paper,
         "effective_cpu_quotas": effective,
         "log_folder":    log_folder,
@@ -1213,6 +1239,7 @@ def run(config_path: str):
         cfg = yaml.safe_load(f)
 
     topfull_cpu_quotas.validate_scale_constraints(cfg.get("scale_constraints") or [])
+    cpu_request_fraction_from_cfg(cfg)
 
     scenario    = cfg["scenario_name"]
     condition   = cfg["condition"]
