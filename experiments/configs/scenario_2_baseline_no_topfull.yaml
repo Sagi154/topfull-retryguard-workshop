@@ -1,8 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 2 — Sustained Overload  |  Both controllers OFF (proxy only)
 #
-# Next free slot is run14. Runs 9–13 (2026-09-24) are the both-off sweep.
-# Counts below are still the run13 mix until the next session edits them.
+# Next free slot after this file's current run_number. Runs 9–13 stay as the
+# 2026-09-24 both-off sweep. run14–run17 are the 2026-09-25 four-mix sweep.
 #
 # Independent run_number / log_folder — does NOT consume slots from
 # scenario_2_baseline.yaml (baseline_topfull_no_retryguard_sustained_overload_*).
@@ -11,20 +11,20 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 14                  # run9-run13 = 2026-09-24 both-off sweep
+run_number: 16                  # run15 pulled; next is mix 3
 description: >
   Both controllers off, frontend pinned at 4, catalog HPA max 1, sidecar
-  request 90m. Counts 50/150/50/100/5. Proxy ON, deploy_rl.py skipped,
-  RetryGuard OFF, Istio default retries.
+  request 90m. This file's current counts are the next hold. Proxy ON,
+  deploy_rl.py skipped, RetryGuard OFF, Istio default retries.
 
 duration_seconds: 600
 
 locust:
   user_counts:
     getproduct:   50
-    postcheckout: 150
-    getcart:      50
-    postcart:     100
+    postcheckout: 100
+    getcart:      100
+    postcart:     400
     emptycart:    5
   spawn_rate: 50
   scripts:
@@ -61,7 +61,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run14
+log_folder: baseline_no_topfull_sustained_overload_run16
 
 infra:
   master_ssh_host: topfull-master
