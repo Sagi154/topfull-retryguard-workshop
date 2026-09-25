@@ -11,7 +11,7 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 16                  # run15 pulled; next is mix 3
+run_number: 18                  # run17 pulled; same mix left unrun so run17 is not overwritten
 description: >
   Both controllers off, frontend pinned at 4, catalog HPA max 1, sidecar
   request 90m. This file's current counts are the next hold. Proxy ON,
@@ -22,10 +22,10 @@ duration_seconds: 600
 locust:
   user_counts:
     getproduct:   50
-    postcheckout: 100
-    getcart:      100
-    postcart:     400
-    emptycart:    5
+    postcheckout: 50
+    getcart:      50
+    postcart:     50
+    emptycart:    430
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
@@ -61,7 +61,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run16
+log_folder: baseline_no_topfull_sustained_overload_run18
 
 infra:
   master_ssh_host: topfull-master
