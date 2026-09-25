@@ -1,8 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 2 — Sustained Overload  |  Both controllers OFF (proxy only)
 #
-# Next free slot after this file's current run_number. Runs 9–13 stay as the
-# 2026-09-24 both-off sweep. run14–run17 are the 2026-09-25 four-mix sweep.
+# run14–run17 are the 2026-09-25 four-mix sweep. run18–run21 are the
+# 2026-09-25 CPU-dispense replay of source mixes 6, 10, 11, 12
+# (frontend pinned at 4). This file's current slot is the next hold.
 #
 # Independent run_number / log_folder — does NOT consume slots from
 # scenario_2_baseline.yaml (baseline_topfull_no_retryguard_sustained_overload_*).
@@ -11,26 +12,52 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 18                  # run17 pulled; same mix left unrun so run17 is not overwritten
+run_number: 22                  # run18–run21 are the CPU-dispense replay; next free
 description: >
-  Both controllers off, frontend pinned at 4, catalog HPA max 1, sidecar
-  request 90m. This file's current counts are the next hold. Proxy ON,
+  Both controllers off. Frontend pinned at 4, catalog HPA max 1, sidecar
+  request 90m. CPU dispense: cart 1200, ad 800, checkout 1500, email 155,
+  redis-cart 540, shipping 770, recommendations 1250, frontend 1150,
+  currency 770, payments 155, productcatalog 1535. Slot run22 is unused.
+  run18–run21 replayed source mixes 6, 10, 11, and 12. Proxy ON,
   deploy_rl.py skipped, RetryGuard OFF, Istio default retries.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   50
-    postcheckout: 50
-    getcart:      50
-    postcart:     50
-    emptycart:    430
+    getproduct:   100
+    postcheckout: 150
+    getcart:      100
+    postcart:     100
+    emptycart:    5
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
-scale_constraints: []
+# Only the four services that differ from the paper table. The runner
+# reconciles every service to paper first, then applies these overrides.
+# Order frees cart/ad budget before raising checkout and recommendations.
+scale_constraints:
+  - deployment: cartservice
+    namespace: default
+    method: cpu_limit
+    cpu_limit_millicores: 1200
+    container: server
+  - deployment: adservice
+    namespace: default
+    method: cpu_limit
+    cpu_limit_millicores: 800
+    container: server
+  - deployment: checkoutservice
+    namespace: default
+    method: cpu_limit
+    cpu_limit_millicores: 1500
+    container: server
+  - deployment: recommendationservice
+    namespace: default
+    method: cpu_limit
+    cpu_limit_millicores: 1250
+    container: server
 
 retries:
   attempts_on: 3
@@ -61,7 +88,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run18
+log_folder: baseline_no_topfull_sustained_overload_run22
 
 infra:
   master_ssh_host: topfull-master
