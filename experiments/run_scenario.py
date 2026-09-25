@@ -440,6 +440,11 @@ def apply_constraints(cfg: dict) -> list:
                 ]}}}
             })
             ssh(master, f"kubectl patch deployment {dep} -n {ns} -p '{patch}'")
+            ssh(
+                master,
+                f"kubectl rollout status deployment/{dep} -n {ns} --timeout=180s",
+                check=False,
+            )
             # CPU restore is paper-reconcile (not the pre-patch blob); keep
             # the record only for audit. restore_constraints skips cpu_limit.
             restore_records.append({
