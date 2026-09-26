@@ -264,5 +264,55 @@ class TestCpuLimitMillicoresFor(unittest.TestCase):
             q.cpu_limit_millicores_for({"deployment": "checkoutservice"})
 
 
+class TestBothOffSpreadYaml(unittest.TestCase):
+    def test_spread_table_and_five_replica_budget(self):
+        import yaml
+        from pathlib import Path
+
+        path = Path(__file__).resolve().parent / "configs" / "scenario_2_baseline_no_topfull.yaml"
+        cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+        self.assertIs(cfg["paper_cpu_reconcile"], False)
+        self.assertIs(cfg["topfull_rl"]["enabled"], False)
+        self.assertIs(cfg["retryguard"]["enabled"], False)
+        self.assertEqual(cfg["duration_seconds"], 600)
+        self.assertEqual(cfg["locust"]["spawn_rate"], 50)
+
+        by_dep = {c["deployment"]: c for c in cfg["scale_constraints"]}
+        self.assertNotIn("frontend", by_dep)
+        self.assertEqual(by_dep["redis-cart"]["container"], "redis")
+        for dep, entry in by_dep.items():
+            if dep == "redis-cart":
+                continue
+            self.assertEqual(entry["container"], "server")
+            self.assertEqual(entry["method"], "cpu_limit")
+            self.assertNotIn("cpu_limit_fraction", entry)
+
+        got = q.effective_cpu_quotas(cfg["scale_constraints"])
+        expected = {
+            "frontend": 1150,
+            "checkoutservice": 1500,
+            "recommendationservice": 2000,
+            "productcatalogservice": 600,
+            "cartservice": 1000,
+            "currencyservice": 500,
+            "shippingservice": 400,
+            "adservice": 600,
+            "paymentservice": 150,
+            "emailservice": 150,
+            "redis-cart": 500,
+        }
+        for name, millis in expected.items():
+            self.assertEqual(got[name], millis, name)
+        deployment_total = expected["frontend"] * 5 + sum(
+            millis for name, millis in expected.items() if name != "frontend"
+        )
+        self.assertEqual(deployment_total, 13150)
+        paper_four = 4 * 1150 + (
+            615 + 1150 + 1535 + 1920 + 770 + 770 + 1150 + 155 + 155 + 540
+        )
+        self.assertEqual(paper_four, 13360)
+        self.assertLessEqual(deployment_total, paper_four)
+
+
 if __name__ == "__main__":
     unittest.main()

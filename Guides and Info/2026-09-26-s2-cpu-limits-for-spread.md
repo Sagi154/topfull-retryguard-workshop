@@ -10,20 +10,20 @@ Both controllers stay off on these holds. The three S2 signals are still the one
 
 Millicores. Request equals limit. Frontend is per replica (4 replicas when pinned). Paper is the table on the both-off holds before run18. Dispense is the table on runs 18–21, from [2026-09-25-s2-cpu-dispense-runs-18-21.md](2026-09-25-s2-cpu-dispense-runs-18-21.md). Suggested is the table for the goal above.
 
-| Service | Paper | Dispense (runs 18–21) | Suggested |
+| Service | Paper | Dispense (runs 18–21) | Agreed (runs 30–34) |
 |---|---:|---:|---:|
-| frontend | 1150 | 1150 | 1150 |
+| frontend | 1150 | 1150 | 1150 × 5 replicas |
 | checkoutservice | 615 | 1500 | 1500 |
-| recommendationservice | 1150 | 1250 | 2300 |
+| recommendationservice | 1150 | 1250 | 2000 |
 | productcatalogservice | 1535 | 1535 | 600 |
-| cartservice | 1920 | 1200 | 1920 |
+| cartservice | 1920 | 1200 | 1000 |
 | currencyservice | 770 | 770 | 500 |
 | shippingservice | 770 | 770 | 400 |
 | adservice | 1150 | 800 | 600 |
-| paymentservice | 155 | 155 | 155 |
-| emailservice | 155 | 155 | 155 |
-| redis-cart | 540 | 540 | 540 |
-| **Deployment total** | **13360** | **13275** | **13270** |
+| paymentservice | 155 | 155 | 150 |
+| emailservice | 155 | 155 | 150 |
+| redis-cart | 540 | 540 | 500 |
+| **Deployment total** | **13360** | **13275** | **13150** |
 
 Paper pegs checkout at 615 m and recommendations at 1150 m. Every other backend has stayed under its paper quota on the both-off holds, so the detector only calls checkout and recommendations hot.
 
@@ -53,13 +53,17 @@ Mean and max app-container CPU on the two candidate holds, from `resource_usage.
 
 Currency’s mean on these two holds is about 370–400 m, so a 500 m cap puts that mean near the 0.8 line. Catalog’s mean is about 480–490 m, so 600 m does the same. Ad’s mean is about 110–120 m and shipping’s is about 100–110 m, which is why 600 m and 400 m are spare and can be diverted.
 
-## Which mixes to run under the suggested table
+## Which mixes to run under the agreed table
 
-**Run 6** (340/100/240/10/10) and **run 7** (380/100/270/20/20). Counts are getproduct / postcheckout / getcart / postcart / emptycart. Both already peg checkout and recommendations, and they put the most CPU on catalog, currency, cart, and shipping at the same time. That is the traffic a higher checkout and recommendations quota can pass downstream.
+Order is fixed. Cool-off between holds is 360 s.
 
-Run 10, run 11, and run 26 peg one of the two chokes and leave catalog, currency, and shipping cooler, so they are the weaker mixes for this goal. Runs 18–21 already applied the dispense table to mixes 6, 10, 11, and 12, with the frontend sidecar CPU limit still set. Checkout on those holds reached 286–557 m of 1500 m. They do not stand in for a clean replay.
-
-The first hold should change six limits: checkout 1500, recommendations 2300, currency 500, catalog 600, ad 600, shipping 400. Ad and shipping are in that set because their cut is the diverted quota, and their measured peaks stay under the new caps. Cart, payment, and email stay on paper. The deployment total stays at 13,270 m.
+| Slot | Source mix | Counts (getproduct / postcheckout / getcart / postcart / emptycart) |
+|---|---|---|
+| run30 | 6 | 340 / 100 / 240 / 10 / 10 |
+| run31 | 7 | 380 / 100 / 270 / 20 / 20 |
+| run32 | 10 | 325 / 80 / 100 / 100 / 5 |
+| run33 | 26 | 325 / 100 / 100 / 100 / 5 |
+| run34 | 12 | 100 / 150 / 100 / 100 / 5 |
 
 ## Related
 

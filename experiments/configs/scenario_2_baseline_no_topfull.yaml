@@ -1,47 +1,48 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Scenario 2 — Sustained Overload  |  Both controllers OFF (proxy only)
-#
-# run26–run29 replay both-off mixes 14–17 with the sidecar CPU limit unset.
-# run14–run17 stay untouched (those holds used proxyCPULimit=90m).
-#
-# Independent run_number / log_folder — does NOT consume slots from
-# scenario_2_baseline.yaml (baseline_topfull_no_retryguard_sustained_overload_*).
-# ─────────────────────────────────────────────────────────────────────────────
+# Both-off S2. run30–run34 are the CPU-spread series (mixes 6, 7, 10, 26, 12).
+# paper_cpu_reconcile stays false until that series is restored to paper CPU.
+# Frontend is not in scale_constraints: 1150m is already the paper limit.
+# The fifth replica is an HPA pin, applied outside this file.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 30                  # run29 pulled; slot unused
+run_number: 30
 description: >
-  Both controllers off. Paper CPU table. Slot run30 is unused.
-  run26–run29 replayed mixes 14–17 (325/100/100/100/5, 325/100/100/20/5,
-  50/100/100/400/5, 50/50/50/50/430) with proxyCPULimit unset. The counts
-  below are the mix-17 values left after run29. Proxy ON, deploy_rl.py
-  skipped, RetryGuard OFF, Istio default retries.
+  Both controllers off. Spread CPU table, frontend pinned at 5.
+  This slot is mix 6: 340/100/240/10/10.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   50
-    postcheckout: 50
-    getcart:      50
-    postcart:     50
-    emptycart:    430
+    getproduct:   340
+    postcheckout: 100
+    getcart:      240
+    postcart:     10
+    emptycart:    10
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
-# Paper CPU table only. The runner reconciles every service to paper
-# limits before the hold and again after it.
-scale_constraints: []
+paper_cpu_reconcile: false
+
+scale_constraints:
+  - {deployment: checkoutservice, namespace: default, method: cpu_limit, cpu_limit_millicores: 1500, container: server}
+  - {deployment: recommendationservice, namespace: default, method: cpu_limit, cpu_limit_millicores: 2000, container: server}
+  - {deployment: productcatalogservice, namespace: default, method: cpu_limit, cpu_limit_millicores: 600, container: server}
+  - {deployment: cartservice, namespace: default, method: cpu_limit, cpu_limit_millicores: 1000, container: server}
+  - {deployment: currencyservice, namespace: default, method: cpu_limit, cpu_limit_millicores: 500, container: server}
+  - {deployment: shippingservice, namespace: default, method: cpu_limit, cpu_limit_millicores: 400, container: server}
+  - {deployment: adservice, namespace: default, method: cpu_limit, cpu_limit_millicores: 600, container: server}
+  - {deployment: paymentservice, namespace: default, method: cpu_limit, cpu_limit_millicores: 150, container: server}
+  - {deployment: emailservice, namespace: default, method: cpu_limit, cpu_limit_millicores: 150, container: server}
+  - {deployment: redis-cart, namespace: default, method: cpu_limit, cpu_limit_millicores: 500, container: redis}
 
 retries:
   attempts_on: 3
   attempts_off: 0
   per_try_timeout_ms: 500
 
-# Go proxy stays up; deploy_rl.py is skipped — no admission throttling.
 topfull_rl:
   enabled: false
 
