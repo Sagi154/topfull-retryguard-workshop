@@ -1,9 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 2 — Sustained Overload  |  Both controllers OFF (proxy only)
 #
-# run22–run25 are the 2026-09-26 paper-CPU replay of both-off mixes 9–12.
-# run14–run17 and run18–run21 stay untouched. This file's current slot
-# is the next hold.
+# run26–run29 replay both-off mixes 14–17 with the sidecar CPU limit unset.
+# run14–run17 stay untouched (those holds used proxyCPULimit=90m).
 #
 # Independent run_number / log_folder — does NOT consume slots from
 # scenario_2_baseline.yaml (baseline_topfull_no_retryguard_sustained_overload_*).
@@ -12,22 +11,20 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 26                  # next free; run22–run25 are the paper-CPU replay of mixes 9–12
+run_number: 27                  # run26 pulled; replay of mix 15
 description: >
-  Both controllers off. Paper CPU table (no dispense overrides). Slot run26
-  is unused. run22–run25 replayed mixes 9–12 (250/80/250/100/5,
-  325/80/100/100/5, 250/100/100/100/5, 100/150/100/100/5). The counts
-  below are the mix-12 values left after run25. Proxy ON, deploy_rl.py
-  skipped, RetryGuard OFF, Istio default retries.
+  Both controllers off. Paper CPU table. Replays the run15 mix
+  (325/100/100/20/5) with frontend pinned at 4 and proxyCPULimit unset.
+  Proxy ON, deploy_rl.py skipped, RetryGuard OFF, Istio default retries.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   100
-    postcheckout: 150
+    getproduct:   325
+    postcheckout: 100
     getcart:      100
-    postcart:     100
+    postcart:     20
     emptycart:    5
   spawn_rate: 50
   scripts:
@@ -66,7 +63,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run26
+log_folder: baseline_no_topfull_sustained_overload_run27
 
 infra:
   master_ssh_host: topfull-master
