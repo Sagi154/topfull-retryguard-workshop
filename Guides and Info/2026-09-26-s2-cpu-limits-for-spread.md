@@ -14,21 +14,26 @@ Millicores. Request equals limit. Frontend is per replica (4 replicas when pinne
 |---|---:|---:|---:|
 | frontend | 1150 | 1150 | 1150 |
 | checkoutservice | 615 | 1500 | 1500 |
-| recommendationservice | 1150 | 1250 | 1800 |
+| recommendationservice | 1150 | 1250 | 2300 |
 | productcatalogservice | 1535 | 1535 | 600 |
 | cartservice | 1920 | 1200 | 1920 |
 | currencyservice | 770 | 770 | 500 |
-| shippingservice | 770 | 770 | 770 |
-| adservice | 1150 | 800 | 1150 |
+| shippingservice | 770 | 770 | 400 |
+| adservice | 1150 | 800 | 600 |
 | paymentservice | 155 | 155 | 155 |
 | emailservice | 155 | 155 | 155 |
 | redis-cart | 540 | 540 | 540 |
+| **Deployment total** | **13360** | **13275** | **13270** |
 
 Paper pegs checkout at 615 m and recommendations at 1150 m. Every other backend has stayed under its paper quota on the both-off holds, so the detector only calls checkout and recommendations hot.
 
 Dispense raises checkout 615 → 1500 and recommendations 1150 → 1250, and tightens cart 1920 → 1200 and ad 1150 → 800. The other seven services stay on paper. That raise on checkout is large enough to leave the 615 m peg. The recommendations step is not: run 6 already reached 1130 m, which is 90% of 1250 m and still above the detector’s 0.8 line. Cart’s highest paper-CPU peak is 601 m (run 7) and ad’s is 467 m (run 3), so 1200 m and 800 m stay above the CPU those services used.
 
-Suggested keeps the checkout raise, moves recommendations to 1800 m so the run 6 peak (1130 m) sits under 0.8, and cuts the two backends that already draw the most CPU behind those chokes: currency to 500 m and catalog to 600 m. Cart, ad, shipping, payment, and email stay on paper for the first hold. A cart cap only bites near 500 m, an ad or shipping cap near 150 m, and a payment or email cap under 80 m. Those cuts are targeted bottlenecks, which is Scenario 3/4’s job, so they stay out of this table.
+Quota that a service does not use can move to a service that does. Ad does not need 800 m: its highest paper-CPU peak is 467 m (run 3), and on runs 6 and 7 it peaked at 162 m and 265 m. Shipping does not need 770 m: its highest peak on the paper-CPU holds is 144 m (run 7). Suggested sets ad to 600 m and shipping to 400 m. Those caps still sit above the measured peaks (467 / 600 is 0.78, 144 / 400 is 0.36), so this is spare quota, not a new bottleneck. A cap near 150 m on either service would be a targeted bottleneck, which stays Scenario 3/4’s job. Cart’s peak is 601 m of 1920 m, so the same move is available there later; this table leaves cart on paper.
+
+The millicores taken from ad (550 m) and shipping (370 m), together with the currency and catalog cuts, pay for the raises. Checkout goes to 1500 m. Recommendations goes to 2300 m, because the 1150 m quota was clipping it (run 6 peaked at 1130 m). Currency goes to 500 m and catalog to 600 m so those two, which already draw the most CPU behind the chokes, sit near the detector’s 0.8 line. Payment and email stay on paper. Their means are 30–55 m, and a hot cap would be under 80 m.
+
+The deployment total counts frontend at 4 × 1150 m and every other service once. Paper sums to 13,360 m. That is the ceiling. Dispense sums to 13,275 m. Suggested sums to 13,270 m, 90 m under paper. Run 6’s checkout peak (613 m) is 41% of 1500 m. Its recommendations peak (1130 m) is 49% of 2300 m.
 
 ## Where the suggested numbers come from
 
@@ -46,7 +51,7 @@ Mean and max app-container CPU on the two candidate holds, from `resource_usage.
 | paymentservice | 46 / 75 | 47 / 70 |
 | emailservice | 35 / 72 | 45 / 85 |
 
-Currency’s mean on these two holds is about 370–400 m, so a 500 m cap puts that mean near the 0.8 line. Catalog’s mean is about 480–490 m, so 600 m does the same. Recommendations at 1800 m leaves room above 1130 m because the 1150 m quota was clipping the series.
+Currency’s mean on these two holds is about 370–400 m, so a 500 m cap puts that mean near the 0.8 line. Catalog’s mean is about 480–490 m, so 600 m does the same. Ad’s mean is about 110–120 m and shipping’s is about 100–110 m, which is why 600 m and 400 m are spare and can be diverted.
 
 ## Which mixes to run under the suggested table
 
@@ -54,7 +59,7 @@ Currency’s mean on these two holds is about 370–400 m, so a 500 m cap puts t
 
 Run 10, run 11, and run 26 peg one of the two chokes and leave catalog, currency, and shipping cooler, so they are the weaker mixes for this goal. Runs 18–21 already applied the dispense table to mixes 6, 10, 11, and 12, with the frontend sidecar CPU limit still set. Checkout on those holds reached 286–557 m of 1500 m. They do not stand in for a clean replay.
 
-The first hold should change four limits: checkout 1500, recommendations 1800, currency 500, catalog 600. Leaving cart, ad, shipping, payment, and email on paper keeps the result attributable to those four.
+The first hold should change six limits: checkout 1500, recommendations 2300, currency 500, catalog 600, ad 600, shipping 400. Ad and shipping are in that set because their cut is the diverted quota, and their measured peaks stay under the new caps. Cart, payment, and email stay on paper. The deployment total stays at 13,270 m.
 
 ## Related
 
