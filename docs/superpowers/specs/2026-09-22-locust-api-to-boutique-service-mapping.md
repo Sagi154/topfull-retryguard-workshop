@@ -11,6 +11,62 @@ This is a measurement write-up only. It does **not** lock S1 numbers or start
 S2. Path-level expectations (call graph, empty-cart checkout): 
 [LOCUST-API-PATHS.md](../../../Guides%20and%20Info/LOCUST-API-PATHS.md).
 
+**Regime change at S2 scale — read before reusing this mapping to design
+S2/S3/S4 loads.** Every relationship below was measured at S1 scale
+(configured counts 15–150/tag, mid-hold RPS all within a few percent of
+configured, failure fractions near 0, no sustained retries). At S2 scale
+(configured counts 50–400/tag, real CPU saturation), two of the
+relationships documented here **stop holding**, confirmed by per-tick
+analysis of runs 26–29 in
+[2026-09-25-s2-overload-user-count-calibration.md](2026-09-25-s2-overload-user-count-calibration.md):
+
+1. **`postcheckout` → `checkoutservice` is not linear once checkout
+   saturates.** At S1 scale (this doc, §"Checkout fan-out moves with
+   postcheckout"), raising `postcheckout` raises checkout's edge totals
+   roughly proportionally, with no retries in the picture. At S2 scale,
+   whether checkout is overloaded depends on a threshold/latching effect:
+   if checkout's own completed-request sojourn time settles above Istio's
+   500 ms `perTryTimeout`, its own retries (`attempts: 3`) multiply the
+   admitted arrival rate 2.3×–3× and pin its CPU at ~99% of quota for the
+   rest of the hold, regardless of further changes to `postcheckout`; if
+   sojourn settles below 500 ms, the retry multiplier disappears and
+   `postcheckout` passes through almost unmultiplied. Configured
+   `postcheckout` as low as 50 was enough to fully latch checkout in one
+   S2 run, while configured 100 failed to latch in another — the
+   determining factor looks like shared frontend/mesh contention with a
+   simultaneous `recommendationservice` retry storm, not `postcheckout`'s
+   own value. Do not use this doc's postcheckout coefficient to predict
+   checkout's overload state at S2 scale.
+2. **The confirmation-page contribution to `recommendationservice`
+   (documented below under `postcheckout`) only appears when checkout is
+   actually completing PlaceOrder requests.** At S1 scale this is true by
+   default (checkout isn't saturated, so requests complete). At S2 scale,
+   if checkout is in the retry-latched state above, its own goodput can
+   fall to ≈0 req/s and the confirmation page essentially never renders —
+   recommendations' load reverts to being driven by `getproduct`+`getcart`
+   alone, with no measurable `postcheckout` contribution.
+
+Everything else in this doc — the unique-edge attributions (`getproduct`↔
+`adservice`, `getcart`↔`frontend→shippingservice`, `postcheckout`↔
+checkout/payment/email as a gate, `postcart`/`emptycart`↔cartservice-only)
+— held up at S2 scale too: run28 (`postcart=400`) and run29
+(`emptycart=430`) both stayed at ~99.4–99.7% achieved/configured with no
+spillover into any service outside cartservice/redis-cart, confirming
+those two tags' fast-path, no-fan-out behavior extends at least 4×–86×
+beyond the S1 range tested here.
+
+**Third caveat, added 2026-09-26:** at S2 scale, even *identical* configured
+counts replayed back-to-back have produced substantially different
+per-service overload outcomes (two exact-count reruns 300 s apart,
+documented in the calibration doc's "runs 3–7" section — one pair moved
+checkout's streak 592→90 and recommendations' streak 1→288 on the same
+mix). This doc's own S1-scale coefficients were derived from single runs
+per matched pair too, at a regime where failure rates are near 0 and this
+kind of instability has not been observed — but it is a reason not to
+extrapolate this doc's numeric coefficients (not just the two structural
+relationships above) as exact multipliers without expecting some run-to-run
+noise, at either regime.
+
 ## Dataset
 
 All under `experiments/results/campaign_48/S1_normal_op/`, condition
