@@ -378,6 +378,21 @@ def capture_service_capacity(cfg: dict, services: list) -> dict:
     return capacity
 
 
+def cpu_resources_already_set(resources_json: str, cpu_quantity: str) -> bool:
+    text = (resources_json or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "'\"":
+        text = text[1:-1]
+    try:
+        resources = json.loads(text or "{}")
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(resources, dict):
+        return False
+    limits = resources.get("limits") or {}
+    requests = resources.get("requests") or {}
+    return limits.get("cpu") == cpu_quantity and requests.get("cpu") == cpu_quantity
+
+
 def apply_constraints(cfg: dict) -> list:
     """
     Apply kubectl scale or CPU limit constraints.
@@ -423,6 +438,9 @@ def apply_constraints(cfg: dict) -> list:
                     f"kubectl get deployment {dep} -n {ns} "
                     f"-o jsonpath='{{.spec.template.spec.containers[0].resources}}'")
             original_resources = r.stdout.strip() or "{}"
+            if cpu_resources_already_set(original_resources, cpu_limit):
+                step(f"{dep}/{container} already at {cpu_limit}; skipping patch")
+                continue
             spec_desc = (
                 f"millicores={limit_millicores}" if "cpu_limit_millicores" in c
                 else f"fraction={c['cpu_limit_fraction']}"

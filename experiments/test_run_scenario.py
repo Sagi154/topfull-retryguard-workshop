@@ -1272,5 +1272,56 @@ class TestPaperCpuReconcileFlag(unittest.TestCase):
         self.assertEqual(calls, [False])
 
 
+class TestCpuPatchSkip(unittest.TestCase):
+    def _cfg(self):
+        return {
+            "infra": {"master_ssh_host": "topfull-master"},
+            "scale_constraints": [{
+                "deployment": "checkoutservice",
+                "namespace": "default",
+                "method": "cpu_limit",
+                "cpu_limit_millicores": 1500,
+                "container": "server",
+            }],
+        }
+
+    def test_parser_accepts_kubectl_json(self):
+        raw = '{"limits":{"cpu":"1500m","memory":"128Mi"},"requests":{"cpu":"1500m"}}'
+        self.assertTrue(run_scenario.cpu_resources_already_set(raw, "1500m"))
+        self.assertFalse(run_scenario.cpu_resources_already_set(raw, "615m"))
+
+    def test_patch_skipped_when_request_and_limit_match(self):
+        raw = '{"limits":{"cpu":"1500m"},"requests":{"cpu":"1500m"}}'
+        cmds = []
+
+        def fake_ssh(host, cmd, check=True):
+            cmds.append(cmd)
+            return SimpleNamespace(stdout=raw, returncode=0)
+
+        with mock.patch.object(run_scenario, "ssh", fake_ssh), \
+             mock.patch.object(run_scenario, "banner", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None):
+            records = run_scenario.apply_constraints(self._cfg())
+        self.assertEqual(records, [])
+        self.assertFalse(any("kubectl patch" in c for c in cmds))
+
+    def test_patch_sent_when_limit_differs(self):
+        raw = '{"limits":{"cpu":"615m"},"requests":{"cpu":"615m"}}'
+        cmds = []
+
+        def fake_ssh(host, cmd, check=True):
+            cmds.append(cmd)
+            return SimpleNamespace(stdout=raw, returncode=0)
+
+        with mock.patch.object(run_scenario, "ssh", fake_ssh), \
+             mock.patch.object(run_scenario, "banner", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None):
+            records = run_scenario.apply_constraints(self._cfg())
+        self.assertEqual(len(records), 1)
+        self.assertTrue(any("kubectl patch" in c and "1500m" in c for c in cmds))
+
+
 if __name__ == "__main__":
     unittest.main()
