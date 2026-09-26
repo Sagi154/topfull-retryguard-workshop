@@ -3,37 +3,54 @@
 #
 # Not part of the S1-S6 scenario matrix. Full-CPU productcatalog never
 # saturated (~2400–2900 req/s, zero 5xx/resets; mu_sat ticks were shutdown
-# tail). Constrain to cpu_limit_fraction 0.1 × paper 500m → 50m (same as
-# Scenario 4A). Same Locust mix as calibration_productcatalog_full_cpu.
+# tail). Constrain with cpu_limit_millicores: 50 (ADR-0006, same as S4A).
+# A fraction 0.1 of the current Ron-config paper value (1535m) would land
+# on 153.5m, not 50m. Ron-config ~3× measured 50m mu_sat goodput
+# (catalog≈81 rps) — getproduct:250 as the target tag, light non-target
+# tags at 10 because v2's float count/RATE actually spawns them;
+# spawn_rate: 50 is Ron's divisor.
+#
+# run1–run2 are Task 8 (legacy launcher). run3 is the 2026-09-21-v2 freeze.
+# run4 is getproduct:400 (co-saturated recommendations). run5 is midpoint
+# getproduct:300 (n_sat=3; freeze left at 5.35). This slot is run6 (next free).
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 42
 scenario_name: calibration_productcatalog_constrained
 condition: calibration
-run_number: 1
+run_number: 6
 description: >
   Calibration-only run. productcatalogservice CPU constrained to 50m.
-  TopFull RL off, RetryGuard off. Heavy getproduct load.
+  TopFull RL off, RetryGuard off. Next-free slot after run5 midpoint;
+  spawn_rate 50.
 
 duration_seconds: 900
 
 locust:
   user_counts:
-    getproduct:   800
-    postcheckout: 20
-    getcart:      50
-    postcart:     50
-    emptycart:    50
-  spawn_rate: 150
+    getproduct:   300
+    postcheckout: 10
+    getcart:      10
+    postcart:     10
+    emptycart:    10
+  spawn_rate: 50
   scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+    - online_boutique_create_v2.sh
 
+# 2026-09-21: productcatalog now has a live HPA (productcatalogservice-hpa.yaml,
+# ADR-0005). Before running this calibration, pin it off so the reading is a
+# single-replica ceiling:
+#   ssh topfull-master "kubectl delete hpa productcatalogservice-hpa -n default"
+# After the run, restore it:
+#   ssh topfull-master "kubectl apply -f /tmp/productcatalogservice-hpa.yaml"
+# (re-scp experiments/manifests/productcatalogservice-hpa.yaml first if /tmp is stale).
 scale_constraints:
   - deployment: productcatalogservice
     namespace: default
     method: cpu_limit
-    cpu_limit_fraction: 0.1    # 0.1 × paper 500m → 50m (same as S4A)
+    cpu_limit_millicores: 50   # absolute (ADR-0006) — fraction 0.1 now computes
+                                # against the Ron-config 1535m paper value (153.5m),
+                                # not the intended 50m
     container: server
 
 retries:
@@ -64,7 +81,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_productcatalog_constrained_run1
+log_folder: calibration_productcatalog_constrained_run6
 
 infra:
   master_ssh_host: topfull-master

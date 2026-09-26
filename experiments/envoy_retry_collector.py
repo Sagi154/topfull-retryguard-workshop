@@ -403,6 +403,61 @@ def parse_inbound(stats_text: str) -> Dict[str, Any]:
     return out
 
 
+def sum_edge_maps(
+    edge_maps: List[Dict[str, Dict[str, int]]],
+) -> Dict[str, Dict[str, int]]:
+    """
+    Sum per-target outbound metrics across multiple pods of the same
+    calling service (e.g. frontend at replicas=1..4 under its HPA, see
+    the 2026-09-20 Ron-Nezer migration). Each element of `edge_maps` is
+    one pod's parse_edges() output. A target missing from one pod's map
+    contributes 0 for that pod, not a dropped row.
+    """
+    summed: Dict[str, Dict[str, int]] = {}
+    for edges in edge_maps:
+        for target, metrics in edges.items():
+            bucket = summed.setdefault(target, {k: 0 for k in OUTBOUND_METRICS})
+            for key in OUTBOUND_METRICS:
+                bucket[key] += metrics.get(key, 0)
+    return summed
+
+
+def sum_inbound_maps(inbound_maps: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Sum inbound listener metrics across multiple pods of the same callee
+    service. Scalar counters (total/2xx/4xx/5xx/resets/rq_time_sum_ms/
+    rq_time_count) sum linearly across independent pods. rq_time_buckets
+    (cumulative histogram counts keyed by `le`, JSON-encoded by
+    parse_inbound()) also sum per-bucket across pods — each pod's
+    buckets are independent cumulative counters over that pod's own
+    requests, so bucket-for-bucket addition is the correct merge.
+    """
+    if not inbound_maps:
+        empty: Dict[str, Any] = {k: 0 for k in INBOUND_METRICS}
+        empty["rq_time_buckets"] = ""
+        return empty
+
+    totals: Dict[str, Any] = {k: 0 for k in INBOUND_METRICS}
+    bucket_totals: Dict[str, int] = {}
+    for inbound in inbound_maps:
+        for key in INBOUND_METRICS:
+            totals[key] += inbound.get(key, 0)
+        buckets_raw = inbound.get("rq_time_buckets") or ""
+        if buckets_raw:
+            try:
+                buckets = json.loads(buckets_raw) if isinstance(buckets_raw, str) else buckets_raw
+            except (TypeError, ValueError, json.JSONDecodeError):
+                buckets = {}
+            for le, count in buckets.items():
+                bucket_totals[le] = bucket_totals.get(le, 0) + int(count)
+
+    out: Dict[str, Any] = dict(totals)
+    out["rq_time_buckets"] = (
+        json.dumps(bucket_totals, separators=(",", ":")) if bucket_totals else ""
+    )
+    return out
+
+
 def write_edges_csv(
     csv_path: Path,
     timestamp: str,
@@ -499,6 +554,142 @@ def fetch_stats_text(
     return getattr(result, "stdout", None)
 
 
+def parse_ip_list(raw: Optional[str]) -> List[str]:
+    """
+    Split a cached pod-IP field into individual IPs. A field with no
+    comma is a single IP (the shape every service had before any
+    service could have more than one replica) and returns a one-element
+    list; a multi-replica service (e.g. frontend under its HPA, see the
+    2026-09-20 Ron-Nezer migration) is comma-joined, e.g.
+    "10.0.0.1,10.0.0.2".
+    """
+    if not raw:
+        return []
+    return [ip.strip() for ip in raw.split(",") if ip.strip()]
+
+
+def join_ip_list(ips: List[str]) -> str:
+    return ",".join(ips)
+
+
+def fetch_pod_list(
+    run_cmd: Optional[CommandRunner] = None,
+    namespace: str = NAMESPACE,
+) -> Optional[dict]:
+    """
+    One kubectl call for every pod in the namespace (all 11 Boutique
+    services, every replica) — mirrors resource_usage_collector.py's
+    fetch_deployments_json() and topfull_throttle_collector.py's
+    _pod_list(), both of which already issue this exact call shape every
+    poll tick in production. Returns None on any kubectl failure or
+    malformed JSON so callers (refresh_ip_cache) can keep their
+    last-known-good IP cache instead of going blind for one tick.
+    """
+    runner = run_cmd or default_run_cmd
+    cmd = ["kubectl", "get", "pods", "-n", namespace, "-o", "json"]
+    try:
+        result = runner(cmd)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("%s  WARNING  fetch pod list failed: %s", utc_now(), exc)
+        return None
+    if getattr(result, "returncode", 1) != 0:
+        log.warning(
+            "%s  WARNING  fetch pod list exit=%s stderr=%s",
+            utc_now(),
+            getattr(result, "returncode", "?"),
+            (getattr(result, "stderr", "") or "").strip(),
+        )
+        return None
+    try:
+        return json.loads(getattr(result, "stdout", "") or "{}")
+    except json.JSONDecodeError:
+        log.warning("%s  WARNING  fetch pod list returned invalid JSON", utc_now())
+        return None
+
+
+def pod_service_name(pod_name: str, services: List[str]) -> Optional[str]:
+    """
+    Match a pod name to one of `services` by Deployment-name prefix —
+    identical rule to topfull_throttle_collector.py's _pod_service_name:
+    longest service name checked first, so e.g. "cartservice-..." can't
+    accidentally match a shorter, unrelated service name that happens to
+    be a string prefix of it.
+    """
+    for svc in sorted(services, key=len, reverse=True):
+        if pod_name == svc or pod_name.startswith(svc + "-"):
+            return svc
+    return None
+
+
+def pod_ips_from_pod_list(
+    pod_list: dict, services: List[str]
+) -> Dict[str, List[str]]:
+    """
+    Group every Running pod's IP by service, from one whole-namespace
+    `kubectl get pods -o json` snapshot. Pending pods (no podIP yet) and
+    deleting pods (`metadata.deletionTimestamp` set — Kubernetes keeps
+    phase=Running until the object is gone; there is no phase=Terminating)
+    are excluded. Unlike the retired per-service jsonpath discovery, this
+    single call sees every replica of every service in one shot, so
+    noticing a scaled-up replica never depends on a fetch to it failing
+    first.
+    """
+    out: Dict[str, List[str]] = {s: [] for s in services}
+    for item in pod_list.get("items") or []:
+        metadata = item.get("metadata") or {}
+        name = metadata.get("name") or ""
+        svc = pod_service_name(name, services)
+        if svc is None:
+            continue
+        if metadata.get("deletionTimestamp"):
+            continue
+        status = item.get("status") or {}
+        if status.get("phase") != "Running":
+            continue
+        pod_ip = status.get("podIP")
+        if pod_ip:
+            out[svc].append(pod_ip)
+    return out
+
+
+def refresh_ip_cache(
+    ip_cache: Dict[str, str],
+    services: List[str],
+    run_cmd: Optional[CommandRunner] = None,
+    namespace: str = NAMESPACE,
+) -> None:
+    """
+    Replace ip_cache **in place** with a fresh whole-namespace snapshot,
+    so a healthy HPA-driven pod addition is scraped on the very next poll
+    tick without needing a prior fetch failure (the bug the 2026-09-20
+    Ron-Nezer migration review flagged: the old per-service, failure-
+    triggered reseed never noticed a *successful* extra replica). On a
+    kubectl failure this tick, ip_cache is left untouched — one bad tick
+    keeps scraping last-known-good IPs rather than going blind.
+    Logs one INFO line per service whose comma-joined IP list changed
+    (scale-up/down proof for live runs).
+    """
+    pod_list = fetch_pod_list(run_cmd=run_cmd, namespace=namespace)
+    if pod_list is None:
+        return
+    ips_by_service = pod_ips_from_pod_list(pod_list, services)
+    previous = dict(ip_cache)
+    ip_cache.clear()
+    for service, ips in ips_by_service.items():
+        if ips:
+            ip_cache[service] = join_ip_list(ips)
+    for service in sorted(set(previous) | set(ip_cache)):
+        old = previous.get(service, "")
+        new = ip_cache.get(service, "")
+        if old != new:
+            log.info(
+                "%s  IPS  service=%s ips=%s",
+                utc_now(),
+                service,
+                new if new else "(none)",
+            )
+
+
 def discover_pod_ip(
     service: str,
     run_cmd: Optional[CommandRunner] = None,
@@ -529,12 +720,50 @@ def discover_pod_ip(
     return ip or None
 
 
+def discover_pod_ips(
+    service: str,
+    run_cmd: Optional[CommandRunner] = None,
+    namespace: str = NAMESPACE,
+) -> List[str]:
+    """
+    Return every Running pod IP for `service` — not just the first.
+    Needed once a service (frontend, under its 2026-09-20 HPA) can have
+    more than one replica; the older discover_pod_ip() (jsonpath
+    `.items[0]`) would silently scrape only 1 of up to 4 frontend
+    replicas. Returns [] on any kubectl failure or no pods yet.
+    """
+    runner = run_cmd or default_run_cmd
+    cmd = [
+        "kubectl", "get", "pods",
+        "-n", namespace,
+        "-l", f"app={service}",
+        "-o", 'jsonpath={range .items[*]}{.status.podIP}{"\\n"}{end}',
+    ]
+    try:
+        result = runner(cmd)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("%s  WARNING  discover ips %s failed: %s", utc_now(), service, exc)
+        return []
+    if getattr(result, "returncode", 1) != 0:
+        log.warning(
+            "%s  WARNING  discover ips %s exit=%s stderr=%s",
+            utc_now(),
+            service,
+            getattr(result, "returncode", "?"),
+            (getattr(result, "stderr", "") or "").strip(),
+        )
+        return []
+    stdout = getattr(result, "stdout", "") or ""
+    return [ip.strip() for ip in stdout.splitlines() if ip.strip()]
+
+
 @dataclass
 class ServiceScrapeResult:
     service: str
     edges: Optional[Dict[str, Dict[str, int]]] = None
     inbound: Optional[Dict[str, Any]] = None
     evict_ip: bool = False
+    had_partial_failure: bool = False
     warning: Optional[str] = None
 
 
@@ -551,21 +780,42 @@ def scrape_one_service(
     pod_ip: Optional[str],
     fetch_url: HttpFetcher,
 ) -> ServiceScrapeResult:
-    if not pod_ip:
+    ips = parse_ip_list(pod_ip)
+    if not ips:
         return ServiceScrapeResult(
             service=service, warning=f"no seeded ip for service={service}"
         )
-    stats_text = fetch_stats_text(pod_ip, fetch_url=fetch_url)
-    if stats_text is None:
+
+    edge_maps: List[Dict[str, Dict[str, int]]] = []
+    inbound_maps: List[Dict[str, Any]] = []
+    failed_ips: List[str] = []
+    for ip in ips:
+        stats_text = fetch_stats_text(ip, fetch_url=fetch_url)
+        if stats_text is None:
+            failed_ips.append(ip)
+            continue
+        edge_maps.append(parse_edges(stats_text))
+        inbound_maps.append(parse_inbound(stats_text))
+
+    if not edge_maps:
         return ServiceScrapeResult(
             service=service,
             evict_ip=True,
             warning=f"tier2 fetch failed service={service} ip={pod_ip}",
         )
+
+    warning = None
+    if failed_ips:
+        warning = (
+            f"tier2 partial fetch failure service={service} "
+            f"failed_ips={','.join(failed_ips)} of {len(ips)} total"
+        )
     return ServiceScrapeResult(
         service=service,
-        edges=parse_edges(stats_text),
-        inbound=parse_inbound(stats_text),
+        edges=sum_edge_maps(edge_maps),
+        inbound=sum_inbound_maps(inbound_maps),
+        had_partial_failure=bool(failed_ips),
+        warning=warning,
     )
 
 
@@ -595,6 +845,13 @@ def poll_once(
         ip_cache = {}
     if tier2_warn_state is None:
         tier2_warn_state = {}
+    # Tick 0 uses run_scenario.py's one-time seed as-is (zero kubectl calls,
+    # matching today's start-of-run behavior). Every later tick refreshes
+    # the whole cache from a fresh whole-namespace pod list, so a healthy
+    # HPA-driven replica addition is scraped on the very next tick without
+    # needing a prior fetch failure first.
+    if poll_index > 0:
+        refresh_ip_cache(ip_cache, services, run_cmd=run_cmd)
     fetcher = fetch_url or default_fetch_url
     edges_path = record_path / "service_edges.csv"
     inbound_path = record_path / "service_inbound.csv"
@@ -620,7 +877,6 @@ def poll_once(
         timestamp,
         poll_index,
         tier2_warn_state,
-        run_cmd,
     )
 
 
@@ -632,18 +888,21 @@ def _apply_scrape_results(
     timestamp: str,
     poll_index: int,
     tier2_warn_state: Dict[str, int],
-    run_cmd: Optional[CommandRunner] = None,
 ) -> None:
     for result in sorted(results, key=lambda r: r.service):
         if result.evict_ip:
+            # Only matters on tick 0 (before the first refresh_ip_cache
+            # call ever runs) — every later tick already rebuilds ip_cache
+            # from scratch in poll_once, so a stale/dead IP cannot survive
+            # past the next tick regardless of this eviction.
             ip_cache.pop(result.service, None)
         if result.warning:
             if "tier2" in result.warning:
+                # Rate-limited log line only now — rediscovery itself is
+                # handled unconditionally every tick by refresh_ip_cache()
+                # in poll_once, not by this failure signal.
                 if should_log_tier2(result.service, poll_index, tier2_warn_state):
                     log.warning("%s  WARNING  %s", utc_now(), result.warning)
-                    new_ip = discover_pod_ip(result.service, run_cmd=run_cmd)
-                    if new_ip:
-                        ip_cache[result.service] = new_ip
             else:
                 log.warning("%s  WARNING  %s", utc_now(), result.warning)
         if result.edges is not None and result.inbound is not None:

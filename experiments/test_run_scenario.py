@@ -8,6 +8,7 @@ Run:
 """
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -165,8 +166,9 @@ class TestLaunchLocustWiring(unittest.TestCase):
     @mock.patch("run_scenario.wait_with_progress")
     @mock.patch("run_scenario.write_remote_script")
     @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario._deploy_local_loadgen_scripts")
     def test_launch_locust_exports_user_counts_and_spawn_rate(
-        self, mock_ssh, mock_write_script, mock_wait
+        self, mock_deploy_scripts, mock_ssh, mock_write_script, mock_wait
     ):
         mock_ssh.return_value = SimpleNamespace(stdout="3")
         cfg = self._base_cfg()
@@ -181,7 +183,11 @@ class TestLaunchLocustWiring(unittest.TestCase):
         self.assertEqual(written_path, "/tmp/rg_locust_launch.sh")
         self.assertIn("export GETPRODUCT=25", written_content)
         self.assertIn("export CART=75", written_content)
+        self.assertIn("export EMPTYCART=75", written_content)
         self.assertIn("export RATE=90", written_content)
+        mock_deploy_scripts.assert_called_once_with(
+            cfg, ["online_boutique_create.sh", "online_boutique_create2.sh"]
+        )
 
         kill_calls = [
             c for c in mock_ssh.call_args_list
@@ -192,8 +198,29 @@ class TestLaunchLocustWiring(unittest.TestCase):
     @mock.patch("run_scenario.wait_with_progress")
     @mock.patch("run_scenario.write_remote_script")
     @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario._deploy_local_loadgen_scripts")
+    def test_launch_locust_omits_emptycart_exports_when_key_absent(
+        self, mock_deploy_scripts, mock_ssh, mock_write_script, mock_wait
+    ):
+        mock_ssh.return_value = SimpleNamespace(stdout="3")
+        cfg = self._base_cfg()
+
+        run_scenario._launch_locust(
+            cfg,
+            user_counts={"getproduct": 25},
+            spawn_rate=90,
+        )
+
+        _, written_content = mock_write_script.call_args[0][1:3]
+        self.assertNotIn("CART=", written_content)
+        self.assertNotIn("EMPTYCART=", written_content)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario._deploy_local_loadgen_scripts")
     def test_launch_locust_exits_if_no_locust_processes_found(
-        self, mock_ssh, mock_write_script, mock_wait
+        self, mock_deploy_scripts, mock_ssh, mock_write_script, mock_wait
     ):
         mock_ssh.return_value = SimpleNamespace(stdout="0")
         cfg = self._base_cfg()
@@ -217,6 +244,64 @@ class TestLaunchLocustWiring(unittest.TestCase):
         phase = {"at_seconds": 300, "user_counts": {"getproduct": 25}, "spawn_rate": 20}
         run_scenario.switch_locust_phase(cfg, phase)
         mock_launch.assert_called_once_with(cfg, {"getproduct": 25}, 20)
+
+
+class TestDeployLocalLoadgenScripts(unittest.TestCase):
+    def _cfg(self):
+        return {
+            "infra": {
+                "loadgen_ssh_host": "topfull-load",
+                "topfull_loadgen_path": "/home/idozacharia/TopFull/TopFull_loadgen",
+            },
+        }
+
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_deploys_scripts_present_under_experiments_loadgen(self, mock_deploy):
+        with tempfile.TemporaryDirectory() as tmp:
+            loadgen_dir = Path(tmp) / "loadgen"
+            loadgen_dir.mkdir()
+            (loadgen_dir / "online_boutique_create_v2.sh").write_text("#!/bin/bash\n")
+
+            with mock.patch.object(run_scenario, "EXPERIMENTS_DIR", Path(tmp)):
+                run_scenario._deploy_local_loadgen_scripts(
+                    self._cfg(), ["online_boutique_create_v2.sh"]
+                )
+
+        mock_deploy.assert_called_once_with(
+            "topfull-load",
+            "loadgen/online_boutique_create_v2.sh",
+            "/home/idozacharia/TopFull/TopFull_loadgen/online_boutique_create_v2.sh",
+        )
+
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_skips_scripts_not_present_locally(self, mock_deploy):
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(run_scenario, "EXPERIMENTS_DIR", Path(tmp)):
+                run_scenario._deploy_local_loadgen_scripts(
+                    self._cfg(),
+                    ["online_boutique_create.sh", "online_boutique_create2.sh"],
+                )
+
+        mock_deploy.assert_not_called()
+
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_mixed_list_deploys_only_the_locally_tracked_one(self, mock_deploy):
+        with tempfile.TemporaryDirectory() as tmp:
+            loadgen_dir = Path(tmp) / "loadgen"
+            loadgen_dir.mkdir()
+            (loadgen_dir / "online_boutique_create_v2.sh").write_text("#!/bin/bash\n")
+
+            with mock.patch.object(run_scenario, "EXPERIMENTS_DIR", Path(tmp)):
+                run_scenario._deploy_local_loadgen_scripts(
+                    self._cfg(),
+                    ["online_boutique_create.sh", "online_boutique_create_v2.sh"],
+                )
+
+        mock_deploy.assert_called_once_with(
+            "topfull-load",
+            "loadgen/online_boutique_create_v2.sh",
+            "/home/idozacharia/TopFull/TopFull_loadgen/online_boutique_create_v2.sh",
+        )
 
 
 class TestStartRetryGuardWiring(unittest.TestCase):
@@ -628,6 +713,28 @@ class TestDeployRepoScript(unittest.TestCase):
     @mock.patch("run_scenario.step")
     @mock.patch("run_scenario.scp_to")
     @mock.patch("run_scenario.ssh")
+    def test_tmp_path_uses_basename_when_filename_has_slash(
+        self, mock_ssh, mock_scp, mock_step
+    ):
+        mock_ssh.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
+        with tempfile.TemporaryDirectory() as tmp:
+            loadgen_dir = Path(tmp) / "loadgen"
+            loadgen_dir.mkdir()
+            (loadgen_dir / "online_boutique_create_v2.sh").write_text("#!/bin/bash\n")
+            with mock.patch.object(run_scenario, "EXPERIMENTS_DIR", Path(tmp)):
+                run_scenario.deploy_repo_script(
+                    "topfull-load",
+                    "loadgen/online_boutique_create_v2.sh",
+                    "/home/idozacharia/TopFull/TopFull_loadgen/online_boutique_create_v2.sh",
+                )
+        self.assertEqual(
+            mock_scp.call_args[0][2],
+            "/tmp/rg_deploy_online_boutique_create_v2.sh",
+        )
+
+    @mock.patch("run_scenario.step")
+    @mock.patch("run_scenario.scp_to")
+    @mock.patch("run_scenario.ssh")
     def test_sudo_cp_fallback_when_plain_cp_fails(self, mock_ssh, mock_scp, mock_step):
         def ssh_side_effect(host, cmd, check=True):
             if cmd.startswith("cp "):
@@ -755,6 +862,7 @@ class TestServiceCapacity(unittest.TestCase):
         ]
         self.assertEqual(len(manifest_calls), 1)
         self.assertIn("topfull_throttle_collector", manifest_calls[0].args[2])
+        self.assertEqual(manifest_calls[0].args[2]["cpu_request_fraction"], 1.0)
 
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ssh")
@@ -780,16 +888,10 @@ class TestServiceCapacity(unittest.TestCase):
 
 
 class TestApplyCpuLimitFraction(unittest.TestCase):
-    def test_patches_catalog_to_50m(self):
+    def _apply(self, constraint, steps=None):
         cfg = {
             "infra": {"master_ssh_host": "topfull-master"},
-            "scale_constraints": [{
-                "deployment": "productcatalogservice",
-                "namespace": "default",
-                "method": "cpu_limit",
-                "cpu_limit_fraction": 0.1,
-                "container": "server",
-            }],
+            "scale_constraints": [constraint],
         }
         patches = []
 
@@ -797,19 +899,44 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
             patches.append(cmd)
             return SimpleNamespace(stdout="{}", returncode=0)
 
+        step_fn = (lambda msg: steps.append(msg)) if steps is not None else (lambda *a, **k: None)
         with mock.patch.object(run_scenario, "ssh", fake_ssh), \
              mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None), \
              mock.patch.object(run_scenario, "banner", lambda *a, **k: None), \
-             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+             mock.patch.object(run_scenario, "step", step_fn):
             run_scenario.apply_constraints(cfg)
-        joined = "\n".join(patches)
-        self.assertIn("50m", joined)
+        return "\n".join(patches)
+
+    def test_patches_catalog_to_153m(self):
+        joined = self._apply({
+            "deployment": "productcatalogservice",
+            "namespace": "default",
+            "method": "cpu_limit",
+            "cpu_limit_fraction": 0.1,
+            "container": "server",
+        })
+        self.assertIn("153m", joined)  # int(1535 * 0.1)
         self.assertNotIn("100m", joined)
+
+    def test_patches_checkout_to_50m_from_millicores(self):
+        steps = []
+        joined = self._apply({
+            "deployment": "checkoutservice",
+            "namespace": "default",
+            "method": "cpu_limit",
+            "cpu_limit_millicores": 50,
+            "container": "server",
+        }, steps=steps)
+        self.assertIn("50m", joined)
+        self.assertNotIn("61m", joined)  # would be int(615 * 0.1) if fraction leaked
+        self.assertTrue(
+            any("millicores=50" in s for s in steps),
+            msg=steps,
+        )
 
 
 class TestReconcilePaperCpuLimits(unittest.TestCase):
-    def test_patches_checkout_to_1000m_500m(self):
-        cfg = {"infra": {"master_ssh_host": "topfull-master"}}
+    def _reconcile(self, cfg):
         cmds = []
 
         def fake_ssh(host, cmd, check=True):
@@ -821,8 +948,28 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
              mock.patch.object(run_scenario, "step", lambda *a, **k: None), \
              mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None):
             run_scenario.reconcile_paper_cpu_limits(cfg)
+        return cmds
+
+    def test_patches_checkout_to_615m(self):
+        cmds = self._reconcile({"infra": {"master_ssh_host": "topfull-master"}})
         checkout_cmds = [c for c in cmds if "checkoutservice" in c]
-        self.assertTrue(any("1000m" in c and "500m" in c for c in checkout_cmds))
+        self.assertTrue(any("615m" in c for c in checkout_cmds))
+
+    def test_request_fraction_halves_request_keeps_limit(self):
+        cmds = self._reconcile({
+            "infra": {"master_ssh_host": "topfull-master"},
+            "cpu_request_fraction": 0.5,
+        })
+        checkout_cmds = [c for c in cmds if "checkoutservice" in c]
+        self.assertTrue(any("615m" in c for c in checkout_cmds))
+        self.assertTrue(any("307m" in c for c in checkout_cmds))
+
+    def test_cpu_request_fraction_from_cfg_defaults_to_one(self):
+        self.assertEqual(run_scenario.cpu_request_fraction_from_cfg({}), 1.0)
+
+    def test_cpu_request_fraction_from_cfg_rejects_zero(self):
+        with self.assertRaises(ValueError):
+            run_scenario.cpu_request_fraction_from_cfg({"cpu_request_fraction": 0})
 
 
 class TestScenarioYamlsUseFraction(unittest.TestCase):
@@ -878,7 +1025,7 @@ class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
             "cpu_limit_fraction": 0.1,
         }]
         got = topfull_cpu_quotas.effective_cpu_quotas(constraints)
-        self.assertEqual(got["checkoutservice"], 100)
+        self.assertEqual(got["checkoutservice"], 61)  # int(615 * 0.1)
 
 
 class TestMeshCollectorNetworkWiring(unittest.TestCase):
@@ -912,7 +1059,15 @@ class TestMeshCollectorNetworkWiring(unittest.TestCase):
         )
         self.assertEqual(mock_ssh.call_args_list[0].args[0], "topfull-master")
         self.assertIn("app=frontend", mock_ssh.call_args_list[0].args[1])
-        self.assertIn("jsonpath={.items[0].status.podIP}", mock_ssh.call_args_list[0].args[1])
+        self.assertIn("range .items[*]", mock_ssh.call_args_list[0].args[1])
+
+    @mock.patch("run_scenario.ssh")
+    def test_discover_service_pod_ips_joins_multiple_replicas_with_comma(self, mock_ssh):
+        mock_ssh.side_effect = [
+            SimpleNamespace(returncode=0, stdout="192.168.1.10\n192.168.1.20\n", stderr=""),
+        ]
+        got = run_scenario.discover_service_pod_ips(self._cfg(), ["frontend"])
+        self.assertEqual(got, {"frontend": "192.168.1.10,192.168.1.20"})
 
     @mock.patch("run_scenario.wait_with_progress")
     @mock.patch("run_scenario.write_remote_script")
@@ -1086,6 +1241,93 @@ class TestStartMasterStackTopfullRl(unittest.TestCase):
             ["proxy", "toprl", "metrics"],
         )
         self.assertIn("/tmp/rg_rl.sh", self._script_paths(mock_write_script))
+
+
+class TestPaperCpuReconcileFlag(unittest.TestCase):
+    def test_missing_key_stays_on(self):
+        self.assertTrue(run_scenario.paper_cpu_reconcile_enabled({}))
+
+    def test_false_skips_the_live_patch(self):
+        calls = []
+
+        def fake_reconcile(cfg, wait=True):
+            calls.append(wait)
+
+        with mock.patch.object(run_scenario, "reconcile_paper_cpu_limits", fake_reconcile), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.reconcile_paper_cpu_limits_if_enabled(
+                {"paper_cpu_reconcile": False}, wait=True
+            )
+        self.assertEqual(calls, [])
+
+    def test_true_calls_through(self):
+        calls = []
+
+        def fake_reconcile(cfg, wait=True):
+            calls.append(wait)
+
+        with mock.patch.object(run_scenario, "reconcile_paper_cpu_limits", fake_reconcile), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.reconcile_paper_cpu_limits_if_enabled({}, wait=False)
+        self.assertEqual(calls, [False])
+
+
+class TestCpuPatchSkip(unittest.TestCase):
+    def _cfg(self):
+        return {
+            "infra": {"master_ssh_host": "topfull-master"},
+            "scale_constraints": [{
+                "deployment": "checkoutservice",
+                "namespace": "default",
+                "method": "cpu_limit",
+                "cpu_limit_millicores": 1500,
+                "container": "server",
+            }],
+        }
+
+    def test_parser_accepts_kubectl_json(self):
+        raw = '{"limits":{"cpu":"1500m","memory":"128Mi"},"requests":{"cpu":"1500m"}}'
+        self.assertTrue(run_scenario.cpu_resources_already_set(raw, "1500m"))
+        self.assertFalse(run_scenario.cpu_resources_already_set(raw, "615m"))
+
+    def test_whole_core_quantities_match_millicore_targets(self):
+        cart = '{"limits":{"cpu":"1"},"requests":{"cpu":"1"}}'
+        recommendations = '{"limits":{"cpu":"2"},"requests":{"cpu":"2"}}'
+        self.assertTrue(run_scenario.cpu_resources_already_set(cart, "1000m"))
+        self.assertTrue(run_scenario.cpu_resources_already_set(recommendations, "2000m"))
+        self.assertFalse(run_scenario.cpu_resources_already_set(cart, "2000m"))
+
+    def test_patch_skipped_when_request_and_limit_match(self):
+        raw = '{"limits":{"cpu":"1500m"},"requests":{"cpu":"1500m"}}'
+        cmds = []
+
+        def fake_ssh(host, cmd, check=True):
+            cmds.append(cmd)
+            return SimpleNamespace(stdout=raw, returncode=0)
+
+        with mock.patch.object(run_scenario, "ssh", fake_ssh), \
+             mock.patch.object(run_scenario, "banner", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None):
+            records = run_scenario.apply_constraints(self._cfg())
+        self.assertEqual(records, [])
+        self.assertFalse(any("kubectl patch" in c for c in cmds))
+
+    def test_patch_sent_when_limit_differs(self):
+        raw = '{"limits":{"cpu":"615m"},"requests":{"cpu":"615m"}}'
+        cmds = []
+
+        def fake_ssh(host, cmd, check=True):
+            cmds.append(cmd)
+            return SimpleNamespace(stdout=raw, returncode=0)
+
+        with mock.patch.object(run_scenario, "ssh", fake_ssh), \
+             mock.patch.object(run_scenario, "banner", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "wait_with_progress", lambda *a, **k: None):
+            records = run_scenario.apply_constraints(self._cfg())
+        self.assertEqual(len(records), 1)
+        self.assertTrue(any("kubectl patch" in c and "1500m" in c for c in cmds))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,11 @@
 # rejection rate directly and suppresses retries at that exact node —
 # unlike TopFull which can only throttle the full entry API path.
 #
+# Constraint method: cpu_limit with cpu_limit_millicores: 50 (ADR-0006).
+#   Absolute 50m K8s limit AND TopFull Detector quota for this run — the
+#   one CPU point checkoutservice has trustworthy mu_sat saturation data
+#   for. Runner reconciles both back to paper after the run.
+#
 # What to look for:
 #   - RetryGuard patches checkoutservice VirtualService specifically
 #   - Load at checkoutservice drops after patch (retries gone)
@@ -31,15 +36,16 @@ locust:
     emptycart:    300
   spawn_rate: 90
   scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+    - online_boutique_create_v2.sh
 
 scale_constraints:
   - deployment: checkoutservice
     namespace: default
     method: cpu_limit
-    cpu_limit_fraction: 0.1    # 0.1 × paper 1000m → 100m
-    container: server
+    cpu_limit_millicores: 50   # absolute cap (ADR-0006) — the one CPU point
+                                # checkoutservice has trustworthy mu_sat data
+                                # for (experiments/capacity/capacity_frozen.json)
+    container: server          # container name inside the checkoutservice pod
 
 # ── Retry policy (Istio VirtualService — applies both arms) ──────────────────
 retries:

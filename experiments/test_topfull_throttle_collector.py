@@ -295,9 +295,9 @@ SAMPLE_POD_LIST = {
 
 class TestDetectMetrics(unittest.TestCase):
     def test_quota_overrides_and_default(self):
-        self.assertEqual(ttc.quota_for("productcatalogservice"), 500)
-        self.assertEqual(ttc.quota_for("checkoutservice"), 1000)
-        self.assertEqual(ttc.quota_for("paymentservice"), 1000)
+        self.assertEqual(ttc.quota_for("productcatalogservice"), 1535)
+        self.assertEqual(ttc.quota_for("checkoutservice"), 615)
+        self.assertEqual(ttc.quota_for("paymentservice"), 155)
 
     def test_alpha_special_cases(self):
         self.assertEqual(ttc.alpha_for("cartservice"), 0.95)
@@ -305,22 +305,24 @@ class TestDetectMetrics(unittest.TestCase):
         self.assertEqual(ttc.alpha_for("checkoutservice"), 0.8)
 
     def test_overloaded_when_util_exceeds_alpha(self):
-        row = ttc.detect_metrics("checkoutservice", 900.0)
-        self.assertEqual(row["quota"], 1000)
+        # checkout quota 615, alpha 0.8 → boundary 492; 493 is strictly above.
+        row = ttc.detect_metrics("checkoutservice", 493.0)
+        self.assertEqual(row["quota"], 615)
         self.assertEqual(row["alpha"], 0.8)
-        self.assertEqual(row["utilization"], 0.9)
+        self.assertGreater(row["utilization"], 0.8)
         self.assertEqual(row["overloaded"], 1)
 
     def test_not_overloaded_at_boundary(self):
-        # 800 / 1000 = 0.8, overloaded is strictly greater than alpha
-        row = ttc.detect_metrics("checkoutservice", 800.0)
+        # 0.8 * 615 = 492, overloaded is strictly greater than alpha
+        row = ttc.detect_metrics("checkoutservice", 492.0)
         self.assertEqual(row["overloaded"], 0)
 
     def test_cartservice_uses_0_95(self):
-        row = ttc.detect_metrics("cartservice", 940.0)
+        # cartservice quota 1920, alpha 0.95 → boundary 1824
+        row = ttc.detect_metrics("cartservice", 1824.0)
         self.assertEqual(row["alpha"], 0.95)
         self.assertEqual(row["overloaded"], 0)
-        row2 = ttc.detect_metrics("cartservice", 960.0)
+        row2 = ttc.detect_metrics("cartservice", 1825.0)
         self.assertEqual(row2["overloaded"], 1)
 
 
@@ -332,7 +334,7 @@ class TestQuotaForEffectiveMap(unittest.TestCase):
         )
 
     def test_paper_default_not_200(self):
-        self.assertEqual(ttc.quota_for("paymentservice"), 1000)
+        self.assertEqual(ttc.quota_for("paymentservice"), 155)
         self.assertNotEqual(ttc.DEFAULT_QUOTA, 200)
 
     def test_overloaded_against_fraction_quota(self):
@@ -360,6 +362,30 @@ class TestContainerIdsFromPodList(unittest.TestCase):
         self.assertEqual(ids["checkoutservice"], ["deadbeefcheckout"])
         self.assertEqual(ids["frontend"], ["front123"])
         self.assertEqual(ids["adservice"], [])
+
+    def test_collects_multiple_container_ids_for_same_service(self):
+        # Regression guard for the 2026-09-20 Ron-Nezer migration: frontend
+        # can have up to 4 replicas under its new HPA. aggregate_cpu()
+        # already averages a list — this locks in that the list itself can
+        # have more than one entry for one service.
+        pod_list = {
+            "items": [
+                {
+                    "metadata": {"name": "frontend-abc123-11111"},
+                    "status": {"containerStatuses": [
+                        {"name": "server", "containerID": "docker://front111"},
+                    ]},
+                },
+                {
+                    "metadata": {"name": "frontend-abc123-22222"},
+                    "status": {"containerStatuses": [
+                        {"name": "server", "containerID": "docker://front222"},
+                    ]},
+                },
+            ],
+        }
+        ids = ttc.container_ids_from_pod_list(pod_list, ["frontend"])
+        self.assertEqual(ids["frontend"], ["front111", "front222"])
 
 
 class TestAggregateCpu(unittest.TestCase):

@@ -1,0 +1,8 @@
+2026-09-22T16:24:59Z  START  poll_interval=1s services=11 transport=network_prometheus max_workers=4
+2026-09-22T16:25:15Z  WARNING  fetch stats 192.168.148.89 exit=1 stderr=<urlopen error timed out>
+2026-09-22T16:25:15Z  WARNING  tier2 partial fetch failure service=frontend failed_ips=192.168.148.89 of 2 total
+2026-09-22T16:25:16Z  IPS  service=frontend ips=192.168.148.81
+2026-09-22T16:27:16Z  IPS  service=frontend ips=192.168.148.81,192.168.148.103
+2026-09-22T16:28:01Z  IPS  service=frontend ips=192.168.148.65,192.168.148.81,192.168.148.103
+2026-09-22T16:31:34Z  SHUTDOWN  signal=15
+2026-09-22T16:31:35Z  EXIT

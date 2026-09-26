@@ -112,6 +112,33 @@ class TestParseStatsSummary(unittest.TestCase):
         usage = ruc.parse_stats_summary(SAMPLE_SUMMARY, ["other-ns-pod"])
         self.assertEqual(usage, {})
 
+    def test_sums_across_multiple_pods_of_the_same_service(self):
+        # Regression guard for the 2026-09-20 Ron-Nezer migration: frontend
+        # can have up to 4 replicas under its new HPA. This collector must
+        # keep summing across every matching pod, not just the first.
+        summary = {
+            "pods": [
+                {
+                    "podRef": {"name": "frontend-abc123-11111", "namespace": "default"},
+                    "containers": [
+                        {"name": "server",
+                         "cpu": {"usageNanoCores": 200_000_000},
+                         "memory": {"workingSetBytes": 1000}},
+                    ],
+                },
+                {
+                    "podRef": {"name": "frontend-abc123-22222", "namespace": "default"},
+                    "containers": [
+                        {"name": "server",
+                         "cpu": {"usageNanoCores": 300_000_000},
+                         "memory": {"workingSetBytes": 1500}},
+                    ],
+                },
+            ],
+        }
+        totals = ruc.parse_stats_summary(summary, ["frontend"])
+        self.assertEqual(totals["frontend"], (500, 2500))
+
 
 class TestParseReplicaCounts(unittest.TestCase):
     def test_ready_replicas(self):

@@ -1,10 +1,49 @@
 {
-  "generated_at": "2026-09-19T19:52:45Z",
+  "generated_at": "2026-09-21T23:34:59Z",
   "cluster_shape": "topfull-worker-1=e2-standard-16",
   "schema_version": 1,
   "capacities": {
     "frontend": {
       "service": "frontend",
+      "mu_per_millicore": 0.79,
+      "unit": "req/s per millicore",
+      "calibrated_at_cpu_limit_millicores": 50,
+      "calibrated_at_replica_count": 1,
+      "throughput_at_calibration": 39.5,
+      "method": "mu_sat",
+      "cpu_source": "service_capacity.json",
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_frontend_constrained_50m_run4",
+      "n_sat_ticks": 2,
+      "note": "low confidence: n_sat_ticks=2 < 10"
+    },
+    "checkoutservice": {
+      "service": "checkoutservice",
+      "mu_per_millicore": 1.34,
+      "unit": "req/s per millicore",
+      "calibrated_at_cpu_limit_millicores": 50,
+      "calibrated_at_replica_count": 1,
+      "throughput_at_calibration": 67.0,
+      "method": "mu_sat",
+      "cpu_source": "service_capacity.json",
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_checkout_constrained_50m_run3",
+      "n_sat_ticks": 208,
+      "note": null
+    },
+    "productcatalogservice": {
+      "service": "productcatalogservice",
+      "mu_per_millicore": 5.35,
+      "unit": "req/s per millicore",
+      "calibrated_at_cpu_limit_millicores": 50,
+      "calibrated_at_replica_count": 1,
+      "throughput_at_calibration": 267.5,
+      "method": "mu_sat",
+      "cpu_source": "service_capacity.json",
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_productcatalog_constrained_run3",
+      "n_sat_ticks": 8,
+      "note": "low confidence: n_sat_ticks=8 < 10"
+    },
+    "paymentservice": {
+      "service": "paymentservice",
       "mu_per_millicore": 0.3,
       "unit": "req/s per millicore",
       "calibrated_at_cpu_limit_millicores": 50,
@@ -12,47 +51,8 @@
       "throughput_at_calibration": 15.0,
       "method": "mu_sat",
       "cpu_source": "service_capacity.json",
-      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_frontend_constrained_50m_run1",
-      "n_sat_ticks": 26,
-      "note": null
-    },
-    "checkoutservice": {
-      "service": "checkoutservice",
-      "mu_per_millicore": 10.82,
-      "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": 50,
-      "calibrated_at_replica_count": 1,
-      "throughput_at_calibration": 541.0,
-      "method": "mu_sat",
-      "cpu_source": "service_capacity.json",
-      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_checkout_constrained_50m_run1",
-      "n_sat_ticks": 210,
-      "note": null
-    },
-    "productcatalogservice": {
-      "service": "productcatalogservice",
-      "mu_per_millicore": 8.95,
-      "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": 50,
-      "calibrated_at_replica_count": 1,
-      "throughput_at_calibration": 447.5,
-      "method": "mu_sat",
-      "cpu_source": "service_capacity.json",
-      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_productcatalog_constrained_run1",
-      "n_sat_ticks": 60,
-      "note": null
-    },
-    "paymentservice": {
-      "service": "paymentservice",
-      "mu_per_millicore": 0.72,
-      "unit": "req/s per millicore",
-      "calibrated_at_cpu_limit_millicores": 50,
-      "calibrated_at_replica_count": 1,
-      "throughput_at_calibration": 36.0,
-      "method": "mu_sat",
-      "cpu_source": "service_capacity.json",
-      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_payment_constrained_50m_run1",
-      "n_sat_ticks": 26,
+      "source_run": "C:\\Users\\sagi1\\Projects\\Workshop\\experiments\\results\\campaign_48\\calibration_payment_constrained_50m_run3",
+      "n_sat_ticks": 157,
       "note": null
     }
   }

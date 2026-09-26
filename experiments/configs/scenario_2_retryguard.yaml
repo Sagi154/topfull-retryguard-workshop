@@ -19,24 +19,23 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: retryguard
-run_number: 13
+run_number: 16                  # run15 = 2026-09-24 controller trio both-on 340/100/240/5/5
 description: >
-  Ramp to ρ > 1, hold 10 minutes. TopFull + RetryGuard both active.
-  RetryGuard suppresses retries per service when rejection > 20%.
+  Controller trio both-on. Counts 340/100/240/5/5. TopFull RL ON, RetryGuard
+  ON. Frontend pinned at 4; catalog HPA max 1; sidecar request 90m.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   100
-    postcheckout: 20
-    getcart:      100
-    postcart:     100
-    emptycart:    300
-  spawn_rate: 90
+    getproduct:   340
+    postcheckout: 100
+    getcart:      240
+    postcart:     5
+    emptycart:    5
+  spawn_rate: 50
   scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+    - online_boutique_create_v2.sh
 
 scale_constraints: []
 
@@ -45,6 +44,9 @@ retries:
   attempts_on: 3            # retries.attempts when ON
   attempts_off: 0           # 0 = omit retries block entirely (Istio rejects attempts: 0)
   per_try_timeout_ms: 500   # perTryTimeout — makes slow responses retriable via reset
+
+topfull_rl:
+  enabled: true
 
 retryguard:
   enabled: true
@@ -70,7 +72,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: run_topfull_retryguard_sustained_overload_run13
+log_folder: run_topfull_retryguard_sustained_overload_run16
 
 infra:
   master_ssh_host: topfull-master

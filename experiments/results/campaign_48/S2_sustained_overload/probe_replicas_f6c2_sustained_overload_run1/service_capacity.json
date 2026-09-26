@@ -1,0 +1,57 @@
+{
+  "adservice": {
+    "cpu_limit_millicores": 1150,
+    "cpu_request_millicores": 575,
+    "replica_count": 1
+  },
+  "cartservice": {
+    "cpu_limit_millicores": 1920,
+    "cpu_request_millicores": 960,
+    "replica_count": 1
+  },
+  "checkoutservice": {
+    "cpu_limit_millicores": 615,
+    "cpu_request_millicores": 307,
+    "replica_count": 2
+  },
+  "currencyservice": {
+    "cpu_limit_millicores": 770,
+    "cpu_request_millicores": 385,
+    "replica_count": 1
+  },
+  "emailservice": {
+    "cpu_limit_millicores": 155,
+    "cpu_request_millicores": 77,
+    "replica_count": 1
+  },
+  "frontend": {
+    "cpu_limit_millicores": 1150,
+    "cpu_request_millicores": 575,
+    "replica_count": 6
+  },
+  "paymentservice": {
+    "cpu_limit_millicores": 155,
+    "cpu_request_millicores": 77,
+    "replica_count": 1
+  },
+  "productcatalogservice": {
+    "cpu_limit_millicores": 1535,
+    "cpu_request_millicores": 767,
+    "replica_count": 1
+  },
+  "recommendationservice": {
+    "cpu_limit_millicores": 1150,
+    "cpu_request_millicores": 575,
+    "replica_count": 1
+  },
+  "redis-cart": {
+    "cpu_limit_millicores": 540,
+    "cpu_request_millicores": 270,
+    "replica_count": 1
+  },
+  "shippingservice": {
+    "cpu_limit_millicores": 770,
+    "cpu_request_millicores": 385,
+    "replica_count": 1
+  }
+}

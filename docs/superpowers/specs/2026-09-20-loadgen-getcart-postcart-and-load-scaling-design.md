@@ -11,6 +11,12 @@ TopFull + RetryGuard Workshop — TAU Deepness Lab
 > exactly what would need to change in `run_scenario.py` / scenario YAMLs to
 > adopt it. **Nothing in this doc has been applied to `run_scenario.py`,
 > `experiments/configs/`, or the live cluster — this is a proposal.**
+>
+> **Amendment (2026-09-22):** `online_boutique_create_v2.sh` no longer passes
+> `RATE` through as Locust users/sec. Spawn math matches Ron's launchers:
+> `-r = count / RATE`, computed with awk so the result is a float. The
+> independent-swarm fix in §5 still stands. §4's "RATE=50 used directly"
+> ramp example does not describe the script.
 
 Related: [2026-09-17-s2-frontend-2x-quota-design.md](2026-09-17-s2-frontend-2x-quota-design.md),
 [2026-09-18-locust-spawn-rate-fix.md](2026-09-18-locust-spawn-rate-fix.md),
@@ -299,9 +305,12 @@ Design:
   `v2_emptycart` tmux sessions), each driven by its own env var
   (`GETCART`/`POSTCART`/`EMPTYCART`) and its own `-u`/`-r`. No shared
   `$CART` variable exists in this script at all.
-- **Fixes §1b** by using `RATE` (and optional per-tag `RATE_GETPRODUCT` /
-  `RATE_POSTCHECKOUT` / `RATE_GETCART` / `RATE_POSTCART` / `RATE_EMPTYCART`
-  overrides) **directly** as Locust's `-r`, not divided by anything.
+- **Spawn math matches Ron, not the original draft of this section.**
+  `RATE` (and optional per-tag `RATE_*` overrides) is a divisor: Locust
+  `-r` = `count / RATE`, computed with awk so the result is a float. The
+  2026-09-20 draft of this bullet said to pass `RATE` through as users/sec;
+  that was reverted on 2026-09-22. Bash integer `$((count / RATE))` is
+  still wrong — it truncates small ratios to 0.
 - **Keeps** the `--master`/`--expect-workers` sharding pattern from
   `create.sh` for `getproduct` and `postcheckout` (the two tags most likely
   to need >1 Python process worth of throughput), with lower default

@@ -1,0 +1,130 @@
+{
+  "generated_at": "2026-09-25T10:20:48Z",
+  "run_dir": "experiments\\results\\campaign_48\\S2_sustained_overload\\baseline_no_topfull_sustained_overload_run16",
+  "estimates": [
+    {
+      "service": "adservice",
+      "lambda_mean": 6.015487012987013,
+      "mu_sat": 1.7857142857142856,
+      "w_mean_ms": 1.6064726122485333,
+      "n_ticks_with_latency": 100,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.6998678996036988,
+      "note": null,
+      "w_p50_ms": 3.0
+    },
+    {
+      "service": "cartservice",
+      "lambda_mean": 223.66674174174176,
+      "mu_sat": 246.73333333333335,
+      "w_mean_ms": 8.500522508426206,
+      "n_ticks_with_latency": 104,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.011801626898802441,
+      "note": null,
+      "w_p50_ms": 8.244543644088797
+    },
+    {
+      "service": "checkoutservice",
+      "lambda_mean": 17.61608225108225,
+      "mu_sat": 17.708333333333336,
+      "w_mean_ms": 171.22732078196913,
+      "n_ticks_with_latency": 103,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.057849019432255754,
+      "note": null,
+      "w_p50_ms": 172.05882352941177
+    },
+    {
+      "service": "currencyservice",
+      "lambda_mean": 67.91731505102041,
+      "mu_sat": 74.84285714285716,
+      "w_mean_ms": 5.285394504974518,
+      "n_ticks_with_latency": 105,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.004486794023775382,
+      "note": null,
+      "w_p50_ms": 4.740932642487047
+    },
+    {
+      "service": "emailservice",
+      "lambda_mean": 16.79504329004329,
+      "mu_sat": 16.535714285714285,
+      "w_mean_ms": 10.21066520711917,
+      "n_ticks_with_latency": 104,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.015436746987951807,
+      "note": null,
+      "w_p50_ms": 3.7847490347490345
+    },
+    {
+      "service": "frontend",
+      "lambda_mean": 197.6891369047619,
+      "mu_sat": null,
+      "w_mean_ms": 1953.4951601866635,
+      "n_ticks_with_latency": 108,
+      "inbound_5xx_fraction": 0.0011673213130787312,
+      "inbound_failure_fraction": 0.004401116842553595,
+      "note": null,
+      "w_p50_ms": 1796.7267893072722
+    },
+    {
+      "service": "paymentservice",
+      "lambda_mean": 17.466385281385282,
+      "mu_sat": 16.8,
+      "w_mean_ms": 4.304936490487587,
+      "n_ticks_with_latency": 104,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.002711006687149828,
+      "note": null,
+      "w_p50_ms": 3.471212121212121
+    },
+    {
+      "service": "productcatalogservice",
+      "lambda_mean": 371.0710639210639,
+      "mu_sat": null,
+      "w_mean_ms": 6.855043777011455,
+      "n_ticks_with_latency": 105,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0075257666504412605,
+      "note": null,
+      "w_p50_ms": 7.041571753986332
+    },
+    {
+      "service": "recommendationservice",
+      "lambda_mean": 34.319766194766196,
+      "mu_sat": 35.5,
+      "w_mean_ms": 15.783976576248168,
+      "n_ticks_with_latency": 104,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.011375196522704153,
+      "note": null,
+      "w_p50_ms": 15.748910417357525
+    },
+    {
+      "service": "redis-cart",
+      "lambda_mean": null,
+      "mu_sat": null,
+      "w_mean_ms": null,
+      "n_ticks_with_latency": 0,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0,
+      "note": "no ticks with traffic",
+      "w_p50_ms": null
+    },
+    {
+      "service": "shippingservice",
+      "lambda_mean": 47.73379450879451,
+      "mu_sat": 45.833333333333336,
+      "w_mean_ms": 1.171940880191947,
+      "n_ticks_with_latency": 105,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.002236327161508863,
+      "note": null,
+      "w_p50_ms": 2.4172185430463573
+    }
+  ],
+  "estimate_error": null,
+  "retryguard_log_present": false,
+  "toggle_events": []
+}

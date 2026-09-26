@@ -1,0 +1,90 @@
+{
+  "scenario_id": 2,
+  "scenario_name": "sustained_overload",
+  "condition": "baseline",
+  "run_number": 19,
+  "duration_seconds": 600,
+  "retryguard": {
+    "enabled": false,
+    "rejection_threshold": 0.2,
+    "sample_interval_seconds": 1,
+    "interval_samples": 30
+  },
+  "topfull_rl": {
+    "enabled": false
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1,
+    "transport": "network_prometheus",
+    "max_workers": 4,
+    "exec_host": "topfull-master"
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "topfull_throttle_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1
+  },
+  "scale_constraints": [
+    {
+      "deployment": "cartservice",
+      "namespace": "default",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 1200,
+      "container": "server"
+    },
+    {
+      "deployment": "adservice",
+      "namespace": "default",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 800,
+      "container": "server"
+    },
+    {
+      "deployment": "checkoutservice",
+      "namespace": "default",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 1500,
+      "container": "server"
+    },
+    {
+      "deployment": "recommendationservice",
+      "namespace": "default",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 1250,
+      "container": "server"
+    }
+  ],
+  "cpu_request_fraction": 1.0,
+  "paper_cpu_quotas": {
+    "frontend": 1150,
+    "checkoutservice": 615,
+    "recommendationservice": 1150,
+    "productcatalogservice": 1535,
+    "cartservice": 1920,
+    "currencyservice": 770,
+    "shippingservice": 770,
+    "redis-cart": 540,
+    "emailservice": 155,
+    "paymentservice": 155,
+    "adservice": 1150
+  },
+  "effective_cpu_quotas": {
+    "frontend": 1150,
+    "checkoutservice": 1500,
+    "recommendationservice": 1250,
+    "productcatalogservice": 1535,
+    "cartservice": 1200,
+    "currencyservice": 770,
+    "shippingservice": 770,
+    "redis-cart": 540,
+    "emailservice": 155,
+    "paymentservice": 155,
+    "adservice": 800
+  },
+  "log_folder": "baseline_no_topfull_sustained_overload_run19",
+  "collected_at": "2026-09-25T11:50:52.837982Z"
+}

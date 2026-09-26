@@ -176,6 +176,68 @@ class TestParseInboundDoesNotMergeListeners(unittest.TestCase):
         self.assertEqual(inbound["2xx"], 90)
 
 
+class TestSumEdgeMaps(unittest.TestCase):
+    def test_sums_matching_targets_across_pods(self):
+        pod_a = {"cartservice": {"total": 10, "2xx": 9, "4xx": 1, "5xx": 0,
+                                  "retry": 2, "rq_time_sum_ms": 100, "rq_time_count": 10}}
+        pod_b = {"cartservice": {"total": 20, "2xx": 18, "4xx": 2, "5xx": 0,
+                                  "retry": 3, "rq_time_sum_ms": 200, "rq_time_count": 20}}
+        summed = erc.sum_edge_maps([pod_a, pod_b])
+        self.assertEqual(summed["cartservice"], {
+            "total": 30, "2xx": 27, "4xx": 3, "5xx": 0,
+            "retry": 5, "rq_time_sum_ms": 300, "rq_time_count": 30,
+        })
+
+    def test_target_seen_by_only_one_pod_is_not_lost(self):
+        pod_a = {"cartservice": {"total": 10, "2xx": 9, "4xx": 1, "5xx": 0,
+                                  "retry": 2, "rq_time_sum_ms": 100, "rq_time_count": 10}}
+        pod_b = {"paymentservice": {"total": 5, "2xx": 5, "4xx": 0, "5xx": 0,
+                                     "retry": 0, "rq_time_sum_ms": 50, "rq_time_count": 5}}
+        summed = erc.sum_edge_maps([pod_a, pod_b])
+        self.assertEqual(set(summed.keys()), {"cartservice", "paymentservice"})
+        self.assertEqual(summed["paymentservice"]["total"], 5)
+
+    def test_empty_list_returns_empty_dict(self):
+        self.assertEqual(erc.sum_edge_maps([]), {})
+
+
+class TestSumInboundMaps(unittest.TestCase):
+    def test_sums_scalar_metrics_across_pods(self):
+        pod_a = {"total": 100, "2xx": 90, "4xx": 8, "5xx": 2, "resets": 0,
+                  "rq_time_sum_ms": 500, "rq_time_count": 100, "rq_time_buckets": '{"10":50,"+Inf":100}'}
+        pod_b = {"total": 50, "2xx": 45, "4xx": 4, "5xx": 1, "resets": 0,
+                  "rq_time_sum_ms": 250, "rq_time_count": 50, "rq_time_buckets": '{"10":25,"+Inf":50}'}
+        summed = erc.sum_inbound_maps([pod_a, pod_b])
+        self.assertEqual(summed["total"], 150)
+        self.assertEqual(summed["2xx"], 135)
+        self.assertEqual(summed["4xx"], 12)
+        self.assertEqual(summed["5xx"], 3)
+        self.assertEqual(summed["rq_time_sum_ms"], 750)
+        self.assertEqual(summed["rq_time_count"], 150)
+        import json
+        buckets = json.loads(summed["rq_time_buckets"])
+        self.assertEqual(buckets["10"], 75)
+        self.assertEqual(buckets["+Inf"], 150)
+
+    def test_single_pod_passthrough(self):
+        pod_a = {"total": 100, "2xx": 90, "4xx": 8, "5xx": 2, "resets": 0,
+                  "rq_time_sum_ms": 500, "rq_time_count": 100, "rq_time_buckets": ""}
+        self.assertEqual(erc.sum_inbound_maps([pod_a])["total"], 100)
+
+    def test_empty_list_returns_zeros(self):
+        summed = erc.sum_inbound_maps([])
+        self.assertEqual(summed["total"], 0)
+        self.assertEqual(summed["rq_time_buckets"], "")
+
+    def test_no_buckets_present_leaves_empty_string(self):
+        pod_a = {"total": 10, "2xx": 10, "4xx": 0, "5xx": 0, "resets": 0,
+                  "rq_time_sum_ms": 0, "rq_time_count": 0, "rq_time_buckets": ""}
+        pod_b = {"total": 20, "2xx": 20, "4xx": 0, "5xx": 0, "resets": 0,
+                  "rq_time_sum_ms": 0, "rq_time_count": 0, "rq_time_buckets": ""}
+        summed = erc.sum_inbound_maps([pod_a, pod_b])
+        self.assertEqual(summed["rq_time_buckets"], "")
+
+
 class TestWriteEdgesCsv(unittest.TestCase):
     def test_writes_header_once_then_appends_multiple_targets(self):
         import tempfile
@@ -284,6 +346,284 @@ class TestDiscoverPodIp(unittest.TestCase):
             return SimpleNamespace(returncode=0, stdout="\n", stderr="")
 
         self.assertIsNone(erc.discover_pod_ip("frontend", run_cmd=runner))
+
+
+class TestParseIpList(unittest.TestCase):
+    def test_single_ip_no_comma(self):
+        self.assertEqual(erc.parse_ip_list("192.168.1.10"), ["192.168.1.10"])
+
+    def test_multiple_comma_joined_ips(self):
+        self.assertEqual(
+            erc.parse_ip_list("192.168.1.10,192.168.1.11"),
+            ["192.168.1.10", "192.168.1.11"],
+        )
+
+    def test_none_or_empty_returns_empty_list(self):
+        self.assertEqual(erc.parse_ip_list(None), [])
+        self.assertEqual(erc.parse_ip_list(""), [])
+
+    def test_strips_whitespace_around_commas(self):
+        self.assertEqual(
+            erc.parse_ip_list("192.168.1.10, 192.168.1.11"),
+            ["192.168.1.10", "192.168.1.11"],
+        )
+
+
+class TestJoinIpList(unittest.TestCase):
+    def test_single_ip(self):
+        self.assertEqual(erc.join_ip_list(["192.168.1.10"]), "192.168.1.10")
+
+    def test_multiple_ips(self):
+        self.assertEqual(
+            erc.join_ip_list(["192.168.1.10", "192.168.1.11"]),
+            "192.168.1.10,192.168.1.11",
+        )
+
+    def test_empty_list(self):
+        self.assertEqual(erc.join_ip_list([]), "")
+
+
+class TestDiscoverPodIps(unittest.TestCase):
+    def test_returns_every_pod_ip_not_just_first(self):
+        def runner(cmd):
+            return SimpleNamespace(
+                returncode=0, stdout="192.168.1.10\n192.168.1.11\n", stderr=""
+            )
+
+        ips = erc.discover_pod_ips("frontend", run_cmd=runner)
+        self.assertEqual(ips, ["192.168.1.10", "192.168.1.11"])
+
+    def test_single_pod_service(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=0, stdout="192.168.1.10\n", stderr="")
+
+        self.assertEqual(erc.discover_pod_ips("checkoutservice", run_cmd=runner), ["192.168.1.10"])
+
+    def test_returns_empty_list_on_failure(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=1, stdout="", stderr="error")
+
+        self.assertEqual(erc.discover_pod_ips("frontend", run_cmd=runner), [])
+
+    def test_returns_empty_list_on_empty_stdout(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=0, stdout="\n", stderr="")
+
+        self.assertEqual(erc.discover_pod_ips("frontend", run_cmd=runner), [])
+
+    def test_uses_range_jsonpath_over_all_items(self):
+        calls = []
+
+        def runner(cmd):
+            calls.append(cmd)
+            return SimpleNamespace(returncode=0, stdout="192.168.1.10\n", stderr="")
+
+        erc.discover_pod_ips("frontend", run_cmd=runner)
+        self.assertIn("app=frontend", calls[0])
+        self.assertIn("range .items[*]", calls[0][-1])
+
+
+class TestFetchPodList(unittest.TestCase):
+    def test_returns_parsed_json_on_success(self):
+        def runner(cmd):
+            return SimpleNamespace(
+                returncode=0,
+                stdout='{"items": [{"metadata": {"name": "frontend-abc"}}]}',
+                stderr="",
+            )
+
+        result = erc.fetch_pod_list(run_cmd=runner)
+        self.assertEqual(result, {"items": [{"metadata": {"name": "frontend-abc"}}]})
+
+    def test_builds_whole_namespace_kubectl_command(self):
+        calls = []
+
+        def runner(cmd):
+            calls.append(cmd)
+            return SimpleNamespace(returncode=0, stdout="{}", stderr="")
+
+        erc.fetch_pod_list(run_cmd=runner)
+        self.assertEqual(
+            calls[0],
+            ["kubectl", "get", "pods", "-n", "default", "-o", "json"],
+        )
+
+    def test_returns_none_on_nonzero_exit(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=1, stdout="", stderr="connection refused")
+
+        self.assertIsNone(erc.fetch_pod_list(run_cmd=runner))
+
+    def test_returns_none_on_exception(self):
+        def runner(cmd):
+            raise TimeoutError("timed out")
+
+        self.assertIsNone(erc.fetch_pod_list(run_cmd=runner))
+
+    def test_returns_none_on_invalid_json(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=0, stdout="not-json", stderr="")
+
+        self.assertIsNone(erc.fetch_pod_list(run_cmd=runner))
+
+
+class TestPodServiceName(unittest.TestCase):
+    def test_matches_exact_and_prefix(self):
+        services = ["frontend", "checkoutservice"]
+        self.assertEqual(
+            erc.pod_service_name("frontend-abc123-11111", services), "frontend"
+        )
+        self.assertEqual(
+            erc.pod_service_name("checkoutservice-def456-22222", services),
+            "checkoutservice",
+        )
+
+    def test_no_match_returns_none(self):
+        self.assertIsNone(erc.pod_service_name("istiod-abc123", ["frontend"]))
+
+    def test_prefers_longest_matching_service_name(self):
+        # Same tie-break rule as topfull_throttle_collector.py's
+        # _pod_service_name, in case two service names ever overlap.
+        services = ["cart", "cartservice"]
+        self.assertEqual(
+            erc.pod_service_name("cartservice-xyz-1", services), "cartservice"
+        )
+
+
+SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS = {
+    "items": [
+        {
+            "metadata": {"name": "frontend-abc123-11111"},
+            "status": {"phase": "Running", "podIP": "10.0.0.5"},
+        },
+        {
+            "metadata": {"name": "frontend-abc123-22222"},
+            "status": {"phase": "Running", "podIP": "10.0.0.9"},
+        },
+        {
+            "metadata": {"name": "checkoutservice-def456-1"},
+            "status": {"phase": "Running", "podIP": "10.0.0.20"},
+        },
+        {
+            "metadata": {"name": "frontend-abc123-33333"},
+            "status": {"phase": "Pending"},
+        },
+        {
+            "metadata": {
+                "name": "frontend-abc123-44444",
+                "deletionTimestamp": "2026-09-21T12:00:00Z",
+            },
+            "status": {"phase": "Running", "podIP": "10.0.0.99"},
+        },
+    ],
+}
+
+
+class TestPodIpsFromPodList(unittest.TestCase):
+    def test_groups_running_pods_by_service(self):
+        ips = erc.pod_ips_from_pod_list(
+            SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS, ["frontend", "checkoutservice"]
+        )
+        self.assertEqual(ips["frontend"], ["10.0.0.5", "10.0.0.9"])
+        self.assertEqual(ips["checkoutservice"], ["10.0.0.20"])
+
+    def test_excludes_pending_and_terminating_pods(self):
+        ips = erc.pod_ips_from_pod_list(
+            SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS, ["frontend"]
+        )
+        self.assertNotIn("10.0.0.99", ips["frontend"])
+        self.assertEqual(len(ips["frontend"]), 2)
+
+    def test_deletion_timestamp_running_pod_is_omitted(self):
+        # Real deleting pods stay phase=Running with deletionTimestamp set.
+        ips = erc.pod_ips_from_pod_list(
+            SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS, ["frontend"]
+        )
+        self.assertNotIn("10.0.0.99", ips["frontend"])
+
+    def test_service_with_no_running_pods_is_empty_list_not_missing_key(self):
+        ips = erc.pod_ips_from_pod_list({"items": []}, ["adservice"])
+        self.assertEqual(ips["adservice"], [])
+
+
+class TestRefreshIpCache(unittest.TestCase):
+    def test_replaces_cache_with_fresh_snapshot(self):
+        import json
+
+        def runner(cmd):
+            return SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps(SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS),
+                stderr="",
+            )
+
+        cache = {"frontend": "10.0.0.1"}  # stale single IP
+        erc.refresh_ip_cache(cache, ["frontend", "checkoutservice"], run_cmd=runner)
+        self.assertEqual(cache["frontend"], "10.0.0.5,10.0.0.9")
+        self.assertEqual(cache["checkoutservice"], "10.0.0.20")
+        # deletionTimestamp pod 10.0.0.99 must not appear in the joined list
+        self.assertNotIn("10.0.0.99", cache["frontend"])
+
+    def test_logs_ips_line_only_when_ip_list_changes(self):
+        import json
+        from unittest import mock
+
+        def runner(cmd):
+            return SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps(SAMPLE_POD_LIST_TWO_FRONTEND_REPLICAS),
+                stderr="",
+            )
+
+        cache = {"frontend": "10.0.0.1"}
+        with mock.patch.object(erc.log, "info") as mock_info:
+            erc.refresh_ip_cache(cache, ["frontend"], run_cmd=runner)
+        ips_calls = [
+            c for c in mock_info.call_args_list
+            if len(c.args) >= 2 and "IPS" in str(c.args[0])
+        ]
+        self.assertEqual(len(ips_calls), 1)
+        self.assertIn("frontend", ips_calls[0].args[2])
+        self.assertEqual(ips_calls[0].args[3], "10.0.0.5,10.0.0.9")
+
+        # Second refresh with the same snapshot: no IPS log (no change).
+        with mock.patch.object(erc.log, "info") as mock_info2:
+            erc.refresh_ip_cache(cache, ["frontend"], run_cmd=runner)
+        ips_calls2 = [
+            c for c in mock_info2.call_args_list
+            if len(c.args) >= 2 and "IPS" in str(c.args[0])
+        ]
+        self.assertEqual(ips_calls2, [])
+
+    def test_kubectl_failure_leaves_cache_untouched(self):
+        def runner(cmd):
+            return SimpleNamespace(returncode=1, stdout="", stderr="refused")
+
+        cache = {"frontend": "10.0.0.1"}
+        erc.refresh_ip_cache(cache, ["frontend"], run_cmd=runner)
+        self.assertEqual(cache, {"frontend": "10.0.0.1"})
+
+    def test_service_with_no_pods_is_dropped_from_cache(self):
+        import json
+
+        def runner(cmd):
+            return SimpleNamespace(
+                returncode=0, stdout=json.dumps({"items": []}), stderr=""
+            )
+
+        cache = {"frontend": "10.0.0.1"}
+        erc.refresh_ip_cache(cache, ["frontend"], run_cmd=runner)
+        self.assertEqual(cache, {})
+
+    def test_mutates_in_place_same_object(self):
+        cache = {"frontend": "10.0.0.1"}
+        original_id = id(cache)
+
+        def runner(cmd):
+            return SimpleNamespace(returncode=1, stdout="", stderr="refused")
+
+        erc.refresh_ip_cache(cache, ["frontend"], run_cmd=runner)
+        self.assertEqual(id(cache), original_id)
 
 
 class TestFetchStatsTextHttp(unittest.TestCase):
@@ -395,6 +735,53 @@ class TestScrapeOneServiceHttp(unittest.TestCase):
         self.assertTrue(result.evict_ip)
         self.assertIsNone(result.edges)
         self.assertIsNotNone(result.warning)
+
+    def test_scrapes_and_sums_multiple_comma_joined_ips(self):
+        fetch_log = []
+
+        def fetch(url):
+            fetch_log.append(url)
+            if "192.168.1.10" in url:
+                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+            # Second replica: half the traffic of the first, same shape.
+            stats = SAMPLE_MESH_STATS.replace(
+                'cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 100',
+                'cluster_name="outbound|80||cartservice.default.svc.cluster.local"} 40',
+            )
+            return SimpleNamespace(returncode=0, stdout=stats, stderr="")
+
+        result = erc.scrape_one_service(
+            "frontend", "192.168.1.10,192.168.1.11", fetch
+        )
+        self.assertEqual(len(fetch_log), 2)
+        self.assertIsNone(result.warning)
+        self.assertEqual(result.edges["cartservice"]["total"], 140)
+        self.assertEqual(result.inbound["total"], 400)  # 200 + 200
+
+    def test_partial_failure_sums_only_surviving_ips_and_warns(self):
+        def fetch(url):
+            if "192.168.1.10" in url:
+                return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+            return SimpleNamespace(returncode=1, stdout="", stderr="connection refused")
+
+        result = erc.scrape_one_service(
+            "frontend", "192.168.1.10,192.168.1.11", fetch
+        )
+        self.assertIsNotNone(result.edges)
+        self.assertEqual(result.edges["cartservice"]["total"], 100)
+        self.assertTrue(result.had_partial_failure)
+        self.assertIn("tier2", result.warning)
+        self.assertIn("192.168.1.11", result.warning)
+
+    def test_all_ips_fail_evicts_like_single_ip_failure(self):
+        def fetch(url):
+            return SimpleNamespace(returncode=1, stdout="", stderr="connection refused")
+
+        result = erc.scrape_one_service(
+            "frontend", "192.168.1.10,192.168.1.11", fetch
+        )
+        self.assertTrue(result.evict_ip)
+        self.assertIsNone(result.edges)
 
 
 class TestPollOnceNetwork(unittest.TestCase):
@@ -516,80 +903,167 @@ class TestPollOnceThreadPoolSerialWrites(unittest.TestCase):
         self.assertIn("as_completed", src)
 
 
-class TestTier2Reseed(unittest.TestCase):
-    def test_fetch_failure_reseeds_new_ip_next_poll(self):
+class TestPollOnceIpCacheRefresh(unittest.TestCase):
+    def test_first_tick_uses_seeded_cache_without_any_kubectl_call(self):
         import tempfile
 
-        state = {"fetches": []}
-
-        def fetch(url):
-            state["fetches"].append(url)
-            if "10.0.0.1" in url:
-                return SimpleNamespace(returncode=1, stdout="", stderr="refused")
-            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+        kubectl_calls = []
 
         def runner(cmd):
-            joined = " ".join(cmd)
-            if "app=frontend" in joined:
-                return SimpleNamespace(returncode=0, stdout="10.0.0.2\n", stderr="")
-            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected")
+            kubectl_calls.append(cmd)
+            return SimpleNamespace(returncode=0, stdout="{}", stderr="")
 
-        cache = {"frontend": "10.0.0.1"}
+        def fetch(url):
+            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+
+        cache = {"frontend": "192.168.1.10"}
         with tempfile.TemporaryDirectory() as td:
-            record_path = Path(td)
             erc.poll_once(
-                record_path,
+                Path(td),
                 ["frontend"],
-                timestamp="2026-09-13T12:00:00Z",
+                timestamp="2026-09-21T12:00:00Z",
                 run_cmd=runner,
                 fetch_url=fetch,
                 ip_cache=cache,
                 poll_index=0,
                 tier2_warn_state={},
             )
-            self.assertEqual(cache.get("frontend"), "10.0.0.2")
-            self.assertFalse((record_path / "service_inbound.csv").exists())
+        self.assertEqual(kubectl_calls, [])
+        self.assertEqual(cache, {"frontend": "192.168.1.10"})
+
+    def test_healthy_scale_up_is_scraped_next_tick_with_zero_fetch_failures(self):
+        import json
+        import tempfile
+
+        pod_list = {
+            "items": [
+                {
+                    "metadata": {"name": "frontend-abc-11111"},
+                    "status": {"phase": "Running", "podIP": "192.168.1.10"},
+                },
+                {
+                    "metadata": {"name": "frontend-abc-22222"},
+                    "status": {"phase": "Running", "podIP": "192.168.1.11"},
+                },
+            ],
+        }
+
+        def runner(cmd):
+            return SimpleNamespace(returncode=0, stdout=json.dumps(pod_list), stderr="")
+
+        fetch_log = []
+
+        def fetch(url):
+            fetch_log.append(url)
+            # Both replicas answer successfully — no fetch failure at all,
+            # unlike the retired reseed mechanism this test replaces.
+            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+
+        cache = {"frontend": "192.168.1.10"}  # seeded with only the original replica
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
             erc.poll_once(
                 record_path,
                 ["frontend"],
-                timestamp="2026-09-13T12:00:01Z",
+                timestamp="2026-09-21T12:00:01Z",
                 run_cmd=runner,
                 fetch_url=fetch,
                 ip_cache=cache,
                 poll_index=1,
                 tier2_warn_state={},
             )
-            inbound = list(csv.DictReader((record_path / "service_inbound.csv").open(newline="")))
+            inbound = list(
+                csv.DictReader((record_path / "service_inbound.csv").open(newline=""))
+            )
+        self.assertEqual(cache["frontend"], "192.168.1.10,192.168.1.11")
+        self.assertEqual(len(fetch_log), 2)
         self.assertEqual(len(inbound), 1)
-        self.assertTrue(any("10.0.0.2" in u for u in state["fetches"]))
+        self.assertEqual(inbound[0]["total"], "400")  # 200 + 200, both replicas summed
 
-    def test_reseed_is_rate_limited(self):
+    def test_refresh_runs_every_tick_from_poll_index_one_onward(self):
+        import json
         import tempfile
 
         kubectl_calls = []
 
-        def fetch(url):
-            return SimpleNamespace(returncode=1, stdout="", stderr="refused")
-
         def runner(cmd):
             kubectl_calls.append(cmd)
-            return SimpleNamespace(returncode=0, stdout="10.0.0.9\n", stderr="")
+            return SimpleNamespace(returncode=0, stdout=json.dumps({"items": []}), stderr="")
 
-        cache = {"frontend": "10.0.0.1"}
-        warn_state = {}
+        def fetch(url):
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        cache = {}
         with tempfile.TemporaryDirectory() as td:
             for i in range(5):
                 erc.poll_once(
                     Path(td),
                     ["frontend"],
-                    timestamp="2026-09-13T12:00:00Z",
+                    timestamp="2026-09-21T12:00:00Z",
                     run_cmd=runner,
                     fetch_url=fetch,
                     ip_cache=cache,
                     poll_index=i,
-                    tier2_warn_state=warn_state,
+                    tier2_warn_state={},
                 )
-        self.assertEqual(len(kubectl_calls), 1)
+        # poll_index 0 skips the refresh (seeded tick); 1,2,3,4 each refresh
+        # once — the accepted cost model (one whole-namespace kubectl call
+        # per tick), not rate-limited like the retired per-service reseed.
+        self.assertEqual(len(kubectl_calls), 4)
+
+    def test_kubectl_failure_this_tick_keeps_previous_cache_and_keeps_scraping(self):
+        import tempfile
+
+        def runner(cmd):
+            return SimpleNamespace(returncode=1, stdout="", stderr="refused")
+
+        def fetch(url):
+            return SimpleNamespace(returncode=0, stdout=SAMPLE_MESH_STATS, stderr="")
+
+        cache = {"frontend": "192.168.1.10"}
+        with tempfile.TemporaryDirectory() as td:
+            record_path = Path(td)
+            erc.poll_once(
+                record_path,
+                ["frontend"],
+                timestamp="2026-09-21T12:00:01Z",
+                run_cmd=runner,
+                fetch_url=fetch,
+                ip_cache=cache,
+                poll_index=1,
+                tier2_warn_state={},
+            )
+            inbound = list(
+                csv.DictReader((record_path / "service_inbound.csv").open(newline=""))
+            )
+        self.assertEqual(cache, {"frontend": "192.168.1.10"})  # untouched, not wiped
+        self.assertEqual(len(inbound), 1)  # scrape still happened, using the old IP
+
+    def test_departed_service_is_dropped_from_cache_next_tick(self):
+        import json
+        import tempfile
+
+        pod_list = {"items": []}  # checkoutservice's pod is gone this tick
+
+        def runner(cmd):
+            return SimpleNamespace(returncode=0, stdout=json.dumps(pod_list), stderr="")
+
+        def fetch(url):
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        cache = {"checkoutservice": "10.0.0.50"}
+        with tempfile.TemporaryDirectory() as td:
+            erc.poll_once(
+                Path(td),
+                ["checkoutservice"],
+                timestamp="2026-09-21T12:00:01Z",
+                run_cmd=runner,
+                fetch_url=fetch,
+                ip_cache=cache,
+                poll_index=1,
+                tier2_warn_state={},
+            )
+        self.assertEqual(cache, {})
 
 
 class TestRunCollectorNetwork(unittest.TestCase):

@@ -1,39 +1,28 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Scenario 2 — Sustained Overload  |  Control: TopFull RL OFF (proxy only)
-#
-# Deliberate TopFull-off A/B against baseline_topfull_no_retryguard_sustained_
-# overload_run21 (e2-standard-16, TopFull RL ON). Same Locust load, same
-# perTryTimeout 500ms, same collectors — only difference is deploy_rl.py is
-# NOT started. Proxy stays up (Locust must route through :8090); admission
-# caps stay at the 10000 sentinel. Purpose: isolate whether TopFull's
-# throttling is what suppressed Envoy outbound retries on run21.
-#
-# Independent run_number / log_folder — does NOT consume slots from
-# scenario_2_baseline.yaml (baseline_topfull_no_retryguard_sustained_overload_*).
-# ─────────────────────────────────────────────────────────────────────────────
+# Both-off S2. run30–run34 are the completed CPU-spread series.
+# Next unused slot is run35 on the paper CPU table.
+# paper_cpu_reconcile is omitted so the runner restores paper limits.
+# User counts below are leftover mix 12 and have not been launched.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 3                  # run2 = 2026-09-19 frontend μ-cal attempt — bumped to avoid overwrite
+run_number: 35
 description: >
-  Ramp to ρ > 1, hold 10 minutes. Go proxy ON, TopFull RL OFF (no admission
-  control), Istio default retries on, RetryGuard OFF. Control run to test
-  whether TopFull throttling suppresses Envoy retries.
+  Both controllers off. Unused run35 slot on the paper CPU table.
+  Counts below are leftover mix 12 (100/150/100/100/5) and have not been launched.
 
 duration_seconds: 600
 
 locust:
   user_counts:
     getproduct:   100
-    postcheckout: 20
+    postcheckout: 150
     getcart:      100
     postcart:     100
-    emptycart:    300
-  spawn_rate: 90
+    emptycart:    5
+  spawn_rate: 50
   scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+    - online_boutique_create_v2.sh
 
 scale_constraints: []
 
@@ -42,7 +31,6 @@ retries:
   attempts_off: 0
   per_try_timeout_ms: 500
 
-# Go proxy stays up; deploy_rl.py is skipped — no admission throttling.
 topfull_rl:
   enabled: false
 
@@ -66,7 +54,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run3
+log_folder: baseline_no_topfull_sustained_overload_run35
 
 infra:
   master_ssh_host: topfull-master

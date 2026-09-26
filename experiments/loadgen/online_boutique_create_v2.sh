@@ -14,12 +14,15 @@
 #      Locust process with its own `-u`, driven by its own env var
 #      (GETCART / POSTCART / EMPTYCART).
 #
-#   2. `-r` (spawn rate) used to be computed as `$((count / RATE))` — i.e. a
-#      BIGGER RATE produced a SLOWER ramp (fewer users/sec), the opposite of
-#      what the name suggests, and for our (much smaller than TopFull's)
-#      target user counts this integer division often rounded down to 0-3
-#      users/sec, taking minutes to reach target population. Here, RATE (or
-#      a per-tag RATE_* override) is used DIRECTLY as Locust's `-r` users/sec.
+#   2. Upstream create.sh computes `-r` as bash `$((count / RATE))`. RATE
+#      is a divisor (a bigger RATE is a slower ramp), and integer division
+#      on our user counts often rounds to 0, so that tag never spawns.
+#      Ron's own launchers (frontend.sh and his create.sh) keep the same
+#      divisor but compute it with awk, so `-r` is the float `count / RATE`.
+#      This script matches that. YAML `spawn_rate` is that divisor, not
+#      Locust users/sec. Optional RATE_* env vars override the divisor per
+#      tag. Steady offered load is still ~1 request/sec per user
+#      (`constant_throughput(1)`); `-r` only controls the ramp.
 #
 # This file lives under experiments/ (NOT under TopFull/, which is a
 # read-only upstream submodule) and is meant to be deployed next to the
@@ -41,18 +44,19 @@
 #    Guides and Info/PHASE5-EXPERIMENTS-GUIDE.md §7) ──────────────────────
 #
 #   HOST                  Locust --host target.
-#                          Default: http://10.8.0.4:30440 (Istio ingress NodePort;
-#                          same fixed value the upstream scripts hardcode)
+#                          Default: http://10.128.0.3:30440 (frontend NodePort
+#                          on the master node — same value create.sh hardcodes)
 #   GETPRODUCT            getproduct user count.              Default: 300
 #   POSTCHECKOUT          postcheckout user count.             Default: 60
 #   GETCART               getcart user count (own process).    Default: 150
 #   POSTCART              postcart user count (own process).   Default: 150
 #   EMPTYCART             emptycart user count (own process).  Default: 150
-#   RATE                  Global spawn rate (users/sec), used DIRECTLY as
-#                         Locust `-r` for every tag unless overridden below.
-#                         Default: 50
+#   RATE                  Global spawn-rate divisor. Locust `-r` for a tag
+#                         is `count / RATE` (awk float) unless that tag's
+#                         RATE_* override is set. A bigger RATE is a slower
+#                         ramp. Default: 50 (Ron's frontend.sh divisor).
 #   RATE_GETPRODUCT / RATE_POSTCHECKOUT / RATE_GETCART / RATE_POSTCART /
-#   RATE_EMPTYCART        Optional per-tag spawn-rate override. Default: $RATE.
+#   RATE_EMPTYCART        Optional per-tag divisor override. Default: $RATE.
 #   DURATION_MIN          Locust `-t` in minutes. Empty = run untimed;
 #                         run_scenario.py already stops Locust itself at
 #                         `duration_seconds` via stop_locust(), so this is a
@@ -75,7 +79,7 @@
 #
 set -u
 
-HOST="${HOST:-http://10.8.0.4:30440}"
+HOST="${HOST:-http://10.128.0.3:30440}"
 
 GETPRODUCT="${GETPRODUCT:-300}"
 POSTCHECKOUT="${POSTCHECKOUT:-60}"
@@ -90,6 +94,14 @@ RATE_GETCART="${RATE_GETCART:-$RATE}"
 RATE_POSTCART="${RATE_POSTCART:-$RATE}"
 RATE_EMPTYCART="${RATE_EMPTYCART:-$RATE}"
 
+# Ron's spawn math (frontend.sh / his create.sh): -r = count / RATE, float
+# via awk. Bash $((count / RATE)) truncates and often yields 0.
+GETPRODUCT_R=$(awk "BEGIN {print $GETPRODUCT/$RATE_GETPRODUCT}")
+POSTCHECKOUT_R=$(awk "BEGIN {print $POSTCHECKOUT/$RATE_POSTCHECKOUT}")
+GETCART_R=$(awk "BEGIN {print $GETCART/$RATE_GETCART}")
+POSTCART_R=$(awk "BEGIN {print $POSTCART/$RATE_POSTCART}")
+EMPTYCART_R=$(awk "BEGIN {print $EMPTYCART/$RATE_EMPTYCART}")
+
 DURATION_MIN="${DURATION_MIN:-}"
 WORKERS_GETPRODUCT="${WORKERS_GETPRODUCT:-4}"
 WORKERS_POSTCHECKOUT="${WORKERS_POSTCHECKOUT:-2}"
@@ -102,13 +114,49 @@ fi
 
 # Locust's SimpleHTTPRequestHandler stats server (module-level in
 # locust_online_boutique.py) reads one port number from stdin at process
-# startup, for every process (master, worker, or standalone) — the upstream
-# scripts feed this from small `ports/<port>` files checked into
-# TopFull/TopFull_loadgen/ports/. Rather than depend on that checked-in
-# range (shared with create.sh/create2.sh, and only covering ports up to
-# 8930), this script creates its own port files on demand in a private
-# `ports_v2/` directory, in an unused range (91xx-93xx) so it can never
-# collide with a concurrently-running upstream script.
+# startup, for every process (master, worker, or standalone).
+# metric_collector.py scrapes locust_url:(8888 + i) for i in
+# range(locust_port). Live master global_config has locust_port=43, so
+# 8888-8930. Legacy create.sh puts worker/standalone stats in that range
+# (masters sit at 8885-8887, outside the scrape) via TopFull_loadgen/ports/.
+# v2 originally used a private 91xx-93xx range so it could never collide
+# with a concurrently-running upstream script — but then the collector
+# never saw traffic and Locust CSVs came back header-only. Point every
+# v2 stats process at 8888+ so the existing collector just works. Port
+# *files* stay in ports_v2/ — we never write TopFull_loadgen/ports/.
+# Locust master/worker RPC bind ports stay 9001/9002 (not stats).
+#
+# Layout at defaults (WORKERS_POSTCHECKOUT=2, WORKERS_GETPRODUCT=4):
+#   postcheckout master 8888, workers 8889-8890
+#   getproduct   master 8891, workers 8892-8895
+#   getcart 8896 / postcart 8897 / emptycart 8898
+# Masters report zeros (mapStats is process-local; --master does not run
+# users). Collector sums workers + standalone by API name. Set DRY_PORTS=1
+# to print the map and exit (no tmux / no locust).
+STATS_BASE=8888
+STATS_LAST=$((STATS_BASE + 42))   # locust_port=43 → 8888-8930 inclusive
+
+POSTCHECKOUT_MASTER_PORT=$STATS_BASE
+GETPRODUCT_MASTER_PORT=$((STATS_BASE + 1 + WORKERS_POSTCHECKOUT))
+CART_PORT_BASE=$((GETPRODUCT_MASTER_PORT + 1 + WORKERS_GETPRODUCT))
+GETCART_PORT=$CART_PORT_BASE
+POSTCART_PORT=$((CART_PORT_BASE + 1))
+EMPTYCART_PORT=$((CART_PORT_BASE + 2))
+
+if [[ "$EMPTYCART_PORT" -gt "$STATS_LAST" ]]; then
+  echo "ERROR: v2 stats ports ${STATS_BASE}-${EMPTYCART_PORT} exceed collector range ${STATS_BASE}-${STATS_LAST} (locust_port=43)" >&2
+  exit 1
+fi
+
+echo "v2 stats ports (metric_collector scrape ${STATS_BASE}-${STATS_LAST}):"
+echo "  postcheckout master ${POSTCHECKOUT_MASTER_PORT} workers $(seq -s, $((POSTCHECKOUT_MASTER_PORT + 1)) $((POSTCHECKOUT_MASTER_PORT + WORKERS_POSTCHECKOUT)))"
+echo "  getproduct   master ${GETPRODUCT_MASTER_PORT} workers $(seq -s, $((GETPRODUCT_MASTER_PORT + 1)) $((GETPRODUCT_MASTER_PORT + WORKERS_GETPRODUCT)))"
+echo "  getcart ${GETCART_PORT}  postcart ${POSTCART_PORT}  emptycart ${EMPTYCART_PORT}"
+
+if [[ "${DRY_PORTS:-}" == "1" ]]; then
+  exit 0
+fi
+
 mkdir -p ports_v2
 ensure_port() {
   local port="$1"
@@ -119,14 +167,14 @@ ensure_port() {
 tmux kill-session -t v2_postcheckout 2>/dev/null
 tmux new-session -d -s v2_postcheckout
 
-ensure_port 9101
+ensure_port "$POSTCHECKOUT_MASTER_PORT"
 tmux new-window -d -t v2_postcheckout \
   "$LOCUST_BIN -f locust_online_boutique.py --host=$HOST --tags postcheckout \
    --master-bind-port=9001 --master --expect-workers=$WORKERS_POSTCHECKOUT \
-   --headless -u $POSTCHECKOUT -r $RATE_POSTCHECKOUT ${TIME_FLAG[@]+"${TIME_FLAG[@]}"} \
-   < ports_v2/9101"
+   --headless -u $POSTCHECKOUT -r $POSTCHECKOUT_R ${TIME_FLAG[@]+"${TIME_FLAG[@]}"} \
+   < ports_v2/$POSTCHECKOUT_MASTER_PORT"
 for i in $(seq 1 "$WORKERS_POSTCHECKOUT"); do
-  port=$((9101 + i))
+  port=$((POSTCHECKOUT_MASTER_PORT + i))
   ensure_port "$port"
   tmux new-window -d -t v2_postcheckout \
     "$LOCUST_BIN -f locust_online_boutique.py --host=$HOST --tags postcheckout \
@@ -137,14 +185,14 @@ done
 tmux kill-session -t v2_getproduct 2>/dev/null
 tmux new-session -d -s v2_getproduct
 
-ensure_port 9201
+ensure_port "$GETPRODUCT_MASTER_PORT"
 tmux new-window -d -t v2_getproduct \
   "$LOCUST_BIN -f locust_online_boutique.py --host=$HOST --tags getproduct \
    --master-bind-port=9002 --master --expect-workers=$WORKERS_GETPRODUCT \
-   --headless -u $GETPRODUCT -r $RATE_GETPRODUCT ${TIME_FLAG[@]+"${TIME_FLAG[@]}"} \
-   < ports_v2/9201"
+   --headless -u $GETPRODUCT -r $GETPRODUCT_R ${TIME_FLAG[@]+"${TIME_FLAG[@]}"} \
+   < ports_v2/$GETPRODUCT_MASTER_PORT"
 for i in $(seq 1 "$WORKERS_GETPRODUCT"); do
-  port=$((9201 + i))
+  port=$((GETPRODUCT_MASTER_PORT + i))
   ensure_port "$port"
   tmux new-window -d -t v2_getproduct \
     "$LOCUST_BIN -f locust_online_boutique.py --host=$HOST --tags getproduct \
@@ -158,8 +206,8 @@ done
 #    (copy the master/worker block above) only if a future scenario needs
 #    more than a few hundred rps out of one of these three tags.
 declare -A CART_TAG_COUNT=( [getcart]="$GETCART" [postcart]="$POSTCART" [emptycart]="$EMPTYCART" )
-declare -A CART_TAG_RATE=( [getcart]="$RATE_GETCART" [postcart]="$RATE_POSTCART" [emptycart]="$RATE_EMPTYCART" )
-declare -A CART_TAG_PORT=( [getcart]=9301 [postcart]=9302 [emptycart]=9303 )
+declare -A CART_TAG_RATE=( [getcart]="$GETCART_R" [postcart]="$POSTCART_R" [emptycart]="$EMPTYCART_R" )
+declare -A CART_TAG_PORT=( [getcart]="$GETCART_PORT" [postcart]="$POSTCART_PORT" [emptycart]="$EMPTYCART_PORT" )
 
 for tag in getcart postcart emptycart; do
   session="v2_${tag}"

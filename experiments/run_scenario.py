@@ -124,9 +124,19 @@ def deploy_repo_script(host: str, filename: str, remote_path: str) -> None:
         print(f"[ERROR] Local script missing: {local}")
         sys.exit(1)
 
-    tmp = f"/tmp/rg_deploy_{filename}"
-    ssh(host, f"sudo rm -f {tmp}", check=False)
-    scp_to(str(local), host, tmp)
+    # Windows checkouts are often CRLF. Bash treats the CR as part of the
+    # command (`set -u\r`), so a deployed .sh exits before Locust starts.
+    payload = local.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=local.suffix, delete=False) as f:
+        f.write(payload)
+        staged = f.name
+
+    tmp = f"/tmp/rg_deploy_{Path(filename).name}"
+    try:
+        ssh(host, f"sudo rm -f {tmp}", check=False)
+        scp_to(staged, host, tmp)
+    finally:
+        os.unlink(staged)
 
     r = ssh(host, f"cp {tmp} {remote_path} && chmod a+r {remote_path}", check=False)
     if r.returncode != 0:
@@ -368,6 +378,31 @@ def capture_service_capacity(cfg: dict, services: list) -> dict:
     return capacity
 
 
+def cpu_resources_already_set(resources_json: str, cpu_quantity: str) -> bool:
+    text = (resources_json or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "'\"":
+        text = text[1:-1]
+    try:
+        resources = json.loads(text or "{}")
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(resources, dict):
+        return False
+    limits = resources.get("limits") or {}
+    requests = resources.get("requests") or {}
+    if not isinstance(limits, dict) or not isinstance(requests, dict):
+        return False
+    try:
+        target = parse_cpu_to_millicores(cpu_quantity)
+        live_limit = parse_cpu_to_millicores(limits.get("cpu"))
+        live_request = parse_cpu_to_millicores(requests.get("cpu"))
+    except ValueError:
+        return False
+    if target is None or live_limit is None or live_request is None:
+        return False
+    return live_limit == target and live_request == target
+
+
 def apply_constraints(cfg: dict) -> list:
     """
     Apply kubectl scale or CPU limit constraints.
@@ -403,12 +438,8 @@ def apply_constraints(cfg: dict) -> list:
             })
 
         elif method == "cpu_limit":
-            frac = float(c["cpu_limit_fraction"])
-            cpu_limit = topfull_cpu_quotas.kubectl_cpu_quantity(
-                topfull_cpu_quotas.millicores_from_fraction(
-                    topfull_cpu_quotas.paper_limit_for(dep), frac
-                )
-            )
+            limit_millicores = topfull_cpu_quotas.cpu_limit_millicores_for(c)
+            cpu_limit = topfull_cpu_quotas.kubectl_cpu_quantity(limit_millicores)
             container = c.get("container", "server")
             # Capture full original resources so restore is exact (requests must
             # also drop: K8s requires request <= limit, and Boutique defaults
@@ -417,9 +448,16 @@ def apply_constraints(cfg: dict) -> list:
                     f"kubectl get deployment {dep} -n {ns} "
                     f"-o jsonpath='{{.spec.template.spec.containers[0].resources}}'")
             original_resources = r.stdout.strip() or "{}"
+            if cpu_resources_already_set(original_resources, cpu_limit):
+                step(f"{dep}/{container} already at {cpu_limit}; skipping patch")
+                continue
+            spec_desc = (
+                f"millicores={limit_millicores}" if "cpu_limit_millicores" in c
+                else f"fraction={c['cpu_limit_fraction']}"
+            )
             step(
                 f"Applying CPU limit {cpu_limit} "
-                f"(fraction={frac}) to {dep}/{container} ({ns})"
+                f"({spec_desc}) to {dep}/{container} ({ns})"
             )
             patch = json.dumps({
                 "spec": {"template": {"spec": {"containers": [
@@ -430,6 +468,11 @@ def apply_constraints(cfg: dict) -> list:
                 ]}}}
             })
             ssh(master, f"kubectl patch deployment {dep} -n {ns} -p '{patch}'")
+            ssh(
+                master,
+                f"kubectl rollout status deployment/{dep} -n {ns} --timeout=180s",
+                check=False,
+            )
             # CPU restore is paper-reconcile (not the pre-patch blob); keep
             # the record only for audit. restore_constraints skips cpu_limit.
             restore_records.append({
@@ -447,21 +490,34 @@ def apply_constraints(cfg: dict) -> list:
     return restore_records
 
 
+def cpu_request_fraction_from_cfg(cfg: dict) -> float:
+    """Optional YAML key; default 1.0 keeps request == limit."""
+    return topfull_cpu_quotas.validate_request_fraction(
+        cfg.get("cpu_request_fraction", 1.0)
+    )
+
+
 def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
     """Patch Boutique Deployments to the paper CPU limit/request table."""
     banner("Reconciling CPU limits to paper quotas")
     master = cfg["infra"]["master_ssh_host"]
+    request_fraction = cpu_request_fraction_from_cfg(cfg)
+    if request_fraction != 1.0:
+        step(f"cpu_request_fraction={request_fraction} (limits unchanged)")
     for dep in topfull_cpu_quotas.RECONCILE_SERVICES:
         lim = topfull_cpu_quotas.kubectl_cpu_quantity(
             topfull_cpu_quotas.paper_limit_for(dep)
         )
         req = topfull_cpu_quotas.kubectl_cpu_quantity(
-            topfull_cpu_quotas.paper_request_for(dep)
+            topfull_cpu_quotas.paper_request_for(
+                dep, request_fraction=request_fraction
+            )
         )
-        step(f"{dep}: limits.cpu={lim} requests.cpu={req}")
+        container = topfull_cpu_quotas.container_name_for(dep)
+        step(f"{dep}: limits.cpu={lim} requests.cpu={req} (container={container})")
         patch = json.dumps({
             "spec": {"template": {"spec": {"containers": [
-                {"name": "server", "resources": {
+                {"name": container, "resources": {
                     "limits": {"cpu": lim},
                     "requests": {"cpu": req},
                 }}
@@ -471,6 +527,19 @@ def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
             check=False)
     if wait:
         wait_with_progress(20, "pods stabilising after paper CPU reconcile")
+
+
+def paper_cpu_reconcile_enabled(cfg: dict) -> bool:
+    """Default true. The CPU-spread series sets false so a 5-replica
+    frontend is not combined with the paper backend table mid-run."""
+    return bool(cfg.get("paper_cpu_reconcile", True))
+
+
+def reconcile_paper_cpu_limits_if_enabled(cfg: dict, wait: bool = True) -> None:
+    if not paper_cpu_reconcile_enabled(cfg):
+        step("paper_cpu_reconcile is false; leaving live CPU limits unchanged")
+        return
+    reconcile_paper_cpu_limits(cfg, wait=wait)
 
 
 def write_run_quotas_json(cfg: dict) -> dict:
@@ -738,18 +807,26 @@ def ensure_envoy_stats_enabled(cfg: dict, caller_pods: list):
 
 
 def discover_service_pod_ips(cfg: dict, services: list) -> dict:
+    """
+    Seed the mesh collector's per-service pod-IP cache with EVERY
+    Running pod IP for that service, comma-joined
+    (envoy_retry_collector.parse_ip_list splits on comma) — not just the
+    first pod. Needed once a service (frontend, under its 2026-09-20
+    HPA) can have more than one replica; seeding only the first pod's IP
+    would silently scrape 1 of up to 4 frontend replicas forever.
+    """
     master = cfg["infra"]["master_ssh_host"]
     out = {}
     for svc in services:
         r = ssh(
             master,
             f"kubectl get pods -n default -l app={svc} "
-            f"-o jsonpath={{.items[0].status.podIP}}",
+            "-o jsonpath='{range .items[*]}{.status.podIP}{\"\\n\"}{end}'",
             check=False,
         )
-        ip = (r.stdout or "").strip()
-        if ip:
-            out[svc] = ip
+        ips = [ip.strip() for ip in (r.stdout or "").splitlines() if ip.strip()]
+        if ips:
+            out[svc] = ",".join(ips)
         else:
             print(f"[WARN] No pod IP for app={svc} during mesh seed "
                   f"(stderr={(r.stderr or '').strip()})")
@@ -910,12 +987,30 @@ def start_topfull_throttle_collector(cfg: dict):
 #  Locust
 # --------------------------------------------------------------------------- #
 
+def _deploy_local_loadgen_scripts(cfg: dict, scripts: list[str]) -> None:
+    """
+    Redeploy any of `scripts` that this repo tracks under experiments/loadgen/
+    onto the loadgen host before launching — the same "never trust a stale
+    remote copy" treatment deploy_repo_script already gives master's
+    collectors. Scripts not present locally (the legacy
+    online_boutique_create.sh / create2.sh, hand-patched directly on
+    topfull-load per PHASE5-EXPERIMENTS-GUIDE.md §7) are left untouched.
+    """
+    loadgen = cfg["infra"]["loadgen_ssh_host"]
+    loadgen_path = cfg["infra"]["topfull_loadgen_path"]
+    for s in scripts:
+        local = EXPERIMENTS_DIR / "loadgen" / s
+        if local.is_file():
+            deploy_repo_script(loadgen, f"loadgen/{s}", f"{loadgen_path}/{s}")
+
+
 def _launch_locust(cfg: dict, user_counts: dict, spawn_rate) -> None:
     """Kill any running Locust and start it fresh at the given load level."""
     loadgen = cfg["infra"]["loadgen_ssh_host"]
     loadgen_path = cfg["infra"]["topfull_loadgen_path"]
     lc = cfg.get("locust", {})
     scripts = lc.get("scripts", ["online_boutique_create.sh", "online_boutique_create2.sh"])
+    _deploy_local_loadgen_scripts(cfg, scripts)
 
     # Env var mapping: YAML key -> shell variable name in create scripts
     ENV_MAP = {
@@ -923,13 +1018,20 @@ def _launch_locust(cfg: dict, user_counts: dict, spawn_rate) -> None:
         "postcheckout": "POSTCHECKOUT",
         "getcart":      "GETCART",
         "postcart":     "POSTCART",
-        "emptycart":    "CART",      # create scripts use CART, not EMPTYCART
+        "emptycart":    "CART",      # legacy create.sh/create2.sh read CART, not EMPTYCART
     }
 
     exports = []
     for yaml_key, shell_var in ENV_MAP.items():
         if yaml_key in user_counts:
             exports.append(f"export {shell_var}={user_counts[yaml_key]}")
+    # online_boutique_create_v2.sh (2026-09-21 loadgen shape design, decision 3)
+    # reads EMPTYCART directly instead of the legacy merged CART variable.
+    # Export both: existing scenario YAMLs keep driving the legacy scripts
+    # via CART unchanged, and v2 becomes usable once a scenario points a
+    # locust.scripts entry at it, with zero YAML schema change required.
+    if "emptycart" in user_counts:
+        exports.append(f"export EMPTYCART={user_counts['emptycart']}")
     if spawn_rate is not None:
         exports.append(f"export RATE={spawn_rate}")
     env_prefix = "; ".join(exports) + "; " if exports else ""
@@ -954,8 +1056,11 @@ def _launch_locust(cfg: dict, user_counts: dict, spawn_rate) -> None:
 
     wait_with_progress(8, "Locust workers connecting")
 
-    r = ssh(loadgen, "pgrep -c locust 2>/dev/null || echo 0")
-    count = int(r.stdout.strip())
+    # pgrep -c prints 0 and exits 1 when nothing matches. `|| echo 0`
+    # then appends a second 0, and int("0\n0") crashes the runner.
+    r = ssh(loadgen, "pgrep -c locust 2>/dev/null || true")
+    lines = (r.stdout or "").strip().split()
+    count = int(lines[-1]) if lines else 0
     if count == 0:
         print("[ERROR] No Locust processes found. Check the create scripts on the loadgen.")
         sys.exit(1)
@@ -1154,6 +1259,7 @@ def collect_results(
         "resource_usage_collector": cfg.get("resource_usage_collector", {}),
         "topfull_throttle_collector": cfg.get("topfull_throttle_collector", {}),
         "scale_constraints": cfg.get("scale_constraints", []),
+        "cpu_request_fraction": cpu_request_fraction_from_cfg(cfg),
         "paper_cpu_quotas": paper,
         "effective_cpu_quotas": effective,
         "log_folder":    log_folder,
@@ -1179,6 +1285,7 @@ def run(config_path: str):
         cfg = yaml.safe_load(f)
 
     topfull_cpu_quotas.validate_scale_constraints(cfg.get("scale_constraints") or [])
+    cpu_request_fraction_from_cfg(cfg)
 
     scenario    = cfg["scenario_name"]
     condition   = cfg["condition"]
@@ -1226,17 +1333,14 @@ def run(config_path: str):
             if method == "replicas":
                 print(f"    {c['deployment']}: scale to {c['replicas']} replica(s)")
             elif method == "cpu_limit":
-                frac = c.get("cpu_limit_fraction")
-                qty = topfull_cpu_quotas.kubectl_cpu_quantity(
-                    topfull_cpu_quotas.millicores_from_fraction(
-                        topfull_cpu_quotas.paper_limit_for(c["deployment"]),
-                        float(frac),
-                    )
+                limit_millicores = topfull_cpu_quotas.cpu_limit_millicores_for(c)
+                qty = topfull_cpu_quotas.kubectl_cpu_quantity(limit_millicores)
+                spec_desc = (
+                    f"cpu_limit_millicores={c['cpu_limit_millicores']}"
+                    if "cpu_limit_millicores" in c
+                    else f"cpu_limit_fraction={c['cpu_limit_fraction']}"
                 )
-                print(
-                    f"    {c['deployment']}: cpu_limit_fraction={frac} "
-                    f"({qty})"
-                )
+                print(f"    {c['deployment']}: {spec_desc} ({qty})")
     if len(phases) > 1:
         print(f"  Load phases:")
         for p in phases:
@@ -1255,7 +1359,7 @@ def run(config_path: str):
         # Reconcile first (heals leftover S3 100m). Wait only when there are
         # no fraction constraints — apply_constraints already waits 20s.
         has_constraints = bool(cfg.get("scale_constraints"))
-        reconcile_paper_cpu_limits(cfg, wait=not has_constraints)
+        reconcile_paper_cpu_limits_if_enabled(cfg, wait=not has_constraints)
         restore_records = apply_constraints(cfg)
         capacity = capture_service_capacity(cfg, ALL_BOUTIQUE_SERVICES)
         effective_quotas = write_run_quotas_json(cfg)
@@ -1315,7 +1419,7 @@ def run(config_path: str):
         if restore_records:
             restore_constraints(cfg, restore_records)
         # Always return to paper CPU limits (not pre-run dirty blobs).
-        reconcile_paper_cpu_limits(cfg, wait=False)
+        reconcile_paper_cpu_limits_if_enabled(cfg, wait=False)
 
         restore_virtualservice_retries(cfg)
 

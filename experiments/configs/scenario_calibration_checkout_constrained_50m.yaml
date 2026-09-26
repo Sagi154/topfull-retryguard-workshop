@@ -1,41 +1,47 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Calibration — checkoutservice, CONSTRAINED CPU (50m), TopFull+RG OFF
 #
-# Not part of the S1-S6 scenario matrix. Same Locust mix as the 100m
-# checkout constrained cal. Constrain only checkoutservice to
-# cpu_limit_fraction 0.05 × paper 1000m → 50m. paymentservice stays paper
-# 1000m. TopFull RL off and RetryGuard off.
+# Not part of the S1-S6 scenario matrix. Ron-config ~3× measured 50m
+# mu_sat goodput (checkout≈74 rps) — postcheckout:220 as the target tag,
+# light non-target tags at 10 because v2's float count/RATE actually
+# spawns them; spawn_rate: 50 is Ron's divisor.
+# Constrain only checkoutservice to
+# cpu_limit_millicores: 50 (ADR-0006). A fraction 0.05 of the current
+# Ron-config paper value (615m) would land on 30.75m, not 50m.
+# paymentservice stays unconstrained (reconciles to Ron-config 155m).
+# TopFull RL off and RetryGuard off.
 # scenario_id 47 so scenario_dir_name() returns "" (results under campaign_48/).
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 47
 scenario_name: calibration_checkout_constrained_50m
 condition: calibration
-run_number: 2
+run_number: 4
 description: >
   Calibration-only run. checkoutservice CPU constrained to 50m
-  (0.05 x paper 1000m). paymentservice stays paper 1000m.
-  TopFull RL off, RetryGuard off.
+  (cpu_limit_millicores, ADR-0006). paymentservice stays unconstrained
+  (reconciles to Ron-config 155m). TopFull RL off, RetryGuard off.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   50
-    postcheckout: 500
-    getcart:      50
-    postcart:     50
-    emptycart:    50
-  spawn_rate: 150
+    getproduct:   10
+    postcheckout: 220
+    getcart:      10
+    postcart:     10
+    emptycart:    10
+  spawn_rate: 50
   scripts:
-    - online_boutique_create.sh
-    - online_boutique_create2.sh
+    - online_boutique_create_v2.sh
 
 scale_constraints:
   - deployment: checkoutservice
     namespace: default
     method: cpu_limit
-    cpu_limit_fraction: 0.05    # 0.05 x paper 1000m -> 50m
+    cpu_limit_millicores: 50    # absolute (ADR-0006) — fraction 0.05 now computes
+                                 # against the Ron-config 615m paper value (30.75m),
+                                 # not the intended 50m
     container: server
 
 retries:
@@ -66,7 +72,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: calibration_checkout_constrained_50m_run2
+log_folder: calibration_checkout_constrained_50m_run4
 
 infra:
   master_ssh_host: topfull-master
