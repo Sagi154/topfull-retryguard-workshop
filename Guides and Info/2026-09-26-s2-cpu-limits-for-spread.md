@@ -8,7 +8,7 @@ Both controllers stay off on these holds. The three S2 signals are still the one
 
 ## Three tables
 
-Millicores. Request equals limit. Frontend is 1150 m on each of 5 replicas. Paper is the table on the both-off holds before run18. Dispense is the table on runs 18–21, from [2026-09-25-s2-cpu-dispense-runs-18-21.md](2026-09-25-s2-cpu-dispense-runs-18-21.md). Agreed is the table this series runs (runs 30–34).
+Millicores. Request equals limit. Paper is the table on the both-off holds before run18. Dispense is the table on runs 18–21, from [2026-09-25-s2-cpu-dispense-runs-18-21.md](2026-09-25-s2-cpu-dispense-runs-18-21.md). Agreed is the table this series runs (runs 30–34). Paper and Dispense pin frontend at 4 replicas, so their deployment totals use 4 × 1150 m. Agreed pins frontend at 5 replicas, so its deployment total uses 5 × 1150 m.
 
 | Service | Paper | Dispense (runs 18–21) | Agreed (runs 30–34) |
 |---|---:|---:|---:|
@@ -33,7 +33,7 @@ Quota that a service does not use can move to a service that does. Ad does not n
 
 Agreed sets checkout to 1500 m and recommendations to 2000 m. The 1150 m paper quota was clipping recommendations (run 6 peaked at 1130 m). Currency goes to 500 m and catalog to 600 m so those two, which already draw the most CPU behind the chokes, sit near the detector’s 0.8 line. Payment goes to 150 m and email goes to 150 m. Their means are 30–55 m. Redis-cart goes to 500 m. Request equals limit.
 
-The deployment total counts frontend at 5 × 1150 m and every other service once. Paper sums to 13,360 m. That is the ceiling. Dispense sums to 13,275 m. Agreed sums to 13,150 m, under that ceiling. Run 6’s checkout peak (613 m) is 41% of 1500 m. Its recommendations peak (1130 m) sits under the agreed 2000 m cap.
+Paper and Dispense pin frontend at 4 replicas and count every other service once, so their deployment totals use 4 × 1150 m. Paper sums to 13,360 m. That four-replica total is the ceiling. Dispense sums to 13,275 m. Agreed (runs 30–34) pins frontend at 5 replicas, so its deployment total uses 5 × 1150 m and is 13,150 m, under the paper four-replica ceiling of 13,360 m. Run 6’s checkout peak (613 m) is 41% of 1500 m. Its recommendations peak (1130 m) sits under the agreed 2000 m cap.
 
 ## Measured CPU on the candidate holds
 
