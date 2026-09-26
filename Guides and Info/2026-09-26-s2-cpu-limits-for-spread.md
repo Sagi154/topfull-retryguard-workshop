@@ -8,7 +8,7 @@ Both controllers stay off on these holds. The three S2 signals are still the one
 
 ## Three tables
 
-Millicores. Request equals limit. Frontend is per replica (4 replicas when pinned). Paper is the table on the both-off holds before run18. Dispense is the table on runs 18–21, from [2026-09-25-s2-cpu-dispense-runs-18-21.md](2026-09-25-s2-cpu-dispense-runs-18-21.md). Suggested is the table for the goal above.
+Millicores. Request equals limit. Frontend is 1150 m on each of 5 replicas. Paper is the table on the both-off holds before run18. Dispense is the table on runs 18–21, from [2026-09-25-s2-cpu-dispense-runs-18-21.md](2026-09-25-s2-cpu-dispense-runs-18-21.md). Agreed is the table this series runs (runs 30–34).
 
 | Service | Paper | Dispense (runs 18–21) | Agreed (runs 30–34) |
 |---|---:|---:|---:|
@@ -29,13 +29,13 @@ Paper pegs checkout at 615 m and recommendations at 1150 m. Every other backend 
 
 Dispense raises checkout 615 → 1500 and recommendations 1150 → 1250, and tightens cart 1920 → 1200 and ad 1150 → 800. The other seven services stay on paper. That raise on checkout is large enough to leave the 615 m peg. The recommendations step is not: run 6 already reached 1130 m, which is 90% of 1250 m and still above the detector’s 0.8 line. Cart’s highest paper-CPU peak is 601 m (run 7) and ad’s is 467 m (run 3), so 1200 m and 800 m stay above the CPU those services used.
 
-Quota that a service does not use can move to a service that does. Ad does not need 800 m: its highest paper-CPU peak is 467 m (run 3), and on runs 6 and 7 it peaked at 162 m and 265 m. Shipping does not need 770 m: its highest peak on the paper-CPU holds is 144 m (run 7). Suggested sets ad to 600 m and shipping to 400 m. Those caps still sit above the measured peaks (467 / 600 is 0.78, 144 / 400 is 0.36), so this is spare quota, not a new bottleneck. A cap near 150 m on either service would be a targeted bottleneck, which stays Scenario 3/4’s job. Cart’s peak is 601 m of 1920 m, so the same move is available there later; this table leaves cart on paper.
+Quota that a service does not use can move to a service that does. Ad does not need 800 m: its highest paper-CPU peak is 467 m (run 3), and on runs 6 and 7 it peaked at 162 m and 265 m. Shipping does not need 770 m: its highest peak on the paper-CPU holds is 144 m (run 7). Agreed sets ad to 600 m and shipping to 400 m. Those caps still sit above the measured peaks (467 / 600 is 0.78, 144 / 400 is 0.36), so this is spare quota, not a new bottleneck. A cap near 150 m on either service would be a targeted bottleneck, which stays Scenario 3/4’s job. Cart’s highest paper-CPU peak is 601 m (run 7). Agreed sets cart to 1000 m.
 
-The millicores taken from ad (550 m) and shipping (370 m), together with the currency and catalog cuts, pay for the raises. Checkout goes to 1500 m. Recommendations goes to 2300 m, because the 1150 m quota was clipping it (run 6 peaked at 1130 m). Currency goes to 500 m and catalog to 600 m so those two, which already draw the most CPU behind the chokes, sit near the detector’s 0.8 line. Payment and email stay on paper. Their means are 30–55 m, and a hot cap would be under 80 m.
+Agreed sets checkout to 1500 m and recommendations to 2000 m. The 1150 m paper quota was clipping recommendations (run 6 peaked at 1130 m). Currency goes to 500 m and catalog to 600 m so those two, which already draw the most CPU behind the chokes, sit near the detector’s 0.8 line. Payment goes to 150 m and email goes to 150 m. Their means are 30–55 m. Redis-cart goes to 500 m. Request equals limit.
 
-The deployment total counts frontend at 4 × 1150 m and every other service once. Paper sums to 13,360 m. That is the ceiling. Dispense sums to 13,275 m. Suggested sums to 13,270 m, 90 m under paper. Run 6’s checkout peak (613 m) is 41% of 1500 m. Its recommendations peak (1130 m) is 49% of 2300 m.
+The deployment total counts frontend at 5 × 1150 m and every other service once. Paper sums to 13,360 m. That is the ceiling. Dispense sums to 13,275 m. Agreed sums to 13,150 m, under that ceiling. Run 6’s checkout peak (613 m) is 41% of 1500 m. Its recommendations peak (1130 m) sits under the agreed 2000 m cap.
 
-## Where the suggested numbers come from
+## Measured CPU on the candidate holds
 
 Mean and max app-container CPU on the two candidate holds, from `resource_usage.csv`. Quotas are the paper table.
 
