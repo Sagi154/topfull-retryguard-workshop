@@ -501,6 +501,19 @@ def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
         wait_with_progress(20, "pods stabilising after paper CPU reconcile")
 
 
+def paper_cpu_reconcile_enabled(cfg: dict) -> bool:
+    """Default true. The CPU-spread series sets false so a 5-replica
+    frontend is not combined with the paper backend table mid-run."""
+    return bool(cfg.get("paper_cpu_reconcile", True))
+
+
+def reconcile_paper_cpu_limits_if_enabled(cfg: dict, wait: bool = True) -> None:
+    if not paper_cpu_reconcile_enabled(cfg):
+        step("paper_cpu_reconcile is false; leaving live CPU limits unchanged")
+        return
+    reconcile_paper_cpu_limits(cfg, wait=wait)
+
+
 def write_run_quotas_json(cfg: dict) -> dict:
     """Upload effective per-service millicores for Detector.__init__ overlay."""
     master = cfg["infra"]["master_ssh_host"]
@@ -1318,7 +1331,7 @@ def run(config_path: str):
         # Reconcile first (heals leftover S3 100m). Wait only when there are
         # no fraction constraints — apply_constraints already waits 20s.
         has_constraints = bool(cfg.get("scale_constraints"))
-        reconcile_paper_cpu_limits(cfg, wait=not has_constraints)
+        reconcile_paper_cpu_limits_if_enabled(cfg, wait=not has_constraints)
         restore_records = apply_constraints(cfg)
         capacity = capture_service_capacity(cfg, ALL_BOUTIQUE_SERVICES)
         effective_quotas = write_run_quotas_json(cfg)
@@ -1378,7 +1391,7 @@ def run(config_path: str):
         if restore_records:
             restore_constraints(cfg, restore_records)
         # Always return to paper CPU limits (not pre-run dirty blobs).
-        reconcile_paper_cpu_limits(cfg, wait=False)
+        reconcile_paper_cpu_limits_if_enabled(cfg, wait=False)
 
         restore_virtualservice_retries(cfg)
 

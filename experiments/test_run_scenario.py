@@ -1243,5 +1243,34 @@ class TestStartMasterStackTopfullRl(unittest.TestCase):
         self.assertIn("/tmp/rg_rl.sh", self._script_paths(mock_write_script))
 
 
+class TestPaperCpuReconcileFlag(unittest.TestCase):
+    def test_missing_key_stays_on(self):
+        self.assertTrue(run_scenario.paper_cpu_reconcile_enabled({}))
+
+    def test_false_skips_the_live_patch(self):
+        calls = []
+
+        def fake_reconcile(cfg, wait=True):
+            calls.append(wait)
+
+        with mock.patch.object(run_scenario, "reconcile_paper_cpu_limits", fake_reconcile), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.reconcile_paper_cpu_limits_if_enabled(
+                {"paper_cpu_reconcile": False}, wait=True
+            )
+        self.assertEqual(calls, [])
+
+    def test_true_calls_through(self):
+        calls = []
+
+        def fake_reconcile(cfg, wait=True):
+            calls.append(wait)
+
+        with mock.patch.object(run_scenario, "reconcile_paper_cpu_limits", fake_reconcile), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.reconcile_paper_cpu_limits_if_enabled({}, wait=False)
+        self.assertEqual(calls, [False])
+
+
 if __name__ == "__main__":
     unittest.main()
