@@ -1,9 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 2 — Sustained Overload  |  Both controllers OFF (proxy only)
 #
-# run14–run17 are the 2026-09-25 four-mix sweep. run18–run21 are the
-# 2026-09-25 CPU-dispense replay of source mixes 6, 10, 11, 12
-# (frontend pinned at 4). This file's current slot is the next hold.
+# run22–run25 are the 2026-09-26 paper-CPU replay of both-off mixes 9–12.
+# run14–run17 and run18–run21 stay untouched. This file's current slot
+# is the next hold.
 #
 # Independent run_number / log_folder — does NOT consume slots from
 # scenario_2_baseline.yaml (baseline_topfull_no_retryguard_sustained_overload_*).
@@ -12,14 +12,13 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 22                  # run18–run21 are the CPU-dispense replay; next free
+run_number: 26                  # next free; run22–run25 are the paper-CPU replay of mixes 9–12
 description: >
-  Both controllers off. Frontend pinned at 4, catalog HPA max 1, sidecar
-  request 90m. CPU dispense: cart 1200, ad 800, checkout 1500, email 155,
-  redis-cart 540, shipping 770, recommendations 1250, frontend 1150,
-  currency 770, payments 155, productcatalog 1535. Slot run22 is unused.
-  run18–run21 replayed source mixes 6, 10, 11, and 12. Proxy ON,
-  deploy_rl.py skipped, RetryGuard OFF, Istio default retries.
+  Both controllers off. Paper CPU table (no dispense overrides). Slot run26
+  is unused. run22–run25 replayed mixes 9–12 (250/80/250/100/5,
+  325/80/100/100/5, 250/100/100/100/5, 100/150/100/100/5). The counts
+  below are the mix-12 values left after run25. Proxy ON, deploy_rl.py
+  skipped, RetryGuard OFF, Istio default retries.
 
 duration_seconds: 600
 
@@ -34,30 +33,9 @@ locust:
   scripts:
     - online_boutique_create_v2.sh
 
-# Only the four services that differ from the paper table. The runner
-# reconciles every service to paper first, then applies these overrides.
-# Order frees cart/ad budget before raising checkout and recommendations.
-scale_constraints:
-  - deployment: cartservice
-    namespace: default
-    method: cpu_limit
-    cpu_limit_millicores: 1200
-    container: server
-  - deployment: adservice
-    namespace: default
-    method: cpu_limit
-    cpu_limit_millicores: 800
-    container: server
-  - deployment: checkoutservice
-    namespace: default
-    method: cpu_limit
-    cpu_limit_millicores: 1500
-    container: server
-  - deployment: recommendationservice
-    namespace: default
-    method: cpu_limit
-    cpu_limit_millicores: 1250
-    container: server
+# Paper CPU table only. The runner reconciles every service to paper
+# limits before the hold and again after it.
+scale_constraints: []
 
 retries:
   attempts_on: 3
@@ -88,7 +66,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run22
+log_folder: baseline_no_topfull_sustained_overload_run26
 
 infra:
   master_ssh_host: topfull-master
