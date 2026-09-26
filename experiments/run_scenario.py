@@ -390,7 +390,17 @@ def cpu_resources_already_set(resources_json: str, cpu_quantity: str) -> bool:
         return False
     limits = resources.get("limits") or {}
     requests = resources.get("requests") or {}
-    return limits.get("cpu") == cpu_quantity and requests.get("cpu") == cpu_quantity
+    if not isinstance(limits, dict) or not isinstance(requests, dict):
+        return False
+    try:
+        target = parse_cpu_to_millicores(cpu_quantity)
+        live_limit = parse_cpu_to_millicores(limits.get("cpu"))
+        live_request = parse_cpu_to_millicores(requests.get("cpu"))
+    except ValueError:
+        return False
+    if target is None or live_limit is None or live_request is None:
+        return False
+    return live_limit == target and live_request == target
 
 
 def apply_constraints(cfg: dict) -> list:

@@ -1290,6 +1290,13 @@ class TestCpuPatchSkip(unittest.TestCase):
         self.assertTrue(run_scenario.cpu_resources_already_set(raw, "1500m"))
         self.assertFalse(run_scenario.cpu_resources_already_set(raw, "615m"))
 
+    def test_whole_core_quantities_match_millicore_targets(self):
+        cart = '{"limits":{"cpu":"1"},"requests":{"cpu":"1"}}'
+        recommendations = '{"limits":{"cpu":"2"},"requests":{"cpu":"2"}}'
+        self.assertTrue(run_scenario.cpu_resources_already_set(cart, "1000m"))
+        self.assertTrue(run_scenario.cpu_resources_already_set(recommendations, "2000m"))
+        self.assertFalse(run_scenario.cpu_resources_already_set(cart, "2000m"))
+
     def test_patch_skipped_when_request_and_limit_match(self):
         raw = '{"limits":{"cpu":"1500m"},"requests":{"cpu":"1500m"}}'
         cmds = []
