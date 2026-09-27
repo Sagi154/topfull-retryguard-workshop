@@ -6,24 +6,24 @@ Spread the load that sits on `checkoutservice` and `recommendationservice` onto 
 
 Both controllers stay off on these holds. The three S2 signals are still the ones in [2026-09-24-s2-both-off-abc-reading.md](2026-09-24-s2-both-off-abc-reading.md): a 30-sample inbound rejection streak, a detector `overloaded` share of at least half the hold, and a retry storm on those same edges. The CPU table is a way to move those signals off checkout and recommendations and onto more of the nine controlled services.
 
-## Three tables
+## Four tables
 
-Millicores. Request equals limit. Paper is the table on the both-off holds before run18. Dispense is the table on runs 18–21, from [2026-09-25-s2-cpu-dispense-runs-18-21.md](2026-09-25-s2-cpu-dispense-runs-18-21.md). Agreed is the table this series runs (runs 30–34). Paper and Dispense pin frontend at 4 replicas, so their deployment totals use 4 × 1150 m. Agreed pins frontend at 5 replicas, so its deployment total uses 5 × 1150 m.
+Millicores per pod. Request equals limit. A deployment total is limit × replicas. Paper is the table on the both-off holds before run18. Dispense is the table on runs 18–21, from [2026-09-25-s2-cpu-dispense-runs-18-21.md](2026-09-25-s2-cpu-dispense-runs-18-21.md). Agreed is the table on runs 30–34. Replica is the table on runs 35–38. Paper, Dispense, and Replica pin frontend at 4 replicas, so their frontend totals use 4 × 1150 m. Agreed pins frontend at 5 replicas, so its frontend total uses 5 × 1150 m. Paper, Dispense, and Agreed run every backend at one replica. Replica adds a second replica on checkout, cart, payment, and email, and a third on recommendations.
 
-| Service | Paper | Dispense (runs 18–21) | Agreed (runs 30–34) |
-|---|---:|---:|---:|
-| frontend | 1150 | 1150 | 1150 × 5 replicas |
-| checkoutservice | 615 | 1500 | 1500 |
-| recommendationservice | 1150 | 1250 | 2000 |
-| productcatalogservice | 1535 | 1535 | 600 |
-| cartservice | 1920 | 1200 | 1000 |
-| currencyservice | 770 | 770 | 500 |
-| shippingservice | 770 | 770 | 400 |
-| adservice | 1150 | 800 | 600 |
-| paymentservice | 155 | 155 | 150 |
-| emailservice | 155 | 155 | 150 |
-| redis-cart | 540 | 540 | 500 |
-| **Deployment total** | **13360** | **13275** | **13150** |
+| Service | Paper | Dispense (runs 18–21) | Agreed (runs 30–34) | Replica |
+|---|---:|---:|---:|---:|
+| frontend | 1150 | 1150 | 1150 × 5 replicas | 1150 × 4 replicas |
+| checkoutservice | 615 | 1500 | 1500 | 800 × 2 replicas |
+| recommendationservice | 1150 | 1250 | 2000 | 800 × 3 replicas |
+| productcatalogservice | 1535 | 1535 | 600 | 600 |
+| cartservice | 1920 | 1200 | 1000 | 600 × 2 replicas |
+| currencyservice | 770 | 770 | 500 | 650 |
+| shippingservice | 770 | 770 | 400 | 400 |
+| adservice | 1150 | 800 | 600 | 600 |
+| paymentservice | 155 | 155 | 150 | 150 × 2 replicas |
+| emailservice | 155 | 155 | 150 | 150 × 2 replicas |
+| redis-cart | 540 | 540 | 500 | 500 |
+| **Deployment total** | **13360** | **13275** | **13150** | **13150** |
 
 Paper pegs checkout at 615 m and recommendations at 1150 m. Every other backend has stayed under its paper quota on the both-off holds, so the detector only calls checkout and recommendations hot.
 
@@ -34,6 +34,8 @@ Quota that a service does not use can move to a service that does. Ad does not n
 Agreed sets checkout to 1500 m and recommendations to 2000 m. The 1150 m paper quota was clipping recommendations (run 6 peaked at 1130 m). Currency goes to 500 m and catalog to 600 m so those two, which already draw the most CPU behind the chokes, sit near the detector’s 0.8 line. Payment goes to 150 m and email goes to 150 m. Their means are 30–55 m. Redis-cart goes to 500 m. Request equals limit.
 
 Paper and Dispense pin frontend at 4 replicas and count every other service once, so their deployment totals use 4 × 1150 m. Paper sums to 13,360 m. That four-replica total is the ceiling. Dispense sums to 13,275 m. Agreed (runs 30–34) pins frontend at 5 replicas, so its deployment total uses 5 × 1150 m and is 13,150 m, under the paper four-replica ceiling of 13,360 m. Run 6’s checkout peak (613 m) is 41% of 1500 m. Its recommendations peak (1130 m) sits under the agreed 2000 m cap.
+
+Replica keeps frontend at 4 × 1150 m (4,600 m). Checkout is 800 m on 2 replicas (1,600 m), recommendations 800 m on 3 replicas (2,400 m), cart 600 m on 2 replicas (1,200 m), payment 150 m on 2 replicas (300 m), and email 150 m on 2 replicas (300 m). Catalog stays 600 m, currency 650 m, shipping 400 m, ad 600 m, and redis-cart 500 m, each on one replica. The deployment total is 13,150 m, the same sum as Agreed and under the paper ceiling of 13,360 m. Against Agreed, the fifth frontend replica’s 1,150 m moves onto checkout (+100 m), recommendations (+400 m), cart (+200 m), currency (+150 m), payment (+150 m), and email (+150 m).
 
 ## Measured CPU on the candidate holds
 
