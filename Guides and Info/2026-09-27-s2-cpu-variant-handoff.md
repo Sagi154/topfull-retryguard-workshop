@@ -1,16 +1,16 @@
 # Handoff: next S2 both-off CPU / replica / user-count variant
 
-Continue the both-off S2 series on the Checkout-3 CPU table in [2026-09-26-s2-cpu-limits-for-spread.md](2026-09-26-s2-cpu-limits-for-spread.md). A variant is three knobs: per-pod CPU limits, replica counts, and Locust user counts. Limits and replica counts are chosen. User counts for the holds are still open.
+Continue the both-off S2 series on the Checkout-4 CPU table in [2026-09-26-s2-cpu-limits-for-spread.md](2026-09-26-s2-cpu-limits-for-spread.md). A variant is three knobs: per-pod CPU limits, replica counts, and Locust user counts. Limits and replica counts are chosen. User counts for the holds are still open.
 
 ## Where things stand
 
-Branch `cpu-table-calibration` is pushed (`40213d0`, `4aa093b`, `b9d8b2e`). The three VMs are **TERMINATED**. The cluster was restored before the stop: backends at 1 replica, frontend HPA min 1 / max 4, catalog HPA min 1 / max 2, paper CPU, sidecar request 100 m, no `proxyCPULimit`.
+Branch `cpu-table-calibration` is pushed (`3eea5a0`, `6ea1597`, `9e5cda2`). The three VMs are **TERMINATED**. The cluster was restored before the stop: backends at 1 replica, frontend HPA min 1 / max 4, catalog HPA min 1 / max 2, paper CPU, sidecar request 100 m, no `proxyCPULimit`.
 
-`experiments/configs/scenario_2_baseline_no_topfull.yaml` is unused **run39**. `scale_constraints` is empty. `paper_cpu_reconcile` is omitted, so the runner restores paper CPU. The locust counts in that file are leftovers from run38 (250/150/250/50/50) and were not launched on run39. `experiments/test_topfull_cpu_quotas.py` `TestBothOffYamlRestored` expects run39. After the next series, point that test at the new unused slot.
+`experiments/configs/scenario_2_baseline_no_topfull.yaml` is unused **run43**. `scale_constraints` is empty. `paper_cpu_reconcile` is omitted, so the runner restores paper CPU. The locust counts in that file are leftovers from run42 (150/250/150/20/20) and were not launched on run43. `experiments/test_topfull_cpu_quotas.py` `TestBothOffYamlRestored` expects run43. After the next series, point that test at the new unused slot.
 
-`Guides and Info/2026-09-27-s2-replica-cpu-runs-35-38.md` is the post-run analysis standard (below). It is uncommitted. Commit it with the next variant's docs, or on its own if that session starts with a commit.
+`Guides and Info/2026-09-27-s2-checkout3-cpu-runs-39-42.md` is the post-run analysis standard (below). The runs 35–38 guide is the layout it copied.
 
-Do not overwrite run35–run38, or the comparison folders run7, run12, run26, run31, run33, run34.
+Do not overwrite run35–run42, or the comparison folders run7, run12, run26, run31, run33, run34.
 
 ## What runs 35–38 were
 
@@ -55,7 +55,7 @@ Signals, from [2026-09-27-s2-replica-cpu-runs-35-38.md](2026-09-27-s2-replica-cp
 4. Patch CPU while every backend is still 1 replica. Then pin. Frontend and catalog are the only HPAs: set `minReplicas = maxReplicas` to the table count. Scale the other deployments with `kubectl scale`. Paper CPU at the extra replica counts does not fit the worker.
 5. Leave `proxyCPULimit` absent. A sidecar CPU limit collapsed storefront latency on earlier holds. Start from the restored request of 100 m. If a pod is Pending with `Insufficient cpu`, lower `sidecar.istio.io/proxyCPU` on all 11 Deployments only until that table schedules. 70 m is the request that fit the Replica table (20 pods, 13,150 m app). It is not the request for the next table. A smaller table may still schedule at 100 m. Record the request that scheduled.
 6. Wait until ready counts match the table and pending is 0. Cool off 360 s. Then the holds: 600 s, `spawn_rate` 50, both controllers off. Clear `/tmp/rg_*.sh` and `/tmp/envoy_retry_params.json` on master before each launch. Cool off 360 s between holds.
-7. Bump only `run_number`, `log_folder`, `description`, and `locust.user_counts` between holds. Start at run39. Pull with `experiments/pull_results.py`. Gate on Replica-style checks: `service_capacity.json` millicores, `resource_usage.csv` replica counts equal to the pin for every sample, the collector files present, `total.csv` rows ≥ 500.
+7. Bump only `run_number`, `log_folder`, `description`, and `locust.user_counts` between holds. Start at run43. Pull with `experiments/pull_results.py`. Gate on Replica-style checks: `service_capacity.json` millicores, `resource_usage.csv` replica counts equal to the pin for every sample, the collector files present, `total.csv` rows ≥ 500.
 8. Write the post-run guide as in [Post-run analysis](#post-run-analysis). Score (a)/(b)/(c) with `python experiments/s2_both_off_abc.py` on the new folders and on the earlier runs of the same mixes.
 9. Restore before stopping: scale extra replicas back to 1, set frontend HPA to min 1 / max 4 and catalog HPA to min 1 / max 2, then `reconcile_paper_cpu_limits`, then sidecar request 100 m with no limit. Point the YAML at the next free slot with `scale_constraints: []` and no `paper_cpu_reconcile` key. Update `TestBothOffYamlRestored` to that slot.
 
@@ -86,8 +86,8 @@ The guide is done when every section above is present, the mix bars are in the c
 
 ## Read next
 
-- Analysis standard (copy this layout): [2026-09-27-s2-replica-cpu-runs-35-38.md](2026-09-27-s2-replica-cpu-runs-35-38.md).
+- Analysis standard (copy this layout): [2026-09-27-s2-checkout3-cpu-runs-39-42.md](2026-09-27-s2-checkout3-cpu-runs-39-42.md). The runs 35–38 guide is the layout that file copied: [2026-09-27-s2-replica-cpu-runs-35-38.md](2026-09-27-s2-replica-cpu-runs-35-38.md).
 - Definitions of (a)/(b)/(c): [2026-09-24-s2-both-off-abc-reading.md](2026-09-24-s2-both-off-abc-reading.md).
-- The five CPU tables (Paper, Dispense, Agreed, Replica, Checkout-3): [2026-09-26-s2-cpu-limits-for-spread.md](2026-09-26-s2-cpu-limits-for-spread.md).
+- The six CPU tables (Paper, Dispense, Agreed, Replica, Checkout-3, Checkout-4): [2026-09-26-s2-cpu-limits-for-spread.md](2026-09-26-s2-cpu-limits-for-spread.md).
 - The procedure this series followed: [2026-09-27-s2-replica-cpu-holds.md](../docs/superpowers/plans/2026-09-27-s2-replica-cpu-holds.md).
 - Agreed-table comparison holds: [2026-09-26-s2-cpu-spread-runs-30-34.md](2026-09-26-s2-cpu-spread-runs-30-34.md).
