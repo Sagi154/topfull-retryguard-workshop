@@ -1,25 +1,25 @@
-# Both-off S2. run43 is the failed Checkout-4 gate.
+# Both-off S2. run46 failed the Locust row gate (total.csv has 202 rows).
 # The pulled folder is kept locally. A relaunch of this slot overwrites the folder on master.
-# Locust counts below are the mix that ran and failed the replica-count gate.
+# Locust counts below are the mix that ran and failed the row gate.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 43
+run_number: 46
 description: >
-  Both controllers off. This slot failed the replica-count gate
-  (emailservice replica_count 0 on 2 of 134 samples) and was not kept
-  as a completed series slot. Counts: 200/250/200/50/50.
+  Both controllers off. This slot failed the Locust row gate
+  (total.csv has 202 rows) and was not kept as a completed series slot.
+  Counts: 250/250/250/100/100.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   200
+    getproduct:   250
     postcheckout: 250
-    getcart:      200
-    postcart:     50
-    emptycart:    50
+    getcart:      250
+    postcart:     100
+    emptycart:    100
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
@@ -54,7 +54,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run43
+log_folder: baseline_no_topfull_sustained_overload_run46
 
 infra:
   master_ssh_host: topfull-master
