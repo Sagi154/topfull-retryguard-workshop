@@ -1,6 +1,6 @@
 # Handoff: next S2 both-off CPU / replica / user-count variant
 
-Continue the both-off S2 series by trying another CPU table. A variant is three knobs: per-pod CPU limits, replica counts, and Locust user counts. The next table is not chosen yet.
+Continue the both-off S2 series on the Checkout-3 CPU table in [2026-09-26-s2-cpu-limits-for-spread.md](2026-09-26-s2-cpu-limits-for-spread.md). A variant is three knobs: per-pod CPU limits, replica counts, and Locust user counts. Limits and replica counts are chosen. User counts for the holds are still open.
 
 ## Where things stand
 
@@ -88,6 +88,6 @@ The guide is done when every section above is present, the mix bars are in the c
 
 - Analysis standard (copy this layout): [2026-09-27-s2-replica-cpu-runs-35-38.md](2026-09-27-s2-replica-cpu-runs-35-38.md).
 - Definitions of (a)/(b)/(c): [2026-09-24-s2-both-off-abc-reading.md](2026-09-24-s2-both-off-abc-reading.md).
-- The four CPU tables (Paper, Dispense, Agreed, Replica): [2026-09-26-s2-cpu-limits-for-spread.md](2026-09-26-s2-cpu-limits-for-spread.md).
+- The five CPU tables (Paper, Dispense, Agreed, Replica, Checkout-3): [2026-09-26-s2-cpu-limits-for-spread.md](2026-09-26-s2-cpu-limits-for-spread.md).
 - The procedure this series followed: [2026-09-27-s2-replica-cpu-holds.md](../docs/superpowers/plans/2026-09-27-s2-replica-cpu-holds.md).
 - Agreed-table comparison holds: [2026-09-26-s2-cpu-spread-runs-30-34.md](2026-09-26-s2-cpu-spread-runs-30-34.md).
