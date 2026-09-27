@@ -1,25 +1,23 @@
-# Both-off S2. run30–run34 are the completed CPU-spread series.
-# Next unused slot is run35 on the paper CPU table.
-# paper_cpu_reconcile is omitted so the runner restores paper limits.
-# User counts below are leftover mix 12 and have not been launched.
+# Both-off S2. run39 is unused, on the paper CPU table.
+# Locust counts below are leftovers from run38 and were not launched.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 35
+run_number: 39
 description: >
-  Both controllers off. Unused run35 slot on the paper CPU table.
-  Counts below are leftover mix 12 (100/150/100/100/5) and have not been launched.
+  Both controllers off. This slot is unused.
+  Locust counts are leftovers from run38: 250/150/250/50/50.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   100
+    getproduct:   250
     postcheckout: 150
-    getcart:      100
-    postcart:     100
-    emptycart:    5
+    getcart:      250
+    postcart:     50
+    emptycart:    50
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
@@ -54,7 +52,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run35
+log_folder: baseline_no_topfull_sustained_overload_run39
 
 infra:
   master_ssh_host: topfull-master
