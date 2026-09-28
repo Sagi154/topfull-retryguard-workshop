@@ -1,24 +1,26 @@
-# Both-off S2. Runs 55-56 follow the Recs-3 user-count series.
-# run55 replays run53 (100/150/100/200/200). run56 is 250/300/200/200/200.
-# Next free slot is run57. scale_constraints is empty and paper CPU is restored.
+# Both-off S2. run57 failed the Recs-3 replica-count gate.
+# The pulled folder is kept locally. A relaunch of this slot overwrites the folder on master.
+# Locust counts below are the mix that ran. run58 was not launched.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
 run_number: 57
 description: >
-  Both controllers off. Unused slot after Recs-3 runs 55-56.
+  Both controllers off. This slot failed the replica-count gate
+  (paymentservice replica_count 0 on 19 of 74 samples) and was not
+  kept as a completed series slot. Counts: 50/400/50/20/20.
 
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   100
-    postcheckout: 300
-    getcart:      100
-    postcart:     200
-    emptycart:    200
+    getproduct:   50
+    postcheckout: 400
+    getcart:      50
+    postcart:     20
+    emptycart:    20
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
