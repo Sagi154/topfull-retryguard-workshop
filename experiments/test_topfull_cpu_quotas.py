@@ -273,8 +273,8 @@ class TestBothOffYamlRestored(unittest.TestCase):
         cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
         self.assertTrue(cfg.get("paper_cpu_reconcile", True))
         self.assertEqual(cfg.get("scale_constraints") or [], [])
-        self.assertEqual(cfg["run_number"], 46)
-        self.assertEqual(cfg["log_folder"], "baseline_no_topfull_sustained_overload_run46")
+        self.assertEqual(cfg["run_number"], 57)
+        self.assertEqual(cfg["log_folder"], "baseline_no_topfull_sustained_overload_run57")
         self.assertIs(cfg["topfull_rl"]["enabled"], False)
         self.assertIs(cfg["retryguard"]["enabled"], False)
 
