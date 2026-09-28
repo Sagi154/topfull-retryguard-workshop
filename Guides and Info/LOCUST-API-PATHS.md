@@ -77,6 +77,10 @@ Path: **frontend → checkout → cart, catalog, currency, shipping, payment, em
 
 This tag never adds items itself, so that user’s cart is empty and the per-item catalog loop inside checkout usually does no work. Quote, charge, ship, email, and the confirmation-page recommendation still run.
 
+## Measured at S2 scale (2026-09-28)
+
+Counting these paths as one call per edge reproduces the mesh's admitted request rates on unlatched holds (both controllers off, six CPU tables, runs 35–56): ads = `getproduct`; checkout = payment = email = `postcheckout`; recommendations = `getproduct` + `getcart` + `postcheckout`; shipping = `getcart` + 2 × `postcheckout`; currency ≈ 2× the recommendations sum. The `postcheckout` confirmation-page call to recommendations keeps firing even when checkout is retry-latched and Locust's 1 s goodput is near zero (runs 29, 34, 36, 42). Tables and caveats: [calibration spec](../docs/superpowers/specs/2026-09-25-s2-overload-user-count-calibration.md), "Runs 30–56".
+
 ## How the paths overlap
 
 ```text

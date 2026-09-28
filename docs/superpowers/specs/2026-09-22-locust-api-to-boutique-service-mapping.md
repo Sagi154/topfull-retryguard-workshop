@@ -37,14 +37,38 @@ analysis of runs 26–29 in
    simultaneous `recommendationservice` retry storm, not `postcheckout`'s
    own value. Do not use this doc's postcheckout coefficient to predict
    checkout's overload state at S2 scale.
-2. **The confirmation-page contribution to `recommendationservice`
-   (documented below under `postcheckout`) only appears when checkout is
-   actually completing PlaceOrder requests.** At S1 scale this is true by
-   default (checkout isn't saturated, so requests complete). At S2 scale,
-   if checkout is in the retry-latched state above, its own goodput can
-   fall to ≈0 req/s and the confirmation page essentially never renders —
-   recommendations' load reverts to being driven by `getproduct`+`getcart`
-   alone, with no measurable `postcheckout` contribution.
+2. ~~The confirmation-page contribution to `recommendationservice` only
+   appears when checkout is completing PlaceOrder requests.~~
+   **Withdrawn 2026-09-28.** That inference used Locust postcheckout
+   *goodput* (a 1 s SLO count) as a proxy for completion. On latched holds
+   with goodput of 1.7–20 req/s, recommendations' admitted λ still equals
+   achieved `getproduct + getcart + postcheckout` (run29 125.1 vs 125.2,
+   run34 298.2 vs 298.9, run36 278.8 vs 275.1, run42 378.3 vs 378.0):
+   latched PlaceOrders still finish slowly and the confirmation page still
+   renders. Run26 was the case the claim came from; its recs retry storm
+   inflates λ so it cannot support either reading.
+
+**Table-independent load model at S2 scale (added 2026-09-28).** Runs
+35–56 on six different CPU/replica tables (see the calibration doc's
+"Runs 30–56" section for table definitions and the per-run data) give the
+same per-tag → service coefficients on unlatched holds; they are the S1
+mapping made quantitative:
+
+| Service | Admitted λ ≈ |
+|---|---|
+| `adservice` | 1.0 × `getproduct` |
+| `checkoutservice`, `paymentservice`, `emailservice` | 1.0 × `postcheckout` |
+| `recommendationservice` | 1.0 × (`getproduct` + `getcart` + `postcheckout`) |
+| `shippingservice` | `getcart` + 2 × `postcheckout` |
+| `currencyservice` | ≈ 2.0 × (`getproduct` + `getcart` + `postcheckout`) |
+| `cartservice` | `getproduct` + `getcart` + `postcart` + `emptycart` + 2 × `postcheckout` |
+| `productcatalogservice` | ≈ 6.7–7.7 × (`getproduct` + `getcart` + `postcart`); not clean |
+
+Fits are within 0–4% on Replica-table runs 35/37/38. "Tag" means
+**achieved** RPS, not configured users: above roughly 650 configured
+users the total stays near 600 req/s, so the achieved split is what
+feeds the table. These hold until a service storms or latches; changing the
+CPU table does not change them.
 
 Everything else in this doc — the unique-edge attributions (`getproduct`↔
 `adservice`, `getcart`↔`frontend→shippingservice`, `postcheckout`↔
