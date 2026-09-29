@@ -1,0 +1,132 @@
+{
+  "scenario_id": 2,
+  "scenario_name": "sustained_overload",
+  "condition": "baseline",
+  "run_number": 74,
+  "duration_seconds": 600,
+  "retryguard": {
+    "enabled": false,
+    "rejection_threshold": 0.2,
+    "sample_interval_seconds": 1,
+    "interval_samples": 30
+  },
+  "topfull_rl": {
+    "enabled": false
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1,
+    "transport": "network_prometheus",
+    "max_workers": 4,
+    "exec_host": "topfull-master"
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "topfull_throttle_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1
+  },
+  "scale_constraints": [
+    {
+      "deployment": "checkoutservice",
+      "namespace": "default",
+      "container": "server",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 800
+    },
+    {
+      "deployment": "recommendationservice",
+      "namespace": "default",
+      "container": "server",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 1150
+    },
+    {
+      "deployment": "productcatalogservice",
+      "namespace": "default",
+      "container": "server",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 600
+    },
+    {
+      "deployment": "cartservice",
+      "namespace": "default",
+      "container": "server",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 600
+    },
+    {
+      "deployment": "currencyservice",
+      "namespace": "default",
+      "container": "server",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 650
+    },
+    {
+      "deployment": "shippingservice",
+      "namespace": "default",
+      "container": "server",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 400
+    },
+    {
+      "deployment": "adservice",
+      "namespace": "default",
+      "container": "server",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 600
+    },
+    {
+      "deployment": "paymentservice",
+      "namespace": "default",
+      "container": "server",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 200
+    },
+    {
+      "deployment": "emailservice",
+      "namespace": "default",
+      "container": "server",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 200
+    },
+    {
+      "deployment": "redis-cart",
+      "namespace": "default",
+      "container": "redis",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 300
+    }
+  ],
+  "cpu_request_fraction": 1.0,
+  "paper_cpu_quotas": {
+    "frontend": 1150,
+    "checkoutservice": 615,
+    "recommendationservice": 1150,
+    "productcatalogservice": 1535,
+    "cartservice": 1920,
+    "currencyservice": 770,
+    "shippingservice": 770,
+    "redis-cart": 540,
+    "emailservice": 155,
+    "paymentservice": 155,
+    "adservice": 1150
+  },
+  "effective_cpu_quotas": {
+    "frontend": 1150,
+    "checkoutservice": 800,
+    "recommendationservice": 1150,
+    "productcatalogservice": 600,
+    "cartservice": 600,
+    "currencyservice": 650,
+    "shippingservice": 400,
+    "redis-cart": 300,
+    "emailservice": 200,
+    "paymentservice": 200,
+    "adservice": 600
+  },
+  "log_folder": "baseline_no_topfull_sustained_overload_run74",
+  "collected_at": "2026-09-29T20:00:53.267387Z"
+}
