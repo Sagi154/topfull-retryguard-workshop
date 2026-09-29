@@ -64,6 +64,27 @@ Hybrid is the Round C table for the final-candidate holds. It keeps Checkout-3's
 | redis-cart | 300 | 320 | 300 |
 | **Deployment total** | **12950** | **12950** | **10900** |
 
+## Browse holds (run71–run72)
+
+Checkout-3 per-pod limits except checkout and recommendations at 900 m, payment and email at 300 m. Recommendations is 2 replicas on both holds. Sidecar request 100 m with no CPU limit. Frontend stays the paper 1150 m and is not a `scale_constraints` entry. Both totals stay under the paper four-frontend ceiling of 13,360 m.
+
+| Service | run71 | run72 |
+|---|---|---|
+| frontend | 1150 × 4 replicas | 1150 × 5 replicas |
+| checkoutservice | 900 × 3 replicas | 900 × 2 replicas |
+| recommendationservice | 900 × 2 replicas | 900 × 2 replicas |
+| productcatalogservice | 600 | 600 |
+| cartservice | 600 | 600 |
+| currencyservice | 650 | 650 |
+| shippingservice | 400 | 400 |
+| adservice | 600 | 600 |
+| paymentservice | 300 | 300 |
+| emailservice | 300 | 300 |
+| redis-cart | 300 | 300 |
+| **Deployment total** | **12850** | **13100** |
+
+run71 mix is 250 / 250 / 250 / 50 / 50. run72 mix is 300 / 200 / 300 / 50 / 50. Catalog HPA is `min=max=1` for both holds. run72's app requests plus 100 m sidecars sit just above the Checkout-3 schedule that fit on this worker, so that hold may need the sidecar request dropped to 90 m.
+
 ## Measured CPU on the candidate holds
 
 Mean and max app-container CPU on the two candidate holds, from `resource_usage.csv`. Quotas are the paper table.
