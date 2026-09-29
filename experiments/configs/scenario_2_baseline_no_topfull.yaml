@@ -1,22 +1,22 @@
-# Both-off S2. Next free slot after the 2026-09-29 browse holds (run71-run72).
+# Both-off S2. Next free slot after the 2026-09-29 browse holds (run71-run73).
 # Paper CPU (paper_cpu_reconcile left at its default), no scale_constraints.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 73
+run_number: 74
 description: >
   Unused next slot. Both controllers off. Paper CPU table. Counts below are leftover
-  from browse hold run72 and are not a scheduled hold.
+  from browse hold run73 and are not a scheduled hold.
 
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   300
-    postcheckout: 200
-    getcart:      300
+    getproduct:   350
+    postcheckout: 275
+    getcart:      350
     postcart:     50
     emptycart:    50
   spawn_rate: 50
@@ -53,7 +53,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run73
+log_folder: baseline_no_topfull_sustained_overload_run74
 
 infra:
   master_ssh_host: topfull-master
