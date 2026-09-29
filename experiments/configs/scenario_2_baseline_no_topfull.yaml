@@ -1,45 +1,29 @@
-# Both-off S2. run71 is the browse-hold table (Checkout-3 except checkout
-# and recommendations 900 m, payment and email 300 m, recommendations ×2).
-# paper_cpu_reconcile stays false until restore.
-# Replica counts are pinned with kubectl, not scale_constraints:
-# a replicas entry is scaled back to 1 at the end of every hold.
-# Frontend stays at its paper 1150m and is not listed here.
+# Both-off S2. Next free slot after the 2026-09-29 browse holds (run71-run72).
+# Paper CPU (paper_cpu_reconcile left at its default), no scale_constraints.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 71
+run_number: 73
 description: >
-  Both controllers off. Browse-hold table: checkout 900×3, recommendations
-  900×2, payment 300, email 300. Mix 250/250/250/50/50.
+  Unused next slot. Both controllers off. Paper CPU table. Counts below are leftover
+  from browse hold run72 and are not a scheduled hold.
 
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   250
-    postcheckout: 250
-    getcart:      250
+    getproduct:   300
+    postcheckout: 200
+    getcart:      300
     postcart:     50
     emptycart:    50
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
-paper_cpu_reconcile: false
-
-scale_constraints:
-  - {deployment: checkoutservice,       namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 900}
-  - {deployment: recommendationservice, namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 900}
-  - {deployment: productcatalogservice, namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 600}
-  - {deployment: cartservice,           namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 600}
-  - {deployment: currencyservice,       namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 650}
-  - {deployment: shippingservice,       namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 400}
-  - {deployment: adservice,             namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 600}
-  - {deployment: paymentservice,        namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 300}
-  - {deployment: emailservice,          namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 300}
-  - {deployment: redis-cart,            namespace: default, container: redis,  method: cpu_limit, cpu_limit_millicores: 300}
+scale_constraints: []
 
 retries:
   attempts_on: 3
@@ -69,7 +53,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run71
+log_folder: baseline_no_topfull_sustained_overload_run73
 
 infra:
   master_ssh_host: topfull-master
