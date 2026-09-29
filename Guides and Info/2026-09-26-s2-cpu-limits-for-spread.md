@@ -45,6 +45,25 @@ Pay-250 keeps Checkout-4's replica counts. Currency goes from 650 m to 600 m (�
 
 Recs-3 keeps that 12,950 m total and moves three services off Pay-250. Frontend goes from 1150 m to 1050 m on 4 replicas (4,200 m, −400 m). Recommendations goes from 800 m on 2 replicas to 700 m on 3 replicas (2,100 m, +500 m). Adservice goes from 600 m to 500 m (−100 m). Checkout stays at 800 m on 4 replicas. Catalog, cart, currency, shipping, payment, email, and redis-cart stay on the Pay-250 per-pod limits, each on 1 replica. Pod count is 19 (frontend 4, checkout 4, recommendations 3, and the other eight services at 1). Runs 47–49 replay the run44, run45, and run46 user counts on this table. run57 (50/400/50/20/20) failed the replica-count gate: paymentservice `replica_count` was 0 on 19 of 74 resource samples, so run58 (25/500/25/20/20) was not launched.
 
+## Hybrid and A3
+
+Hybrid is the Round C table for the final-candidate holds. It keeps Checkout-3's per-pod limits, puts checkout at 800 m on 2 replicas, and puts recommendations back on the paper shape (1150 m × 1). A3 is Checkout-3 with email 200 m → 180 m and redis-cart 300 m → 320 m. Those two edits cancel, so the A3 deployment total stays 12,950 m. Frontend stays at the paper 1150 m and is not a `scale_constraints` entry. Hybrid's deployment total is 10,900 m, under the paper four-frontend ceiling of 13,360 m.
+
+| Service | Checkout-3 | A3 (email 180 / redis-cart 320) | Hybrid |
+|---|---:|---:|---:|
+| frontend | 1150 × 4 replicas | 1150 × 4 replicas | 1150 × 4 replicas |
+| checkoutservice | 800 × 3 replicas | 800 × 3 replicas | 800 × 2 replicas |
+| recommendationservice | 800 × 3 replicas | 800 × 3 replicas | 1150 × 1 replica |
+| productcatalogservice | 600 | 600 | 600 |
+| cartservice | 600 | 600 | 600 |
+| currencyservice | 650 | 650 | 650 |
+| shippingservice | 400 | 400 | 400 |
+| adservice | 600 | 600 | 600 |
+| paymentservice | 200 | 200 | 200 |
+| emailservice | 200 | 180 | 200 |
+| redis-cart | 300 | 320 | 300 |
+| **Deployment total** | **12950** | **12950** | **10900** |
+
 ## Measured CPU on the candidate holds
 
 Mean and max app-container CPU on the two candidate holds, from `resource_usage.csv`. Quotas are the paper table.
