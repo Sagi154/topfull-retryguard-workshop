@@ -1,10 +1,10 @@
 # S2 Hybrid-1 candidates
 
-Proposal for the next both-off series. Nothing here has been run. The goal is one hold where `recommendationservice` and `checkoutservice` are both hot, on limits that earlier tables already used. Payment and email stay at 200 m. This doc does not shrink them to force a detector hit.
+Run74–run79 have been run and scored. The goal is one hold where `recommendationservice` and `checkoutservice` are both hot, on limits that earlier tables already used. Payment and email stay at 200 m. This doc does not shrink them to force a detector hit. Scores are in the Results section.
 
 Counts are getproduct / postcheckout / getcart / postcart / emptycart. Holds are 600 s, both controllers off, `spawn_rate` 50, 360 s cool-off between holds. Sidecar request is 100 m with no CPU limit, the same setting as the Hybrid holds (run67–run70).
 
-Next free both-off slot is **run74**. `experiments/configs/scenario_2_baseline_no_topfull.yaml` is already `run_number: 74` / `log_folder: baseline_no_topfull_sustained_overload_run74`, with `scale_constraints: []`. Local folders exist through `baseline_no_topfull_sustained_overload_run73`. `TestBothOffYamlRestored` expects run74. These six holds would be run74 through run79, and the YAML would move to run80 afterward.
+`experiments/configs/scenario_2_baseline_no_topfull.yaml` is `run_number: 80` / `log_folder: baseline_no_topfull_sustained_overload_run80`, with `scale_constraints` empty. `TestBothOffYamlRestored` expects run80. The next free both-off slot is **run80**.
 
 ## Why this table
 
