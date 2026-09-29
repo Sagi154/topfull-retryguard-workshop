@@ -85,6 +85,25 @@ Checkout-3 per-pod limits except checkout and recommendations at 900 m, payment 
 
 run71 mix is 250 / 250 / 250 / 50 / 50. run72 mix is 300 / 200 / 300 / 50 / 50. Catalog HPA is `min=max=1` for both holds. run72's app requests plus 100 m sidecars sit just above the Checkout-3 schedule that fit on this worker, so that hold may need the sidecar request dropped to 90 m.
 
+## Hybrid-1
+
+Hybrid-1 keeps per-pod limits that Paper, Checkout-3, or Hybrid already used, and changes the replica counts. Frontend is 1150 m on 6 replicas (6,900 m). Checkout is 800 m on 1 replica. Recommendations is 1150 m on 1 replica, the paper shape. Catalog, cart, currency, shipping, ad, payment, email, and redis-cart stay at 600 / 600 / 650 / 400 / 600 / 200 / 200 / 300 m, each on 1 replica. The deployment total is 12,400 m, under the paper four-frontend ceiling of 13,360 m. H3 raises checkout from 800 m to 1000 m on 1 replica and changes nothing else; that total is 12,600 m. Frontend stays the paper 1150 m and is not a `scale_constraints` entry. `paper_cpu_reconcile` is false. Sidecar request is 100 m with no CPU limit. Frontend HPA is `min=max=6`. Catalog HPA is `min=max=1`.
+
+| Service | Hybrid-1 | H3 (checkout 1000 m) |
+|---|---:|---:|
+| frontend | 1150 × 6 replicas | 1150 × 6 replicas |
+| checkoutservice | 800 × 1 replica | 1000 × 1 replica |
+| recommendationservice | 1150 × 1 replica | 1150 × 1 replica |
+| productcatalogservice | 600 | 600 |
+| cartservice | 600 | 600 |
+| currencyservice | 650 | 650 |
+| shippingservice | 400 | 400 |
+| adservice | 600 | 600 |
+| paymentservice | 200 | 200 |
+| emailservice | 200 | 200 |
+| redis-cart | 300 | 300 |
+| **Deployment total** | **12400** | **12600** |
+
 ## Measured CPU on the candidate holds
 
 Mean and max app-container CPU on the two candidate holds, from `resource_usage.csv`. Quotas are the paper table.

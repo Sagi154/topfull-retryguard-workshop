@@ -1,29 +1,40 @@
-# Both-off S2. Next free slot after the 2026-09-29 browse holds (run71-run73).
-# Paper CPU (paper_cpu_reconcile left at its default), no scale_constraints.
+# Both-off S2. Hybrid-1 holds start at run74 (H1).
+# Frontend is pinned by the HPA, not by scale_constraints.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
 run_number: 74
 description: >
-  Unused next slot. Both controllers off. Paper CPU table. Counts below are leftover
-  from browse hold run73 and are not a scheduled hold.
-
+  Both controllers off. Hybrid-1. Frontend pinned at 6.
+  H1: 300/300/200/10/10.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   350
-    postcheckout: 275
-    getcart:      350
-    postcart:     50
-    emptycart:    50
+    getproduct:   300
+    postcheckout: 300
+    getcart:      200
+    postcart:     10
+    emptycart:    10
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
-scale_constraints: []
+scale_constraints:
+  - {deployment: checkoutservice,       namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 800}
+  - {deployment: recommendationservice, namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 1150}
+  - {deployment: productcatalogservice, namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 600}
+  - {deployment: cartservice,           namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 600}
+  - {deployment: currencyservice,       namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 650}
+  - {deployment: shippingservice,       namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 400}
+  - {deployment: adservice,             namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 600}
+  - {deployment: paymentservice,        namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 200}
+  - {deployment: emailservice,          namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 200}
+  - {deployment: redis-cart,            namespace: default, container: redis,  method: cpu_limit, cpu_limit_millicores: 300}
+
+paper_cpu_reconcile: false
 
 retries:
   attempts_on: 3
