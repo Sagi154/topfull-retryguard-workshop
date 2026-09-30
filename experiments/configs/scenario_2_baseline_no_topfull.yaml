@@ -1,22 +1,22 @@
-# Both-off S2. Paper-C1 (run80): paper CPU except checkout 800, catalog 800,
-# cart 800, and email 120. paper_cpu_reconcile is false so launch keeps those overrides.
+# Both-off S2. Paper-C3 (run81): paper CPU except checkout 800, catalog 800,
+# cart 800, email 120, and payment 120. paper_cpu_reconcile is false so launch keeps those overrides.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 80
+run_number: 81
 description: >
-  Both controllers off. Paper CPU except checkout 800, catalog 800,
-  cart 800, and email 120. Frontend pinned at 4. C1: 325/80/100/90/5.
+  Both controllers off. Paper-C3: paper CPU except checkout 800, catalog 800,
+  cart 800, email 120, and payment 120. Frontend pinned at 4. Mix 250/100/100/100/5.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   325
-    postcheckout: 80
+    getproduct:   250
+    postcheckout: 100
     getcart:      100
-    postcart:     90
+    postcart:     100
     emptycart:    5
   spawn_rate: 50
   scripts:
@@ -27,6 +27,7 @@ scale_constraints:
   - {deployment: productcatalogservice, namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 800}
   - {deployment: cartservice,           namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 800}
   - {deployment: emailservice,          namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 120}
+  - {deployment: paymentservice,        namespace: default, container: server, method: cpu_limit, cpu_limit_millicores: 120}
 
 paper_cpu_reconcile: false
 
@@ -58,7 +59,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run80
+log_folder: baseline_no_topfull_sustained_overload_run81
 
 infra:
   master_ssh_host: topfull-master
