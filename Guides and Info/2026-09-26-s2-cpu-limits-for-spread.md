@@ -140,3 +140,22 @@ Order is fixed. Cool-off between holds is 360 s.
 - (a)/(b)/(c) on those dispense holds: [2026-09-25-s2-both-off-abc-runs-18-21.md](2026-09-25-s2-both-off-abc-runs-18-21.md).
 - How the three signals are read: [2026-09-24-s2-both-off-abc-reading.md](2026-09-24-s2-both-off-abc-reading.md).
 - Run 6 in the run3–run7 set: [2026-09-24-s2-both-off-runs-summary.md](2026-09-24-s2-both-off-runs-summary.md).
+
+## Lens blend (run80–run82)
+
+Per-pod millicores. Frontends are × 4. Every other replica count is 1. Catalog and cart are 800 m on C1 and C3 because paper peaks on run6 and run7 were 613 m and 601 m. All three totals are under 13,360 m, so the sidecar stays at 100 m.
+
+| Service | Paper-C1 run80 | Paper-C3 run81 | Hybrid-C2 run82 |
+|---|---:|---:|---:|
+| frontend | 1150 × 4 | 1150 × 4 | 1150 × 4 |
+| checkoutservice | 800 | 800 | 800 |
+| recommendationservice | 1150 | 1150 | 1150 |
+| productcatalogservice | 800 | 800 | 600 |
+| cartservice | 800 | 800 | 600 |
+| currencyservice | 770 | 770 | 650 |
+| shippingservice | 770 | 770 | 400 |
+| adservice | 1150 | 1150 | 600 |
+| paymentservice | 155 | 120 | 200 |
+| emailservice | 120 | 120 | 150 |
+| redis-cart | 540 | 540 | 300 |
+| **Deployment total** | **11655** | **11620** | **10050** |
