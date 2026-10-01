@@ -1,29 +1,79 @@
-# Both-off S2. Next unused slot is run87.
-# run86 was the Hybrid replay (270/200/280/10/10) and is already pulled.
-# paper_cpu_reconcile is omitted, so the runner applies the paper table.
-# Locust counts below are the run86 mix. Change them before launching run87.
+# Both-off S2. Paper-C1. Run89 raises postcheckout vs run86.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 87
+run_number: 89
 description: >
-  unused both-off slot after the run86 Hybrid copy-verification replay
+  Paper-C1, frontend pinned at 4. Mix 275/90/100/90/5.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   270
-    postcheckout: 200
-    getcart:      280
-    postcart:     10
-    emptycart:    10
+    getproduct:   275
+    postcheckout: 90
+    getcart:      100
+    postcart:     90
+    emptycart:    5
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
-scale_constraints: []
+# Stay on Paper-C1 across the series. Restore paper CPU after this replay.
+paper_cpu_reconcile: false
+
+scale_constraints:
+  - deployment: checkoutservice
+    namespace: default
+    container: server
+    method: cpu_limit
+    cpu_limit_millicores: 800
+  - deployment: recommendationservice
+    namespace: default
+    container: server
+    method: cpu_limit
+    cpu_limit_millicores: 1150
+  - deployment: productcatalogservice
+    namespace: default
+    container: server
+    method: cpu_limit
+    cpu_limit_millicores: 800
+  - deployment: cartservice
+    namespace: default
+    container: server
+    method: cpu_limit
+    cpu_limit_millicores: 800
+  - deployment: currencyservice
+    namespace: default
+    container: server
+    method: cpu_limit
+    cpu_limit_millicores: 770
+  - deployment: shippingservice
+    namespace: default
+    container: server
+    method: cpu_limit
+    cpu_limit_millicores: 770
+  - deployment: adservice
+    namespace: default
+    container: server
+    method: cpu_limit
+    cpu_limit_millicores: 1150
+  - deployment: paymentservice
+    namespace: default
+    container: server
+    method: cpu_limit
+    cpu_limit_millicores: 155
+  - deployment: emailservice
+    namespace: default
+    container: server
+    method: cpu_limit
+    cpu_limit_millicores: 120
+  - deployment: redis-cart
+    namespace: default
+    container: redis
+    method: cpu_limit
+    cpu_limit_millicores: 540
 
 retries:
   attempts_on: 3
@@ -53,7 +103,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run87
+log_folder: baseline_no_topfull_sustained_overload_run89
 
 infra:
   master_ssh_host: topfull-master
