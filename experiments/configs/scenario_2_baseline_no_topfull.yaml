@@ -1,22 +1,24 @@
-# Both-off S2. Slot run85 is unused.
-# User counts below are leftovers from the run84 replay (325/80/100/90/5), not a scheduled hold.
+# Both-off S2. Next unused slot is run87.
+# run86 was the Hybrid replay (270/200/280/10/10) and is already pulled.
+# paper_cpu_reconcile is omitted, so the runner applies the paper table.
+# Locust counts below are the run86 mix. Change them before launching run87.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 85
+run_number: 87
 description: >
-  unused slot; user counts are leftovers from the run84 replay (325/80/100/90/5), not a scheduled hold
+  unused both-off slot after the run86 Hybrid copy-verification replay
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   325
-    postcheckout: 80
-    getcart:      100
-    postcart:     90
-    emptycart:    5
+    getproduct:   270
+    postcheckout: 200
+    getcart:      280
+    postcart:     10
+    emptycart:    10
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
@@ -51,7 +53,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run85
+log_folder: baseline_no_topfull_sustained_overload_run87
 
 infra:
   master_ssh_host: topfull-master

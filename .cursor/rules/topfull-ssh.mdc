@@ -13,7 +13,9 @@ Use OpenSSH Host aliases only — never hardcode public IPs in commands.
 | `topfull-worker-1` | Online Boutique pods |
 | `topfull-load` | Locust load generator |
 
-Project: `networks-workshop` · Zone: `us-central1-a`
+Project: `project-76deda76-55f1-42d2-abb` (Yoav's disk copy; console name "My First Project") · Zone: `us-central1-a`
+
+Do not start the original VMs in `networks-workshop`. Playbook: [Guides and Info/CONNECT-VMS.md](Guides%20and%20Info/CONNECT-VMS.md). `gcloud auth` must be `yoavnm98@gmail.com` (Owner), `idozacharia@gmail.com` (Editor), or `sagi151ps@gmail.com` (Editor). SSH `User` stays `idozacharia`.
 
 ## How to run remote commands
 
