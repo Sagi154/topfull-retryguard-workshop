@@ -11,6 +11,8 @@ Do not mix them in analysis. Do not delete `august_38`. After a new `scp` from m
 
 The 2026-10-01 copy-verification holds sit in [`copy verification/`](copy%20verification/), not inside `campaign_48/`: run85 and run86.
 
+Paper-C1 holds launched on branch `s2-paper-c1-run89-replay` sit in [`new vms/`](new%20vms/): run94, run95, and run96.
+
 `campaign_48/` is organized into 7 scenario subfolders (`S1_normal_op/`, `S2_sustained_overload/`, `S3_targeted_bottleneck/`, `S4A_topology_position_A/`, `S4B_topology_position_B/`, `S5_interval_tuning/`, `S6_forced_recovery/`), each containing that scenario's baseline + RetryGuard run folders.
 
 Campaign slots: S6 `forced_recovery` run1–3; S5 `interval_*` run3–5; S1–S4A/S4B run4–6.
