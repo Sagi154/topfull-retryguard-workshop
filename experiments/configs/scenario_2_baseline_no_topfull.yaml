@@ -1,27 +1,28 @@
-# Both-off S2. Slot run94 is unused and was not launched.
-# User counts below are the cancelled run91 replay (275/80/100/50/50).
+# Both-off S2. Slot run97 is unused.
+# Run96 repeated the checkout latch (streak 569, recommendations streak 0).
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 94
+run_number: 97
 description: >
-  Unused slot. Paper-C1 pin may still be live. Counts are the cancelled run91 replay.
+  Unused slot. Paper-C1 pin may still be live.
+  Counts below are the run89 mix, already launched as run94, run95, and run96.
 
 duration_seconds: 600
 
 locust:
   user_counts:
     getproduct:   275
-    postcheckout: 80
+    postcheckout: 90
     getcart:      100
-    postcart:     50
-    emptycart:    50
+    postcart:     90
+    emptycart:    5
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
-# Stay on Paper-C1 across the series. Restore paper CPU after this replay.
+# Stay on the Paper-C1 pin. Do not reconcile back to the default paper table.
 paper_cpu_reconcile: false
 
 scale_constraints:
@@ -104,7 +105,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run94
+log_folder: baseline_no_topfull_sustained_overload_run97
 
 infra:
   master_ssh_host: topfull-master
