@@ -1,20 +1,20 @@
-# Both-off S2. Slot run97 is unused.
-# Run96 repeated the checkout latch (streak 569, recommendations streak 0).
+# Both-off S2. Slot run99 is unused.
+# Run97 was the run89 mix. Run98 was the run86 mix. Both stayed on Paper-C1.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 97
+run_number: 99
 description: >
   Unused slot. Paper-C1 pin may still be live.
-  Counts below are the run89 mix, already launched as run94, run95, and run96.
+  Counts below are the run86 mix, already launched as run98.
 
 duration_seconds: 600
 
 locust:
   user_counts:
     getproduct:   275
-    postcheckout: 90
+    postcheckout: 80
     getcart:      100
     postcart:     90
     emptycart:    5
@@ -105,7 +105,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run97
+log_folder: baseline_no_topfull_sustained_overload_run99
 
 infra:
   master_ssh_host: topfull-master
