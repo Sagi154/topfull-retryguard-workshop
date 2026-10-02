@@ -141,9 +141,9 @@ Order is fixed. Cool-off between holds is 360 s.
 - How the three signals are read: [2026-09-24-s2-both-off-abc-reading.md](2026-09-24-s2-both-off-abc-reading.md).
 - Run 6 in the run3–run7 set: [2026-09-24-s2-both-off-runs-summary.md](2026-09-24-s2-both-off-runs-summary.md).
 
-## Lens blend (run80–run82)
+## Lens blend (run80–run82), reused through run93
 
-Per-pod millicores. Frontends are × 4. Every other replica count is 1. Catalog and cart are 800 m on C1 and C3 because paper peaks on run6 and run7 were 613 m and 601 m. All three totals are under 13,360 m, so the sidecar stays at 100 m.
+Per-pod millicores. Frontends are × 4. Every other replica count is 1. Catalog and cart are 800 m on C1 and C3 because paper peaks on run6 and run7 were 613 m and 601 m. All three totals are under 13,360 m, so the sidecar stays at 100 m. Paper-C3 is run81 only. Hybrid-C2 is run82 only. Paper-C1 is run80 and, unchanged, runs 83–93 (see the next section).
 
 | Service | Paper-C1 run80 | Paper-C3 run81 | Hybrid-C2 run82 |
 |---|---:|---:|---:|
@@ -159,3 +159,25 @@ Per-pod millicores. Frontends are × 4. Every other replica count is 1. Catalog 
 | emailservice | 120 | 120 | 150 |
 | redis-cart | 540 | 540 | 300 |
 | **Deployment total** | **11655** | **11620** | **10050** |
+
+## Paper-C1 reused (runs 83–93)
+
+`service_capacity.json` on runs 83–93 matches run80 on every service: the same per-pod millicores and the same replica counts (frontend 4, every other service 1). Payment stays 155 m and email stays 120 m. The deployment total stays 11,655 m. Sidecar request stays 100 m with no CPU limit. `paper_cpu_reconcile` stays false. Paper-C3 and Hybrid-C2 were not used again.
+
+Counts are getproduct / postcheckout / getcart / postcart / emptycart. The ranking of these holds, including which ones blend, is in [2026-09-30-s2-candidate-ranking-runs-1-79.md](2026-09-30-s2-candidate-ranking-runs-1-79.md) (file name kept; see the Runs 80–93 section).
+
+| Slot | Mix | What changed from the row above |
+|---|---|---|
+| run83 | 375 / 80 / 100 / 90 / 5 | getproduct +50 versus run80 |
+| run84 | 325 / 80 / 100 / 90 / 5 | replay of run80 |
+| run85 | 325 / 60 / 100 / 90 / 5 | postcheckout −20 versus run80; the pre-hold YAML says postcheckout 80, so that count is uncertain. Mesh span 903 s, so the hold fails the sampling gate |
+| run86 | 275 / 80 / 100 / 90 / 5 | getproduct −50 versus run80 |
+| run87 | 275 / 70 / 100 / 90 / 5 | postcheckout −10 versus run86 |
+| run88 | 275 / 80 / 100 / 90 / 5 | replay of run86 |
+| run89 | 275 / 90 / 100 / 90 / 5 | postcheckout +10 versus run86 |
+| run90 | 265 / 90 / 100 / 90 / 5 | getproduct −10 versus run89 |
+| run91 | 275 / 80 / 100 / 50 / 50 | postcart 50 and emptycart 50; the first three counts match run86 |
+| run92 | 275 / 90 / 100 / 90 / 5 | replay of run89 |
+| run93 | 265 / 90 / 100 / 90 / 5 | replay of run90 |
+
+The cluster was left on this Paper-C1 pin. The both-off YAML is unused run94 and still carries these millicores, with counts 275 / 80 / 100 / 50 / 50.

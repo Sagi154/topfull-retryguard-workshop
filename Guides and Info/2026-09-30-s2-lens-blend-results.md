@@ -21,7 +21,7 @@ The ranking guide prints runs 10 and 11 only for checkout and recommendations. F
 
 ## Task 5 branch
 
-Branch no blend, one or more near-misses: run80 is the only near-miss (missing recommendationservice, leaf_ov 17); run83 tweaked getproduct +50 and classified as a miss, so run84 replayed run80 and also classified as a miss. No blend survived a replay.
+Branch no blend, one or more near-misses: run80 is the only near-miss (missing recommendationservice, leaf_ov 17); run83 tweaked getproduct +50 and classified as a miss, so run84 replayed run80 and also classified as a miss. No blend survived a replay in runs 80–84.
 
 ## Sampling
 
@@ -32,3 +32,21 @@ Branch no blend, one or more near-misses: run80 is the only near-miss (missing r
 | 82 | 0 | 698.0 |
 | 83 | 0 | 694.0 |
 | 84 | 0 | 694.0 |
+
+## Later Paper-C1 holds (runs 85–93)
+
+Same pass bar, same Paper-C1 table as run80, canon streaks (last 5 inbound polls dropped). Full ranking: [2026-09-30-s2-candidate-ranking-runs-1-79.md](2026-09-30-s2-candidate-ranking-runs-1-79.md) (Runs 80–93 section). Run85 fails sampling (mesh span 903 s) and its postcheckout count is uncertain. Copy-verification run85 and run86 are a different cluster and are not in this table.
+
+| Slot | Mix | Rec streak / ov | Checkout streak / ov | Email ov | Payment ov | Verdict |
+|---|---|---:|---:|---:|---:|---|
+| 86 | 275/80/100/90/5 | 226 / 456 | 108 / 163 | 22 | 16 | blend |
+| 89 | 275/90/100/90/5 | 238 / 485 | 58 / 164 | 23 | 0 | blend |
+| 87 | 275/70/100/90/5 | 118 / 449 | 19 / 86 | 28 | 2 | blend |
+| 88 | replay of 86 | 175 / 446 | 15 / 58 | 21 | 1 | blend |
+| 93 | replay of 90 | 359 / 544 | 18 / 50 | 8 | 18 | blend |
+| 92 | replay of 89 | 454 / 480 | 59 / 128 | 6 | 5 | near |
+| 90 | 265/90/100/90/5 | 281 / 305 | 228 / 303 | 8 | 2 | near |
+| 91 | 275/80/100/50/50 | 0 / 29 | 564 / 591 | 10 | 19 | near |
+| 85 | 325/60/100/90/5 | 70 / 298 | 3 / 33 | 12 | 0 | near, sampling fail |
+
+Run86 is the only blend whose replay (run88) also blended. Run89 blended and its replay (run92) is a near-miss. Run90 is a near-miss and its replay (run93) blended.

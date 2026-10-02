@@ -115,3 +115,11 @@ _Avoid_: independent pair
 **Valid sampling**:
 A both-off run where `service_inbound.csv` polls are 1 s apart and the collectors span about the 600 s hold. Runs whose inbound polls are mostly 2 s or longer are excluded from S2 candidate ranking, because a 30-sample streak would no longer mean 30 s.
 _Avoid_: truncated run (a separate failure: too few rows)
+
+**Blend**:
+A both-off hold that clears recommendations (streak and overloaded ticks both at least 10), checkout (same), and at least one leaf service (email or payment, 10 or more overloaded ticks), so it shows the independent pair and a chain service together. A **near-miss** clears exactly two of those three rows and has the missing one at streak or ticks of 5 or more. Retries and goodput do not decide either.
+_Avoid_: independent pair (that is only recommendations plus checkout), candidate (nothing is locked)
+
+**Latch**:
+Checkout's own completed-request sojourn settling above 500 ms (Istio's perTryTimeout), so its retries multiply its own arrival and pin its CPU; unlatched, the retries land on recommendations instead. The same mix and CPU table has landed on both sides (runs 80 and 84), so treat it as bistable. This is an inference from the raw CSVs, not a demonstrated cause.
+_Avoid_: overload (the latch is one mechanism for it)

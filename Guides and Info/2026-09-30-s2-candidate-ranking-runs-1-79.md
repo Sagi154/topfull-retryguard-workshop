@@ -1,8 +1,10 @@
-# S2 candidate ranking, both-off runs 1-79 (2026-09-30)
+﻿# S2 candidate ranking, both-off runs 1-93 (2026-09-30, extended 2026-10-02)
 
-Goal: decide which both-off hold (CPU table plus Locust user mix) should be the S2 load. No run was executed for this. Every number comes from the raw CSVs under `experiments/results/campaign_48/S2_sustained_overload/baseline_no_topfull_sustained_overload_run<N>/`. Nothing is locked; replays are a later decision.
+The file name still says 1-79 so existing links keep working. Runs 1-79 are ranked in the sections below (unchanged). **Runs 80-93, added 2026-10-02, are ranked in [Runs 80-93](#runs-80-93-added-2026-10-02) at the end**, because they were scored against a third bar (the blend bar) and include the first replayed blend.
 
-Scorer: [`experiments/s2_both_off_canon.py`](../experiments/s2_both_off_canon.py) (`python experiments/s2_both_off_canon.py 1 79` writes `s2_canon_1_79.json` into the current directory). It keeps every service and every edge; thresholds are applied afterwards. Streak, overloaded ticks, retry edges, sampling gaps and replica dips were cross-checked against eight independent per-range scorings (runs 1-10, 11-20, 21-29, 30-39, 40-49, 50-59, 60-69, 70-79) and agree. Locust per-API figures below come from those scorings, not from the canonical script.
+Goal: decide which both-off hold (CPU table plus Locust user mix) should be the S2 load. Every number comes from the raw CSVs under `experiments/results/campaign_48/S2_sustained_overload/baseline_no_topfull_sustained_overload_run<N>/`. Nothing is locked; replays are a later decision.
+
+Scorer: [`experiments/s2_both_off_canon.py`](../experiments/s2_both_off_canon.py) (`python experiments/s2_both_off_canon.py 1 93` writes `s2_canon_1_93.json` into the current directory). It keeps every service and every edge; thresholds are applied afterwards. Streak, overloaded ticks, retry edges, sampling gaps and replica dips were cross-checked against eight independent per-range scorings (runs 1-10, 11-20, 21-29, 30-39, 40-49, 50-59, 60-69, 70-79) and agree. Locust per-API figures below come from those scorings, not from the canonical script.
 
 ## What you asked to see
 
@@ -19,6 +21,8 @@ Scorer: [`experiments/s2_both_off_canon.py`](../experiments/s2_both_off_canon.py
 - **Runs 14-25:** inbound sampling is mostly 2 s or longer (53-70% of gaps at least 1.5 s), and the storefront failed (getproduct, getcart and postcheckout Fail ratio 0.99-1.0, P95 6-10 s). Their only streak is adservice. These are the runs invalid under the sidecar CPU limit, plus the dispense replay.
 - **Runs 55-59, 64, 74-79:** 2 s inbound sampling (69-100% of gaps), so a streak of 30 samples is about 60 s and RetryGuard would measure differently.
 - **Runs 46, 47, 53:** truncated (337 s mesh span), long (1167 s), and about 70 minutes.
+
+- **Run 85 (campaign), added 2026-10-02:** mesh span 903 s (over the 900 s gate), one 132 s all-service scrape hole, recommendationservice missing from 79 kubelet polls. **Copy-verification run85 and run86** (`experiments/results/copy verification/`, a different cluster; copy 85 had frontend at 3 replicas, copy 86 is Hybrid with 65% 2 s gaps) are reference only, not ranked.
 
 Kept despite minor issues: run 43 (15% of gaps at 2 s, email replica dip), run 54 (8% 2 s gaps), runs 48 and 49 (7% and 9% 2 s gaps), runs 34, 63 (payment replica dip).
 
@@ -112,3 +116,57 @@ An earlier version of the analysis (same day, chat) contained these mistakes. Th
 - "Run 6 is the only independent checkout-plus-recommendations pair": wrong. Runs 4, 5, 6, 7, 10, 11 (and 69) all qualify.
 - "Runs 55-59, 64, 74-79 are the only 2 s sampled runs": wrong. Runs 14-25 are as well.
 - Run 64 was listed as a breadth outlier; it is 2 s sampled and excluded.
+
+## Runs 80-93 (added 2026-10-02)
+
+Runs 80-93 are scored with the same canon script and the same sampling gate (`gap2_pct` at most 10, span 480-900 s, at least 500 Locust rows). The streaks below match `s2_canon_80_93.json`; four independent rescorings of the raw CSVs agreed on all 14 runs with no mismatch. Per-run detail (CPU tables, Locust, caveats): [Paper-C1 scorecard](2026-10-01-s2-paper-c1-runs-80-84-88.md), [lens-blend results](2026-09-30-s2-lens-blend-results.md), and the copy-verification notes ([run85](2026-10-01-s2-copy-verification-run85.md), [run86](2026-10-01-s2-copy-verification-run86.md)) for the two reference holds. No guide covers the per-service tables of runs 89-93 yet; their numbers are here.
+
+### The blend bar
+
+The lens-blend series needed one more bar than Lens A or Lens B: **recommendations streak and ov at least 10, checkout streak and ov at least 10, and email or payment ov at least 10** (a leaf streak is better but not required). All three is a **blend**. Two cleared, with the missing row at streak or ov of at least 5, is a **near-miss**. Retries, goodput and utilization decide nothing. Frontend is excluded.
+
+### Tables
+
+All runs: both controllers off, 600 s, `spawn_rate` 50, frontend pinned at 4 (HPA 4/4) on every resource poll. **Paper-C1** = paper CPU except checkout 800 m, catalog 800 m, cart 800 m, email 120 m; recommendations 1150 m x 1; sidecar request 100 m, no limit. Runs 80-84 ran on 2026-09-30 and 85-93 on 2026-10-01, after an 18 h stop. Mixes are getproduct / postcheckout / getcart / postcart / emptycart. Retries on streaking targets = summed edges of at least 1000 whose target has a streak of at least 10. No backend-to-backend retry edge of 100 or more exists on any run 80-93 (every large edge is frontend to one target).
+
+| Run | Table, mix | Recs streak / ov | Checkout streak / ov | Email ov | Payment ov | Verdict | Retries on streaking targets | Replay |
+|---|---|---|---|---|---|---|---|---|
+| 86 | Paper-C1, 275/80/100/90/5 | 226 / 456 | 108 / 163 | 22 | 16 | **blend** | 228k | 88 also a blend |
+| 89 | Paper-C1, 275/90/100/90/5 | 238 / 485 | 58 / 164 | 23 | 0 | **blend** | 234k | 92 near-miss |
+| 87 | Paper-C1, 275/70/100/90/5 | 118 / 449 | 19 / 86 | 28 | 2 | **blend** | 222k | none |
+| 88 | replay of 86 | 175 / 446 | 15 / 58 | 21 | 1 | **blend** | 238k | of 86 |
+| 93 | replay of 90 | 359 / 544 | 18 / 50 | 8 | 18 | **blend** (leaf is payment) | 261k | of 90 (near-miss) |
+| 92 | replay of 89 | 454 / 480 | 59 / 128 | 6 | 5 | near-miss (leaf 6 ticks) | 245k | of 89 (blend) |
+| 90 | Paper-C1, 265/90/100/90/5 | 281 / 305 | 228 / 303 | 8 | 2 | near-miss (leaf 8 ticks) | 174k | 93 blend |
+| 91 | Paper-C1, 275/80/100/50/50 | 0 / 29 | 564 / 591 | 10 | 19 | near-miss (recs streak 0) | 56k | none |
+| 80 | Paper-C1, 325/80/100/90/5 | 0 / 17 | 549 / 579 | 17 | 0 | near-miss (recs streak 0) | 52k | 84 miss |
+| 81 | Paper-C3, 250/100/100/100/5 | 0 / 0 | 563 / 585 | 5 | 37 | miss | 63k | none |
+| 82 | Hybrid-C2, 170/210/200/10/10 | 1 / 492 | 25 / 104 | 6 | 0 | miss (recs streak 1) | 20k | none |
+| 83 | Paper-C1, 375/80/100/90/5 | 6 / 566 | 0 / 24 | 8 | 0 | miss | 0 | none |
+| 84 | replay of 80 | 2 / 540 | 0 / 157 | 29 | 0 | miss | 0 | of 80 (near-miss) |
+| 85 | Paper-C1, 325/60/100/90/5 (mix uncertain) | 70 / 298 | 3 / 33 | 12 | 0 | near-miss, **fails sampling** | 178k | none |
+
+Run 85's mix comes from `AGENTS.md`; the YAML before the hold says postcheckout 80, so treat the postcheckout count as uncertain. The 2026-10-01 scorecard and `AGENTS.md` quote some streaks without the last-5 trim (run 86 recommendations 229, run 90 284, run 91 567); the canon values above are 226, 281, 564.
+
+### Ranking of the new runs
+
+1. **Run 86** is the best single row on the new bars. Recommendations 226 / 456 and checkout 108 / 163 both clear 30 streak and 100 ticks, and email (22) and payment (16) are both over 10 ticks, so it is the first run with **four** services at 10 or more overloaded ticks. Its replay (88) also blended.
+2. **Run 89.** Recommendations 238 and checkout 58 both clear 30; the leaf (email 23 ticks) is thin, and the replay (92) fell to a near-miss by 4 ticks (email 6).
+3. **Run 87**, then **run 88** and **run 93.** All three blend, but checkout streaks are 15-19 (above the soft bar of 10, below the RetryGuard bar of 30).
+4. Near-misses, in order of how close: **92** (recs 454, checkout 59, leaf 6 ticks), **90** (checkout 228, recs 281, leaf 8 ticks), **91** and **80** (checkout only, recs streak 0), then **85**.
+5. Misses: 81, 82, 83, 84.
+
+**Both lenses, deliberately kept apart.** Runs 86, 87, 88 and 89 also satisfy Lens A (checkout plus recommendations both at streak and ov of at least 10). Run 86 and 93 add a payment tick count in the chain. Run 91 and run 80 are Lens B only, with long checkout streaks and no recommendations streak, and retries only on frontend to checkout. Nothing in 80-93 beats runs 34, 43 or 63 on backend-to-backend retries.
+
+### What the new runs change
+
+- **Reproducibility is still weak, but the family is better than a single hold.** Runs 86, 87 and 88 (the 275 getproduct, 70-80 postcheckout mix) are three blends in a row. Of the four replay pairs: 80 to 84 did not reproduce (checkout 549 became 0; recommendations ov 17 became 540), 86 to 88 did (blend both times, but the checkout streak fell from 108 to 15), 89 to 92 did not (blend, then near-miss), 90 to 93 did not (near-miss, then blend). Only one replay of a blend stayed a blend.
+- **The recommendations streak moved from 0 or 1-6 (runs 80-84) to 70-454 (runs 85-93, except run 91) without a large mix change.** Runs 80 and 84 share a mix and a pin and landed in opposite regimes: run 80 is the checkout-latched regime (checkout sojourn 482 ms, 549 reset polls, recommendations sojourn 111 ms), run 84 the unlatched one (checkout 95 ms; recommendations retries 149,129 but only 42 polls above 0.20). Runs 86 and 88 sit in the second regime with a higher reset fraction (0.23 and 0.30 against 0.15), which pushes the mean over 0.20. The cause of the higher reset fraction after the 18 h stop is not identified. Run 91 (275/80/100/50/50, same three browse counts as run 86) returned to the checkout-latched regime, which fits the bistable latch described in the calibration spec better than a proportional load effect. That is an inference, not a demonstrated cause.
+- **The leaf service is thin.** Email and payment ov values of 16-28 on the blends sit between the 10-tick bar and the "most hot pairs are under 10 or over 30" gap noted earlier. Run 92 lost its blend by 4 ticks. Treat the leaf as weaker evidence than the recommendations and checkout rows.
+- **Retries are large on every blend (222k-261k on frontend to recommendations).** You said you do not want to recreate retry counts near 100k or more for recommendations. Every row that clears the recommendations bar here has them; the only low-retry rows (51-63k, runs 80, 81, 91) are checkout-only. Retry volume was not used for ranking, but it is a cost of choosing any of runs 86-93.
+- **The ceiling of "three services" no longer holds.** Run 86 has four services at 10 or more overloaded ticks (recommendations, checkout, email, payment). The streak ceiling of three (only run 34) still holds; no new run has more than two services at a streak of 10 or more.
+- **Goodput.** `postcheckout` goodput per run is 1.3-9.7 req/s (Fail ratio 0.84-0.97) on runs 85-93 and browse Fail ratios are 0.38-0.93, except run 91 where getproduct Fail is 0. Goodput did not change the order.
+
+### Where a replay would add information (updated)
+
+Run 86's family and run 89 are the only ones worth another hold: a second replay of run 86 would show whether the blend holds three times in four. Run 87 has no replay. Run 85 would need a full re-run to pass sampling.
