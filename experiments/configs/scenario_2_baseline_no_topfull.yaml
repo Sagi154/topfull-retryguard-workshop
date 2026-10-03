@@ -6,15 +6,14 @@ scenario_name: sustained_overload
 condition: baseline
 run_number: 99
 description: >
-  Unused slot. Paper-C1 pin may still be live.
-  Counts below are the run86 mix, already launched as run98.
+  Both controllers off. Paper-C1. Replay of the run89 mix. 275/90/100/90/5.
 
 duration_seconds: 600
 
 locust:
   user_counts:
     getproduct:   275
-    postcheckout: 80
+    postcheckout: 90
     getcart:      100
     postcart:     90
     emptycart:    5
