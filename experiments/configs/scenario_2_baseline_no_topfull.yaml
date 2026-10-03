@@ -4,16 +4,16 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 104
+run_number: 105
 description: >
-  Both controllers off. Paper-C1. Third replay of the run86 mix. 275/80/100/90/5.
+  Both controllers off. Paper-C1. New mix between run86 and run89. 275/85/100/90/5.
 
 duration_seconds: 600
 
 locust:
   user_counts:
     getproduct:   275
-    postcheckout: 80
+    postcheckout: 85
     getcart:      100
     postcart:     90
     emptycart:    5
@@ -104,7 +104,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run104
+log_folder: baseline_no_topfull_sustained_overload_run105
 
 infra:
   master_ssh_host: topfull-master
