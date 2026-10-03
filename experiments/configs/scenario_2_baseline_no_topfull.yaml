@@ -1,12 +1,13 @@
-# Both-off S2. Slot run99 is unused.
-# Run97 was the run89 mix. Run98 was the run86 mix. Both stayed on Paper-C1.
+# Both-off S2. Slot run108 is unused.
+# Counts 275/85/100/90/5 were already launched as run105-run107. Paper-C1 pin may still be live.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 107
+run_number: 108
 description: >
-  Both controllers off. Paper-C1. Third hold of 275/85/100/90/5.
+  Unused slot. Paper-C1 pin may still be live.
+  Counts below are 275/85/100/90/5, already launched as run105-run107.
 
 duration_seconds: 600
 
@@ -104,7 +105,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run107
+log_folder: baseline_no_topfull_sustained_overload_run108
 
 infra:
   master_ssh_host: topfull-master

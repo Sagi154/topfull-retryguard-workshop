@@ -1,12 +1,12 @@
 # Handoff: S2 Paper-C1, the run 89 mix
 
-Continue the both-off S2 series on the Paper-C1 table in [2026-09-30-s2-lens-blend-handoff.md](2026-09-30-s2-lens-blend-handoff.md). Four holds of one mix are done: **275 / 90 / 100 / 90 / 5** (getproduct / postcheckout / getcart / postcart / emptycart). The blend cleared once. The three replays did not clear it again. run96, run97, and run98 have since run. The next unused slot is **run99**. ABC tables for run97, run98, run86, run89, and run94–96: [2026-10-02-s2-paper-c1-run86-run89-replay.md](2026-10-02-s2-paper-c1-run86-run89-replay.md).
+Continue the both-off S2 series on the Paper-C1 table in [2026-09-30-s2-lens-blend-handoff.md](2026-09-30-s2-lens-blend-handoff.md). Four holds of one mix are done: **275 / 90 / 100 / 90 / 5** (getproduct / postcheckout / getcart / postcart / emptycart). The blend cleared once. The three replays did not clear it again. run96, run97, and run98 have since run. The next unused slot is **run108**. The YAML counts are 275 / 85 / 100 / 90 / 5 and were not launched on run108. VMs are terminated in Task 13. ABC tables for run97, run98, run86, run89, and run94–96: [2026-10-02-s2-paper-c1-run86-run89-replay.md](2026-10-02-s2-paper-c1-run86-run89-replay.md). ABC tables for runs 99–107: [2026-10-03-s2-paper-c1-runs-99-107.md](2026-10-03-s2-paper-c1-runs-99-107.md).
 
 ## Where things stand
 
-Branch `s2-paper-c1-run89-replay`. The three VMs were left **RUNNING** on project `project-76deda76-55f1-42d2-abb`. The cluster was left on the Paper-C1 pin: frontend HPA min 4 / max 4, every other service at 1 replica, sidecar request 100 m, no `proxyCPULimit`.
+Branch `s2-paper-c1-run89-replay`. VMs are terminated in Task 13 on project `project-76deda76-55f1-42d2-abb`. The cluster was left on the Paper-C1 pin: frontend HPA min 4 / max 4, every other service at 1 replica, sidecar request 100 m, no `proxyCPULimit`.
 
-`experiments/configs/scenario_2_baseline_no_topfull.yaml` is unused **run99**. `paper_cpu_reconcile: false`. `scale_constraints` is the Paper-C1 table below. The locust counts are 275 / 90 / 100 / 90 / 5. `experiments/test_topfull_cpu_quotas.py` `TestBothOffYamlRestored` still expects unused run87 with empty `scale_constraints` and paper reconcile on. Leave that test until the series stops and the YAML is restored. After the series, point it at the new unused slot.
+`experiments/configs/scenario_2_baseline_no_topfull.yaml` is unused **run108**. `paper_cpu_reconcile: false`. `scale_constraints` is the Paper-C1 table below. The locust counts are 275 / 85 / 100 / 90 / 5 and were not launched on run108. `experiments/test_topfull_cpu_quotas.py` `TestBothOffYamlRestored` still expects unused run87 with empty `scale_constraints` and paper reconcile on. Leave that test until the series stops and the YAML is restored. After the series, point it at the new unused slot.
 
 Full tables for the four holds: [2026-10-02-s2-paper-c1-run89-replay.md](2026-10-02-s2-paper-c1-run89-replay.md).
 

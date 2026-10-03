@@ -1,6 +1,6 @@
-﻿# S2 candidate ranking, both-off runs 1-93 (2026-09-30, extended 2026-10-02)
+﻿# S2 candidate ranking, both-off runs 1-107 (2026-09-30, extended 2026-10-02, extended 2026-10-03)
 
-The file name still says 1-79 so existing links keep working. Runs 1-79 are ranked in the sections below (unchanged). **Runs 80-93, added 2026-10-02, are ranked in [Runs 80-93](#runs-80-93-added-2026-10-02) at the end**, because they were scored against a third bar (the blend bar) and include the first replayed blend.
+The file name still says 1-79 so existing links keep working. Runs 1-79 are ranked in the sections below (unchanged). The covered range is runs 1-107. **Runs 80-93, added 2026-10-02, are ranked in [Runs 80-93](#runs-80-93-added-2026-10-02)**, because they were scored against a third bar (the blend bar) and include the first replayed blend. **Runs 94-107, added 2026-10-03, are ranked in [Runs 94-107](#runs-94-107-added-2026-10-03).**
 
 Goal: decide which both-off hold (CPU table plus Locust user mix) should be the S2 load. Every number comes from the raw CSVs under `experiments/results/campaign_48/S2_sustained_overload/baseline_no_topfull_sustained_overload_run<N>/`. Nothing is locked; replays are a later decision.
 
@@ -169,4 +169,37 @@ Run 85's mix comes from `AGENTS.md`; the YAML before the hold says postcheckout 
 
 ### Where a replay would add information (updated)
 
-Run 86's family and run 89 are the only ones worth another hold: a second replay of run 86 would show whether the blend holds three times in four. Run 87 has no replay. Run 85 would need a full re-run to pass sampling.
+The replays of run 86 and run 89 are runs 99–104, and [Runs 94-107](#runs-94-107-added-2026-10-03) is where their result lives. Run 87 has no replay. Run 85 would need a full re-run to pass sampling.
+
+## Runs 94-107 (added 2026-10-03)
+
+These numbers are canon streaks (last 5 inbound polls dropped), so they can differ by a few from [2026-10-03-s2-paper-c1-runs-99-107.md](2026-10-03-s2-paper-c1-runs-99-107.md) and from [2026-10-02-s2-paper-c1-run86-run89-replay.md](2026-10-02-s2-paper-c1-run86-run89-replay.md), which use `s2_both_off_abc.py`. Folders for 94–107 are `experiments/results/new vms/`.
+
+Verdict uses the blend bar from [Runs 80-93](#runs-80-93-added-2026-10-02): recommendations streak and ov at least 10, checkout streak and ov at least 10, and email or payment ov at least 10. Two of those three, with the missing row at streak or ov of at least 5, is a near-miss. Retries on streaking targets are summed edges of at least 1000 whose target has a streak of at least 10. Mixes are getproduct / postcheckout / getcart / postcart / emptycart. Every row is Paper-C1, both controllers off, 600 s.
+
+No run in 94–107 failed the sampling gate. Every span is 687–693 s and every `gap2_pct` is 0, except run 100 at 2.
+
+| Run | Table, mix | Recs streak / ov | Checkout streak / ov | Email ov | Payment ov | Verdict | Retries on streaking targets | Replay |
+|---|---|---|---|---|---|---|---|---|
+| 94 | Paper-C1, 275/90/100/90/5 | 0 / 0 | 561 / 590 | 16 | 10 | miss | 61k | of 89 |
+| 95 | Paper-C1, 275/90/100/90/5 | 0 / 0 | 564 / 591 | 11 | 0 | miss | 62k | of 89 |
+| 96 | Paper-C1, 275/90/100/90/5 | 0 / 0 | 566 / 592 | 10 | 0 | miss | 62k | of 89 |
+| 97 | Paper-C1, 275/90/100/90/5 | 64 / 545 | 23 / 123 | 36 | 7 | **blend** | 218k | of 89 |
+| 98 | Paper-C1, 275/80/100/90/5 | 250 / 567 | 0 / 24 | 14 | 0 | near-miss (checkout streak 0) | 311k | of 86 |
+| 99 | Paper-C1, 275/90/100/90/5 | 97 / 274 | 290 / 318 | 18 | 7 | **blend** | 152k | of 89 |
+| 100 | Paper-C1, 275/90/100/90/5 | 0 / 0 | 548 / 590 | 13 | 4 | miss | 63k | of 89 |
+| 101 | Paper-C1, 275/90/100/90/5 | 77 / 192 | 375 / 412 | 20 | 4 | **blend** | 118k | of 89 |
+| 102 | Paper-C1, 275/80/100/90/5 | 0 / 0 | 537 / 586 | 32 | 0 | miss | 53k | of 86 |
+| 103 | Paper-C1, 275/80/100/90/5 | 0 / 0 | 546 / 585 | 26 | 0 | miss | 54k | of 86 |
+| 104 | Paper-C1, 275/80/100/90/5 | 0 / 0 | 546 / 584 | 25 | 0 | miss | 54k | of 86 |
+| 105 | Paper-C1, 275/85/100/90/5 | 207 / 522 | 42 / 74 | 15 | 0 | **blend** | 242k | none |
+| 106 | Paper-C1, 275/85/100/90/5 | 0 / 0 | 559 / 593 | 17 | 0 | miss | 58k | of 105 |
+| 107 | Paper-C1, 275/85/100/90/5 | 0 / 0 | 561 / 594 | 16 | 1 | miss | 59k | of 105 |
+
+### Ranking of these rows
+
+Runs 99–101 are the run 89 mix (275/90/100/90/5). Run 89 was a blend. Run 99 and run 101 agreed: both are blends (99 is recommendations 97 / 274 and checkout 290 / 318, email 18; 101 is recommendations 77 / 192 and checkout 375 / 412, email 20). Run 100 did not: it is a miss, recommendations 0 / 0, checkout latched at 548 / 590.
+
+Runs 102–104 are the run 86 mix (275/80/100/90/5). Run 86 was a blend. None of the three agreed. Run 102, run 103, and run 104 are misses: recommendations stays 0 / 0 and checkout is latched (streaks 537, 546, and 546).
+
+Runs 105–107 are the first holds of 275/85/100/90/5. Run 105 blended (recommendations 207 / 522, checkout 42 / 74, email 15). Run 106 and run 107 did not blend: both are misses, with checkout latched and recommendations at 0 / 0.
