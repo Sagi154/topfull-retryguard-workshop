@@ -4,9 +4,9 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 106
+run_number: 107
 description: >
-  Both controllers off. Paper-C1. Second hold of 275/85/100/90/5.
+  Both controllers off. Paper-C1. Third hold of 275/85/100/90/5.
 
 duration_seconds: 600
 
@@ -104,7 +104,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run106
+log_folder: baseline_no_topfull_sustained_overload_run107
 
 infra:
   master_ssh_host: topfull-master
