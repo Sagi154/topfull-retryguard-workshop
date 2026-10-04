@@ -360,6 +360,10 @@ class TestClassify(unittest.TestCase):
     def test_released(self):
         self.assertEqual(p.classify(self.o(58, 238, 224314)), "released")
 
+    def test_run101_recommendations_retries_are_released(self):
+        # run101 frontend>recommendations retries are 76303, under the old 100k bar.
+        self.assertEqual(p.classify(self.o(375, 77, 76303)), "released")
+
     def test_other(self):
         self.assertEqual(p.classify(self.o(0, 250, 50000)), "other")
 
@@ -510,7 +514,9 @@ def classify(o: dict) -> str:
     ret = o["edges"].get(("frontend", "recommendationservice"), 0)
     if ck >= 400 and rc == 0:
         return "sticky"
-    if ret >= 100000:
+    # 70_000 sits under run 101's 76,303 frontend>recommendations retries and
+    # above the 50,000 count that stays "other".
+    if ret >= 70000:
         return "released"
     return "other"
 

@@ -96,3 +96,5 @@ Two holds are a screen. About eight holds of one configuration separate a 1-in-5
 - `ck_cpu1000` moved, latch avoided: three interleaved replays, checkout 1000 m × 1.
 - `ck_rep2_pc120` moved, latch avoided: three interleaved replays, checkout 2 × 800 m and postcheckout 120.
 - `spawn10` moved: three interleaved replays at `spawn_rate` 10.
+
+Service-by-service (a)/(b)/(c) tables for these holds: [2026-10-04-s2-latch-probe-abc.md](2026-10-04-s2-latch-probe-abc.md).
