@@ -151,5 +151,129 @@ class TestClassifyBoundary(unittest.TestCase):
         self.assertEqual(p.classify(self.o(10, 10, 85000)), "released")
 
 
+class TestV2Treatments(unittest.TestCase):
+    def test_four_new_treatments(self):
+        c = p.build_config(base_cfg(), "ck_rep2_pc120_spawn10", 130)
+        self.assertEqual(c["locust"]["spawn_rate"], 10)
+        self.assertEqual(c["locust"]["user_counts"]["postcheckout"], 120)
+        self.assertEqual([x["replicas"] for x in c["scale_constraints"] if x["method"] == "replicas"], [2])
+        self.assertEqual(cpu(c, "checkoutservice"), 800)
+        c = p.build_config(base_cfg(), "ck_cpu1000_pc120", 131)
+        self.assertEqual(cpu(c, "checkoutservice"), 1000)
+        self.assertEqual(c["locust"]["user_counts"]["postcheckout"], 120)
+        self.assertEqual(c["locust"]["spawn_rate"], 50)
+        self.assertFalse([x for x in c["scale_constraints"] if x["method"] == "replicas"])
+        c = p.build_config(base_cfg(), "ck_cpu1000_pc120_spawn10", 137)
+        self.assertEqual((cpu(c, "checkoutservice"), c["locust"]["spawn_rate"]), (1000, 10))
+        self.assertEqual(c["locust"]["user_counts"]["postcheckout"], 120)
+        c = p.build_config(base_cfg(), "recs_cpu1000_spawn10", 132)
+        self.assertEqual((cpu(c, "recommendationservice"), c["locust"]["spawn_rate"]), (1000, 10))
+        self.assertEqual(c["locust"]["user_counts"]["postcheckout"], 90)
+        self.assertEqual(cpu(c, "checkoutservice"), 800)
+
+    def test_expected_replicas_for_new_arms(self):
+        self.assertEqual(p.expected_replicas("ck_rep2_pc120_spawn10")["checkoutservice"], 2)
+        self.assertEqual(p.expected_replicas("ck_cpu1000_pc120_spawn10")["checkoutservice"], 1)
+
+
+class TestFitAndPrepV2(unittest.TestCase):
+    def test_projected_requests(self):
+        self.assertEqual(p.projected_requests_mc("control"), 14305)
+        self.assertEqual(p.projected_requests_mc("spawn10"), 14305)
+        self.assertEqual(p.projected_requests_mc("ck_rep2_pc120"), 15205)   # run123 t0 showed 15205
+        self.assertEqual(p.projected_requests_mc("ck_cpu1000_pc120"), 14505)
+        self.assertEqual(p.projected_requests_mc("recs_cpu1000"), 14155)
+
+    def test_every_v2_arm_fits_under_the_ceiling(self):
+        for t in p.ARMS_V2 + ["control"]:
+            self.assertLessEqual(p.projected_requests_mc(t), p.REQUEST_CEILING_MC, t)
+
+    def test_the_pending_combination_would_not_fit(self):
+        p.TREATMENTS["_bad"] = {"checkout_cpu": 1000, "checkout_replicas": 2}
+        try:
+            self.assertGreater(p.projected_requests_mc("_bad"), p.REQUEST_CEILING_MC)
+        finally:
+            del p.TREATMENTS["_bad"]
+
+    def test_prep_scales_down_before_patching_then_rolls_then_scales_up(self):
+        s = p.prep_script("ck_rep2_pc120")
+        self.assertNotIn("\r", s)
+        down = s.index("--replicas=1")
+        patch = s.index("patch_cpu checkoutservice 800m")
+        roll = s.index("rollout restart deployment/checkoutservice")
+        up = s.index("--replicas=2")
+        self.assertTrue(down < patch < roll < up)
+        self.assertIn("rollout restart deployment/recommendationservice", s)
+
+    def test_prep_node_line_precedes_pending_and_ceiling_exits_3(self):
+        s = p.prep_script("control")
+        self.assertLess(s.index("--- node_cpu_requests_m"), s.index("--- pending"))
+        self.assertLess(s.index("--- pending"), s.index("--- end"))
+        self.assertIn('-gt 15600', s)
+        self.assertIn("exit 3", s)
+        self.assertIn("topfull-worker1", s)
+
+
+class TestHoldOrder(unittest.TestCase):
+    def setUp(self):
+        self.order = p.hold_order(20261004, 128)
+
+    def test_twenty_holds_slots_128_to_147(self):
+        self.assertEqual([x[0] for x in self.order], list(range(128, 148)))
+
+    def test_each_arm_once_per_block_and_three_controls_per_block(self):
+        for blk in "AB":
+            ts = [t for _, b, t in self.order if b == blk]
+            self.assertEqual(len(ts), 10)
+            self.assertEqual(sorted(t for t in ts if t != "control"), sorted(p.ARMS_V2))
+            self.assertEqual(ts.count("control"), 3)
+
+    def test_first_and_last_holds_are_controls(self):
+        self.assertEqual(self.order[0][2], "control")
+        self.assertEqual(self.order[-1][2], "control")
+
+    def test_no_same_family_back_to_back_including_block_boundary(self):
+        ts = [t for _, _, t in self.order]
+        for a, b in zip(ts, ts[1:]):
+            self.assertNotEqual(p.family(a), p.family(b), (a, b))
+
+    def test_deterministic_for_a_seed_and_different_for_another(self):
+        self.assertEqual(self.order, p.hold_order(20261004, 128))
+        self.assertNotEqual([t for _, _, t in self.order],
+                            [t for _, _, t in p.hold_order(1, 128)])
+
+    def test_pinned_order_for_seed_20261004(self):
+        self.assertEqual([t for _, _, t in self.order], [
+            "control", "spawn10", "control", "ck_cpu1000_pc120", "recs_cpu1000_spawn10",
+            "ck_rep2_pc120", "recs_cpu1000", "control", "ck_rep2_pc120_spawn10",
+            "ck_cpu1000_pc120_spawn10",
+            "spawn10", "control", "recs_cpu1000_spawn10", "ck_rep2_pc120_spawn10",
+            "ck_cpu1000_pc120", "control", "recs_cpu1000", "ck_cpu1000_pc120_spawn10",
+            "ck_rep2_pc120", "control"])
+
+
+class TestPodAges(unittest.TestCase):
+    T0 = (
+        "### pods\n"
+        "NAME  READY STATUS RESTARTS AGE IP NODE\n"
+        "checkoutservice-85fb96fbf-76zdj          2/2     Running   2 (6h6m ago)   6h15m   192.168.148.111   topfull-worker1   <none>   <none>\n"
+        "checkoutservice-85fb96fbf-p27c4          2/2     Running   0              40m     192.168.148.110   topfull-worker1   <none>   <none>\n"
+        "recommendationservice-566f644686-jwsxh   2/2     Running   0              6m22s   192.168.148.92    topfull-worker1   <none>   <none>\n"
+        "frontend-85ff4b5b6d-8zjvs                2/2     Running   22 (6h6m ago)  4d15h   192.168.148.118   topfull-worker1   <none>   <none>\n")
+
+    def test_parse_age_seconds(self):
+        self.assertEqual(p.parse_age_seconds("6m22s"), 382)
+        self.assertEqual(p.parse_age_seconds("6h15m"), 22500)
+        self.assertEqual(p.parse_age_seconds("2d14h"), 2 * 86400 + 14 * 3600)
+        self.assertEqual(p.parse_age_seconds("45s"), 45)
+        with self.assertRaises(ValueError):
+            p.parse_age_seconds("old")
+
+    def test_pod_ages_picks_only_checkout_and_recs_and_skips_restart_age(self):
+        a = p.pod_ages(self.T0)
+        self.assertEqual(sorted(a["checkoutservice"]), [2400, 22500])
+        self.assertEqual(a["recommendationservice"], [382])
+
+
 if __name__ == "__main__":
     unittest.main()
