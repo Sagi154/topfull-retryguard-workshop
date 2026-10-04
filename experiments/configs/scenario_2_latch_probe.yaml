@@ -1,14 +1,14 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 129
-description: Both controllers off. Paper-C1. Latch probe, treatment control, run89
-  mix base.
+run_number: 130
+description: Both controllers off. Paper-C1. Latch probe, treatment ck_rep2_pc120,
+  run89 mix base.
 duration_seconds: 600
 locust:
   user_counts:
     getproduct: 275
-    postcheckout: 90
+    postcheckout: 120
     getcart: 100
     postcart: 90
     emptycart: 5
@@ -67,6 +67,10 @@ scale_constraints:
   container: redis
   method: cpu_limit
   cpu_limit_millicores: 540
+- deployment: checkoutservice
+  namespace: default
+  method: replicas
+  replicas: 2
 retries:
   attempts_on: 3
   attempts_off: 0
@@ -89,7 +93,7 @@ resource_usage_collector:
 topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
-log_folder: baseline_no_topfull_sustained_overload_run129
+log_folder: baseline_no_topfull_sustained_overload_run130
 infra:
   master_ssh_host: topfull-master
   loadgen_ssh_host: topfull-load
