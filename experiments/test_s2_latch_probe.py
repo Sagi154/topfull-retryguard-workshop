@@ -134,5 +134,22 @@ class TestClassify(unittest.TestCase):
         self.assertTrue(p.is_blend(self.o(20, 30, 1, ck_ov=10, rc_ov=10, pay=10)))
 
 
+class TestClassifyBoundary(unittest.TestCase):
+    def o(self, ck, rc, ret):
+        return {"svc": {"checkoutservice": {"streak": ck, "ov": 0},
+                        "recommendationservice": {"streak": rc, "ov": 0}},
+                "edges": {("frontend", "recommendationservice"): ret}}
+
+    def test_run101_like_76303_is_released(self):
+        self.assertEqual(p.classify(self.o(375, 77, 76303)), "released")
+
+    def test_bar_is_70000(self):
+        self.assertEqual(p.classify(self.o(10, 10, 69999)), "other")
+        self.assertEqual(p.classify(self.o(10, 10, 70000)), "released")
+
+    def test_100000_is_no_longer_the_bar(self):
+        self.assertEqual(p.classify(self.o(10, 10, 85000)), "released")
+
+
 if __name__ == "__main__":
     unittest.main()
