@@ -1,0 +1,51 @@
+﻿# captured 2026-10-04T15:41:19.1863367+03:00
+### pods
+NAME                                     READY   STATUS    RESTARTS         AGE     IP                NODE              NOMINATED NODE   READINESS GATES
+adservice-858bc85ddc-mpx2t               2/2     Running   14 (3h38m ago)   2d19h   192.168.148.77    topfull-worker1   <none>           <none>
+cartservice-cb47cdf6f-b46xn              2/2     Running   12 (3h38m ago)   2d5h    192.168.148.113   topfull-worker1   <none>           <none>
+checkoutservice-74f59c97b8-m9ppt         2/2     Running   0                23m     192.168.148.112   topfull-worker1   <none>           <none>
+currencyservice-6fdfdfd58f-jj82j         2/2     Running   14 (3h38m ago)   2d19h   192.168.148.81    topfull-worker1   <none>           <none>
+emailservice-5788dd99c4-m2v9q            2/2     Running   14 (94m ago)     2d5h    192.168.148.122   topfull-worker1   <none>           <none>
+frontend-85ff4b5b6d-8zjvs                2/2     Running   24 (3h38m ago)   4d20h   192.168.148.66    topfull-worker1   <none>           <none>
+frontend-85ff4b5b6d-bqmk2                2/2     Running   14 (3h38m ago)   2d19h   192.168.148.93    topfull-worker1   <none>           <none>
+frontend-85ff4b5b6d-hccgd                2/2     Running   14 (3h38m ago)   2d19h   192.168.148.101   topfull-worker1   <none>           <none>
+frontend-85ff4b5b6d-hjdnd                2/2     Running   14 (3h38m ago)   2d19h   192.168.148.80    topfull-worker1   <none>           <none>
+paymentservice-7957995d8b-72gt7          2/2     Running   14 (3h38m ago)   2d19h   192.168.148.97    topfull-worker1   <none>           <none>
+productcatalogservice-77f5596b54-dq8d6   2/2     Running   12 (3h38m ago)   2d5h    192.168.148.108   topfull-worker1   <none>           <none>
+recommendationservice-59db864bcb-xmszg   2/2     Running   0                23m     192.168.148.68    topfull-worker1   <none>           <none>
+redis-cart-5dd575db87-vwx5g              2/2     Running   14 (3h38m ago)   2d19h   192.168.148.127   topfull-worker1   <none>           <none>
+shippingservice-65589f7b48-rxw7n         2/2     Running   14 (3h38m ago)   2d19h   192.168.148.85    topfull-worker1   <none>           <none>
+### nodes
+NAME              STATUS   ROLES           AGE   VERSION    INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+topfull-master    Ready    control-plane   85d   v1.26.15   10.128.0.3    <none>        Ubuntu 20.04.6 LTS   5.4.0-216-generic   docker://28.1.1
+topfull-worker1   Ready    <none>          85d   v1.26.15   10.128.0.4    <none>        Ubuntu 20.04.6 LTS   5.4.0-216-generic   docker://28.1.1
+### hpa
+NAME                        REFERENCE                          TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+frontend-hpa                Deployment/frontend                0%/85%    4         4         4          10d
+productcatalogservice-hpa   Deployment/productcatalogservice   0%/85%    1         1         1          12d
+### sidecar annotations
+adservice	{"kubectl.kubernetes.io/restartedAt":"2026-09-17T19:32:51Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+cartservice	{"kubectl.kubernetes.io/restartedAt":"2026-09-17T19:32:51Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+checkoutservice	{"kubectl.kubernetes.io/restartedAt":"2026-10-04T12:17:36Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+currencyservice	{"kubectl.kubernetes.io/restartedAt":"2026-09-17T19:32:51Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+emailservice	{"kubectl.kubernetes.io/restartedAt":"2026-09-17T19:32:52Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+frontend	{"kubectl.kubernetes.io/restartedAt":"2026-09-26T14:18:00Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/rewriteAppHTTPProbers":"true","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+paymentservice	{"kubectl.kubernetes.io/restartedAt":"2026-09-17T19:32:52Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+productcatalogservice	{"kubectl.kubernetes.io/restartedAt":"2026-09-17T19:32:52Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+recommendationservice	{"kubectl.kubernetes.io/restartedAt":"2026-10-04T12:17:36Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+redis-cart	{"kubectl.kubernetes.io/restartedAt":"2026-09-17T19:32:52Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+shippingservice	{"kubectl.kubernetes.io/restartedAt":"2026-09-17T19:32:52Z","sidecar.istio.io/proxyCPU":"100m","sidecar.istio.io/statsInclusionRegexps":"(cluster\\.outbound.*upstream_rq.*)|(http\\.inbound.*downstream_rq.*)"}
+### worker allocated resources
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests      Limits
+  --------           --------      ------
+  cpu                14305m (89%)  12455m (77%)
+  memory             3952Mi (6%)   5114Mi (7%)
+  ephemeral-storage  0 (0%)        0 (0%)
+  hugepages-1Gi      0 (0%)        0 (0%)
+  hugepages-2Mi      0 (0%)        0 (0%)
+### worker kernel / boot / nproc
+5.4.0-216-generic
+2026-10-04 10:05:00
+16
