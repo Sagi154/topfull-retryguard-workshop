@@ -1,8 +1,8 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 119
-description: Both controllers off. Paper-C1. Latch probe, treatment ck_rep2, run89
+run_number: 120
+description: Both controllers off. Paper-C1. Latch probe, treatment spawn10, run89
   mix base.
 duration_seconds: 600
 locust:
@@ -12,7 +12,7 @@ locust:
     getcart: 100
     postcart: 90
     emptycart: 5
-  spawn_rate: 50
+  spawn_rate: 10
   scripts:
   - online_boutique_create_v2.sh
 paper_cpu_reconcile: false
@@ -67,10 +67,6 @@ scale_constraints:
   container: redis
   method: cpu_limit
   cpu_limit_millicores: 540
-- deployment: checkoutservice
-  namespace: default
-  method: replicas
-  replicas: 2
 retries:
   attempts_on: 3
   attempts_off: 0
@@ -93,7 +89,7 @@ resource_usage_collector:
 topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
-log_folder: baseline_no_topfull_sustained_overload_run119
+log_folder: baseline_no_topfull_sustained_overload_run120
 infra:
   master_ssh_host: topfull-master
   loadgen_ssh_host: topfull-load
