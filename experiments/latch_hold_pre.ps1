@@ -5,6 +5,12 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
+# Schedulability gate: refuse before touching the cluster if the worker's CPU requests would
+# pass the ceiling for this treatment (a checkout pod went Pending on 2026-10-03 when 1000 m
+# and two replicas were combined).
+python experiments/s2_latch_probe.py fit $Treatment
+if ($LASTEXITCODE -ne 0) { Write-Error "fit check failed for $Treatment"; exit 1 }
+
 if ($DryRun) {
     python experiments/s2_latch_probe.py prep $Treatment
     exit 0
@@ -22,7 +28,7 @@ try {
     $ErrorActionPreference = $eap
 }
 $out | ForEach-Object { Write-Host $_ }
-if ($rc -ne 0) { Write-Error "prep failed rc=$rc"; exit 1 }
+if ($rc -ne 0) { Write-Error "prep failed rc=$rc (rc=3 means the worker CPU request ceiling was passed)"; exit 1 }
 
 $text = ($out | ForEach-Object { "$_" }) -join "`n"
 if ($text -notmatch "--- end") { Write-Error "prep did not reach '--- end'"; exit 1 }
