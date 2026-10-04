@@ -1,18 +1,18 @@
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 135
-description: Both controllers off. Paper-C1. Latch probe, treatment ck_cpu1000_pc120,
+run_number: 136
+description: Both controllers off. Paper-C1. Latch probe, treatment recs_cpu1000_spawn10,
   run89 mix base.
 duration_seconds: 600
 locust:
   user_counts:
     getproduct: 275
-    postcheckout: 120
+    postcheckout: 90
     getcart: 100
     postcart: 90
     emptycart: 5
-  spawn_rate: 50
+  spawn_rate: 10
   scripts:
   - online_boutique_create_v2.sh
 paper_cpu_reconcile: false
@@ -21,12 +21,12 @@ scale_constraints:
   namespace: default
   container: server
   method: cpu_limit
-  cpu_limit_millicores: 1000
+  cpu_limit_millicores: 800
 - deployment: recommendationservice
   namespace: default
   container: server
   method: cpu_limit
-  cpu_limit_millicores: 1150
+  cpu_limit_millicores: 1000
 - deployment: productcatalogservice
   namespace: default
   container: server
@@ -89,7 +89,7 @@ resource_usage_collector:
 topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
-log_folder: baseline_no_topfull_sustained_overload_run135
+log_folder: baseline_no_topfull_sustained_overload_run136
 infra:
   master_ssh_host: topfull-master
   loadgen_ssh_host: topfull-load
