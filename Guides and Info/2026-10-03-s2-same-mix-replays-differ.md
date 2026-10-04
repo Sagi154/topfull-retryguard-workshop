@@ -85,6 +85,6 @@ Mixes A = 275/80, B = 275/85, C = 275/90 (post 100/90/5). Instead of AAA BBB CCC
 ### C. Record, do not pin, the rest
 Keep the Paper-C1 pin. Add the t=0 snapshot (check 1) and a post-hold `kubectl get pods -o wide` (`pods_end.txt`) to show whether any pod restarted mid-hold.
 
-## Not run
+## Probe result
 
-No hold, VM start, or code change was made for this file.
+Runs 108–122 carried the restart, interleave, and t=0 snapshot checks described above; the table is in [2026-10-03-s2-latch-probe-results.md](2026-10-03-s2-latch-probe-results.md). Run116 failed the sampling gate, and run123–127 did not run. A restart does not explain the cluster difference on the holds that exist: the only restart hold is run108, which is released and a blend, the same class as the two usable controls (run111 and run121), and the second restart (run124) did not run. Hidden pod state in `state/t0.txt` does not explain it either: every snapshot shares `topfull-worker1`, kernel `5.4.0-216-generic`, and boot `2026-10-03 17:45:52`, and no scored hold is sticky, so there is no sticky-only placement, restart count, or age pattern.
