@@ -1,0 +1,17 @@
+2026-10-04T07:11:17Z  START  poll_interval=1s layer_a_poll_interval=5s
+2026-10-04T07:11:20Z  WARNING  thresholds fetch failed: timed out
+2026-10-04T07:11:20Z  WARNING  stats fetch failed: timed out
+2026-10-04T07:11:25Z  WARNING  thresholds fetch failed: timed out
+2026-10-04T07:11:25Z  WARNING  stats fetch failed: timed out
+2026-10-04T07:11:30Z  WARNING  thresholds fetch failed: timed out
+2026-10-04T07:11:30Z  WARNING  stats fetch failed: timed out
+2026-10-04T07:12:40Z  WARNING  thresholds fetch failed: timed out
+2026-10-04T07:12:40Z  WARNING  stats fetch failed: timed out
+2026-10-04T07:12:45Z  WARNING  thresholds fetch failed: timed out
+2026-10-04T07:12:45Z  WARNING  stats fetch failed: timed out
+2026-10-04T07:12:50Z  WARNING  thresholds fetch failed: timed out
+2026-10-04T07:12:50Z  WARNING  stats fetch failed: timed out
+2026-10-04T07:12:55Z  WARNING  thresholds fetch failed: timed out
+2026-10-04T07:12:55Z  WARNING  stats fetch failed: timed out
+2026-10-04T07:13:02Z  SHUTDOWN  signal=15
+2026-10-04T07:13:03Z  EXIT

@@ -31,7 +31,7 @@ Of these 22 holds, 10 are sticky (91, 94, 95, 96, 100, 102, 103, 104, 106, 107) 
 
 ## Runs 108–127
 
-The base is the run 89 mix (275/90/100/90/5) on Paper-C1: frontend 1150 m × 4, checkout 800 m × 1, recommendations 1150 m × 1, sidecar request 100 m, both controllers off, `spawn_rate` 50 unless the lever changes it. The plan was twenty holds in two shuffled blocks (seed 20261003), one change from that base per hold. Prep sets checkout and recommendations CPU and the checkout replica count before the 360 s cool-off, so the runner's CPU patch is `already at …; skipping patch`. Fourteen holds passed the sampling gate: 108–115 and 117–122. Run116 failed that gate (`total.csv` has 4 rows, mesh span 906 s). Run123 did not start: prep scaled checkout to 2 while the deployment was still at 1000 m, and `checkoutservice-85fb96fbf-9m4m4` stayed Pending (`FailedScheduling`, Insufficient cpu). Slots 124–127 were not run, because a replica-mode failure stops the series. Block A ended at run117, about 01:50 +03 on 2026-10-04. The VMs stayed up across the block boundary. Recommendations pod `recommendationservice-566f644686-jwsxh` is 3h15m old at run117's t=0 and 3h42m old at run118's t=0.
+The base is the run 89 mix (275/90/100/90/5) on Paper-C1: frontend 1150 m × 4, checkout 800 m × 1, recommendations 1150 m × 1, sidecar request 100 m, both controllers off, `spawn_rate` 50 unless the lever changes it. The plan was twenty holds in two shuffled blocks (seed 20261003), one change from that base per hold. Prep sets checkout and recommendations CPU and the checkout replica count before the 360 s cool-off, so the runner's CPU patch is `already at …; skipping patch`. Eighteen holds passed the sampling gate: 108–115 and 117–126. Run116 failed that gate (`total.csv` has 4 rows, mesh span 906 s). Run127 was not run. On the night of 2026-10-03, prep for run123 scaled checkout to 2 while the deployment was still at 1000 m, and `checkoutservice-85fb96fbf-9m4m4` stayed Pending (`FailedScheduling`, Insufficient cpu), so slots 124–127 were not started. On 2026-10-04 the VMs were started again (worker boot `2026-10-04 06:49:12`) and those four levers were run from checkout at 800 m × 1. A first launch of run123 that morning had its collectors stopped with SIGTERM about two minutes after Locust started (`total.csv` has 236 rows). That copy is `experiments/results/new vms/_discarded/run123-sigterm-20261004` and is not a score. The relaunch passed. Block A ended at run117, about 01:50 +03 on 2026-10-04. The VMs stayed up across that night's block boundary. Recommendations pod `recommendationservice-566f644686-jwsxh` is 3h15m old at run117's t=0, 3h42m old at run118's t=0, and 12h old at run123's t=0.
 
 Every quoted runner log line is `already at …; skipping patch` (runs 110, 111, 113, 114, 116, 121, and 122). No kept runner log records an applied CPU patch. A checkout or recommendations pod about 6–7 minutes old at t=0 is the prep rollout during the cool-off. Run108's `t0.txt` is the snapshot before the in-runner restart.
 
@@ -54,44 +54,45 @@ Scores are `python experiments/s2_latch_probe.py score N`. Getproduct goodput is
 | 120 | B | spawn10 | released | yes | 14/69 | 45/593 | 15 | 0 | 213137 | 1303 | 193.1 ms | 0.17 | 63.9 | 839.1 ms | 3h12m | 4h38m |
 | 121 | B | control | released | yes | 11/48 | 156/560 | 12 | 0 | 226799 | 1039 | 177.9 ms | 0.08 | 55.4 | 866.3 ms | 3h43m | 5h8m |
 | 122 | B | ck_cpu1000 | released | no | 0/23 | 560/563 | 21 | 0 | 279481 | 39 | 103.2 ms | 0.00 | 14.4 | 995.0 ms | 6m24s | 5h35m |
-| 123 | B | ck_rep2_pc120 | Did not start. Prep left checkoutservice-85fb96fbf-9m4m4 Pending (FailedScheduling, Insufficient cpu). | | | | | | | | | | | | | |
-| 124 | B | restart | Did not run. A replica-mode failure stops the series. | | | | | | | | | | | | | |
-| 125 | B | pc120 | Did not run. A replica-mode failure stops the series. | | | | | | | | | | | | | |
-| 126 | B | recs_cpu1000 | Did not run. A replica-mode failure stops the series. | | | | | | | | | | | | | |
-| 127 | B | control | Did not run. A replica-mode failure stops the series. | | | | | | | | | | | | | |
+| 123 | B | ck_rep2_pc120 | released | yes | 20/19 | 20/530 | 204 | 12 | 194503 | 2335 | 235.1 ms | 0.08 | 94.6 | 777.5 ms | 6h15m, 40m | 12h |
+| 124 | B | restart | sticky | no | 567/590 | 0/0 | 10 | 2 | 0 | 64036 | 283.2 ms | 0.42 | 273.2 | 297.6 ms | 6h38m | 12h |
+| 125 | B | pc120 | sticky | no | 549/589 | 0/0 | 13 | 0 | 0 | 87211 | 328.5 ms | 0.33 | 273.1 | 332.5 ms | 22m | 21m |
+| 126 | B | recs_cpu1000 | sticky | no | 564/591 | 0/98 | 14 | 4 | 0 | 64124 | 256.6 ms | 0.31 | 273.4 | 279.0 ms | 44m | 6m15s |
+| 127 | B | control | Did not run. The 2026-10-04 re-run covered slots 123–126 only. | | | | | | | | | | | | | |
 
-Run108's checkout age 34h and recommendations age 4d1h are the pre-restart pods (restart counts 8 and 53). From run109 on, those two services show restart count 0 in `t0.txt`. Run112, run115, and run119 list two checkout ages because prep had scaled checkout to 2.
+Run108's checkout age 34h and recommendations age 4d1h are the pre-restart pods (restart counts 8 and 53). From run109 through run122, those two services show restart count 0 in `t0.txt`. Run112, run115, run119, and run123 list two checkout ages because prep had scaled checkout to 2. Run124's t=0 snapshot is before the in-runner restart, same as run108: checkout `76zdj` is 6h38m and recommendations `jwsxh` is 12h. Run125's t=0 pods are the ones that restart created (22m and 21m, restart count 0). Run125's gate passed with one note: checkout `replica_count` was 0 on one resource sample. Run126's recommendations age 6m15s is the 1000 m prep roll.
 
 ### Verdict per lever
 
 `moved` / `no effect seen` / `mixed` are used only when both holds of that lever exist. A lever with one hold, or whose second hold did not run, is incomplete.
 
-- `pc120`: incomplete. Only run117 ran (released, blend yes, checkout sojourn 272.7 ms). Run125 did not run.
+- `pc120`: **mixed**. Run117 is released and a blend (sojourn 272.7 ms). Run125 is sticky (checkout streak 549, recommendations streak 0, sojourn 328.5 ms, over-500 share 0.33). Postcheckout mean RPS is 84.08 on run117 and 64.2 on run125.
 - `recs_users310`: **moved**. Run114 and run118 are both released, and neither is a blend.
 - `ck_rep2`: **moved**, and **latch avoided**. Run112 and run119 are both released and not blends. Checkout sojourn is 73.9 ms and 71.4 ms, over-500 share 0.00 on both, so the sojourn stayed under 500 ms. Per-pod checkout CPU (mean of summed `cpu_millicores` / 2) is 249.9 m on run112 and 341.9 m on run119. Replica mode is 2 on every checkout resource sample (134 and 134).
 - `ck_cpu1000`: **moved**, and **latch avoided**. Run113 and run122 are both released and not blends. Checkout sojourn is 110.8 ms and 103.2 ms, over-500 share 0.00 on both, so the sojourn stayed under 500 ms.
-- `recs_cpu1000`: incomplete. Only run110 ran (other, blend yes, checkout streak 496, frontend→recommendations retries 22814). Run126 did not run.
-- `ck_rep2_pc120`: incomplete. Only run115 ran (released, blend yes, sojourn 175.3 ms, over-500 share 0.04). Per-pod checkout CPU is 353.2 m, and replica mode is 2 on all 135 checkout resource samples. Run123 did not start, so this is not scored as latch avoided.
+- `recs_cpu1000`: **mixed**. Run110 is other and a blend (checkout streak 496, frontend→recommendations retries 22814). Run126 is sticky (checkout streak 564, recommendations overloaded 98 ticks with streak 0, frontend→recommendations retries 0).
+- `ck_rep2_pc120`: **moved**, and **latch avoided**. Run115 and run123 are both released blends. Checkout sojourn is 175.3 ms and 235.1 ms, over-500 share 0.04 and 0.08, so the sojourn stayed under 500 ms. Per-pod checkout CPU (mean of summed `cpu_millicores` / replica count) is 353.2 m on run115 and 369.6 m on run123. Replica mode is 2 on the checkout resource samples (135 and 133). Postcheckout mean RPS is 89.21 on run115 and 94.53 on run123.
 - `spawn10`: **moved**. Run109 and run120 are both released blends. In `getproduct.csv` the arrival ramp is about 10 s: RPS is 271.0 at row 10 on run109 and 266.5 at row 10 on run120. Control run111 (`spawn_rate` 50) is at 52.5 RPS on row 10, and its 5 s mean first reaches 80% of the later plateau at row 36.
-- `restart`: incomplete. Only run108 ran (released, blend yes). Run124 did not run.
+- `restart`: **mixed**. Run108 is released and a blend. Run124 is sticky (checkout streak 567, recommendations streak 0, frontend→recommendations retries 0, frontend→checkout retries 64036).
 
 ### Controls
 
-The planned controls are runs 111, 116, 121, and 127. The two that scored are run111 (released, blend yes) and run121 (released, blend yes). Run116 failed the sampling gate. Run127 did not run. Block A and block B agree on the two scored controls: both are released blends. The 7 earlier holds of this mix on the disk copy (runs 94–97 and 99–101) are 3 blends and 4 sticky.
+The planned controls are runs 111, 116, 121, and 127. The two that scored are run111 (released, blend yes) and run121 (released, blend yes). Run116 failed the sampling gate. Run127 did not run. The two scored controls agree: both are released blends. The 7 earlier holds of this mix on the disk copy (runs 94–97 and 99–101) are 3 blends and 4 sticky.
 
 ### Replays-differ checks
 
-(a) No scored hold in this series is sticky, so `state/t0.txt` does not show a sticky-only pod placement, restart count, pod age, or kernel. Every snapshot from run108 through run122, including the failed run116, has checkout and recommendations on `topfull-worker1`, kernel `5.4.0-216-generic`, and worker boot `2026-10-03 17:45:52`. Restart counts on those two services are 0 from run109 on. Ages change when prep rolls a deployment for a CPU or replica lever (about 6–7 min at t=0) and otherwise grow on the same pod name. Recommendations pod `jwsxh` runs from run111 through run122.
+(a) Runs 124, 125, and 126 are sticky, and they do not share a placement, restart count, or age that the released holds lack. Every snapshot from run108 through run126, including the failed run116, has checkout and recommendations on `topfull-worker1` and kernel `5.4.0-216-generic`. Runs 108–122 share worker boot `2026-10-03 17:45:52`. Runs 123–126 share worker boot `2026-10-04 06:49:12`. Run123 on that new boot is released, so the boot change does not by itself separate the modes. Run123 (released) and run124's pre-restart t=0 (sticky after the roll) share checkout pod `76zdj` and recommendations pod `jwsxh`. Run125 is sticky on the post-restart pods (restart count 0). Run126 is sticky with a recommendations pod 6m15s old.
 
-(b) Checkout sojourn in the 90–150 s window does not separate sticky from released across the scored holds 86–122. Runs 123–127 have no score. In the retro-score, sticky sojourn runs from 158.9 ms (run 102) to 308.0 ms (run 96), over-500 share 0.00–0.42, and released sojourn runs from 133.0 ms (run 98) to 332.3 ms (run 92), over-500 share 0.00–0.33. The probe's released holds run from 71.4 ms (run119, share 0.00) to 500.5 ms (run109, share 0.92). Run109 is released with most of that window over 500 ms. Runs 112 and 119 are released under the sticky band. The ranges overlap. The one other hold, run110, sits at 238.7 ms, inside both bands.
+(b) Checkout sojourn in the 90–150 s window does not separate sticky from released across the scored holds 86–126. In the retro-score, sticky sojourn runs from 158.9 ms (run 102) to 308.0 ms (run 96), over-500 share 0.00–0.42, and released sojourn runs from 133.0 ms (run 98) to 332.3 ms (run 92), over-500 share 0.00–0.33. The probe's released holds run from 71.4 ms (run119, share 0.00) to 500.5 ms (run109, share 0.92). The probe's sticky holds are 256.6 ms (run126, share 0.31), 283.2 ms (run124, share 0.42), and 328.5 ms (run125, share 0.33). Those three sit inside the released band. The ranges overlap. The one other hold, run110, sits at 238.7 ms, inside both bands.
 
-(c) Block order shows no class drift. Scored block A is 8 released and 1 other (run110). Scored block B is 5 released. Neither block has a sticky hold. The two scored controls agree. Blend is yes on 6 of 9 scored block-A holds and on 2 of 5 scored block-B holds; the treatments differ, so that share is not an order effect. Pod ages do not reset between run117 and run118.
+(c) Scored block A is 8 released and 1 other (run110), with no sticky hold. Scored block B is 6 released (runs 118–123) and then 3 sticky (runs 124–126). The sticky holds are the last three of the day, and they are also the second holds of `restart`, `pc120`, and `recs_cpu1000`, whose first holds were not sticky. The two scored controls agree. Blend is yes on 6 of 9 scored block-A holds and on 3 of 9 scored block-B holds; the treatments differ, so that share is not an order effect. Pod ages do not reset between run117 and run118. They do reset for checkout and recommendations at run124's in-runner restart.
 
 ### Follow-up
 
-Two holds are a screen. About eight holds of one configuration separate a 1-in-5 latch rate from a 3-in-5 latch rate. The incomplete levers (`pc120`, `recs_cpu1000`, `ck_rep2_pc120`, `restart`) are dropped here.
+Two holds are a screen. About eight holds of one configuration separate a 1-in-5 latch rate from a 3-in-5 latch rate. The mixed levers (`pc120`, `recs_cpu1000`, `restart`) are dropped here.
 
 - `recs_users310` moved: three interleaved replays with controls, Paper-C1, getproduct 310.
 - `ck_rep2` moved, latch avoided: three interleaved replays, checkout 2 × 800 m.
 - `ck_cpu1000` moved, latch avoided: three interleaved replays, checkout 1000 m × 1.
+- `ck_rep2_pc120` moved, latch avoided: three interleaved replays, checkout 2 × 800 m and postcheckout 120.
 - `spawn10` moved: three interleaved replays at `spawn_rate` 10.
