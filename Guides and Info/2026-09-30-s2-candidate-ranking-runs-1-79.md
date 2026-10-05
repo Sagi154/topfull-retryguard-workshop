@@ -1,6 +1,6 @@
-﻿# S2 candidate ranking, both-off runs 1-107 (2026-09-30, extended 2026-10-02, extended 2026-10-03)
+﻿# S2 candidate ranking, both-off runs 1-153 (2026-09-30, extended 2026-10-02, 2026-10-03, 2026-10-05)
 
-The file name still says 1-79 so existing links keep working. Runs 1-79 are ranked in the sections below (unchanged). The covered range is runs 1-107. **Runs 80-93, added 2026-10-02, are ranked in [Runs 80-93](#runs-80-93-added-2026-10-02)**, because they were scored against a third bar (the blend bar) and include the first replayed blend. **Runs 94-107, added 2026-10-03, are ranked in [Runs 94-107](#runs-94-107-added-2026-10-03).**
+The file name still says 1-79 so existing links keep working. Runs 1-79 are ranked in the sections below (unchanged). The covered range is runs 1-153. **Runs 80-93, added 2026-10-02, are ranked in [Runs 80-93](#runs-80-93-added-2026-10-02)**, because they were scored against a third bar (the blend bar) and include the first replayed blend. **Runs 94-107, added 2026-10-03, are ranked in [Runs 94-107](#runs-94-107-added-2026-10-03).** **Runs 108-153, added 2026-10-05, are the two latch-probe series and are ranked in [Runs 108-153](#runs-108-153-added-2026-10-05).**
 
 Goal: decide which both-off hold (CPU table plus Locust user mix) should be the S2 load. Every number comes from the raw CSVs under `experiments/results/campaign_48/S2_sustained_overload/baseline_no_topfull_sustained_overload_run<N>/`. Nothing is locked; replays are a later decision.
 
@@ -203,3 +203,72 @@ Runs 99–101 are the run 89 mix (275/90/100/90/5). Run 89 was a blend. Run 99 a
 Runs 102–104 are the run 86 mix (275/80/100/90/5). Run 86 was a blend. None of the three agreed. Run 102, run 103, and run 104 are misses: recommendations stays 0 / 0 and checkout is latched (streaks 537, 546, and 546).
 
 Runs 105–107 are the first holds of 275/85/100/90/5. Run 105 blended (recommendations 207 / 522, checkout 42 / 74, email 15). Run 106 and run 107 did not blend: both are misses, with checkout latched and recommendations at 0 / 0.
+
+
+## Runs 108-153 (added 2026-10-05)
+
+Two latch-probe series on the run 89 mix (275/90/100/90/5, Paper-C1, both controllers off, 600 s). Plans: [2026-10-03-s2-latch-probe-holds.md](../docs/superpowers/plans/2026-10-03-s2-latch-probe-holds.md) (runs 108-127) and [2026-10-04-s2-latch-probe-v2-holds.md](../docs/superpowers/plans/2026-10-04-s2-latch-probe-v2-holds.md) (runs 132-153). Runs 128-131 are the `ck_rep2_pc120` and control follow-up between them. Service tables: [2026-10-04-s2-latch-probe-abc.md](2026-10-04-s2-latch-probe-abc.md) and [2026-10-04-s2-latch-probe-v2-abc.md](2026-10-04-s2-latch-probe-v2-abc.md). Class and arm verdicts: [2026-10-03-s2-latch-probe-results.md](2026-10-03-s2-latch-probe-results.md) and [2026-10-04-s2-latch-probe-v2-results.md](2026-10-04-s2-latch-probe-v2-results.md). Folders are under `experiments/results/new vms/`.
+
+These are not a candidate search. Each hold changes one lever from the run 89 mix to find what decides the mode, so the Treatment column names the lever. The numbers are canon streaks (last 5 inbound polls dropped) from `s2_both_off_canon.py`, scored with the same blend bar as [Runs 80-93](#runs-80-93-added-2026-10-02). Retries on streaking targets are summed `service_edges.csv` increments of at least 1000 whose target has a streak of at least 10. Class is the label from `s2_latch_probe.py`: sticky is checkout streak at least 400 with recommendations streak 0, released is frontend to recommendations retries of at least 70,000 and not sticky, anything else is other. Streaks can differ by a few from the probe guides, which use their own scorer.
+
+Excluded: run 116 (sampling gate, `total.csv` 4 rows), run 127 (not run), and runs 136 and 138 (sampling gate, 152 and 169 Locust rows; runs 152 and 153 replaced them). Run 143 has a 134 s inbound hole but kept a 697 s span, so it is kept. Forty-two holds are ranked.
+
+| Run | Treatment | Change from the run 89 mix | Mix | Recs streak / ov | Checkout streak / ov | Email ov | Payment ov | Verdict | Retries on streaking targets | Class |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 108 | restart | pods rolled in-run | 275/90/100/90/5 | 555 / 558 | 12 / 36 | 11 | 4 | **blend** | 293k | released |
+| 109 | spawn10 | spawn_rate 10 | 275/90/100/90/5 | 11 / 321 | 283 / 379 | 24 | 1 | **blend** | 133k | released |
+| 110 | recs_cpu1000 | recs 1000 m | 275/90/100/90/5 | 42 / 506 | 496 / 548 | 13 | 1 | **blend** | 80k | other |
+| 111 | control | none | 275/90/100/90/5 | 69 / 387 | 181 / 252 | 21 | 0 | **blend** | 160k | released |
+| 112 | ck_rep2 | checkout 2x800 m | 275/90/100/90/5 | 145 / 558 | 0 / 0 | 34 | 0 | miss | 225k | released |
+| 113 | ck_cpu1000 | checkout 1000 m | 275/90/100/90/5 | 143 / 557 | 0 / 25 | 28 | 0 | near-miss (checkout) | 239k | released |
+| 114 | recs_users310 | getproduct 310 | 310/90/100/90/5 | 185 / 561 | 9 / 40 | 12 | 0 | near-miss (checkout) | 227k | released |
+| 115 | ck_rep2_pc120 | checkout 2x800 m, postcheckout 120 | 275/120/100/90/5 | 116 / 547 | 11 / 12 | 142 | 4 | **blend** | 219k | released |
+| 117 | pc120 | postcheckout 120 | 275/120/100/90/5 | 136 / 561 | 19 / 92 | 36 | 0 | **blend** | 233k | released |
+| 118 | recs_users310 | getproduct 310 | 310/90/100/90/5 | 124 / 564 | 0 / 31 | 16 | 0 | near-miss (checkout) | 241k | released |
+| 119 | ck_rep2 | checkout 2x800 m | 275/90/100/90/5 | 21 / 449 | 0 / 0 | 125 | 0 | miss | 170k | released |
+| 120 | spawn10 | spawn_rate 10 | 275/90/100/90/5 | 45 / 593 | 14 / 69 | 15 | 0 | **blend** | 214k | released |
+| 121 | control | none | 275/90/100/90/5 | 156 / 560 | 11 / 48 | 12 | 0 | **blend** | 228k | released |
+| 122 | ck_cpu1000 | checkout 1000 m | 275/90/100/90/5 | 560 / 563 | 0 / 23 | 21 | 0 | near-miss (checkout) | 279k | released |
+| 123 | ck_rep2_pc120 | checkout 2x800 m, postcheckout 120 | 275/120/100/90/5 | 20 / 530 | 20 / 19 | 204 | 12 | **blend** | 197k | released |
+| 124 | restart | pods rolled in-run | 275/90/100/90/5 | 0 / 0 | 567 / 590 | 10 | 2 | miss | 64k | sticky |
+| 125 | pc120 | postcheckout 120 | 275/120/100/90/5 | 0 / 0 | 549 / 589 | 13 | 0 | miss | 87k | sticky |
+| 126 | recs_cpu1000 | recs 1000 m | 275/90/100/90/5 | 0 / 98 | 564 / 591 | 14 | 4 | near-miss (recs) | 64k | sticky |
+| 128 | ck_rep2_pc120 | checkout 2x800 m, postcheckout 120 | 275/120/100/90/5 | 55 / 472 | 20 / 39 | 431 | 30 | **blend** | 190k | released |
+| 129 | control | none | 275/90/100/90/5 | 0 / 0 | 558 / 590 | 17 | 0 | miss | 62k | sticky |
+| 130 | ck_rep2_pc120 | checkout 2x800 m, postcheckout 120 | 275/120/100/90/5 | 19 / 495 | 11 / 12 | 332 | 10 | **blend** | 190k | released |
+| 131 | control | none | 275/90/100/90/5 | 0 / 1 | 559 / 590 | 18 | 0 | miss | 62k | sticky |
+| 132 | control | none | 275/90/100/90/5 | 50 / 508 | 10 / 329 | 109 | 0 | **blend** | 168k | released |
+| 133 | spawn10 | spawn_rate 10 | 275/90/100/90/5 | 38 / 584 | 8 / 164 | 37 | 0 | near-miss (checkout) | 202k | released |
+| 134 | control | none | 275/90/100/90/5 | 23 / 379 | 158 / 271 | 51 | 0 | **blend** | 164k | released |
+| 135 | ck_cpu1000_pc120 | checkout 1000 m, postcheckout 120 | 275/120/100/90/5 | 6 / 388 | 116 / 262 | 156 | 0 | near-miss (recs) | 23k | released |
+| 137 | ck_rep2_pc120 | checkout 2x800 m, postcheckout 120 | 275/120/100/90/5 | 15 / 541 | 14 / 19 | 350 | 9 | **blend** | 190k | released |
+| 139 | control | none | 275/90/100/90/5 | 0 / 0 | 562 / 589 | 12 | 1 | miss | 61k | sticky |
+| 140 | ck_rep2_pc120_spawn10 | checkout 2x800 m, postcheckout 120, spawn_rate 10 | 275/120/100/90/5 | 3 / 301 | 16 / 24 | 411 | 2 | near-miss (recs) | 2k | released |
+| 141 | ck_cpu1000_pc120_spawn10 | checkout 1000 m, postcheckout 120, spawn_rate 10 | 275/120/100/90/5 | 0 / 0 | 303 / 599 | 4 | 0 | miss | 77k | other |
+| 142 | spawn10 | spawn_rate 10 | 275/90/100/90/5 | 0 / 0 | 599 / 606 | 1 | 1 | miss | 61k | sticky |
+| 143 | control | none | 275/90/100/90/5 | 0 / 0 | 368 / 410 | 11 | 0 | miss | 57k | other |
+| 144 | recs_cpu1000_spawn10 | recs 1000 m, spawn_rate 10 | 275/90/100/90/5 | 0 / 19 | 600 / 606 | 1 | 0 | miss | 61k | sticky |
+| 145 | ck_rep2_pc120_spawn10 | checkout 2x800 m, postcheckout 120, spawn_rate 10 | 275/120/100/90/5 | 9 / 398 | 9 / 10 | 345 | 1 | miss | 0k | released |
+| 146 | ck_cpu1000_pc120 | checkout 1000 m, postcheckout 120 | 275/120/100/90/5 | 19 / 364 | 113 / 254 | 142 | 0 | **blend** | 158k | released |
+| 147 | control | none | 275/90/100/90/5 | 0 / 0 | 558 / 591 | 19 | 0 | miss | 62k | sticky |
+| 148 | recs_cpu1000 | recs 1000 m | 275/90/100/90/5 | 0 / 156 | 561 / 590 | 16 | 0 | near-miss (recs) | 63k | sticky |
+| 149 | ck_cpu1000_pc120_spawn10 | checkout 1000 m, postcheckout 120, spawn_rate 10 | 275/120/100/90/5 | 0 / 2 | 601 / 604 | 4 | 0 | miss | 77k | sticky |
+| 150 | ck_rep2_pc120 | checkout 2x800 m, postcheckout 120 | 275/120/100/90/5 | 24 / 551 | 15 / 17 | 223 | 13 | **blend** | 215k | released |
+| 151 | control | none | 275/90/100/90/5 | 4 / 515 | 53 / 154 | 34 | 0 | near-miss (recs) | 5k | released |
+| 152 | recs_cpu1000_spawn10 | recs 1000 m, spawn_rate 10 | 275/90/100/90/5 | 0 / 266 | 302 / 600 | 0 | 0 | miss | 56k | other |
+| 153 | recs_cpu1000 | recs 1000 m | 275/90/100/90/5 | 17 / 449 | 121 / 148 | 15 | 0 | **blend** | 212k | released |
+
+### Ranking of these rows
+
+- **Blends: 17 of 42.** Runs 108, 109, 110, 111, 115, 117, 120, 121, 123, 128, 130, 132, 134, 137, 146, 150, 153. Every blend has 80k to 293k retries on streaking targets, in line with runs 80-107.
+- **Deepest checkout streaks among the blends.** Run 110 (checkout 496 / 548, recommendations 42 / 506, email 13), run 109 (283 / 379, recommendations 11 / 321, email 24), run 111 (181 / 252, recommendations 69 / 387, email 21), and run 134 (158 / 271, recommendations 23 / 379, email 51). Run 86 (checkout 108 / 163, four services at 10 or more) stays the best row overall from runs 80-93. Run 108 has the longest recommendations streak (555 / 558) but checkout is only 12 / 36.
+- **`ck_rep2_pc120` blended every time it ran: 6 of 6** (runs 115, 123, 128, 130, 137, 150). It does so with checkout streaks of only 11 to 20, recommendations streaks of 15 to 116, email overloaded 142 to 431 ticks, and payment 4 to 30 ticks. Checkout is never latched on these holds. It is a reliable blend with a shallow checkout streak: none reaches 30.
+- **Latched and blended are separate states.** The sticky holds (124, 125, 126, 129, 131, 139, 142, 144, 147, 148, 149) have recommendations at 0 / 0 to 0 / 156 and checkout streaks of 549 to 601. None blend. This repeats runs 94-107.
+- **Same-mix repeatability.** The untouched control mix (runs 111, 121, 129, 131, 132, 134, 139, 143, 147, 151) gave 4 blends, 4 sticky holds, 1 other (143), and 1 near-miss (151). With runs 89, 92, 94-97, and 99-101, the mix is a blend on 8 of 19 holds. No single replay of this mix can be treated as the S2 load.
+- **Levers.** `recs_users310` (114, 118) and `ck_cpu1000` (113, 122) turned the blend into a near-miss on both holds (checkout streak under 10 with a recommendations streak of 124 to 560). `ck_cpu1000_pc120` (135, 146) blended once. `spawn10` blended on 109 and 120 and did not on 133 and 142. `pc120` blended on 117 and latched on 125. `restart` blended on 108 and latched on 124. `recs_cpu1000` blended on 110 and 153 and latched on 126 and 148. `recs_cpu1000_spawn10` (144, 152) and `ck_cpu1000_pc120_spawn10` (141, 149) never blended. `ck_rep2_pc120_spawn10` (140, 145) did not blend, with checkout streaks of 16 and 9.
+- **Lens A, independent pair.** The best new rows are 134, 111, 109, and 110. **Lens B, chain depth.** Runs 128, 123, and 150 have payment overloaded 30, 12, and 13 ticks beside email in the hundreds, but their checkout streaks are 20, 20, and 15, so they do not give the deep checkout streak that lens wants.
+- **Nothing is locked.** These probes answer what decides the mode, not which hold should be the S2 load. The mechanism and the hidden-state checks are in [2026-10-04-s2-checkout-latch.md](2026-10-04-s2-checkout-latch.md) and [2026-10-03-s2-same-mix-replays-differ.md](2026-10-03-s2-same-mix-replays-differ.md).
+
+### Where a replay would add information (updated again)
+
+`ck_rep2_pc120` already blends reliably, so another replay of it adds little. A blend with a checkout streak of 30 or more has not been reproduced twice: runs 111 and 134 are controls that landed there once each, runs 109 and 110 are single holds, and runs 135 and 146 (`ck_cpu1000_pc120`) show checkout latched for minutes before a late recommendations storm, with a blend only on 146. Any replay of those should be interleaved with controls, because the control mix changes mode between holds with no hidden state in the saved snapshots to explain it.
