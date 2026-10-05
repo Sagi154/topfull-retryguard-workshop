@@ -14,7 +14,7 @@ The number 600 is measured, not a constant in the generator.
 less than that when the response takes longer than a second. Holds whose
 configured sum is only ~560 (the run 89 mix, 275/90/100/90/5) cannot show a
 ceiling at 600, because the generator itself stops at the user count. This
-snapshot therefore uses a mix whose configured sum is 800.
+snapshot therefore uses a mix whose configured sum is 830.
 
 ## 2. What is already ruled out
 
@@ -36,9 +36,26 @@ These are not candidates. The snapshot does not re-test them.
 One 600 s both-off S2 hold on the disk-copy VMs. Slot **run154**
 (`experiments/configs/scenario_2_baseline_no_topfull.yaml`, currently unused).
 Counts are getproduct / postcheckout / getcart / postcart / emptycart =
-**100 / 200 / 100 / 200 / 200** (sum 800). This is the run 51 mix, the hold
-where `emptycart` at a 53 ms P95 still reached only 0.72 of its users
-([calibration spec, Runs 30–56](2026-09-25-s2-overload-user-count-calibration.md)).
+**150 / 30 / 150 / 250 / 250** (sum 830). Not a replay of any earlier hold.
+It is built for Paper-C1 and the question being asked:
+
+- Checkout is 800 m × 1 here and latches near 50 req/s, which collapses the
+  whole storefront. Run 51 used postcheckout 200, but only because its table
+  had four checkout replicas. 30 users keeps checkout far from a latch.
+- Recommendations tracks getproduct + getcart + postcheckout (330 here) and
+  storms near 560 req/s, so a storm cannot be what limits the total.
+- The sum passes 650, where the earlier holds stopped gaining throughput, by
+  putting 500 users on postcart and emptycart. Those two touch only
+  cartservice, which stayed at 37–59% CPU with up to 770 req/s arriving
+  ([calibration spec, Runs 30–56](2026-09-25-s2-overload-user-count-calibration.md)).
+- 330 users on slow page tags and 500 on fast cart tags lets a fast-tag
+  shortfall (candidate 4) be told apart from a node or proxy limit
+  (candidates 1–3).
+
+The risk is that the achieved sum lands above the ceiling band (§5) because
+the fast tags carry it. That outcome is informative: the cap then depends on
+the slow page tags.
+
 `spawn_rate` 50. `paper_cpu_reconcile: false`. TopFull RL off, RetryGuard off.
 The proxy still starts: Locust routes through `:8090` even when RL is off.
 
@@ -112,7 +129,7 @@ Cleared, so it is not named:
 - Candidate 2 is cleared when worker mean busy < 13 of 16 and steal ≤ 2%.
 
 **The hold shows the ceiling** when the five-tag mean-RPS sum is from 450
-through 680 (680 is 0.85 × 800). Above 680, the ceiling did not appear;
+through 705 (705 is 0.85 × 830). Above 705, the ceiling did not appear;
 report the four readings anyway and do not name a limiter. Below 450, the
 hold collapsed (a checkout latch is the usual reason: checkout streak ≥ 30
 and postcheckout achieved < half its users). Do not name a limiter. Do not
