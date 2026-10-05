@@ -2,7 +2,7 @@
 
 How the checkout latch works on the Paper-C1 mixes of runs 86, 89, and 105, and on their replays. Both-off holds, 600 s, `spawn_rate` 50 unless a later probe changed it. Paper-C1 is frontend 1150 m × 4, checkout 800 m × 1, recommendations 1150 m × 1, sidecar request 100 m with no CPU limit. Istio retries are `attempts: 3` and `perTryTimeout: 500ms`.
 
-Related tables: [2026-10-03-s2-paper-c1-runs-99-107.md](2026-10-03-s2-paper-c1-runs-99-107.md), [2026-10-03-s2-same-mix-replays-differ.md](2026-10-03-s2-same-mix-replays-differ.md), [2026-10-03-s2-latch-probe-results.md](2026-10-03-s2-latch-probe-results.md). The earlier mechanism write-up for runs 26–29 is the "checkout retry-latching mechanism" section of [2026-09-25-s2-overload-user-count-calibration.md](../docs/superpowers/specs/2026-09-25-s2-overload-user-count-calibration.md).
+Related tables: [2026-10-03-s2-paper-c1-runs-99-107.md](2026-10-03-s2-paper-c1-runs-99-107.md), [2026-10-03-s2-same-mix-replays-differ.md](2026-10-03-s2-same-mix-replays-differ.md), [2026-10-03-s2-latch-probe-results.md](2026-10-03-s2-latch-probe-results.md), [2026-10-05-s2-latch-escape-time-rescore.md](2026-10-05-s2-latch-escape-time-rescore.md). The earlier mechanism write-up for runs 26–29 is the "checkout retry-latching mechanism" section of [2026-09-25-s2-overload-user-count-calibration.md](../docs/superpowers/specs/2026-09-25-s2-overload-user-count-calibration.md).
 
 Labels: **(m)** measured on the CSVs or taken from those guides, **(i)** inference built on those measurements.
 
@@ -90,3 +90,25 @@ Runs 108–126 tested several of those levers on the run 89 mix. Scores and the 
 - A recommendations CPU cut to 1000 m, postcheckout 120, and a pod restart were mixed: one hold each way.
 - A restart does not explain the original-vs-copy difference. Run 108 (restart) was released; run 124 (restart) was sticky.
 - Checkout sojourn in the 90–150 s window does not separate sticky from released across runs 86–126. The two ranges overlap. The "sojourn already above 500 ms in that window predicts a sticky hold" check from the replays-differ note is refuted for that window. Hold-mean sojourn near 501 ms remains the signature of a hold that stayed latched.
+
+## What the v2 probe added (runs 132–153)
+
+Scores: [2026-10-04-s2-latch-probe-v2-results.md](2026-10-04-s2-latch-probe-v2-results.md). Tables: [2026-10-04-s2-latch-probe-v2-abc.md](2026-10-04-s2-latch-probe-v2-abc.md). Numbers below come from a read-only re-read of the raw CSVs of the 20 scored holds. (m) measured, (i) inference.
+
+**The loop, quantified (m).** On the six sticky holds (139, 142, 144, 147, 148, 149), steady-state 200–500 s: checkout sojourn 504 ms, reset fraction 0.46–0.51, inbound 5xx 0, frontend→checkout traffic 3.0–3.3× the first-attempt rate, 101–128 retries/s, checkout CPU 0.99–1.00 of quota, postcheckout goodput about 0.1 req/s with fail fraction 0.998 or more. Recommendations stays at 400–424 req/s with retries near 0. The "about half time out" step is the untimed half of arrivals: the latency histogram covers only 0.49–0.54 of arrivals and 99.5% of those are above 500 ms, so effectively every attempt times out and Istio runs all 3. Worth knowing: a 3× multiplier needs this, a memoryless one-half timeout would give only about 1.75×.
+
+**Two replicas never reach the loop (m).** All six `ck_rep2` holds (128, 130, 137, 140, 145, 150) stayed under 500 ms (hottest 30 s bin 255–383 ms). Each pod sees about 40–53 req/s at 90–160 s, while one 800 m pod latches near 156 req/s (run 139). (i) The latch needs one pod to saturate during the ramp, so this is a capacity threshold.
+
+**The ramp does not decide the hold (m, refines "the race is decided in the ramp").** Five released holds were fully latched first and escaped later: run 134 pinned 137–287 s, run 135 129–289 s, run 146 128–303 s, run 153 135–245 s, run 151 132–177 s. Recommendations crossed 560 req/s only at about 180–335 s, and checkout fell from about 200 to about 50 req/s as it did. (i) "Sticky" is better read as "no escape within 600 s". Escape then looks like a hazard over time, not a ramp-window race.
+
+**What separates released from sticky (m).** Recommendations arrival above 560 req/s sustained 5 s. Every released hold crosses it (peaks 766–907). Every sticky hold stays at 436–501. The failure-trip rule (streak of 0.20) misses two storms (runs 140 and 151), so use arrival rate to detect a storm.
+
+**"Other" is the same latch (m).** Runs 141, 143, and 152 sit at 501–504 ms with the 3.0–3.2× multiplier. Their checkout streaks of 302, 303, and 368 are cut by a 4 s cool blip (141, 152) or a 56 s stall (143). Run 144 is the same arm as run 152 and scored sticky only because it had no blip. The streak ≥ 400 cutoff mislabels these.
+
+**Levers (m).**
+- `ck_rep2_pc120`: avoided the latch on every hold in both probes. The only lever that did.
+- `ck_cpu1000_pc120`: latched fully for minutes (about 200 req/s, 497 ms) and then handed off on runs 135 and 146. With `spawn_rate` 10 it stayed pinned (runs 141, 149). More headroom delays the latch, it does not prevent it. The first probe's `ck_cpu1000` (postcheckout 90) did avoid it.
+- `spawn_rate` 10: checkout trips 30–40 s earlier on all eight holds (92–101 s) but the mode does not follow (133, 140, 145 released; 142, 144, 149 sticky; 141, 152 other). The first probe's "both released" did not replicate.
+- Recommendations 1000 m: mixed again (148 sticky, 153 released). Both block-A holds of the recommendations-CPU arms failed the sampling gate, so these calls are confounded with time of day.
+
+**Escape-time rescore (m, 2026-10-05).** Re-scoring by recommendations arrival > 560 for 5 s (or never) agrees with sticky/released on every v2 hold; the three "other" holds are `never`. Latch duration separates early releases (≤ 22 s) from the five late escapes (44–203 s). Frontend concurrency by Little's law rises in the last ~30 s before escape but its pre-escape level does **not** separate escapers from sticky holds. Full tables: [2026-10-05-s2-latch-escape-time-rescore.md](2026-10-05-s2-latch-escape-time-rescore.md). Still open: a causal trigger for the escape. A direct frontend queue gauge would be needed to push that further.

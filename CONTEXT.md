@@ -123,3 +123,7 @@ _Avoid_: independent pair (that is only recommendations plus checkout), candidat
 **Latch**:
 Checkout's own completed-request sojourn settling above 500 ms (Istio's perTryTimeout), so its retries multiply its own arrival and pin its CPU; unlatched, the retries land on recommendations instead. The same mix and CPU table has landed on both sides (runs 80 and 84), so treat it as bistable. This is an inference from the raw CSVs, not a demonstrated cause.
 _Avoid_: overload (the latch is one mechanism for it)
+
+**Escape time**:
+Seconds after the first mesh inbound poll when recommendations arrival first stays above 560 req/s for 5 consecutive 1 s ticks, ending a latch; **never** if it does not within the hold. Scrape holes reset the streak instead of counting as zero. It replaces sticky/released as the primary description of a latch hold: on runs 132–153 every released hold escapes, and sticky and "other" holds are never. Computed by `experiments/s2_latch_escape.py`.
+_Avoid_: release time (a hold can release without ever having latched)
