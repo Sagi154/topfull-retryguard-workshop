@@ -29,7 +29,8 @@ case "$mode" in
     echo "### istio-proxy millicores"
     kubectl top pod --containers -n default | awk 'NR==1 || $2 ~ /istio-proxy/'
     fe=$(kubectl get pod -n default -l app=frontend -o jsonpath='{.items[0].metadata.name}')
-    hot=$(kubectl top pod --containers -n default | awk '$2 ~ /istio-proxy/ && $1 !~ /^frontend/ {gsub(/m/,"",$3); print $3, $1}' | sort -rn | head -1 | awk '{print $2}')
+    # kubectl top prints millicores ("6m") or whole cores ("2" = 2000m). Rank in millicores.
+    hot=$(kubectl top pod --containers -n default | awk '$2 ~ /istio-proxy/ && $1 !~ /^frontend/ { cpu=$3; if (cpu ~ /m$/) sub(/m$/, "", cpu); else cpu = cpu * 1000; print cpu + 0, $1 }' | sort -rn | head -1 | awk '{print $2}')
     for p in $fe $hot; do
       echo "### $p"
       kubectl exec "$p" -n default -c istio-proxy -- sh -c '
