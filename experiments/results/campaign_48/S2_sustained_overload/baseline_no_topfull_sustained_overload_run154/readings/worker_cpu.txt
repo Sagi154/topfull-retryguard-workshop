@@ -1,0 +1,4 @@
+nproc 16
+busy_cores 7.44
+steal_pct 0.11
+### processes matching /NOMATCH/ (percent of one core over 60s)
