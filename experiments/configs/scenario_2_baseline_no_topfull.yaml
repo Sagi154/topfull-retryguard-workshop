@@ -1,22 +1,22 @@
-# Both-off S2. Slot run154 is unused.
+# Both-off S2 ceiling snapshot. Slot run154.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
 run_number: 154
 description: >
-  Unused slot. Paper-C1 pin may still be live.
-  Counts below are 275/85/100/90/5, already launched as run105-run107.
+  Both controllers off. Paper-C1 pin. Ceiling snapshot, mix 150/30/150/250/250.
+  See docs/superpowers/specs/2026-10-05-600-rps-ceiling-snapshot-design.md.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   275
-    postcheckout: 85
-    getcart:      100
-    postcart:     90
-    emptycart:    5
+    getproduct:   150
+    postcheckout: 30
+    getcart:      150
+    postcart:     250
+    emptycart:    250
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
