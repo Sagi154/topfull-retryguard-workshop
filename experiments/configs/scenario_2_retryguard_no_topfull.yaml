@@ -1,11 +1,14 @@
 # Scenario 2 | RetryGuard ON, TopFull RL OFF
-# Next free slot run11. run10 was the edge-rpr verification hold (run 89 mix).
+# Edge-rpr eight-hold series, run 89 mix 275/90/100/90/5. Slot about to launch: run11.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: retryguard
 run_number: 11
-description: Next free slot after the edge-rpr verification hold (run10, run 89 mix).
+description: >
+  Edge-rpr eight-hold series, first RetryGuard-only hold (run11).
+  Run 89 mix 275/90/100/90/5. Paper-C1 pin.
+  Checkout and recommendations rolled before the hold.
 duration_seconds: 600
 locust:
   user_counts:
