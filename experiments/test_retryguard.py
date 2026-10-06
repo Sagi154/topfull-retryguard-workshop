@@ -638,6 +638,50 @@ class TestEdgeController(unittest.TestCase):
         self.assertEqual(ctrl.off_callers("recommendationservice"), frozenset())
         self.assertEqual(ctrl.svc_state, {})
 
+    def test_reenable_resets_only_off_edges(self):
+        catalog = "productcatalogservice"
+        off_a = ("frontend", catalog)
+        off_b = ("checkoutservice", catalog)
+        sibling = ("recommendationservice", catalog)
+        ctrl = retryguard.EdgeController(
+            (off_a, off_b, sibling), 0.5, 0.2, 30
+        )
+        changes = []
+        for i in range(30):
+            rpr = {off_a: 0.9, off_b: 0.9}
+            if i < 10:
+                rpr[sibling] = 0.9
+            changes += ctrl.step(rpr, {})
+        offs = [c for c in changes if c.transition == "OFF"]
+        self.assertEqual(len(offs), 1)
+        self.assertEqual(
+            offs[0].new_off, frozenset({"frontend", "checkoutservice"})
+        )
+        self.assertEqual(ctrl.edge_state[sibling].consecutive_high, 10)
+        ctrl.commit(offs[0])
+        self.assertEqual(ctrl.edge_state[off_a].retries_state, "OFF")
+        self.assertEqual(ctrl.edge_state[off_b].retries_state, "OFF")
+        self.assertEqual(ctrl.edge_state[sibling].retries_state, "ON")
+        self.assertEqual(ctrl.edge_state[sibling].consecutive_high, 10)
+
+        backs = []
+        for _ in range(30):
+            backs += ctrl.step({}, {catalog: 0.05})
+        ons = [c for c in backs if c.transition == "ON"]
+        self.assertEqual(len(ons), 1)
+        self.assertEqual(ctrl.edge_state[sibling].consecutive_high, 10)
+        ctrl.commit(ons[0])
+
+        for edge in (off_a, off_b):
+            st = ctrl.edge_state[edge]
+            self.assertEqual(st.retries_state, "ON")
+            self.assertEqual(st.consecutive_high, 0)
+            self.assertEqual(st.consecutive_low, 0)
+        self.assertEqual(ctrl.edge_state[sibling].retries_state, "ON")
+        self.assertEqual(ctrl.edge_state[sibling].consecutive_high, 10)
+        self.assertEqual(ctrl.off_callers(catalog), frozenset())
+        self.assertEqual(ctrl.svc_state, {})
+
 
 if __name__ == "__main__":
     unittest.main()

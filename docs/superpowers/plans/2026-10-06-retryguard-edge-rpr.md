@@ -434,8 +434,9 @@ class EdgeController:
                 change.service, ServiceState(retries_state="OFF")
             )
         else:
-            for (caller, target) in list(self.edge_state):
-                if target == change.service:
+            # Only OFF edges restart. A sibling that stayed ON keeps its rpr streak.
+            for (caller, target), st in list(self.edge_state.items()):
+                if target == change.service and st.retries_state == "OFF":
                     self.edge_state[(caller, target)] = ServiceState()
             self.svc_state.pop(change.service, None)
 ```
