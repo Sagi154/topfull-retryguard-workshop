@@ -1,6 +1,6 @@
 # rho / mu.hat estimate report — `run_topfull_retryguard_sustained_overload_run19`
 
-Generated: 2026-10-05T20:56:46Z
+Generated: 2026-10-06T10:01:37Z
 Run folder: `experiments\results\campaign_48\S2_sustained_overload\run_topfull_retryguard_sustained_overload_run19`
 
 ## Context
@@ -15,17 +15,17 @@ Run folder: `experiments\results\campaign_48\S2_sustained_overload\run_topfull_r
 
 ```
 service                lambda_mean  mu_sat  w_mean_ms  w_p50_ms  n_ticks  inbound_5xx_fraction  inbound_failure_fraction
-adservice              130.7        n/a     1.42       2.968     79       0                     0                       
-cartservice            370.8        n/a     2.286      3.099     123      0                     0.0001186               
-checkoutservice        23.3         48      77.37      54.93     79       0                     0.06042                 
-currencyservice        630.3        n/a     3.049      3.236     123      0                     5.168e-06               
-emailservice           21.67        27.5    11.39      3.324     78       0                     0.003655                
-frontend               378.9        58.5    928.1      1383      265      0.6018                0.602                   
-paymentservice         23.15        n/a     2.605      3.029     82       0                     0.002307                
-productcatalogservice  1288         n/a     2.029      2.347     123      0                     1.77e-05                
-recommendationservice  671.2        605     503.8      722.2     105      0                     0.1984                  
+adservice              147.2        n/a     1.189      2.854     122      0                     0                       
+cartservice            409.9        n/a     2.521      3.147     123      0                     0.0001353               
+checkoutservice        30.76        74.5    83.26      67.68     122      0                     0.02142                 
+currencyservice        704.3        n/a     2.418      3.139     122      0                     2.316e-06               
+emailservice           29.6         20.5    10.74      3.37      122      0                     0.002987                
+frontend               395.1        254     903.1      938.3     204      0.3564                0.3581                  
+paymentservice         30.71        122.5   2.054      3.027     122      0                     0.002449                
+productcatalogservice  1876         n/a     1.705      2.589     122      0                     0                       
+recommendationservice  719.1        611     445.8      608.2     122      0                     0.1989                  
 redis-cart             n/a          n/a     n/a        n/a       0        0                     0                       
-shippingservice        104.8        n/a     0.8817     2.213     83       0                     0.0007424               
+shippingservice        130.9        n/a     0.7291     1.7       123      0                     0.0004622               
 
 Notes:
   - redis-cart: no ticks with traffic
@@ -33,15 +33,4 @@ Notes:
 
 ## RetryGuard toggle events
 
-| timestamp | service | direction | rejection | counter | attempts |
-|---|---|---|---|---|---|
-| 2026-10-05T20:47:17Z | recommendationservice | ON→OFF | 0.3000 | consecutive_high=30 | 0 |
-| 2026-10-05T20:48:19Z | recommendationservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-| 2026-10-05T20:49:20Z | recommendationservice | ON→OFF | 0.2700 | consecutive_high=30 | 0 |
-| 2026-10-05T20:50:22Z | recommendationservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-| 2026-10-05T20:54:53Z | recommendationservice | ON→OFF | 0.3300 | consecutive_high=30 | 0 |
-
-**lambda/W/mu_sat at the services that toggled** (for cross-reference only; RetryGuard did not use these numbers — no `rho` is reported, see the caveat above):
-
-- `recommendationservice`: lambda_mean=671.2  mu_sat=605  w_mean_ms=503.8  inbound_5xx_fraction=0 inbound_failure_fraction=0.1984
-
+`retryguard.log` is present but no `ON→OFF` / `OFF→ON` toggle events were found (RetryGuard ran but never crossed its threshold for the required `interval_samples` — this is expected on many flat baseline/RG-inert runs).

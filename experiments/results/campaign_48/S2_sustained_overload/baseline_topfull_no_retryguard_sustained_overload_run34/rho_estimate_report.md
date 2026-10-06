@@ -1,6 +1,6 @@
 # rho / mu.hat estimate report — `baseline_topfull_no_retryguard_sustained_overload_run34`
 
-Generated: 2026-10-05T20:31:49Z
+Generated: 2026-10-06T09:37:10Z
 Run folder: `experiments\results\campaign_48\S2_sustained_overload\baseline_topfull_no_retryguard_sustained_overload_run34`
 
 ## Context
@@ -15,17 +15,17 @@ Run folder: `experiments\results\campaign_48\S2_sustained_overload\baseline_topf
 
 ```
 service                lambda_mean  mu_sat  w_mean_ms  w_p50_ms  n_ticks  inbound_5xx_fraction  inbound_failure_fraction
-adservice              116.3        n/a     1.419      2.961     122      0                     5.62e-05                
-cartservice            359.6        n/a     2.475      3.151     123      0                     0.0001042               
-checkoutservice        24.44        47.5    75.82      52.27     123      0                     0.03505                 
-currencyservice        616.3        n/a     3.675      3.503     123      0                     0                       
-emailservice           23.22        3.25    12.94      3.312     122      0                     0.002674                
-frontend               353          202.5   1052       1246      306      0.4273                0.429                   
-paymentservice         24.34        n/a     2.376      3.034     123      0                     0.001204                
-productcatalogservice  1617         n/a     2.194      2.552     123      0                     0                       
-recommendationservice  721.4        526.8   442.4      631.8     123      0                     0.302                   
+adservice              133.1        n/a     1.176      2.84      122      0                     0                       
+cartservice            397          n/a     2.403      3.103     122      0                     0.0001068               
+checkoutservice        18.83        71      63.49      44.77     122      0                     0.04903                 
+currencyservice        691.4        n/a     2.196      3.053     122      0                     0                       
+emailservice           17.24        21      8.171      3.25      122      0                     0.004469                
+frontend               390.8        215     940.9      977.4     214      0.4323                0.4338                  
+paymentservice         18.64        121     1.859      3         122      0                     0.001756                
+productcatalogservice  1729         n/a     1.547      2.428     122      0                     0                       
+recommendationservice  717.5        611     451        644.8     122      0                     0.1905                  
 redis-cart             n/a          n/a     n/a        n/a       0        0                     0                       
-shippingservice        104          n/a     0.8146     2.077     123      0                     0.0003458               
+shippingservice        99.64        n/a     0.7122     1.619     122      0                     0.00082                 
 
 Notes:
   - redis-cart: no ticks with traffic
