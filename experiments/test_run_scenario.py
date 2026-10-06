@@ -1330,5 +1330,43 @@ class TestCpuPatchSkip(unittest.TestCase):
         self.assertTrue(any("kubectl patch" in c and "1500m" in c for c in cmds))
 
 
+class TestRestartBeforeHold(unittest.TestCase):
+    def _cfg(self, spec=None):
+        cfg = {"infra": {"master_ssh_host": "topfull-master"}}
+        if spec is not None:
+            cfg["restart_before_hold"] = spec
+        return cfg
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.ssh")
+    def test_absent_key_is_noop(self, mock_ssh, mock_wait):
+        run_scenario.restart_before_hold(self._cfg())
+        mock_ssh.assert_not_called()
+        mock_wait.assert_not_called()
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.ssh")
+    def test_restarts_then_waits_for_rollout_then_settles(self, mock_ssh, mock_wait):
+        mock_ssh.return_value = SimpleNamespace(stdout="", returncode=0)
+        cfg = self._cfg({"deployments": ["checkoutservice", "recommendationservice"],
+                         "settle_seconds": 45})
+        run_scenario.restart_before_hold(cfg)
+        cmds = [c.args[1] for c in mock_ssh.call_args_list]
+        self.assertEqual(cmds[0], "kubectl rollout restart deployment/checkoutservice -n default")
+        self.assertEqual(cmds[1], "kubectl rollout restart deployment/recommendationservice -n default")
+        self.assertIn("rollout status deployment/checkoutservice -n default --timeout=180s", cmds[2])
+        self.assertIn("rollout status deployment/recommendationservice -n default --timeout=180s", cmds[3])
+        self.assertEqual(len(cmds), 4)
+        mock_wait.assert_called_once()
+        self.assertEqual(mock_wait.call_args.args[0], 45)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.ssh")
+    def test_default_settle_is_60(self, mock_ssh, mock_wait):
+        mock_ssh.return_value = SimpleNamespace(stdout="", returncode=0)
+        run_scenario.restart_before_hold(self._cfg({"deployments": ["checkoutservice"]}))
+        self.assertEqual(mock_wait.call_args.args[0], 60)
+
+
 if __name__ == "__main__":
     unittest.main()

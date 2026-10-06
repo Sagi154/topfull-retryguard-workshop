@@ -1,65 +1,103 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Scenario 2 — Sustained Overload  |  RetryGuard ON, TopFull RL OFF
-#
-# 2026-09-24 controller trio RG-only: mix 340 / 100 / 240 / 5 / 5, spawn_rate
-# 50, v2 loadgen. Frontend pinned at 4, catalog HPA max 1, sidecar 90m.
-# Go proxy stays up; deploy_rl.py is not started.
-# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 2 | RetryGuard ON, TopFull RL OFF
+# Next free slot run10. Last completed mix was 360/140/180/5/5.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: retryguard
-run_number: 3                  # run2 = 2026-09-24 controller trio RG-only 340/100/240/5/5
-description: >
-  Controller trio RG-only. Counts 340/100/240/5/5. Frontend pinned at 4;
-  catalog HPA max 1; frontend sidecar request 90m. Proxy ON, deploy_rl.py
-  skipped, RetryGuard ON, Istio default retries.
-
+run_number: 10
+description: Next free slot after the postcart-5 holds. RetryGuard ON, TopFull RL OFF.
+  Frontend HPA 4/4, catalog HPA 1/1. Checkout and recommendations rolled before the hold.
 duration_seconds: 600
-
 locust:
   user_counts:
-    getproduct:   340
-    postcheckout: 100
-    getcart:      240
-    postcart:     5
-    emptycart:    5
+    getproduct: 360
+    postcheckout: 140
+    getcart: 180
+    postcart: 5
+    emptycart: 5
   spawn_rate: 50
   scripts:
-    - online_boutique_create_v2.sh
-
-scale_constraints: []
-
+  - online_boutique_create_v2.sh
+paper_cpu_reconcile: false
+restart_before_hold:
+  deployments:
+  - checkoutservice
+  - recommendationservice
+  settle_seconds: 60
+scale_constraints:
+- deployment: checkoutservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: recommendationservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 1150
+- deployment: productcatalogservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: cartservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: currencyservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 770
+- deployment: shippingservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 770
+- deployment: adservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 1150
+- deployment: paymentservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 155
+- deployment: emailservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 120
+- deployment: redis-cart
+  namespace: default
+  container: redis
+  method: cpu_limit
+  cpu_limit_millicores: 540
 retries:
   attempts_on: 3
   attempts_off: 0
   per_try_timeout_ms: 500
-
 topfull_rl:
   enabled: false
-
 retryguard:
   enabled: true
-  rejection_threshold: 0.20
+  rejection_threshold: 0.2
   sample_interval_seconds: 1
   interval_samples: 30
-
 envoy_retry_collector:
   enabled: true
   poll_interval_seconds: 1
   transport: network_prometheus
   max_workers: 4
-
 resource_usage_collector:
   enabled: true
   poll_interval_seconds: 5
-
 topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
-
-log_folder: run_retryguard_no_topfull_sustained_overload_run3
-
+log_folder: run_retryguard_no_topfull_sustained_overload_run10
 infra:
   master_ssh_host: topfull-master
   loadgen_ssh_host: topfull-load

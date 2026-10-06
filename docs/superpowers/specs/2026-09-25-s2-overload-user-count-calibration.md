@@ -159,6 +159,11 @@ raising a configured count past the point where its own P95 explodes buys
 little extra achieved throughput** — the achieved rate is capped by the
 handler's own latency, not by how many users you throw at it.
 
+> **Addendum (2026-09-28):** "latency effect" is incomplete. On runs 51–56
+> `emptycart` (P95 53–143 ms) still achieved only 0.48–0.82 of its 200
+> configured users, so fast tags fall short too once the whole storefront
+> is loaded. The aggregate ceiling is in "Runs 30–56" below.
+
 ### Frontend is not the bottleneck in any of the 5 runs
 
 Frontend stayed at its HPA-pinned **4 replicas** on every sample in every
@@ -473,6 +478,19 @@ happens to leave more slack in recs' own retry budget. **Run10's specific
 mix (325/80/100/100/5) is still the best untouched lever for recommendations
 in this series; nothing tested since has beaten it.**
 
+> **Correction (2026-09-28) — the next paragraph is wrong as a general
+> claim; do not rely on it.** It infers "no confirmation-page load" from
+> Locust postcheckout *goodput* ≈ 0, but goodput is a 1 s SLO count, not a
+> completion count. Re-reading recommendations' mean admitted λ against
+> achieved `getproduct + getcart + postcheckout` on latched holds gives
+> run29 125.1 vs 125.2, run34 298.2 vs 298.9, run36 278.8 vs 275.1,
+> run42 378.3 vs 378.0 — postcheckout still contributes one recommendations
+> call per attempt while its Locust goodput is 1.7–20 req/s. Latched
+> PlaceOrders still finish (slowly, through Istio retries) and the frontend
+> still renders the confirmation page. Run26 cannot settle it either way
+> (its own recs retry storm inflates λ to 565 against 364 for gp+gc and 410
+> for gp+gc+pc). See "Runs 30–56" below.
+
 The confirmation-page contribution to recommendations (flagged in runs
 12/13 as a "new finding" above) requires checkout to actually **complete**
 PlaceOrder requests. On run26, postcheckout's Locust goodput is ≈0.09 req/s
@@ -532,6 +550,297 @@ CPU stayed at 57 m of 155 m quota (37%) on run28, below even run26's 77 m
 because more `postcheckout` monotonically "tries harder" to reach them; it
 can do the opposite once checkout is already deep in its own retry
 latch.**
+
+## Runs 30–56: user counts vs. real load, across eight CPU tables
+
+Added 2026-09-28. Runs 30–56 are both-off holds, frontend pinned at 4–5
+replicas, on eight different CPU/replica tables (full table and per-pod
+limits: [2026-09-26-s2-cpu-limits-for-spread.md](../../../Guides%20and%20Info/2026-09-26-s2-cpu-limits-for-spread.md)).
+Data gathered by four parallel per-table re-reads of the raw CSVs
+(`service_inbound.csv`, `service_edges.csv`, `topfull_detect.csv`,
+`resource_usage.csv`, Locust tag CSVs), plus one spot-check of my own
+(recs λ vs. Locust tags, runs 6/26/29/34/36/42).
+
+| Table | Runs | What differs (per pod, request = limit) |
+|---|---|---|
+| Agreed | 30–34 | frontend ×5; checkout 1500; recs 2000; catalog 600; cart 1000; currency 500; shipping 400; ad 600; payment/email 150; redis 500 |
+| Replica | 35–38 | frontend ×4; checkout 800×2; recs 800×3; cart 600×2; payment/email 150×2; currency 650 |
+| Checkout-3 | 39–42 | checkout 800×3; recs 800×3; cart 600; payment/email 200; redis 300 |
+| Checkout-4 | 43 | checkout 800×4; recs 800×2 (gate failed: email `replica_count` 0 on 2/134) |
+| Pay-250 | 44–46 | Checkout-4 replicas; currency 600; payment/email 250; redis 250 |
+| Recs-3 | 47–56 | frontend 1050×4; recs 700×3; ad 500; else Pay-250 |
+
+### 1. There is an offered-load ceiling near 600 req/s, and it does not move with the CPU table
+
+Unlatched (healthy) holds on four different tables land on the same total
+achieved Locust RPS regardless of the configured user sum:
+
+| Run | Table | Configured users (sum) | Achieved RPS (sum of 5 tags) | Achieved / configured |
+|---|---|---:|---:|---:|
+| 37 | Replica | 630 | 604 | 0.96 |
+| 39 | Checkout-3 | 700 | 596 | 0.85 |
+| 35 | Replica | 790 | 606 | 0.77 |
+| 40 | Checkout-3 | 790 | 595 | 0.75 |
+| 41 | Checkout-3 | 775 | 599 | 0.77 |
+| 38 | Replica | 750 | 519 | 0.69 |
+| 50 | Recs-3 | 800 | 545 | 0.68 |
+| 53 | Recs-3 | 750 | 569 | 0.76 |
+| 51 | Recs-3 | 800 | 566 | 0.71 |
+| 52 | Recs-3 | 1050 | 561 | 0.53 |
+| 56 | Recs-3 (latched) | 1150 | 508 | 0.44 |
+
+Mesh-side, frontend admitted λ sits at about 500–590 req/s on every
+unlatched hold (35: 582, 37: 591, 39: 523, 40: 501, 41: 519, 38: 519) and
+lower (340–420) on latched ones. Going from 630 to 1050 configured users
+raises nothing. Per-user rate falls from ~0.96 to ~0.53 to ~0.44.
+
+Two consequences for choosing counts:
+
+- Any mix whose sum is above roughly 650 users buys no extra load; it only
+  shifts the *split* among tags (each tag is scaled down by about the same
+  factor). Compare mixes by their **achieved** split, not their configured
+  sum.
+- Fast tags are not exempt: `emptycart` at P95 53–143 ms achieved
+  0.72 / 0.76 / 0.82 / 0.48 of 200 users on runs 51 / 53 / 55 / 56. The
+  earlier "latency effect" explanation covers slow tags only. Below about
+  100 users per tag the achieved ratio is ≥ 0.96 (runs 36/37).
+
+Where the cap sits is **not isolated**: frontend app-container CPU is only
+20–30% of its quota on all these holds (runs 35–56), so it is not app CPU.
+The sidecar (request 90–100 m, no limit) and the frontend's synchronous
+fan-out are candidates; nothing in these runs separates them. Treat ~600
+req/s as an empirical property of this cluster shape, not a derived
+number.
+
+### 2. The load model that holds across tables (unlatched holds)
+
+Mean admitted inbound λ divided by Locust-achieved RPS of the tags that
+feed it, on holds where checkout is not latched and recs is not storming.
+Runs 35 / 37 / 38 (Replica table) computed on the same first-traffic
+window as the tag RPS; runs 39–41 and 44–49 agree after dividing by the
+mesh/Locust window factor (0.84–0.88, which equals frontend λ / Σ tag RPS
+in each run):
+
+| Service | Load model | Fit |
+|---|---|---|
+| adservice | 1.0 × `getproduct` | 0.96 / 0.99 / 1.00 |
+| checkoutservice = paymentservice = emailservice | 1.0 × `postcheckout` | 0.96–1.00 |
+| recommendationservice | 1.0 × (`getproduct` + `getcart` + `postcheckout`) | 0.97 / 0.98 / 1.00 / 1.00 |
+| shippingservice | `getcart` + 2 × `postcheckout` (quote + ship) | 0.97 / 0.97 / 1.00 |
+| currencyservice | ≈ 2.0 × (`getproduct` + `getcart` + `postcheckout`) | 1.93 / 1.96 / 2.00 |
+| cartservice | `getproduct` + `getcart` + `postcart` + `emptycart` + 2 × `postcheckout` | 0.96 / 0.98 / 1.00 |
+| productcatalogservice | ≈ 6.7–7.7 × (`getproduct` + `getcart` + `postcart`); fan-out, not clean | — |
+
+Each of the first six rows is the call graph in
+[LOCUST-API-PATHS.md](../../../Guides%20and%20Info/LOCUST-API-PATHS.md)
+counted one call per edge. Recommendations gets **three** feeders because
+the `postcheckout` confirmation page calls it. `postcart` and `emptycart`
+touch only cartservice (runs 51–56: `frontend→cart` matches the sum of
+those four tags at the same window factor; redis-cart HTTP inbound stays 0
+on every run, a collector limit, not proof of no traffic). On runs 51–56,
+200-user `postcart` + `emptycart` achieved 96–164 req/s each and raised
+cart λ to 480–770, but cart CPU stayed at 37–59% of 600 m.
+
+These coefficients are table-independent: CPU tables change how *hot* a
+service gets at a given λ, not what λ it receives, until the service
+latches or storms (below).
+
+### 3. What each service costs in CPU, and the λ that makes it detector-hot
+
+App-container mean CPU divided by admitted λ, unlatched holds (Replica
+runs 35/37/38, Checkout-3 runs 39–41, Pay-250 runs 44/45, Recs-3 runs
+47–52):
+
+| Service | m per admitted req/s | λ that reaches CPU = 0.8 × quota, for the quota shown |
+|---|---:|---|
+| frontend | 2.0–2.5 | 1150 × 4 → ~1,800 (never reached; cap is upstream) |
+| checkoutservice | 10.7–14.3 (≈ 12) | 800 × 1 → 53; × 2 → 107; × 3 → 160; × 4 → 213 |
+| recommendationservice | 1.5–1.7 | 1150 × 1 → ~560; 800 × 2 → ~780 |
+| emailservice | 1.5–1.65 (runs 44/47: 1.58) | 200 → ~100; 250 → ~125 |
+| paymentservice | 0.85–1.0 | 200 → ~180; 250 → ~225 |
+| adservice | 0.43–0.54 | 600 → ~1,000 |
+| cartservice | 0.53–0.56 | 600 → ~870 |
+| currencyservice | ≈ 0.37 | 500 → ~1,080; 650 → ~1,400 |
+| shippingservice | ≈ 0.33 | 400 → ~970 |
+| productcatalogservice | ≈ 0.10 | 600 → ~4,800 |
+
+This is why the tables behave as they do. Checkout's per-request cost is about 7×
+the next-most-expensive backend (email, recs), so checkout saturates with a few hundred
+req/s of *total* load while nothing else can; the leaf pair
+(email 1.6 m per req/s at a 200–250 m quota) is the only other place that
+tips at reachable λ, because email's quota is tiny, not because it is
+costly. Currency, shipping, ad, cart, catalog cannot be made hot below
+their current quotas at the ~600 req/s ceiling; making them hot would need
+quotas near 150–300 m, which is Scenario 3/4 (targeted bottleneck), not S2.
+Email and payment being hot together with checkout is one chain
+(`email λ = payment λ = checkout λ`), not independent services.
+
+### 4. Recommendations: a single pod tops out near one core, whatever its quota
+
+On Agreed (recs 2000 m × 1), runs 30–33 had recs CPU 974–1066 m (about 49–
+53% of 2000 m), failure fraction 0.185–0.199 (streak 7–8 of the needed 30),
+detector share 0%, and frontend→recs retries 172k–234k. On the paper table
+(1150 m × 1) run 6 peaked at 1130 m. Both point at a per-pod ceiling near
+1000–1100 m, which is consistent with a single-process Python gRPC server
+(inference from those CPU numbers and the code's language, not tested).
+
+Consequence: raising recs's limit from 1150 to 2000 m **removed criterion
+(b)** (detector util now 0.5, not > 0.8) without removing the failures or
+the retry storm. Adding replicas is what removes the storm:
+
+| Recs shape | Table / runs | frontend→recs retries |
+|---|---|---|
+| 2000 × 1 | Agreed 30–33 | 172k–234k |
+| 800 × 2 | Pay-250 44–46 | 26k–119k |
+| 700 × 3 | Recs-3 47–49 | 28k–102k |
+| 800 × 3 | Replica 35–38, Checkout-3 39–42 | 0–252 (run36/42: 0) |
+
+Replica-count, not total millicores, moves recs. Since both 800×3 and
+700×3 cover the same offered λ but 700×3 still storms on runs 47–48 (recs
+failure 0.088), it is close to a threshold: the 800 × 2 → 700 × 3 step
+halved retries (172 → 87/s on the 44 → 47 pair, 147 → 81/s on 45 → 48,
+77 → 40/s on 46 → 49) but did not end them.
+
+### 5. Checkout latching: what the 30–56 data adds and does not settle
+
+Latched = checkout λ / `postcheckout` ≥ ~1.4 (after dividing by the ~0.85
+mesh/Locust window factor) with checkout failure > 0.2, i.e. retries
+multiplying arrivals. "Recs storming" = recs inbound failure ≥ 0.045.
+Across runs 30–56 (run 57 excluded: it failed its gate):
+
+| Group | Runs | Latched? |
+|---|---|---|
+| Recs storming | 30–33, 44–49 unlatched; 56 latched | 1 of 11 |
+| Recs quiet, postcheckout ≥ 200 | 42, 43, 54 latched; 50, 51, 52 not | 3 of 6 |
+| Recs quiet, postcheckout 150 | 34, 36, 55 latched; 38, 39, 41, 53 not | 3 of 7 |
+| Recs quiet, postcheckout ≤ 100 | 35, 37, 40 | 0 of 3 |
+
+Split the recs-quiet, postcheckout ≥ 200 row by leaf limit: on 200 m
+email/payment (runs 42, 43, both at postcheckout 250) it is 2 of 2
+latched; on 250 m leaves (runs 50, 51, 52, 54) it is 1 of 4. That is
+suggestive of a leaf-capacity effect and is a sample of six.
+
+Two things the data supports:
+
+1. A recs storm and a checkout latch mostly do not coincide in this range
+   (10 of 11 recs-storm holds have unlatched checkout). The exceptions are
+   run 56 here (recs failure 0.05) and runs 6 and 26 on the paper table.
+2. Same counts, same recs shape, different leaf limits flipped both at
+   once: run 43 (email/payment 200 m) vs run 44 (250 m), both
+   200/250/200/50/50 and recs 800 × 2. Run 43 latched (checkout ratio
+   1.86, recs failure 0.001, retries 82,368); run 44 did not (ratio 0.75,
+   about 0.85 after window correction; recs failure 0.179, recs retries
+   119,133).
+   Leaf capacity and "recs storming or not" are perfectly confounded across
+   that pair, and nothing in 30–56 separates them.
+
+Replay noise applies here too. Run 53 and run 55 have the same counts on
+the same table; run 53 stayed unlatched (frontend→checkout retries 256)
+and run 55 latched (25,653, postcheckout goodput 111 → 2.2). So a single
+latched hold is a candidate, not a locked S2 mix.
+
+Not explained by anything in 30–56: what flips run 53 → run 55.
+
+Side note on the replica gate. The three failed pin gates (run 43 email,
+runs 55–57 payment) each hit a **leaf pegged at its CPU cap** (payment
+CPU 251 m of 250 m; email 0 m on the two dropped samples). A ready-replica
+count of 0 at exactly those samples is what a failing readiness probe
+looks like, i.e. plausibly an overload symptom on the leaf, not a
+measurement fault. Not verified against pod events; worth a `kubectl get
+events` pass before treating the gate as a pure infrastructure check.
+
+### 6. Scorecard, runs 30–56 (both controllers off)
+
+Bar per criterion (see
+[2026-09-24-s2-both-off-abc-reading.md](../../../Guides%20and%20Info/2026-09-24-s2-both-off-abc-reading.md)):
+(a) failure fraction > 0.20 for ≥ 30 consecutive samples on a controlled
+service; (b) detector `overloaded` share ≥ 0.5; (c) real retry storm on
+those services' edges. Counts: getproduct / postcheckout / getcart /
+postcart / emptycart. Retry Δ = whole-hold positive-delta sum on the
+largest edge.
+
+| Run | Table | Mix | (a) services ≥ 30 | (b) services ≥ 0.5 | (c) largest retry edge |
+|---|---|---|---|---|---|
+| 30 | Agreed | 340/100/240/10/10 | 0 | 0 | recs 234,124 |
+| 31 | Agreed | 380/100/270/20/20 | 0 | 0 | recs 225,477 |
+| 32 | Agreed | 325/80/100/100/5 | 0 | 0 | recs 171,677 |
+| 33 | Agreed | 325/100/100/100/5 | 0 | 0 | recs 177,103 |
+| 34 | Agreed | 100/150/100/100/5 | checkout 122, payment 30 | checkout 60.6% | checkout 60,933 (+ checkout→payment 3,865) |
+| 35 | Replica | 380/100/270/20/20 | 0 | 0 | recs 252 |
+| 36 | Replica | 100/150/100/100/5 | checkout 557 | checkout 89.8% | checkout 100,515 |
+| 37 | Replica | 325/100/100/100/5 | 0 | 0 | recs 192 |
+| 38 | Replica | 250/150/250/50/50 | 0 | checkout 71.7% | recs 101 |
+| 39 | Checkout-3 | 200/150/200/100/50 | 0 | email 64.9% | checkout 1,423 |
+| 40 | Checkout-3 | 380/100/270/20/20 | 0 | 0 | checkout 31 |
+| 41 | Checkout-3 | 325/150/150/100/50 | 0 | 0 | checkout 13 |
+| **42** | Checkout-3 | **150/250/150/20/20** | checkout 185 (email 29) | **checkout 90.8, payment 85.7, email 67.7** | checkout 115,361 |
+| **43** | Checkout-4 (gate failed) | 200/250/200/50/50 | **checkout 147, email 147** | **checkout 75.4, payment 79.8, email 88.7** | checkout 82,368 (+ checkout→email 2,652) |
+| 44 | Pay-250 | 200/250/200/50/50 | 0 | email 83.3% | recs 119,133 |
+| 45 | Pay-250 | 200/250/300/50/50 | 0 | 0 | recs 101,839 |
+| 46 | Pay-250 (rows gate failed) | 250/250/250/100/100 | 0 | 0 | recs 25,961 |
+| 47 | Recs-3 | 200/250/200/50/50 | 0 | 0 | recs 101,810 |
+| 48 | Recs-3 | 200/250/300/50/50 | 0 | 0 | recs 56,828 |
+| 49 | Recs-3 | 250/250/250/100/100 | 0 | 0 | recs 27,955 |
+| 50 | Recs-3 | 200/300/200/50/50 | 0 | email 90.5% | recs 3,353 |
+| 51 | Recs-3 | 100/200/100/200/200 | 0 | 0 | checkout 1,569 |
+| 52 | Recs-3 | 200/250/200/200/200 | 0 | 0 | checkout 691 |
+| 53 | Recs-3 (first 600 s of a 70 min file) | 100/150/100/200/200 | 0 | 0 | checkout 256 |
+| **54** | Recs-3 | **100/300/100/200/200** | **checkout 66, email 179** | **checkout 62.4, email 91.7** | checkout 61,870 |
+| 55 | Recs-3 (payment gate flag) | 100/150/100/200/200 | 0 | 0 (payment 40.5) | checkout 25,653 |
+| 56 | Recs-3 (payment gate flag) | 250/300/200/200/200 | 0 | 0 (payment 45.6) | checkout 34,169 |
+
+Reference (earlier, paper table): run 6 (340/100/240/10/10) checkout 177 &
+recommendations 44 on (a), 476/637 & 558/637 on (b). It is still the only
+hold in the whole dataset where two services **that are not on one call
+chain** both clear (a) and (b). Every "two services" result in 30–56 is
+checkout plus one of its own downstream leaves (email, payment).
+
+### 7. Best so far, and the S2 suggestion
+
+Ranking by the three criteria, with the chain caveat above:
+
+1. **Run 43** (Checkout-4, 200/250/200/50/50): (a) 2 services, (b) 3
+   services, (c) 82k plus a second hot edge. Best on paper. It failed the
+   replica-count gate (email 0 on 2 of 134 samples), so it is not a clean
+   pass, and the mix was replayed on Pay-250 (run 44) without reproducing
+   it.
+2. **Run 54** (Recs-3, 100/300/100/200/200): best **gate-clean** on (a)
+   and (b) together: both criteria on the same two services (checkout,
+   email), retry Δ 61,870. Unreplicated; the nearest replays on this table
+   (runs 53/55) split latched vs unlatched.
+3. **Run 42** (Checkout-3, 150/250/150/20/20): best gate-clean on (b)
+   breadth (three services at 68–91%) and (c) (115,361); (a) only on
+   checkout, email one sample short at 29.
+4. Run 34 (Agreed): only table with (a) on two services that is not
+   Recs/Pay: checkout 122 and payment 30, but (b) only checkout.
+5. Run 36 (Replica): single hot service, big (a)/(b)/(c) on checkout alone.
+
+Suggestion for S2:
+
+- **Table:** Checkout-3 with two per-pod edits, email 200 → 180 m and
+  redis-cart 300 → 320 m (total stays 12,950 m). Checkout-3 passed its
+  replica pin on all four of its holds (runs 39–42); it is the only
+  200 m-leaf table with a clean gate record. The email trim targets the
+  one near-miss in run 42 (streak 29 of 30). Everything else stays.
+- **Mix:** 150 / 250 / 150 / 20 / 20 (run 42). `postcheckout` 250 is the
+  count that latched checkout on both 200 m-leaf holds (2 of 2; on 250 m
+  leaves the same regime latched 1 of 4, §5); browse counts stay low so
+  recs stays quiet (a recs storm is associated with an unlatched checkout,
+  10 of 11). The 20/20 cart tags keep cartservice off the map.
+  Do **not** raise the user sum: §1 shows it buys nothing.
+- **Do not expect** recs as a second hot service on this table: with
+  800 × 3 it does not storm (§4). If recs must be one of the hot pair, the
+  only shape that has produced (a) or (b) on it is one pod near 1,000–
+  1,150 m (run 6 and runs 9–11 on the paper table); that combination has
+  not been reproduced on any CPU table in 30–56 and it trades against the
+  checkout latch (§5).
+- **Before locking:** run it three times. The evidence for the latch
+  (2 of 2 on 200 m leaves at postcheckout 250, 3 of 6 at ≥ 200 overall)
+  and the 53 → 55 flip say a single hold is not enough. If email's replica count drops during a
+  hold, look at pod events first (§5 side note) before discarding it.
+- The email-180 edit is a prediction from one near-miss; it is not a
+  measured result. If it breaks the gate, fall back to plain Checkout-3
+  with run 42's mix, which already has (b) on three services and (c).
 
 ## What this doesn't solve
 

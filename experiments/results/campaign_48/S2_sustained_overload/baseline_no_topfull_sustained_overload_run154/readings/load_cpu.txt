@@ -1,0 +1,28 @@
+nproc 8
+busy_cores 1.07
+steal_pct 0.03
+### processes matching /locust/ (percent of one core over 60s)
+  26.7  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+  26.7  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+  16.7  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+   6.7  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+   6.7  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+   6.7  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+   6.7  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+   3.3  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+   3.3  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+   1.7  tmux new-session -d -s loadgen /tmp/rg_locust_launch.sh
+   1.7  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+   0.0  /home/idozacharia/TopFull/venv/bin/python3 /home/idozacharia/TopFull/venv/bin/locust -f locust_onlin
+   0.0  bash -s -- cpu 60 locust
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.
+   0.0  bash -c /home/idozacharia/TopFull/venv/bin/locust -f locust_online_boutique.py --host=http://10.128.

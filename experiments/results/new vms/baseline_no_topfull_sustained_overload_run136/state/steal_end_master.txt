@@ -1,0 +1,11 @@
+﻿### proc_stat_a
+1791125179 cpu  923112 525 265711 11983816 5745 0 203095 9177 0 0
+### vmstat_10s
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 0  0      0 28061216 111792 3214664    0    0    20    28  168  268  7  4 89  0  0
+ 4  0      0 28079524 111792 3214700    0    0     0   113 7715 11114  2  2 97  0  0
+### mpstat
+mpstat unavailable
+### proc_stat_b
+1791125189 cpu  923243 525 265775 11991499 5748 0 203163 9180 0 0

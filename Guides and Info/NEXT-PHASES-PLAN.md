@@ -2,7 +2,7 @@
 
 ## Framing (presentation vs lab reality)
 
-The NotebookLM prompt ([NOTEBOOKLM-PROMPT.md](NOTEBOOKLM-PROMPT.md)) describes **Ron Nezer’s pre-provisioned lab environment**. Your actual path is the **copied GCP VMs** in `networks-workshop` (`topfull-master` / `topfull-worker-1` / `topfull-load`, IPs in [infra/vm-ips.env](infra/vm-ips.env)).
+The NotebookLM prompt ([NOTEBOOKLM-PROMPT.md](NOTEBOOKLM-PROMPT.md)) describes **Ron Nezer’s pre-provisioned lab environment**. Live work is on the disk copy in `project-76deda76-55f1-42d2-abb` (`topfull-master` / `topfull-worker-1` / `topfull-load`). Names and private IPs: [infra/vm-ips.env](../infra/vm-ips.env). SSH: [CONNECT-VMS.md](CONNECT-VMS.md). Leave `networks-workshop` stopped.
 
 **Slide language:** keep “Ron Nezer’s existing lab environment” / “pre-provisioned K8s + TopFull stack” — do not put Phase numbers or GCP resize details on slides.
 

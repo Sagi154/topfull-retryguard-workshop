@@ -1,0 +1,85 @@
+# Both-off S1. run1 is 75/15/75/75/75. run2 is 150/30/150/75/75.
+# run3 is 150/25/150/75/75 with catalog pinned at 1.
+# All three used the run 89 CPU table with frontend pinned at 4.
+# Next unused slot is run4.
+# paper_cpu_reconcile is false so the runner does not snap back to paper
+# CPU while that pin is in place. Restore paper CPU and the HPA after the hold.
+
+scenario_id: 1
+scenario_name: normal_operation
+condition: baseline
+run_number: 4
+description: >
+  Both controllers off. Unused run4 slot. run3 used the run 89 CPU
+  table, frontend pinned at 4, catalog pinned at 1, counts 150/25/150/75/75.
+
+duration_seconds: 300
+
+locust:
+  user_counts:
+    getproduct:   150
+    postcheckout: 25
+    getcart:      150
+    postcart:     75
+    emptycart:    75
+  spawn_rate: 50
+  scripts:
+    - online_boutique_create_v2.sh
+
+scale_constraints:
+  - deployment: checkoutservice
+    method: cpu_limit
+    cpu_limit_millicores: 800
+  - deployment: productcatalogservice
+    method: cpu_limit
+    cpu_limit_millicores: 800
+  - deployment: cartservice
+    method: cpu_limit
+    cpu_limit_millicores: 800
+  - deployment: emailservice
+    method: cpu_limit
+    cpu_limit_millicores: 120
+
+paper_cpu_reconcile: false
+
+retries:
+  attempts_on: 3
+  attempts_off: 0
+  per_try_timeout_ms: 500
+
+topfull_rl:
+  enabled: false
+
+retryguard:
+  enabled: false
+  rejection_threshold: 0.20
+  sample_interval_seconds: 1
+  interval_samples: 30
+
+envoy_retry_collector:
+  enabled: true
+  poll_interval_seconds: 1
+  transport: network_prometheus
+  max_workers: 4
+
+resource_usage_collector:
+  enabled: true
+  poll_interval_seconds: 5
+
+topfull_throttle_collector:
+  enabled: true
+  poll_interval_seconds: 1
+
+log_folder: baseline_no_topfull_normal_op_run4
+
+infra:
+  master_ssh_host: topfull-master
+  loadgen_ssh_host: topfull-load
+  topfull_src_path: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src
+  topfull_loadgen_path: /home/idozacharia/TopFull/TopFull_loadgen
+  venv_activate: /home/idozacharia/TopFull/venv/bin/activate
+  results_base_path: /home/idozacharia/experiments/results
+  retryguard_script: /home/idozacharia/experiments/retryguard.py
+  envoy_retry_collector_script: /home/idozacharia/experiments/envoy_retry_collector.py
+  resource_usage_collector_script: /home/idozacharia/experiments/resource_usage_collector.py
+  topfull_throttle_collector_script: /home/idozacharia/experiments/topfull_throttle_collector.py

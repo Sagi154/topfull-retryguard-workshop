@@ -1,0 +1,26 @@
+### istio-proxy millicores
+POD                                      NAME          CPU(cores)   MEMORY(bytes)   
+adservice-858bc85ddc-mpx2t               istio-proxy   58m          53Mi            
+cartservice-cb47cdf6f-b46xn              istio-proxy   297m         79Mi            
+checkoutservice-58956b75dc-6hnsd         istio-proxy   189m         66Mi            
+currencyservice-6fdfdfd58f-jj82j         istio-proxy   231m         69Mi            
+emailservice-5788dd99c4-m2v9q            istio-proxy   31m          51Mi            
+frontend-85ff4b5b6d-8zjvs                istio-proxy   444m         75Mi            
+frontend-85ff4b5b6d-bqmk2                istio-proxy   447m         68Mi            
+frontend-85ff4b5b6d-hccgd                istio-proxy   408m         68Mi            
+frontend-85ff4b5b6d-hjdnd                istio-proxy   377m         67Mi            
+paymentservice-7957995d8b-72gt7          istio-proxy   25m          53Mi            
+productcatalogservice-77f5596b54-dq8d6   istio-proxy   662m         61Mi            
+recommendationservice-5ddc65f9c8-x4snt   istio-proxy   294m         62Mi            
+redis-cart-5dd575db87-vwx5g              istio-proxy   34m          50Mi            
+shippingservice-65589f7b48-rxw7n         istio-proxy   95m          71Mi            
+### frontend-85ff4b5b6d-8zjvs
+envoy pid 24
+envoy threads 12
+--concurrency
+2
+### productcatalogservice-77f5596b54-dq8d6
+envoy pid 26
+envoy threads 12
+--concurrency
+2

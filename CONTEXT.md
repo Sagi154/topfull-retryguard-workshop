@@ -89,3 +89,41 @@ _Avoid_: "overloaded" alone (ambiguous between this and TopFull's Layer A flag)
 **Bottleneck reference load**:
 The one Locust load recipe, run with zero `scale_constraints`, used as the shared comparison point for Scenarios 3/4A/4B — sized so each target service would saturate if capped to its bottleneck cap, while every other service stays healthy at that same load with nothing capped. Distinct from Scenario 2's "sustained overload" load (a different scenario, a different load character) and from `condition: baseline` (that's the RetryGuard-off arm, not this).
 _Avoid_: "S2's load", "baseline" alone (both already mean something else in this project)
+
+### S2 candidate selection
+
+**Both-off hold**:
+A 600 s S2 run with TopFull RL and RetryGuard both disabled, used to judge whether a CPU table plus Locust user mix produces the overload S2 needs before any controller is involved. Scored on the signals the controllers would have used (RetryGuard-kind overload, detector `overloaded`, retry deltas), not on goodput.
+_Avoid_: baseline (that means the RetryGuard-off arm with TopFull on)
+
+**Rejection streak**:
+The longest run of consecutive 1 s inbound polls on one service where RetryGuard-kind overload's rejection signal is above 0.20, with the last 5 polls dropped. 30 is the RetryGuard bar; 10 or more counts as a real streak because the noise ceiling across valid runs is 8.
+_Avoid_: overloaded (that is TopFull's detector flag, a different signal)
+
+**Overloaded tick**:
+One detector sample where a service's `overloaded` flag is 1 (`utilization > alpha`). The working cutoff for "overloaded during the run" is 10 ticks. 30 ticks is a lot for this signal. Most hot pairs are either under 10 or at 30 or more.
+_Avoid_: rejection streak, RetryGuard-kind overload
+
+**Independent pair**:
+Two services that overload on separate call paths and both show a rejection streak of 10 or more and 10 or more overloaded ticks, for example checkout and recommendations. Reflects two separate overloads.
+_Avoid_: chain (payment and email arrivals equal checkout arrivals, so they overload with it)
+
+**Chain**:
+Checkout plus the downstream services (payment, email) whose arrival rate equals checkout's. Overload shows up in several services but has one root cause. The only place backend-to-backend retries appear.
+_Avoid_: independent pair
+
+**Valid sampling**:
+A both-off run where `service_inbound.csv` polls are 1 s apart and the collectors span about the 600 s hold. Runs whose inbound polls are mostly 2 s or longer are excluded from S2 candidate ranking, because a 30-sample streak would no longer mean 30 s.
+_Avoid_: truncated run (a separate failure: too few rows)
+
+**Blend**:
+A both-off hold that clears recommendations (streak and overloaded ticks both at least 10), checkout (same), and at least one leaf service (email or payment, 10 or more overloaded ticks), so it shows the independent pair and a chain service together. A **near-miss** clears exactly two of those three rows and has the missing one at streak or ticks of 5 or more. Retries and goodput do not decide either.
+_Avoid_: independent pair (that is only recommendations plus checkout), candidate (nothing is locked)
+
+**Latch**:
+Checkout's own completed-request sojourn settling above 500 ms (Istio's perTryTimeout), so its retries multiply its own arrival and pin its CPU; unlatched, the retries land on recommendations instead. The same mix and CPU table has landed on both sides (runs 80 and 84), so treat it as bistable. This is an inference from the raw CSVs, not a demonstrated cause.
+_Avoid_: overload (the latch is one mechanism for it)
+
+**Escape time**:
+Seconds after the first mesh inbound poll when recommendations arrival first stays above 560 req/s for 5 consecutive 1 s ticks, ending a latch; **never** if it does not within the hold. Scrape holes reset the streak instead of counting as zero. It replaces sticky/released as the primary description of a latch hold: on runs 132–153 every released hold escapes, and sticky and "other" holds are never. Computed by `experiments/s2_latch_escape.py`.
+_Avoid_: release time (a hold can release without ever having latched)

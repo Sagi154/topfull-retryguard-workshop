@@ -1,0 +1,11 @@
+nproc 8
+busy_cores 1.94
+steal_pct 0.09
+### processes matching /proxy_online|metric_collector|envoy_retry_collector|resource_usage_collector|topfull_throttle_collector/ (percent of one core over 60s)
+  48.3  python3 /home/idozacharia/experiments/envoy_retry_collector.py --params /tmp/envoy_retry_params.json
+  33.3  /tmp/go-build332733526/b001/exe/proxy_online_boutique
+   6.7  python3 metric_collector.py
+   3.3  python3 /home/idozacharia/experiments/topfull_throttle_collector.py --params /tmp/topfull_throttle_p
+   0.0  python3 /home/idozacharia/experiments/resource_usage_collector.py --params /tmp/resource_usage_param
+   0.0  go run proxy_online_boutique.go
+   0.0  bash -s -- cpu 60 proxy_online|metric_collector|envoy_retry_collector|resource_usage_collector|topfu

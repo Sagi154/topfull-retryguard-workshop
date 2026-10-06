@@ -4,9 +4,26 @@
 
 **Trigger:** User asks to connect to the workshop VMs, fix SSH, set up `~/.ssh/config`, or similar.
 
-**Shared GCP project:** `networks-workshop`  
+**Shared GCP project:** `project-76deda76-55f1-42d2-abb` (console name "My First Project", number `444439345310`)  
 **Zone:** `us-central1-a`  
-**VMs:** `topfull-master`, `topfull-worker-1`, `topfull-load`
+**VMs:** `topfull-master`, `topfull-worker-1`, `topfull-load`  
+**SSH user:** `idozacharia` on all three
+
+These are the 2026-10-01 disk copy on Yoav's account (`yoavnm98@gmail.com`). The original three VMs in `networks-workshop` stay stopped. Do not start them.
+
+A partner connects the same way as this PC, on their own machine:
+
+1. Sign in with one of these accounts. They are already members of `project-76deda76-55f1-42d2-abb`:
+   - `yoavnm98@gmail.com` — Owner
+   - `idozacharia@gmail.com` — Editor
+   - `sagi151ps@gmail.com` — Editor
+
+   Editor can list, start, stop, and SSH. A university account that is only on `networks-workshop` cannot see this project.
+2. Follow the steps below. `User` is `idozacharia`. `IdentityFile` is **this** PC's key, not someone else's.
+3. Keys already in `/home/idozacharia/.ssh/authorized_keys` on the original disks are on this copy. A new PC still runs Step 4.
+4. Public IPs change every start, and worker and load have swapped addresses before. After every start, rewrite the three `HostName` lines and run `ssh-keygen -R` on the old and new public IPs before the first SSH.
+
+Private IPs (reserved): master `10.128.0.3`, worker `10.128.0.4`, load `10.128.0.2`. Snapshot of names and types: [infra/vm-ips.env](../infra/vm-ips.env). Narrative: [2026-10-01-copied-project-handoff.md](2026-10-01-copied-project-handoff.md).
 
 Related human docs: [SETUP-GUIDE.md](SETUP-GUIDE.md) | [PREREQUISITES.md](PREREQUISITES.md)
 
@@ -18,7 +35,7 @@ Related human docs: [SETUP-GUIDE.md](SETUP-GUIDE.md) | [PREREQUISITES.md](PREREQ
 2. **`User` is always `idozacharia`** — that is the fixed Linux account on all three VMs that owns all experiment tooling (`/home/idozacharia/TopFull/`, `/home/idozacharia/experiments/`). The Windows username is irrelevant; do **not** use it as `User`. Do not copy another teammate's `HostName` or `IdentityFile`.
 3. **`User` is never an email.** It is the Linux account on the VM (usually the Windows username, e.g. `sagi1`). Browser SSH may show a different user (e.g. `sagi151ps`); ignore that for local OpenSSH.
 4. **Stopped VMs have no public IP.** `Connection timed out` almost always means `TERMINATED` or stale `HostName`, not a missing firewall rule. Project already has `default-allow-ssh` (`tcp:22` / `0.0.0.0/0`).
-5. **Ephemeral IPs change on stop/start.** After every start, refresh `HostName` in `~/.ssh/config`.
+5. **Ephemeral IPs change on stop/start.** After every start, refresh `HostName` in `~/.ssh/config`, then `ssh-keygen -R` the previous and new public IPs. Worker and load have swapped addresses.
 6. **Interactive blockers:** `gcloud auth login` and first-time `ssh-keygen` passphrase prompts need the human. Stop, tell them what to complete, then continue.
 7. **Do not** commit private keys, `.pub` contents into git secrets carelessly, or overwrite unrelated `Host` blocks in `~/.ssh/config`.
 8. **Success criteria:** all three must return `idozacharia` with no password prompt:
@@ -79,17 +96,17 @@ Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub"
 ### Step 2 — Ensure `gcloud` can see the VMs
 
 ```powershell
-gcloud config set project networks-workshop
-gcloud compute instances list --format="table(name,zone,status,networkInterfaces[0].accessConfigs[0].natIP)"
+gcloud config set project project-76deda76-55f1-42d2-abb
+gcloud compute instances list --project=project-76deda76-55f1-42d2-abb --format="table(name,zone,status,networkInterfaces[0].accessConfigs[0].natIP)"
 ```
 
 **If permission error or empty/wrong project:**
 
-1. Check `gcloud auth list`. The active account must be a member of `networks-workshop` (often a personal Gmail, not a university account).
+1. Check `gcloud auth list`. The active account must be a member of `project-76deda76-55f1-42d2-abb` (often a personal Gmail, not a university account).
 2. If the right account is missing, run `gcloud auth login` and **ask the user to finish the browser flow**, then:
    ```powershell
    gcloud config set account CORRECT_EMAIL
-   gcloud config set project networks-workshop
+   gcloud config set project project-76deda76-55f1-42d2-abb
    ```
 3. Re-list instances. Proceed only when all three `topfull-*` VMs appear.
 
@@ -98,9 +115,9 @@ gcloud compute instances list --format="table(name,zone,status,networkInterfaces
 ### Step 3 — Start VMs and capture public IPs
 
 ```powershell
-gcloud compute instances start topfull-master topfull-worker-1 topfull-load --zone=us-central1-a
+gcloud compute instances start topfull-master topfull-worker-1 topfull-load --zone=us-central1-a --project=project-76deda76-55f1-42d2-abb
 
-gcloud compute instances list `
+gcloud compute instances list --project=project-76deda76-55f1-42d2-abb `
   --format="table(name,status,networkInterfaces[0].accessConfigs[0].natIP)"
 ```
 
@@ -135,7 +152,7 @@ hostname; whoami
 
 foreach ($vm in @('topfull-master','topfull-worker-1','topfull-load')) {
   Write-Host "=== $vm ==="
-  gcloud compute ssh $vm --zone=us-central1-a --command=$remote --quiet
+  gcloud compute ssh $vm --zone=us-central1-a --project=project-76deda76-55f1-42d2-abb --command=$remote --quiet
 }
 ```
 
@@ -204,12 +221,18 @@ Report to the user: aliases work, usernames, and current public IPs. Remind them
 When the user already completed setup once:
 
 ```powershell
-gcloud config set project networks-workshop
-gcloud compute instances start topfull-master topfull-worker-1 topfull-load --zone=us-central1-a
-gcloud compute instances list --format="table(name,status,networkInterfaces[0].accessConfigs[0].natIP)"
+gcloud config set project project-76deda76-55f1-42d2-abb
+gcloud compute instances start topfull-master topfull-worker-1 topfull-load --zone=us-central1-a --project=project-76deda76-55f1-42d2-abb
+gcloud compute instances list --project=project-76deda76-55f1-42d2-abb --format="table(name,status,networkInterfaces[0].accessConfigs[0].natIP)"
 ```
 
-Update the three `HostName` lines in `~/.ssh/config`, then re-run Step 6 verify.
+For each previous `HostName` and each new public IP:
+
+```powershell
+ssh-keygen -R <ip>
+```
+
+Update the three `HostName` lines in `~/.ssh/config`, then re-run Step 6 verify. Confirm `gcloud config get-value project` is `project-76deda76-55f1-42d2-abb` before start, so a leftover `networks-workshop` config does not start the originals.
 
 If verify fails with auth error, re-run Step 4 (key may be missing for this user on a rebuilt VM).
 
@@ -218,7 +241,7 @@ If verify fails with auth error, re-run Step 4 (key may be missing for this user
 ## Stop VMs (when user asks to save cost)
 
 ```powershell
-gcloud compute instances stop topfull-master topfull-worker-1 topfull-load --zone=us-central1-a
+gcloud compute instances stop topfull-master topfull-worker-1 topfull-load --zone=us-central1-a --project=project-76deda76-55f1-42d2-abb
 ```
 
 Do **not** stop VMs unless the user asks.
@@ -231,7 +254,7 @@ Do **not** stop VMs unless the user asks.
 |-------------|--------|
 | `Connection timed out` / `TcpTestSucceeded : False` | List instances; if `TERMINATED` or empty `NAT_IP` → start; if IP ≠ config → fix `HostName` |
 | Permission denied / BatchMode fails | Wrong `User` or missing key → re-run Step 4; set `User` to `whoami` from that step |
-| `gcloud` cannot list `networks-workshop` | Wrong account → user must `gcloud auth login` with project member email |
+| `gcloud` cannot list `project-76deda76-55f1-42d2-abb` | `gcloud auth login` as `yoavnm98@gmail.com`, `idozacharia@gmail.com`, or `sagi151ps@gmail.com`. Do not fall back to `networks-workshop`. |
 | Browser SSH works, local SSH fails | Different Linux users — install key via Step 4 for **this PC’s** user, not browser user |
 | Gaia / Regional Access Boundary warnings | Ignore if API calls still succeed |
 | Need more detail | `ssh -v topfull-master` → look for `Authentication succeeded (publickey)` |
@@ -241,5 +264,5 @@ Do **not** stop VMs unless the user asks.
 ## Out of scope for this playbook
 
 - Creating/deleting VMs or changing firewall unless list/start proves a real network block (unlikely in this project)
-- Using university `gcloud` accounts that lack `networks-workshop` IAM
+- Using university `gcloud` accounts that lack `project-76deda76-55f1-42d2-abb` IAM
 - Committing `~/.ssh` private keys into the repo

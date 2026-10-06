@@ -290,6 +290,19 @@ def make_custom_api():
     return client.CustomObjectsApi()
 
 
+def build_vs_patch_body(route: list, attempts: int, per_try_timeout_ms: int) -> dict:
+    """VirtualService merge-patch body: full retry policy, or bare attempts: 0."""
+    if int(attempts) > 0:
+        retries = {
+            "attempts": int(attempts),
+            "retryOn": RETRY_ON,
+            "perTryTimeout": f"{per_try_timeout_ms}ms",
+        }
+    else:
+        retries = {"attempts": 0}
+    return {"spec": {"http": [{"route": route, "retries": retries}]}}
+
+
 def patch_virtualservice(
     api: client.CustomObjectsApi,
     service_name: str,
@@ -301,10 +314,13 @@ def patch_virtualservice(
     GET the existing VirtualService, then merge-patch retries while
     preserving the existing route (Istio rejects an http rule with no route).
 
-    Istio validation rejects ``retries.attempts: 0`` while a retry policy is
-    still present (``retryOn`` etc.). To disable retries we omit the
-    ``retries`` block entirely; merge-patch replaces the ``http`` array so
-    the old retries key is dropped.
+    To disable retries we send ``retries: {attempts: 0}`` and nothing else.
+    Istio's webhook rejects ``attempts: 0`` combined with ``retryOn`` or
+    ``perTryTimeout``, but a bare ``attempts: 0`` is accepted and yields no
+    Envoy retry policy (true zero retries). Omitting the block instead would
+    fall back to Istio's built-in default (2 retries on connect-failure,
+    refused-stream, unavailable, cancelled, 503) — verified 2026-10-06.
+    Merge-patch replaces the ``http`` array, so the old retries key is dropped.
     """
     existing = api.get_namespaced_custom_object(
         group=VS_GROUP,
@@ -320,15 +336,7 @@ def patch_virtualservice(
     else:
         route = [{"destination": {"host": service_name}}]
 
-    http_rule: dict = {"route": route}
-    if int(attempts) > 0:
-        http_rule["retries"] = {
-            "attempts": int(attempts),
-            "retryOn": RETRY_ON,
-            "perTryTimeout": f"{per_try_timeout_ms}ms",
-        }
-
-    body = {"spec": {"http": [http_rule]}}
+    body = build_vs_patch_body(route, attempts, per_try_timeout_ms)
 
     api.patch_namespaced_custom_object(
         group=VS_GROUP,

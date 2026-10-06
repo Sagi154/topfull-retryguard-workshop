@@ -1,0 +1,130 @@
+{
+  "generated_at": "2026-09-29T10:42:18Z",
+  "run_dir": "experiments\\results\\campaign_48\\S2_sustained_overload\\baseline_no_topfull_sustained_overload_run66",
+  "estimates": [
+    {
+      "service": "adservice",
+      "lambda_mean": 203.12418300653596,
+      "mu_sat": null,
+      "w_mean_ms": 1.4192653485618563,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 2.878495660559306
+    },
+    {
+      "service": "cartservice",
+      "lambda_mean": 451.61889250814335,
+      "mu_sat": null,
+      "w_mean_ms": 3.99460287027375,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0008799324904253247,
+      "note": null,
+      "w_p50_ms": 3.094257854821235
+    },
+    {
+      "service": "checkoutservice",
+      "lambda_mean": 204.43129770992365,
+      "mu_sat": 118.5,
+      "w_mean_ms": 437.4616530196799,
+      "n_ticks_with_latency": 53,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.4927092474001606,
+      "note": null,
+      "w_p50_ms": 748.1447124304267
+    },
+    {
+      "service": "currencyservice",
+      "lambda_mean": 739.1026058631921,
+      "mu_sat": null,
+      "w_mean_ms": 8.007131484816567,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 1.983213202029929e-05,
+      "note": null,
+      "w_p50_ms": 3.115362517509757
+    },
+    {
+      "service": "emailservice",
+      "lambda_mean": 16.333333333333332,
+      "mu_sat": 8.5,
+      "w_mean_ms": 3.057110135708217,
+      "n_ticks_with_latency": 8,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.026239067055393587,
+      "note": null,
+      "w_p50_ms": 3.0922939068100357
+    },
+    {
+      "service": "frontend",
+      "lambda_mean": 481.6938110749186,
+      "mu_sat": 381.0,
+      "w_mean_ms": 367.53090856916856,
+      "n_ticks_with_latency": 460,
+      "inbound_5xx_fraction": 0.26669596970516635,
+      "inbound_failure_fraction": 0.26750743846361913,
+      "note": null,
+      "w_p50_ms": 184.4926620128621
+    },
+    {
+      "service": "paymentservice",
+      "lambda_mean": 13.735751295336788,
+      "mu_sat": 3.0,
+      "w_mean_ms": 3.9673765787966753,
+      "n_ticks_with_latency": 39,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.12636740852508488,
+      "note": null,
+      "w_p50_ms": 3.0833333333333335
+    },
+    {
+      "service": "productcatalogservice",
+      "lambda_mean": 2923.312703583062,
+      "mu_sat": null,
+      "w_mean_ms": 4.426281058033924,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 7.242686836249536e-06,
+      "note": null,
+      "w_p50_ms": 4.52377093462993
+    },
+    {
+      "service": "recommendationservice",
+      "lambda_mean": 498.7035830618893,
+      "mu_sat": 629.0,
+      "w_mean_ms": 120.1729291854124,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.02885331347728965,
+      "note": null,
+      "w_p50_ms": 61.36363636363636
+    },
+    {
+      "service": "redis-cart",
+      "lambda_mean": null,
+      "mu_sat": null,
+      "w_mean_ms": null,
+      "n_ticks_with_latency": 0,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0,
+      "note": "no ticks with traffic",
+      "w_p50_ms": null
+    },
+    {
+      "service": "shippingservice",
+      "lambda_mean": 203.21732026143792,
+      "mu_sat": 306.0,
+      "w_mean_ms": 1.317038886405711,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.02716914986853637,
+      "note": null,
+      "w_p50_ms": 2.114370642430279
+    }
+  ],
+  "estimate_error": null,
+  "retryguard_log_present": false,
+  "toggle_events": []
+}

@@ -1,0 +1,82 @@
+{
+  "scenario_id": 1,
+  "scenario_name": "normal_operation",
+  "condition": "baseline",
+  "run_number": 1,
+  "duration_seconds": 300,
+  "retryguard": {
+    "enabled": false,
+    "rejection_threshold": 0.2,
+    "sample_interval_seconds": 1,
+    "interval_samples": 30
+  },
+  "topfull_rl": {
+    "enabled": false
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1,
+    "transport": "network_prometheus",
+    "max_workers": 4,
+    "exec_host": "topfull-master"
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "topfull_throttle_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1
+  },
+  "scale_constraints": [
+    {
+      "deployment": "checkoutservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 800
+    },
+    {
+      "deployment": "productcatalogservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 800
+    },
+    {
+      "deployment": "cartservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 800
+    },
+    {
+      "deployment": "emailservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 120
+    }
+  ],
+  "cpu_request_fraction": 1.0,
+  "paper_cpu_quotas": {
+    "frontend": 1150,
+    "checkoutservice": 615,
+    "recommendationservice": 1150,
+    "productcatalogservice": 1535,
+    "cartservice": 1920,
+    "currencyservice": 770,
+    "shippingservice": 770,
+    "redis-cart": 540,
+    "emailservice": 155,
+    "paymentservice": 155,
+    "adservice": 1150
+  },
+  "effective_cpu_quotas": {
+    "frontend": 1150,
+    "checkoutservice": 800,
+    "recommendationservice": 1150,
+    "productcatalogservice": 800,
+    "cartservice": 800,
+    "currencyservice": 770,
+    "shippingservice": 770,
+    "redis-cart": 540,
+    "emailservice": 120,
+    "paymentservice": 155,
+    "adservice": 1150
+  },
+  "log_folder": "baseline_no_topfull_normal_op_run1",
+  "collected_at": "2026-10-02T07:31:14.654138Z"
+}

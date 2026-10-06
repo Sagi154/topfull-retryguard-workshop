@@ -1,0 +1,118 @@
+{
+  "scenario_id": 2,
+  "scenario_name": "sustained_overload",
+  "condition": "baseline",
+  "run_number": 47,
+  "duration_seconds": 600,
+  "retryguard": {
+    "enabled": false,
+    "rejection_threshold": 0.2,
+    "sample_interval_seconds": 1,
+    "interval_samples": 30
+  },
+  "topfull_rl": {
+    "enabled": false
+  },
+  "envoy_retry_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1,
+    "transport": "network_prometheus",
+    "max_workers": 4,
+    "exec_host": "topfull-master"
+  },
+  "resource_usage_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 5
+  },
+  "topfull_throttle_collector": {
+    "enabled": true,
+    "poll_interval_seconds": 1
+  },
+  "scale_constraints": [
+    {
+      "deployment": "frontend",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 1050
+    },
+    {
+      "deployment": "checkoutservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 800
+    },
+    {
+      "deployment": "recommendationservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 700
+    },
+    {
+      "deployment": "productcatalogservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 600
+    },
+    {
+      "deployment": "cartservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 600
+    },
+    {
+      "deployment": "currencyservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 600
+    },
+    {
+      "deployment": "shippingservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 400
+    },
+    {
+      "deployment": "adservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 500
+    },
+    {
+      "deployment": "paymentservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 250
+    },
+    {
+      "deployment": "emailservice",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 250
+    },
+    {
+      "deployment": "redis-cart",
+      "method": "cpu_limit",
+      "cpu_limit_millicores": 250,
+      "container": "redis"
+    }
+  ],
+  "cpu_request_fraction": 1.0,
+  "paper_cpu_quotas": {
+    "frontend": 1150,
+    "checkoutservice": 615,
+    "recommendationservice": 1150,
+    "productcatalogservice": 1535,
+    "cartservice": 1920,
+    "currencyservice": 770,
+    "shippingservice": 770,
+    "redis-cart": 540,
+    "emailservice": 155,
+    "paymentservice": 155,
+    "adservice": 1150
+  },
+  "effective_cpu_quotas": {
+    "frontend": 1050,
+    "checkoutservice": 800,
+    "recommendationservice": 700,
+    "productcatalogservice": 600,
+    "cartservice": 600,
+    "currencyservice": 600,
+    "shippingservice": 400,
+    "redis-cart": 250,
+    "emailservice": 250,
+    "paymentservice": 250,
+    "adservice": 500
+  },
+  "log_folder": "baseline_no_topfull_sustained_overload_run47",
+  "collected_at": "2026-09-28T09:56:02.497875Z"
+}

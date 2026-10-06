@@ -1,0 +1,3 @@
+2026-10-04T18:48:29Z  START  poll_interval=5s services=11
+2026-10-04T18:51:43Z  START  poll_interval=5s services=11
+2026-10-04T18:59:40Z  SHUTDOWN  signal=15

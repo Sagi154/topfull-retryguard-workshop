@@ -6,24 +6,24 @@ Spread the load that sits on `checkoutservice` and `recommendationservice` onto 
 
 Both controllers stay off on these holds. The three S2 signals are still the ones in [2026-09-24-s2-both-off-abc-reading.md](2026-09-24-s2-both-off-abc-reading.md): a 30-sample inbound rejection streak, a detector `overloaded` share of at least half the hold, and a retry storm on those same edges. The CPU table is a way to move those signals off checkout and recommendations and onto more of the nine controlled services.
 
-## Three tables
+## Eight tables
 
-Millicores. Request equals limit. Paper is the table on the both-off holds before run18. Dispense is the table on runs 18–21, from [2026-09-25-s2-cpu-dispense-runs-18-21.md](2026-09-25-s2-cpu-dispense-runs-18-21.md). Agreed is the table this series runs (runs 30–34). Paper and Dispense pin frontend at 4 replicas, so their deployment totals use 4 × 1150 m. Agreed pins frontend at 5 replicas, so its deployment total uses 5 × 1150 m.
+Millicores per pod. Request equals limit. A deployment total is limit × replicas. Paper is the table on the both-off holds before run18. Dispense is the table on runs 18–21, from [2026-09-25-s2-cpu-dispense-runs-18-21.md](2026-09-25-s2-cpu-dispense-runs-18-21.md). Agreed is the table on runs 30–34. Replica is the table on runs 35–38. Checkout-3 is the table on runs 39–42. Checkout-4 is the table on run43, which failed the replica-count gate, so runs 44 and 45 were not launched on it. Pay-250 is the table on runs 44–46. run44 and run45 passed the gate. run46 failed the Locust row gate (202 rows). Recs-3 is the table on runs 47–49, which replay the run44 / run45 / run46 user counts. It keeps Pay-250 except frontend 1150 → 1050 on 4 replicas, recommendations 800 × 2 → 700 × 3, and adservice 600 → 500. Paper, Dispense, Replica, Checkout-3, Checkout-4, and Pay-250 pin frontend at 4 replicas, so their frontend totals use 4 × 1150 m. Agreed pins frontend at 5 replicas, so its frontend total uses 5 × 1150 m. Paper, Dispense, and Agreed run every backend at one replica. Replica adds a second replica on checkout, cart, payment, and email, and a third on recommendations. Checkout-3 keeps recommendations at 3 replicas, moves checkout to 3 replicas, and returns cart, payment, and email to 1 replica. Checkout-4 keeps Checkout-3's per-pod limits, moves checkout to 4 replicas, and sets recommendations to 2 replicas. Pay-250 keeps Checkout-4's replica counts and moves 50 m from currency and 50 m from redis-cart onto payment and email.
 
-| Service | Paper | Dispense (runs 18–21) | Agreed (runs 30–34) |
-|---|---:|---:|---:|
-| frontend | 1150 | 1150 | 1150 × 5 replicas |
-| checkoutservice | 615 | 1500 | 1500 |
-| recommendationservice | 1150 | 1250 | 2000 |
-| productcatalogservice | 1535 | 1535 | 600 |
-| cartservice | 1920 | 1200 | 1000 |
-| currencyservice | 770 | 770 | 500 |
-| shippingservice | 770 | 770 | 400 |
-| adservice | 1150 | 800 | 600 |
-| paymentservice | 155 | 155 | 150 |
-| emailservice | 155 | 155 | 150 |
-| redis-cart | 540 | 540 | 500 |
-| **Deployment total** | **13360** | **13275** | **13150** |
+| Service | Paper | Dispense (runs 18–21) | Agreed (runs 30–34) | Replica (runs 35–38) | Checkout-3 (runs 39–42) | Checkout-4 (run43) | Pay-250 (runs 44–46) | Recs-3 (runs 47–49) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| frontend | 1150 | 1150 | 1150 × 5 replicas | 1150 × 4 replicas | 1150 × 4 replicas | 1150 × 4 replicas | 1150 × 4 replicas | 1050 × 4 replicas |
+| checkoutservice | 615 | 1500 | 1500 | 800 × 2 replicas | 800 × 3 replicas | 800 × 4 replicas | 800 × 4 replicas | 800 × 4 replicas |
+| recommendationservice | 1150 | 1250 | 2000 | 800 × 3 replicas | 800 × 3 replicas | 800 × 2 replicas | 800 × 2 replicas | 700 × 3 replicas |
+| productcatalogservice | 1535 | 1535 | 600 | 600 | 600 | 600 | 600 | 600 |
+| cartservice | 1920 | 1200 | 1000 | 600 × 2 replicas | 600 | 600 | 600 | 600 |
+| currencyservice | 770 | 770 | 500 | 650 | 650 | 650 | 600 | 600 |
+| shippingservice | 770 | 770 | 400 | 400 | 400 | 400 | 400 | 400 |
+| adservice | 1150 | 800 | 600 | 600 | 600 | 600 | 600 | 500 |
+| paymentservice | 155 | 155 | 150 | 150 × 2 replicas | 200 | 200 | 250 | 250 |
+| emailservice | 155 | 155 | 150 | 150 × 2 replicas | 200 | 200 | 250 | 250 |
+| redis-cart | 540 | 540 | 500 | 500 | 300 | 300 | 250 | 250 |
+| **Deployment total** | **13360** | **13275** | **13150** | **13150** | **12950** | **12950** | **12950** | **12950** |
 
 Paper pegs checkout at 615 m and recommendations at 1150 m. Every other backend has stayed under its paper quota on the both-off holds, so the detector only calls checkout and recommendations hot.
 
@@ -34,6 +34,75 @@ Quota that a service does not use can move to a service that does. Ad does not n
 Agreed sets checkout to 1500 m and recommendations to 2000 m. The 1150 m paper quota was clipping recommendations (run 6 peaked at 1130 m). Currency goes to 500 m and catalog to 600 m so those two, which already draw the most CPU behind the chokes, sit near the detector’s 0.8 line. Payment goes to 150 m and email goes to 150 m. Their means are 30–55 m. Redis-cart goes to 500 m. Request equals limit.
 
 Paper and Dispense pin frontend at 4 replicas and count every other service once, so their deployment totals use 4 × 1150 m. Paper sums to 13,360 m. That four-replica total is the ceiling. Dispense sums to 13,275 m. Agreed (runs 30–34) pins frontend at 5 replicas, so its deployment total uses 5 × 1150 m and is 13,150 m, under the paper four-replica ceiling of 13,360 m. Run 6’s checkout peak (613 m) is 41% of 1500 m. Its recommendations peak (1130 m) sits under the agreed 2000 m cap.
+
+Replica keeps frontend at 4 × 1150 m (4,600 m). Checkout is 800 m on 2 replicas (1,600 m), recommendations 800 m on 3 replicas (2,400 m), cart 600 m on 2 replicas (1,200 m), payment 150 m on 2 replicas (300 m), and email 150 m on 2 replicas (300 m). Catalog stays 600 m, currency 650 m, shipping 400 m, ad 600 m, and redis-cart 500 m, each on one replica. The deployment total is 13,150 m, the same sum as Agreed and under the paper ceiling of 13,360 m. Against Agreed, the fifth frontend replica’s 1,150 m moves onto checkout (+100 m), recommendations (+400 m), cart (+200 m), currency (+150 m), payment (+150 m), and email (+150 m).
+
+Checkout-3 keeps frontend at 4 × 1150 m (4,600 m) and recommendations at 800 m on 3 replicas (2,400 m). Checkout stays at 800 m per pod and goes to 3 replicas (2,400 m, +800 m). Cart goes to 1 replica at 600 m (600 m, −600 m). Payment goes to 200 m on 1 replica (200 m, −100 m). Email goes to 200 m on 1 replica (200 m, −100 m). Redis-cart goes to 300 m on 1 replica (300 m, −200 m). Catalog stays 600 m, currency 650 m, shipping 400 m, and ad 600 m, each on one replica. The deployment total is 12,950 m: 200 m under Replica’s 13,150 m, and under the paper ceiling of 13,360 m. Pod count is 18 (frontend 4, checkout 3, recommendations 3, and the other eight services at 1).
+
+Checkout-4 keeps every per-pod limit from Checkout-3. Checkout stays at 800 m per pod and goes to 4 replicas (3,200 m, +800 m). Recommendations stays at 800 m per pod and goes to 2 replicas (1,600 m, −800 m). Frontend stays at 4 × 1150 m (4,600 m). Catalog stays 600 m, cart 600 m, currency 650 m, shipping 400 m, ad 600 m, payment 200 m, email 200 m, and redis-cart 300 m, each on one replica. The deployment total is 12,950 m, the same sum as Checkout-3 and under the paper ceiling of 13,360 m. Pod count is 18 (frontend 4, checkout 4, recommendations 2, and the other eight services at 1). run43 on this table failed the replica-count gate (emailservice `replica_count` 0 on 2 of 134 samples), so runs 44 and 45 were not launched.
+
+Pay-250 keeps Checkout-4's replica counts. Currency goes from 650 m to 600 m (−50 m). Redis-cart goes from 300 m to 250 m (−50 m). Payment goes from 200 m to 250 m (+50 m). Email goes from 200 m to 250 m (+50 m). Frontend stays at 4 × 1150 m, checkout at 800 m on 4 replicas, recommendations at 800 m on 2 replicas, and catalog, cart, shipping, and ad stay at 600 / 600 / 400 / 600 m on 1 replica. The deployment total is 12,950 m, the same sum as Checkout-4 and under the paper ceiling of 13,360 m. Pod count is 18. run44 (200/250/200/50/50) and run45 (200/250/300/50/50) passed the gate. run46 (250/250/250/100/100) failed it: `total.csv` has 202 rows, and the mesh files end at 2026-09-27T21:40:52Z.
+
+Recs-3 keeps that 12,950 m total and moves three services off Pay-250. Frontend goes from 1150 m to 1050 m on 4 replicas (4,200 m, −400 m). Recommendations goes from 800 m on 2 replicas to 700 m on 3 replicas (2,100 m, +500 m). Adservice goes from 600 m to 500 m (−100 m). Checkout stays at 800 m on 4 replicas. Catalog, cart, currency, shipping, payment, email, and redis-cart stay on the Pay-250 per-pod limits, each on 1 replica. Pod count is 19 (frontend 4, checkout 4, recommendations 3, and the other eight services at 1). Runs 47–49 replay the run44, run45, and run46 user counts on this table. run57 (50/400/50/20/20) failed the replica-count gate: paymentservice `replica_count` was 0 on 19 of 74 resource samples, so run58 (25/500/25/20/20) was not launched.
+
+## Hybrid and A3
+
+Hybrid is the Round C table for the final-candidate holds. It keeps Checkout-3's per-pod limits, puts checkout at 800 m on 2 replicas, and puts recommendations back on the paper shape (1150 m × 1). A3 is Checkout-3 with email 200 m → 180 m and redis-cart 300 m → 320 m. Those two edits cancel, so the A3 deployment total stays 12,950 m. Frontend stays at the paper 1150 m and is not a `scale_constraints` entry. Hybrid's deployment total is 10,900 m, under the paper four-frontend ceiling of 13,360 m.
+
+| Service | Checkout-3 | A3 (email 180 / redis-cart 320) | Hybrid |
+|---|---:|---:|---:|
+| frontend | 1150 × 4 replicas | 1150 × 4 replicas | 1150 × 4 replicas |
+| checkoutservice | 800 × 3 replicas | 800 × 3 replicas | 800 × 2 replicas |
+| recommendationservice | 800 × 3 replicas | 800 × 3 replicas | 1150 × 1 replica |
+| productcatalogservice | 600 | 600 | 600 |
+| cartservice | 600 | 600 | 600 |
+| currencyservice | 650 | 650 | 650 |
+| shippingservice | 400 | 400 | 400 |
+| adservice | 600 | 600 | 600 |
+| paymentservice | 200 | 200 | 200 |
+| emailservice | 200 | 180 | 200 |
+| redis-cart | 300 | 320 | 300 |
+| **Deployment total** | **12950** | **12950** | **10900** |
+
+## Browse holds (run71–run72)
+
+Checkout-3 per-pod limits except checkout and recommendations at 900 m, payment and email at 300 m. Recommendations is 2 replicas on both holds. Sidecar request 100 m with no CPU limit. Frontend stays the paper 1150 m and is not a `scale_constraints` entry. Both totals stay under the paper four-frontend ceiling of 13,360 m.
+
+| Service | run71 | run72 |
+|---|---|---|
+| frontend | 1150 × 4 replicas | 1150 × 5 replicas |
+| checkoutservice | 900 × 3 replicas | 900 × 2 replicas |
+| recommendationservice | 900 × 2 replicas | 900 × 2 replicas |
+| productcatalogservice | 600 | 600 |
+| cartservice | 600 | 600 |
+| currencyservice | 650 | 650 |
+| shippingservice | 400 | 400 |
+| adservice | 600 | 600 |
+| paymentservice | 300 | 300 |
+| emailservice | 300 | 300 |
+| redis-cart | 300 | 300 |
+| **Deployment total** | **12850** | **13100** |
+
+run71 mix is 250 / 250 / 250 / 50 / 50. run72 mix is 300 / 200 / 300 / 50 / 50. Catalog HPA is `min=max=1` for both holds. run72's app requests plus 100 m sidecars sit just above the Checkout-3 schedule that fit on this worker, so that hold may need the sidecar request dropped to 90 m.
+
+## Hybrid-1
+
+Hybrid-1 keeps per-pod limits that Paper, Checkout-3, or Hybrid already used, and changes the replica counts. Frontend is 1150 m on 6 replicas (6,900 m). Checkout is 800 m on 1 replica. Recommendations is 1150 m on 1 replica, the paper shape. Catalog, cart, currency, shipping, ad, payment, email, and redis-cart stay at 600 / 600 / 650 / 400 / 600 / 200 / 200 / 300 m, each on 1 replica. The deployment total is 12,400 m, under the paper four-frontend ceiling of 13,360 m. H3 raises checkout from 800 m to 1000 m on 1 replica and changes nothing else; that total is 12,600 m. Frontend stays the paper 1150 m and is not a `scale_constraints` entry. `paper_cpu_reconcile` is false. Sidecar request is 100 m with no CPU limit. Frontend HPA is `min=max=6`. Catalog HPA is `min=max=1`.
+
+| Service | Hybrid-1 | H3 (checkout 1000 m) |
+|---|---:|---:|
+| frontend | 1150 × 6 replicas | 1150 × 6 replicas |
+| checkoutservice | 800 × 1 replica | 1000 × 1 replica |
+| recommendationservice | 1150 × 1 replica | 1150 × 1 replica |
+| productcatalogservice | 600 | 600 |
+| cartservice | 600 | 600 |
+| currencyservice | 650 | 650 |
+| shippingservice | 400 | 400 |
+| adservice | 600 | 600 |
+| paymentservice | 200 | 200 |
+| emailservice | 200 | 200 |
+| redis-cart | 300 | 300 |
+| **Deployment total** | **12400** | **12600** |
 
 ## Measured CPU on the candidate holds
 
@@ -71,3 +140,44 @@ Order is fixed. Cool-off between holds is 360 s.
 - (a)/(b)/(c) on those dispense holds: [2026-09-25-s2-both-off-abc-runs-18-21.md](2026-09-25-s2-both-off-abc-runs-18-21.md).
 - How the three signals are read: [2026-09-24-s2-both-off-abc-reading.md](2026-09-24-s2-both-off-abc-reading.md).
 - Run 6 in the run3–run7 set: [2026-09-24-s2-both-off-runs-summary.md](2026-09-24-s2-both-off-runs-summary.md).
+
+## Lens blend (run80–run82), reused through run93
+
+Per-pod millicores. Frontends are × 4. Every other replica count is 1. Catalog and cart are 800 m on C1 and C3 because paper peaks on run6 and run7 were 613 m and 601 m. All three totals are under 13,360 m, so the sidecar stays at 100 m. Paper-C3 is run81 only. Hybrid-C2 is run82 only. Paper-C1 is run80 and, unchanged, runs 83–93 (see the next section).
+
+| Service | Paper-C1 run80 | Paper-C3 run81 | Hybrid-C2 run82 |
+|---|---:|---:|---:|
+| frontend | 1150 × 4 | 1150 × 4 | 1150 × 4 |
+| checkoutservice | 800 | 800 | 800 |
+| recommendationservice | 1150 | 1150 | 1150 |
+| productcatalogservice | 800 | 800 | 600 |
+| cartservice | 800 | 800 | 600 |
+| currencyservice | 770 | 770 | 650 |
+| shippingservice | 770 | 770 | 400 |
+| adservice | 1150 | 1150 | 600 |
+| paymentservice | 155 | 120 | 200 |
+| emailservice | 120 | 120 | 150 |
+| redis-cart | 540 | 540 | 300 |
+| **Deployment total** | **11655** | **11620** | **10050** |
+
+## Paper-C1 reused (runs 83–93)
+
+`service_capacity.json` on runs 83–93 matches run80 on every service: the same per-pod millicores and the same replica counts (frontend 4, every other service 1). Payment stays 155 m and email stays 120 m. The deployment total stays 11,655 m. Sidecar request stays 100 m with no CPU limit. `paper_cpu_reconcile` stays false. Paper-C3 and Hybrid-C2 were not used again.
+
+Counts are getproduct / postcheckout / getcart / postcart / emptycart. The ranking of these holds, including which ones blend, is in [2026-09-30-s2-candidate-ranking-runs-1-79.md](2026-09-30-s2-candidate-ranking-runs-1-79.md) (file name kept; see the Runs 80–93 section).
+
+| Slot | Mix | What changed from the row above |
+|---|---|---|
+| run83 | 375 / 80 / 100 / 90 / 5 | getproduct +50 versus run80 |
+| run84 | 325 / 80 / 100 / 90 / 5 | replay of run80 |
+| run85 | 325 / 60 / 100 / 90 / 5 | postcheckout −20 versus run80; the pre-hold YAML says postcheckout 80, so that count is uncertain. Mesh span 903 s, so the hold fails the sampling gate |
+| run86 | 275 / 80 / 100 / 90 / 5 | getproduct −50 versus run80 |
+| run87 | 275 / 70 / 100 / 90 / 5 | postcheckout −10 versus run86 |
+| run88 | 275 / 80 / 100 / 90 / 5 | replay of run86 |
+| run89 | 275 / 90 / 100 / 90 / 5 | postcheckout +10 versus run86 |
+| run90 | 265 / 90 / 100 / 90 / 5 | getproduct −10 versus run89 |
+| run91 | 275 / 80 / 100 / 50 / 50 | postcart 50 and emptycart 50; the first three counts match run86 |
+| run92 | 275 / 90 / 100 / 90 / 5 | replay of run89 |
+| run93 | 265 / 90 / 100 / 90 / 5 | replay of run90 |
+
+The cluster was left on this Paper-C1 pin. The both-off YAML is unused run94 and still carries these millicores, with counts 275 / 80 / 100 / 50 / 50.

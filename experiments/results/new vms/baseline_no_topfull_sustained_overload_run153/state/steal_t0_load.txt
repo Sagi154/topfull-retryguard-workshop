@@ -1,0 +1,15 @@
+﻿### proc_stat_a
+1791157620 cpu  1964718 704 102688 37160824 1482 0 176137 65114 0 0
+### vmstat_10s
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 0  0      0 31367680  67692 1063800    0    0     2     8  103   13  5  1 94  0  0
+ 0  0      0 31379920  67696 1063976    0    0     0   149  258  275  0  0 100  0  0
+### mpstat
+Linux 5.4.0-216-generic (topfull-load) 	10/04/2026 	_x86_64_	(8 CPU)
+
+11:47:10 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle
+11:47:11 PM  all    0.38    0.00    0.12    0.00    0.00    0.12    0.00    0.00    0.00   99.38
+Average:     all    0.38    0.00    0.12    0.00    0.00    0.12    0.00    0.00    0.00   99.38
+### proc_stat_b
+1791157631 cpu  1964727 704 102695 37169601 1482 0 176138 65114 0 0

@@ -1198,6 +1198,28 @@ def apply_per_try_timeout(cfg: dict):
     step(f"Applied perTryTimeout={per_try_timeout_ms}ms on {len(services)} VirtualServices")
 
 
+def restart_before_hold(cfg: dict) -> None:
+    """
+    Optional pod-restart treatment. Rolls the listed Deployments, waits for the
+    rollout, then lets the cold pods settle before Locust starts. Absent key is
+    a no-op. Must run before start_envoy_retry_collector: the collector seeds
+    pod IPs once and a restart changes them.
+    """
+    spec = cfg.get("restart_before_hold")
+    if not spec:
+        return
+    master = cfg["infra"]["master_ssh_host"]
+    ns = spec.get("namespace", "default")
+    deps = spec["deployments"]
+    settle = int(spec.get("settle_seconds", 60))
+    banner(f"Restarting before hold: {', '.join(deps)}")
+    for dep in deps:
+        ssh(master, f"kubectl rollout restart deployment/{dep} -n {ns}")
+    for dep in deps:
+        ssh(master, f"kubectl rollout status deployment/{dep} -n {ns} --timeout=180s")
+    wait_with_progress(settle, "cold pods settle")
+
+
 # --------------------------------------------------------------------------- #
 #  Results collection
 # --------------------------------------------------------------------------- #
@@ -1366,6 +1388,7 @@ def run(config_path: str):
         ensure_detector_quota_overlay(cfg)
 
         apply_per_try_timeout(cfg)
+        restart_before_hold(cfg)
 
         start_master_stack(cfg)
 
