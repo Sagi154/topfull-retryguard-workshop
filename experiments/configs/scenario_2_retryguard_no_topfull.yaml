@@ -1,19 +1,18 @@
 # Scenario 2 | RetryGuard ON, TopFull RL OFF
-# Next free slot run10. Last completed mix was 360/140/180/5/5.
+# Next free slot run11. run10 was the edge-rpr verification hold (run 89 mix).
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: retryguard
-run_number: 10
-description: Next free slot after the postcart-5 holds. RetryGuard ON, TopFull RL OFF.
-  Frontend HPA 4/4, catalog HPA 1/1. Checkout and recommendations rolled before the hold.
+run_number: 11
+description: Next free slot after the edge-rpr verification hold (run10, run 89 mix).
 duration_seconds: 600
 locust:
   user_counts:
-    getproduct: 360
-    postcheckout: 140
-    getcart: 180
-    postcart: 5
+    getproduct: 275
+    postcheckout: 90
+    getcart: 100
+    postcart: 90
     emptycart: 5
   spawn_rate: 50
   scripts:
@@ -99,7 +98,7 @@ resource_usage_collector:
 topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
-log_folder: run_retryguard_no_topfull_sustained_overload_run10
+log_folder: run_retryguard_no_topfull_sustained_overload_run11
 infra:
   master_ssh_host: topfull-master
   loadgen_ssh_host: topfull-load
