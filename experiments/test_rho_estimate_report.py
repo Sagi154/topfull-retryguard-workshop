@@ -123,6 +123,28 @@ class TestParseRetryguardLog(unittest.TestCase):
             events = report.parse_retryguard_log(log_path)
             self.assertEqual(events, [])
 
+    def test_accepts_rpr_and_rejection_toggle_lines(self):
+        """Edge mode logs rpr=; service fallback still logs rejection=."""
+        text = (
+            "2026-10-06T20:00:00Z  frontend->recommendationservice  "
+            "ON\u2192OFF   rpr=0.62  consecutive_high=30  attempts=0  metric=rpr\n"
+            "2026-10-06T20:01:30Z  recommendationservice  OFF\u2192ON   "
+            "rejection=0.08  consecutive_low=30  attempts=3  metric=rejection\n"
+        )
+        with TemporaryDirectory() as raw:
+            log_path = Path(raw) / "retryguard.log"
+            log_path.write_text(text, encoding="utf-8")
+            events = report.parse_retryguard_log(log_path)
+            self.assertEqual(len(events), 2)
+            self.assertEqual(events[0]["service"], "frontend->recommendationservice")
+            self.assertEqual(events[0]["direction"], "ON\u2192OFF")
+            self.assertAlmostEqual(events[0]["rejection"], 0.62)
+            self.assertEqual(events[0]["attempts"], 0)
+            self.assertEqual(events[1]["service"], "recommendationservice")
+            self.assertEqual(events[1]["direction"], "OFF\u2192ON")
+            self.assertAlmostEqual(events[1]["rejection"], 0.08)
+            self.assertEqual(events[1]["attempts"], 3)
+
 
 class TestComputeRhoEstimates(unittest.TestCase):
     def test_missing_inbound_reports_error_not_exception(self):
