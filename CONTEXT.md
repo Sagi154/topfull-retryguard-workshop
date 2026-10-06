@@ -133,5 +133,5 @@ One caller-to-callee pair of Boutique services, for example frontend to recommen
 _Avoid_: service (an edge is a pair, a service is one node)
 
 **Retries per request (rpr)**:
-On one edge, retries divided by first attempts in a 1 s tick: `?retry / (?total ? ?retry)`, the paper's normalized retry rate. Above the 0.5 threshold for 30 ticks sets that edge OFF. A tick with no first attempts is skipped, it counts as neither high nor low. Meaningless once the edge is OFF, so re-enabling falls back to the callee's rejection rate.
+On one edge, retries divided by first attempts in a 1 s tick: `Δretry / (Δtotal − Δretry)`, the paper's normalized retry rate. Above the 0.5 threshold for 30 ticks sets that edge OFF. A tick with no first attempts is skipped, it counts as neither high nor low. Meaningless once the edge is OFF, so re-enabling falls back to the callee's rejection rate.
 _Avoid_: rejection rate (that is per service, from inbound counts)
