@@ -557,6 +557,88 @@ class TestEdgeMeasurement(unittest.TestCase):
             self.assertEqual((snap.total, snap.retry), (10.0, 2.0))
 
 
+class TestEdgePatchBody(unittest.TestCase):
+    ROUTE = [{"destination": {"host": "productcatalogservice"}}]
+
+    def test_off_callers_get_match_routes_before_default(self):
+        body = retryguard.build_edge_vs_patch_body(
+            self.ROUTE, {"frontend", "checkoutservice"}, 3, 500
+        )
+        http = body["spec"]["http"]
+        self.assertEqual(len(http), 3)
+        self.assertEqual(
+            http[0]["match"], [{"sourceLabels": {"app": "checkoutservice"}}]
+        )
+        self.assertEqual(http[1]["match"], [{"sourceLabels": {"app": "frontend"}}])
+        self.assertEqual(http[0]["retries"], {"attempts": 0})
+        self.assertNotIn("match", http[2])
+        self.assertEqual(http[2]["retries"]["attempts"], 3)
+        self.assertEqual(http[2]["route"], self.ROUTE)
+
+    def test_no_off_callers_is_plain_default(self):
+        body = retryguard.build_edge_vs_patch_body(self.ROUTE, set(), 3, 500)
+        self.assertEqual(len(body["spec"]["http"]), 1)
+        self.assertNotIn("match", body["spec"]["http"][0])
+
+
+class TestEdgeController(unittest.TestCase):
+    EDGE = ("frontend", "recommendationservice")
+    EDGES = (EDGE, ("recommendationservice", "productcatalogservice"))
+
+    def make(self):
+        return retryguard.EdgeController(self.EDGES, 0.5, 0.2, 30)
+
+    def feed(self, ctrl, ticks, rpr, rejection=None):
+        out = []
+        for _ in range(ticks):
+            out += ctrl.step({self.EDGE: rpr}, rejection or {})
+        return out
+
+    def test_streak_of_30_turns_edge_off(self):
+        ctrl = self.make()
+        self.assertEqual(self.feed(ctrl, 29, 0.9), [])
+        changes = self.feed(ctrl, 1, 0.9)
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0].service, "recommendationservice")
+        self.assertEqual(changes[0].transition, "OFF")
+        self.assertEqual(changes[0].new_off, frozenset({"frontend"}))
+        self.assertEqual(changes[0].metric, "rpr")
+
+    def test_low_tick_resets_streak(self):
+        ctrl = self.make()
+        self.feed(ctrl, 29, 0.9)
+        self.feed(ctrl, 1, 0.1)
+        self.assertEqual(self.feed(ctrl, 29, 0.9), [])
+
+    def test_skipped_ticks_change_nothing(self):
+        ctrl = self.make()
+        self.feed(ctrl, 29, 0.9)
+        self.feed(ctrl, 5, None)
+        self.assertEqual(len(self.feed(ctrl, 1, 0.9)), 1)
+
+    def test_rejection_fallback_idle_until_an_edge_is_off(self):
+        ctrl = self.make()
+        rej = {"recommendationservice": 0.0}
+        self.assertEqual(self.feed(ctrl, 40, 0.1, rej), [])
+        self.assertEqual(ctrl.svc_state, {})
+
+    def test_fallback_reenables_all_off_edges_together(self):
+        ctrl = self.make()
+        change = self.feed(ctrl, 30, 0.9)[0]
+        ctrl.commit(change)
+        self.assertEqual(ctrl.off_callers("recommendationservice"), {"frontend"})
+        rej = {"recommendationservice": 0.05}
+        self.assertEqual(self.feed(ctrl, 29, None, rej), [])
+        back = self.feed(ctrl, 1, None, rej)
+        self.assertEqual(len(back), 1)
+        self.assertEqual(back[0].transition, "ON")
+        self.assertEqual(back[0].metric, "rejection")
+        self.assertEqual(back[0].new_off, frozenset())
+        ctrl.commit(back[0])
+        self.assertEqual(ctrl.off_callers("recommendationservice"), frozenset())
+        self.assertEqual(ctrl.svc_state, {})
+
+
 if __name__ == "__main__":
     unittest.main()
 

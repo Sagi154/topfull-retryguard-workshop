@@ -379,12 +379,38 @@ def build_vs_patch_body(route: list, attempts: int, per_try_timeout_ms: int) -> 
     return {"spec": {"http": [{"route": route, "retries": retries}]}}
 
 
+def build_edge_vs_patch_body(
+    route: list,
+    off_callers,
+    attempts_on: int,
+    per_try_timeout_ms: int,
+) -> dict:
+    """
+    Per-edge VirtualService body: one match route per OFF caller with bare
+    attempts: 0, then the default route with the full retry policy last.
+    Match routes must come first, Istio takes the first rule that matches.
+    """
+    default = build_vs_patch_body(route, attempts_on, per_try_timeout_ms)["spec"][
+        "http"
+    ][0]
+    rules = [
+        {
+            "match": [{"sourceLabels": {"app": caller}}],
+            "route": route,
+            "retries": {"attempts": 0},
+        }
+        for caller in sorted(off_callers)
+    ]
+    return {"spec": {"http": rules + [default]}}
+
+
 def patch_virtualservice(
     api: client.CustomObjectsApi,
     service_name: str,
     attempts: int,
     per_try_timeout_ms: int = 500,
     namespace: str = VS_NAMESPACE,
+    off_callers=None,
 ) -> None:
     """
     GET the existing VirtualService, then merge-patch retries while
@@ -412,7 +438,13 @@ def patch_virtualservice(
     else:
         route = [{"destination": {"host": service_name}}]
 
-    body = build_vs_patch_body(route, attempts, per_try_timeout_ms)
+    if off_callers is None:
+        body = build_vs_patch_body(route, attempts, per_try_timeout_ms)
+    else:
+        # Edge mode: `attempts` is the ON policy for callers not in off_callers.
+        body = build_edge_vs_patch_body(
+            route, off_callers, attempts, per_try_timeout_ms
+        )
 
     api.patch_namespaced_custom_object(
         group=VS_GROUP,
@@ -509,6 +541,99 @@ def apply_algorithm1(
     if desired != state.retries_state:
         return desired
     return None
+
+
+@dataclass
+class Change:
+    service: str          # callee whose VirtualService must be patched
+    transition: str       # "OFF" (some edges turn OFF) or "ON" (all back ON)
+    new_off: frozenset    # callers that should be OFF after the patch
+    metric: str           # "rpr" or "rejection"
+    lines: list           # [(name, value, counter), ...] for the log
+
+
+class EdgeController:
+    """
+    Edge mode state. step() proposes changes without committing retries
+    state; the caller patches the VirtualService and then commit()s, so a
+    failed patch is retried on the next tick (counters stay >= interval).
+    """
+
+    def __init__(self, edges, rpr_threshold, rejection_threshold, interval):
+        self.rpr_threshold = rpr_threshold
+        self.rejection_threshold = rejection_threshold
+        self.interval = interval
+        self.edge_state = {e: ServiceState() for e in edges}
+        # Per-callee rejection counters; a key exists only while the callee
+        # has at least one OFF edge.
+        self.svc_state: Dict[str, ServiceState] = {}
+
+    def off_callers(self, service: str) -> frozenset:
+        return frozenset(
+            c
+            for (c, t), st in self.edge_state.items()
+            if t == service and st.retries_state == "OFF"
+        )
+
+    def step(self, rpr: dict, rejection: dict) -> list:
+        changes = []
+        handled = set()
+
+        # Fallback: per-service rejection rate while any edge is OFF.
+        for service, st in self.svc_state.items():
+            value = rejection.get(service)
+            if value is None:
+                continue
+            desired = apply_algorithm1(
+                st, value, self.rejection_threshold, self.interval
+            )
+            if desired == "ON":
+                changes.append(
+                    Change(
+                        service, "ON", frozenset(), "rejection",
+                        [(service, value, st.consecutive_low)],
+                    )
+                )
+                handled.add(service)
+
+        # Per-edge retries per request for edges that are still ON.
+        turning_off: Dict[str, list] = {}
+        for edge, st in self.edge_state.items():
+            caller, service = edge
+            if st.retries_state != "ON" or service in handled:
+                continue
+            value = rpr.get(edge)
+            if value is None:
+                continue
+            if (
+                apply_algorithm1(st, value, self.rpr_threshold, self.interval)
+                == "OFF"
+            ):
+                turning_off.setdefault(service, []).append(
+                    (f"{caller}->{service}", value, st.consecutive_high, caller)
+                )
+        for service, items in turning_off.items():
+            new_off = self.off_callers(service) | {i[3] for i in items}
+            changes.append(
+                Change(
+                    service, "OFF", frozenset(new_off), "rpr",
+                    [(n, v, c) for n, v, c, _ in items],
+                )
+            )
+        return changes
+
+    def commit(self, change: Change) -> None:
+        if change.transition == "OFF":
+            for caller in change.new_off:
+                self.edge_state[(caller, change.service)].retries_state = "OFF"
+            self.svc_state.setdefault(
+                change.service, ServiceState(retries_state="OFF")
+            )
+        else:
+            for (caller, target) in list(self.edge_state):
+                if target == change.service:
+                    self.edge_state[(caller, target)] = ServiceState()
+            self.svc_state.pop(change.service, None)
 
 
 def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
