@@ -81,7 +81,7 @@ Failures = 0.0                           if Δtotal <= 0 on a new timestamp
 
 Where `resets` = `downstream_rq_rx_reset` from `service_inbound.csv` column `resets`. Rationale: per-try timeout aborts at the outbound Envoy cause `downstream_rq_rx_reset` at the backend inbound, not a 5xx HTTP response (see TOPFULL-ACTIVATION-DIAGNOSIS.md §7b).
 
-A repeated timestamp (collector has not appended yet) is a SKIP — do not feed Algorithm 1. The first row for a service is stored and SKIP'd (cannot difference yet). Missing file / missing service / unreadable row → SKIP. `4xx` is never used. `service_edges.csv` is never used. Old CSVs without a `resets` column are read as `resets=0` (backward compatible).
+A repeated timestamp (collector has not appended yet) is a SKIP — do not feed Algorithm 1. The first row for a service is stored and SKIP'd (cannot difference yet). Missing file / missing service / unreadable row → SKIP. `4xx` is never used. The default `rejection` mode does not read `service_edges.csv` (edge mode does; see below). Old CSVs without a `resets` column are read as `resets=0` (backward compatible).
 
 Locust CSVs remain storefront **outcomes**. They are not the controller input.
 
@@ -148,6 +148,32 @@ Stdout (tmux session `retryguard`) and `{record_path}/retryguard.log`:
 2. **Mesh inbound `Δ5xx/Δtotal`** matches the paper's Istio experiment (Sec. 6.2): hop-level 5xx on each backend's inbound listener (4xx ignored). `frontend` is intentionally not controlled (ingress hop; its VS stays `attempts: 3`).
 
 As of 2026-09-10, the `Interval` parameter is symmetric (single `interval_samples` value for both ON and OFF transitions, `sample_interval_seconds=1`) — a literal match to Algorithm 1. The previous `disable_windows`/`re_enable_windows` asymmetric split and `window_duration_seconds`-based averaging (a workshop extension) were removed; Scenario 5 now sweeps the single `interval_samples` value (10/20/30/60) symmetrically.
+
+---
+
+## Edge mode (`retry_metric: edge_rpr`)
+
+Workshop extension of Algorithm 1. The code default stays `retry_metric: rejection` (the loop above). Every YAML that starts RetryGuard sets `retry_metric: edge_rpr` and `retries_threshold: 0.5`. `run_scenario.py` passes both keys; `retries_threshold` is required only when the metric is `edge_rpr`.
+
+What it measures, per controlled caller→callee edge, per 1 s tick:
+
+```
+rpr = Δretry / (Δtotal − Δretry)
+```
+
+from `service_edges.csv`. That is the paper's normalized retry rate (Λ − λ)/λ: `total` counts every attempt, `retry` counts the retried ones, so the denominator is first attempts. A tick with zero first attempts is skipped and changes no counter. `retries_threshold: 0.5` is our choice, derived from Fig. 7 (knee near ρ≈1.03–1.05) and scaled for `attempts: 3`. The paper does not state a per-edge value.
+
+Disable is per edge. `rpr` above 0.5 for `interval_samples` consecutive ticks (Scenario 5's 10/20/30/60 still apply) turns that edge OFF: the callee VirtualService gets a `sourceLabels: {app: <caller>}` route with `retries: {attempts: 0}` ahead of the default route. Other callers keep the default policy. Re-enable is per callee. While any of that callee's edges is OFF, its inbound rejection rate (`Δ(5xx + resets) / Δtotal`, threshold `rejection_threshold`, same interval) runs as the fallback. When rejection stays below the threshold for a full interval, every OFF edge of that callee goes back ON in one patch. An edge that stayed ON keeps its rpr streak. `commit()` restarts only the edges that were OFF.
+
+Log lines keep the existing `ON→OFF` / `OFF→ON` shape so the toggle parser still matches. The name field is `caller->target` on an edge line and the service name on a fallback line:
+
+```
+2026-10-06T20:00:00Z  START  metric=edge_rpr rpr_threshold=0.50 rejection_threshold=0.20 sample_interval=1s interval_samples=30 edges=14
+2026-10-06T20:00:01Z  OBSERVE  frontend->recommendationservice  rpr=0.6200  low=0 high=1  state=ON  metric=rpr
+2026-10-06T20:00:30Z  frontend->recommendationservice  ON→OFF   rpr=0.62  consecutive_high=30  attempts=0  metric=rpr
+2026-10-06T20:01:00Z  OBSERVE  recommendationservice  rejection=0.0800  low=1 high=0  state=OFF  metric=rejection
+2026-10-06T20:01:30Z  recommendationservice  OFF→ON   rejection=0.08  consecutive_low=30  attempts=3  metric=rejection
+```
 
 ---
 

@@ -59,6 +59,8 @@ retryguard:
   rejection_threshold: 0.20
   sample_interval_seconds: 1
   interval_samples: 30         # paper default — same as scenario_5_interval_30s.yaml
+  retry_metric: edge_rpr
+  retries_threshold: 0.5
 
 envoy_retry_collector:
   enabled: true

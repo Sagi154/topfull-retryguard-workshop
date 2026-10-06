@@ -86,6 +86,8 @@ retryguard:
   rejection_threshold: 0.2
   sample_interval_seconds: 1
   interval_samples: 30
+  retry_metric: edge_rpr
+  retries_threshold: 0.5
 envoy_retry_collector:
   enabled: true
   poll_interval_seconds: 1

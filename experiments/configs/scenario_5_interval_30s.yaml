@@ -53,6 +53,8 @@ retryguard:
   rejection_threshold: 0.20
   sample_interval_seconds: 1
   interval_samples: 30         # ← THE VARIABLE: 30 consecutive 1s samples = 30s, symmetric ON/OFF (PAPER DEFAULT)
+  retry_metric: edge_rpr
+  retries_threshold: 0.5
 
 # ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
 # Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).

@@ -728,6 +728,8 @@ def start_retryguard(cfg: dict):
         "retry_attempts_on":       retries_cfg["attempts_on"],
         "retry_attempts_off":      retries_cfg["attempts_off"],
         "per_try_timeout_ms":      retries_cfg["per_try_timeout_ms"],
+        "retry_metric":            rg_cfg.get("retry_metric", "rejection"),
+        "retries_threshold":       rg_cfg.get("retries_threshold", 0.5),
     }
     write_remote_json(master, "/tmp/retryguard_params.json", params)
     step(f"Uploaded RetryGuard params: interval_samples={params['interval_samples']} "

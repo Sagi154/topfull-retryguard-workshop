@@ -637,7 +637,99 @@ class EdgeController:
             self.svc_state.pop(change.service, None)
 
 
+def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
+    """Edge mode: retries per request per edge, rejection rate per callee as fallback."""
+    if "retries_threshold" not in params:
+        raise SystemExit("[retryguard] retry_metric=edge_rpr needs retries_threshold")
+    sample_interval = int(params["sample_interval_seconds"])
+    interval = int(params["interval_samples"])
+    rejection_threshold = float(params["rejection_threshold"])
+    rpr_threshold = float(params["retries_threshold"])
+    attempts_on = int(params["retry_attempts_on"])
+    per_try_timeout_ms = int(params["per_try_timeout_ms"])
+
+    wait_for_inbound_csv(record_path)
+
+    ctrl = EdgeController(CONTROLLED_EDGES, rpr_threshold, rejection_threshold, interval)
+    inbound = InboundCsvTailer(record_path / INBOUND_CSV_NAME)
+    edges = EdgesCsvTailer(record_path / EDGES_CSV_NAME)
+    prev_in: Dict[str, Optional[InboundSnapshot]] = {s: None for s in CONTROLLED_SERVICES}
+    prev_edge: Dict[tuple, Optional[EdgeSnapshot]] = {e: None for e in CONTROLLED_EDGES}
+    log.info(
+        "%s  START  metric=edge_rpr rpr_threshold=%.2f rejection_threshold=%.2f "
+        "sample_interval=%ss interval_samples=%d edges=%d",
+        utc_now(), rpr_threshold, rejection_threshold,
+        sample_interval, interval, len(CONTROLLED_EDGES),
+    )
+
+    while not _shutdown:
+        time.sleep(sample_interval)
+        if _shutdown:
+            break
+        inbound.poll()
+        edges.poll()
+
+        rpr = {}
+        for edge in CONTROLLED_EDGES:
+            rpr[edge], prev_edge[edge] = measure_edge_rpr(
+                prev_edge[edge], edges.latest.get(edge)
+            )
+        rejection = {}
+        for service in CONTROLLED_SERVICES:
+            rejection[service], prev_in[service] = measure_inbound_rejection(
+                prev_in[service], inbound.latest.get(service)
+            )
+
+        changes = ctrl.step(rpr, rejection)
+
+        for edge, st in ctrl.edge_state.items():
+            if st.retries_state == "ON" and rpr.get(edge) is not None:
+                log.info(
+                    "%s  OBSERVE  %s->%s  rpr=%.4f  low=%d high=%d  state=ON  metric=rpr",
+                    utc_now(), edge[0], edge[1], rpr[edge],
+                    st.consecutive_low, st.consecutive_high,
+                )
+        for service, st in ctrl.svc_state.items():
+            if rejection.get(service) is not None:
+                log.info(
+                    "%s  OBSERVE  %s  rejection=%.4f  low=%d high=%d  state=OFF  metric=rejection",
+                    utc_now(), service, rejection[service],
+                    st.consecutive_low, st.consecutive_high,
+                )
+
+        for change in changes:
+            try:
+                patch_virtualservice(
+                    api, change.service, attempts_on, per_try_timeout_ms,
+                    off_callers=change.new_off,
+                )
+            except Exception as exc:  # noqa: BLE001 — keep loop alive
+                log.info(
+                    "%s  PATCH_FAIL  %s  %s  error=%s",
+                    utc_now(), change.service, change.transition, exc,
+                )
+                continue
+            old, new = ("ON", "OFF") if change.transition == "OFF" else ("OFF", "ON")
+            label = "rpr" if change.metric == "rpr" else "rejection"
+            counter = "consecutive_high" if new == "OFF" else "consecutive_low"
+            attempts = 0 if new == "OFF" else attempts_on
+            for name, value, count in change.lines:
+                log.info(
+                    "%s  %s  %s→%s   %s=%.2f  %s=%d  attempts=%d  metric=%s",
+                    utc_now(), name, old, new, label, value,
+                    counter, count, attempts, change.metric,
+                )
+            ctrl.commit(change)
+
+    log.info("%s  EXIT", utc_now())
+
+
 def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
+    metric = params.get("retry_metric", "rejection")
+    if metric == "edge_rpr":
+        return run_edge_rpr(params, record_path, api)
+    if metric != "rejection":
+        raise SystemExit(f"[retryguard] unknown retry_metric: {metric!r}")
     sample_interval = int(params["sample_interval_seconds"])
     interval = int(params["interval_samples"])
     threshold = float(params["rejection_threshold"])
