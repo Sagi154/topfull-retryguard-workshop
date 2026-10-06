@@ -1,6 +1,6 @@
 # rho / mu.hat estimate report — `run_topfull_retryguard_sustained_overload_run21`
 
-Generated: 2026-10-06T05:24:21Z
+Generated: 2026-10-06T11:13:45Z
 Run folder: `experiments\results\campaign_48\S2_sustained_overload\run_topfull_retryguard_sustained_overload_run21`
 
 ## Context
@@ -15,17 +15,17 @@ Run folder: `experiments\results\campaign_48\S2_sustained_overload\run_topfull_r
 
 ```
 service                lambda_mean  mu_sat  w_mean_ms  w_p50_ms  n_ticks  inbound_5xx_fraction  inbound_failure_fraction
-adservice              96.76        n/a     1.703      3.019     63       0                     0                       
-cartservice            338.1        n/a     2.611      3.111     122      0                     6.262e-05               
-checkoutservice        13.86        49.5    72.45      47.19     62       0                     0.1507                  
-currencyservice        567.8        n/a     3.467      3.304     122      0                     3.729e-05               
-emailservice           10.87        1.5     10.57      3.222     55       0                     0.007666                
-frontend               347.6        10.5    1033       1484      276      0.7292                0.7296                  
-paymentservice         13.27        98.25   2.294      3         55       0                     0.01273                 
-productcatalogservice  931.5        n/a     1.883      1.927     123      0                     5.245e-05               
-recommendationservice  688.2        629.8   462.5      747.7     107      0                     0.2156                  
+adservice              168.4        n/a     1.211      2.876     122      0                     0                       
+cartservice            405.4        n/a     2.685      3.173     122      0                     8.826e-05               
+checkoutservice        24.34        75      68.78      50.8      122      0                     0.04423                 
+currencyservice        717.7        n/a     2.652      3.205     122      0                     6.805e-06               
+emailservice           23           36      7.38       3.227     122      0                     0.001289                
+frontend               388.3        294     843.2      872.2     123      0.2612                0.2628                  
+paymentservice         24.02        120     1.955      3.018     122      0                     0.004896                
+productcatalogservice  2046         n/a     1.753      2.658     122      0                     7.132e-06               
+recommendationservice  649.6        557     443        530.7     123      0                     0.1772                  
 redis-cart             n/a          n/a     n/a        n/a       0        0                     0                       
-shippingservice        75.03        n/a     1.061      2.717     68       0                     0.001625                
+shippingservice        135.8        n/a     0.7631     1.854     122      0                     0.0006568               
 
 Notes:
   - redis-cart: no ticks with traffic
@@ -33,14 +33,4 @@ Notes:
 
 ## RetryGuard toggle events
 
-| timestamp | service | direction | rejection | counter | attempts |
-|---|---|---|---|---|---|
-| 2026-10-06T05:14:48Z | recommendationservice | ON→OFF | 0.3200 | consecutive_high=30 | 0 |
-| 2026-10-06T05:15:51Z | recommendationservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-| 2026-10-06T05:18:34Z | recommendationservice | ON→OFF | 0.3100 | consecutive_high=30 | 0 |
-| 2026-10-06T05:19:36Z | recommendationservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-
-**lambda/W/mu_sat at the services that toggled** (for cross-reference only; RetryGuard did not use these numbers — no `rho` is reported, see the caveat above):
-
-- `recommendationservice`: lambda_mean=688.2  mu_sat=629.8  w_mean_ms=462.5  inbound_5xx_fraction=0 inbound_failure_fraction=0.2156
-
+`retryguard.log` is present but no `ON→OFF` / `OFF→ON` toggle events were found (RetryGuard ran but never crossed its threshold for the required `interval_samples` — this is expected on many flat baseline/RG-inert runs).

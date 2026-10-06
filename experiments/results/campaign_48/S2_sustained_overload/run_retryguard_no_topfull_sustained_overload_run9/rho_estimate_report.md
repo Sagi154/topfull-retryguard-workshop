@@ -1,6 +1,6 @@
 # rho / mu.hat estimate report — `run_retryguard_no_topfull_sustained_overload_run9`
 
-Generated: 2026-10-06T03:21:53Z
+Generated: 2026-10-06T10:25:34Z
 Run folder: `experiments\results\campaign_48\S2_sustained_overload\run_retryguard_no_topfull_sustained_overload_run9`
 
 ## Context
@@ -15,17 +15,17 @@ Run folder: `experiments\results\campaign_48\S2_sustained_overload\run_retryguar
 
 ```
 service                lambda_mean  mu_sat  w_mean_ms  w_p50_ms  n_ticks  inbound_5xx_fraction  inbound_failure_fraction
-adservice              154.5        n/a     1.619      3.016     120      0                     0                       
-cartservice            427.6        n/a     3.591      3.444     123      0                     0.001581                
-checkoutservice        83.95        56.5    313.9      243.2     121      0                     0.4995                  
-currencyservice        705.9        n/a     6.433      4.033     123      0                     0                       
-emailservice           23.8         1       34.29      3.843     75       0                     0.0224                  
-frontend               382.2        237.5   1025       892.4     271      0.339                 0.3409                  
-paymentservice         62.02        89.5    6.723      3.827     119      0                     0.08927                 
-productcatalogservice  1953         n/a     3.726      3.136     123      0                     0                       
-recommendationservice  613.9        556.5   491.6      701.1     123      0                     0.2113                  
+adservice              140.9        n/a     1.226      2.835     122      0                     0                       
+cartservice            427.4        n/a     2.663      3.207     123      0                     0.0002217               
+checkoutservice        51.62        77      152.3      135.4     122      0                     0.04062                 
+currencyservice        704.3        n/a     2.482      3.171     123      0                     4.64e-06                
+emailservice           48.42        41      22.7       3.957     121      0                     0.004521                
+frontend               405.5        275.5   893.6      930.1     142      0.3345                0.3362                  
+paymentservice         50.88        116     2.907      3.102     122      0                     0.004021                
+productcatalogservice  1949         n/a     1.703      2.597     123      0                     1.006e-05               
+recommendationservice  739.5        622     448.3      590.8     122      0                     0.1998                  
 redis-cart             n/a          n/a     n/a        n/a       0        0                     0                       
-shippingservice        194.2        n/a     1.368      2.562     121      0                     0.01139                 
+shippingservice        174.3        n/a     0.8394     1.883     122      0                     0.000928                
 
 Notes:
   - redis-cart: no ticks with traffic
@@ -33,26 +33,4 @@ Notes:
 
 ## RetryGuard toggle events
 
-| timestamp | service | direction | rejection | counter | attempts |
-|---|---|---|---|---|---|
-| 2026-10-06T03:12:22Z | recommendationservice | ON→OFF | 0.3300 | consecutive_high=30 | 0 |
-| 2026-10-06T03:13:24Z | recommendationservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-| 2026-10-06T03:13:26Z | checkoutservice | ON→OFF | 0.5800 | consecutive_high=30 | 0 |
-| 2026-10-06T03:14:31Z | checkoutservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-| 2026-10-06T03:15:11Z | recommendationservice | ON→OFF | 0.2500 | consecutive_high=30 | 0 |
-| 2026-10-06T03:16:15Z | checkoutservice | ON→OFF | 0.6100 | consecutive_high=30 | 0 |
-| 2026-10-06T03:16:15Z | recommendationservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-| 2026-10-06T03:17:18Z | checkoutservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-| 2026-10-06T03:17:18Z | recommendationservice | ON→OFF | 0.3200 | consecutive_high=30 | 0 |
-| 2026-10-06T03:18:20Z | recommendationservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-| 2026-10-06T03:18:22Z | checkoutservice | ON→OFF | 0.6700 | consecutive_high=30 | 0 |
-| 2026-10-06T03:19:22Z | recommendationservice | ON→OFF | 0.3000 | consecutive_high=30 | 0 |
-| 2026-10-06T03:19:26Z | checkoutservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-| 2026-10-06T03:20:25Z | recommendationservice | OFF→ON | 0.0000 | consecutive_low=30 | 3 |
-| 2026-10-06T03:20:29Z | checkoutservice | ON→OFF | 0.7300 | consecutive_high=30 | 0 |
-
-**lambda/W/mu_sat at the services that toggled** (for cross-reference only; RetryGuard did not use these numbers — no `rho` is reported, see the caveat above):
-
-- `recommendationservice`: lambda_mean=613.9  mu_sat=556.5  w_mean_ms=491.6  inbound_5xx_fraction=0 inbound_failure_fraction=0.2113
-- `checkoutservice`: lambda_mean=83.95  mu_sat=56.5  w_mean_ms=313.9  inbound_5xx_fraction=0 inbound_failure_fraction=0.4995
-
+`retryguard.log` is present but no `ON→OFF` / `OFF→ON` toggle events were found (RetryGuard ran but never crossed its threshold for the required `interval_samples` — this is expected on many flat baseline/RG-inert runs).
