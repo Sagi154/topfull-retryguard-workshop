@@ -496,6 +496,31 @@ class TestLocustReaderRemoved(unittest.TestCase):
         self.assertFalse(hasattr(retryguard, "wait_for_csvs"))
 
 
+class TestVirtualServicePatchBody(unittest.TestCase):
+    ROUTE = [{"destination": {"host": "checkoutservice"}}]
+
+    def test_on_has_full_retry_policy(self):
+        body = retryguard.build_vs_patch_body(self.ROUTE, 3, 500)
+        rule = body["spec"]["http"][0]
+        self.assertEqual(rule["route"], self.ROUTE)
+        self.assertEqual(
+            rule["retries"],
+            {
+                "attempts": 3,
+                "retryOn": "5xx,reset,connect-failure",
+                "perTryTimeout": "500ms",
+            },
+        )
+
+    def test_off_is_bare_attempts_zero(self):
+        # Istio's webhook rejects attempts: 0 with retryOn/perTryTimeout, and
+        # omitting the block falls back to Istio's default of 2 retries.
+        body = retryguard.build_vs_patch_body(self.ROUTE, 0, 500)
+        rule = body["spec"]["http"][0]
+        self.assertEqual(rule["retries"], {"attempts": 0})
+        self.assertEqual(rule["route"], self.ROUTE)
+
+
 if __name__ == "__main__":
     unittest.main()
 
