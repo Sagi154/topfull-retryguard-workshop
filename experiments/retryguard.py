@@ -41,6 +41,28 @@ GLOBAL_CONFIG_PATH = (
 
 INBOUND_CSV_NAME = "service_inbound.csv"
 
+EDGES_CSV_NAME = "service_edges.csv"
+
+# The Boutique call graph is fixed, so the controlled edges are a constant.
+# HTTP/gRPC edges between Boutique services only: no redis-cart (TCP, no
+# VirtualService), nothing into frontend.
+CONTROLLED_EDGES = (
+    ("frontend", "adservice"),
+    ("frontend", "cartservice"),
+    ("frontend", "checkoutservice"),
+    ("frontend", "currencyservice"),
+    ("frontend", "productcatalogservice"),
+    ("frontend", "recommendationservice"),
+    ("frontend", "shippingservice"),
+    ("checkoutservice", "cartservice"),
+    ("checkoutservice", "currencyservice"),
+    ("checkoutservice", "emailservice"),
+    ("checkoutservice", "paymentservice"),
+    ("checkoutservice", "productcatalogservice"),
+    ("checkoutservice", "shippingservice"),
+    ("recommendationservice", "productcatalogservice"),
+)
+
 # HTTP Boutique callees that already have a VirtualService.
 # frontend (ingress) and redis-cart (TCP) are excluded — see the
 # 2026-09-10 mesh measure_value spec.
@@ -123,6 +145,13 @@ class InboundSnapshot:
     total: float
     five_xx: float
     resets: float = 0.0  # downstream_rq_rx_reset (per-try timeout aborts)
+
+
+@dataclass(frozen=True)
+class EdgeSnapshot:
+    timestamp: str
+    total: float  # every attempt, retries included (the paper's Lambda)
+    retry: float
 
 
 # --------------------------------------------------------------------------- #
@@ -276,6 +305,53 @@ class InboundCsvTailer:
         self._pending = lines.pop()  # trailing fragment (no newline yet)
         for line in lines:
             self._apply_line(line)
+
+
+class EdgesCsvTailer(InboundCsvTailer):
+    """Same append-only tail as InboundCsvTailer; rows keyed by (caller, target)."""
+
+    def _apply_line(self, line: str) -> None:
+        if not line or self._fieldnames is None:
+            return
+        try:
+            values = next(csv.reader([line]))
+        except (csv.Error, StopIteration):
+            return
+        if len(values) != len(self._fieldnames):
+            return
+        row = dict(zip(self._fieldnames, values))
+        try:
+            snapshot = EdgeSnapshot(
+                timestamp=str(row["timestamp"]),
+                total=float(row["total"]),
+                retry=float(row["retry"]),
+            )
+            key = (row["caller"], row["target"])
+        except (KeyError, TypeError, ValueError):
+            return
+        self.latest[key] = snapshot
+
+
+def measure_edge_rpr(
+    previous: Optional[EdgeSnapshot],
+    current: Optional[EdgeSnapshot],
+) -> tuple[Optional[float], Optional[EdgeSnapshot]]:
+    """
+    Retries per request on one edge: the paper's (Lambda - lambda) / lambda.
+    `total` counts every attempt, so first attempts = delta total - delta retry.
+    Returns None (skip the tick) when there is no new row or no first attempts.
+    """
+    if current is None:
+        return None, previous
+    if previous is None:
+        return None, current
+    if current.timestamp <= previous.timestamp:
+        return None, previous
+    delta_retry = current.retry - previous.retry
+    first_attempts = (current.total - previous.total) - delta_retry
+    if first_attempts <= 0:
+        return None, current
+    return delta_retry / first_attempts, current
 
 
 # --------------------------------------------------------------------------- #

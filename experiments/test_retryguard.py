@@ -521,6 +521,42 @@ class TestVirtualServicePatchBody(unittest.TestCase):
         self.assertEqual(rule["route"], self.ROUTE)
 
 
+class TestEdgeMeasurement(unittest.TestCase):
+    def test_controlled_edges_shape(self):
+        self.assertEqual(len(retryguard.CONTROLLED_EDGES), 14)
+        for caller, target in retryguard.CONTROLLED_EDGES:
+            self.assertIn(target, retryguard.CONTROLLED_SERVICES)
+            self.assertNotEqual(caller, "redis-cart")
+
+    def test_rpr_divides_by_first_attempts(self):
+        S = retryguard.EdgeSnapshot
+        prev = S("2026-01-01T00:00:00Z", total=100, retry=10)
+        cur = S("2026-01-01T00:00:01Z", total=160, retry=30)
+        # delta total 60, delta retry 20 -> first attempts 40 -> rpr 0.5
+        rpr, _ = retryguard.measure_edge_rpr(prev, cur)
+        self.assertAlmostEqual(rpr, 0.5)
+
+    def test_no_first_attempts_is_skipped(self):
+        S = retryguard.EdgeSnapshot
+        prev = S("2026-01-01T00:00:00Z", total=100, retry=10)
+        cur = S("2026-01-01T00:00:01Z", total=100, retry=10)
+        rpr, _ = retryguard.measure_edge_rpr(prev, cur)
+        self.assertIsNone(rpr)
+
+    def test_tailer_keys_by_caller_and_target(self):
+        with TemporaryDirectory() as d:
+            p = Path(d) / "service_edges.csv"
+            p.write_text(
+                "timestamp,caller,target,total,2xx,4xx,5xx,retry\n"
+                "2026-01-01T00:00:00Z,frontend,adservice,10,10,0,0,2\n",
+                encoding="utf-8",
+            )
+            t = retryguard.EdgesCsvTailer(p)
+            t.poll()
+            snap = t.latest[("frontend", "adservice")]
+            self.assertEqual((snap.total, snap.retry), (10.0, 2.0))
+
+
 if __name__ == "__main__":
     unittest.main()
 
