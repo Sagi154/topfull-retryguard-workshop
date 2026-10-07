@@ -1,12 +1,12 @@
 # Scenario 2 | Both controllers off
-# Edge-rpr eight-hold series, run 89 mix 275/90/100/90/5. Slot about to launch: run155.
+# Edge-rpr eight-hold series, run 89 mix 275/90/100/90/5. Slot run157 was not launched.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 155
+run_number: 157
 description: >
-  Edge-rpr eight-hold series, first both-off hold (run155).
+  Edge-rpr eight-hold series. Slot run157 was not launched.
   Run 89 mix 275/90/100/90/5. Paper-C1 pin.
   Checkout and recommendations rolled before the hold.
 
@@ -112,7 +112,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run155
+log_folder: baseline_no_topfull_sustained_overload_run157
 
 infra:
   master_ssh_host: topfull-master

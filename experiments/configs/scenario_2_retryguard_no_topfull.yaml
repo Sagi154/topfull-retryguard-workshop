@@ -1,12 +1,12 @@
 # Scenario 2 | RetryGuard ON, TopFull RL OFF
-# Edge-rpr eight-hold series, run 89 mix 275/90/100/90/5. Slot about to launch: run11.
+# Edge-rpr eight-hold series, run 89 mix 275/90/100/90/5. Slot run13 was not launched.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: retryguard
-run_number: 11
+run_number: 13
 description: >
-  Edge-rpr eight-hold series, first RetryGuard-only hold (run11).
+  Edge-rpr eight-hold series. Slot run13 was not launched.
   Run 89 mix 275/90/100/90/5. Paper-C1 pin.
   Checkout and recommendations rolled before the hold.
 duration_seconds: 600
@@ -101,7 +101,7 @@ resource_usage_collector:
 topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
-log_folder: run_retryguard_no_topfull_sustained_overload_run11
+log_folder: run_retryguard_no_topfull_sustained_overload_run13
 infra:
   master_ssh_host: topfull-master
   loadgen_ssh_host: topfull-load
