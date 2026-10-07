@@ -126,6 +126,67 @@ Two RetryGuard-only holds of the run 89 mix (275/90/100/90/5), Paper-C1, TopFull
 
 HTTP 5xx stayed 0 on checkout, recommendations, payment, and email. The gRPC column moved on its own: on run17, recommendations' completed gRPC failures (51,596) are larger than its resets (29,354). The controller still shed only from retries per request, and it restored on a rejection of 0.00. Folders: `experiments/results/campaign_48/S2_sustained_overload/run_retryguard_no_topfull_sustained_overload_run16` and `…_run17`.
 
+### Both-off run157 (mix 340/115/150/5/5)
+
+One 600 s hold with TopFull off and RetryGuard off. Retries stayed at 3 for the whole window. `grpc_5xx` is recorded and unused. Paper-C1 pin, frontend at 4 for every resource sample, Layer A stayed at the 10000 passthrough. Folder: `experiments/results/campaign_48/S2_sustained_overload/baseline_no_topfull_sustained_overload_run157`.
+
+| | run157 |
+|---|---:|
+| Locust `total.csv` rows | 560 |
+| Total arrived / goodput (req/s) | 388 / 111 |
+| Failure fraction | 0.71 |
+| P95 (ms) | 1318 |
+| Frontend replicas | 4 on 135/135 |
+| checkout Δresets / Δgrpc_5xx | 1,000 / 1,120 |
+| recommendations Δresets / Δgrpc_5xx | 108,865 / 281,669 |
+| payment Δresets / Δgrpc_5xx | 581 / 326 |
+| email Δresets / Δgrpc_5xx | 62 / 16 |
+| frontend→checkout retries | 1,517 |
+| frontend→recommendations retries | 284,199 |
+
+HTTP 5xx stayed 0 on those four backends. Recommendations is the busy service: completed gRPC failures are about 2.6× the resets, and frontend→recommendations retries are 284k. Checkout stays light (about 1k resets and 1.1k `grpc_5xx`).
+
+Longest streak of ticks with rejection > 0.20 (controller interval is 30). The second column is a reading of the CSV; the hold did not act on it.
+
+| Service | `(Δ5xx+Δresets)/Δtotal` | `(Δ5xx+Δresets+Δgrpc_5xx)/Δtotal` | Partition ticks |
+|---|---:|---:|---:|
+| checkoutservice | 17 | 19 | 7 |
+| recommendationservice | 24 | 553 | 1 |
+| paymentservice | 3 | 6 | 2 |
+| emailservice | 4 | 4 | 0 |
+
+On recommendations, resets alone never clear a streak of 30. Adding `grpc_5xx` makes the same hold look like a near-continuous high streak (553 of 596 ticks). Checkout barely moves (17 → 19). That is the opposite shape from the RetryGuard-only runs 16 and 17, where `grpc_5xx` mainly mattered in short off windows and quiet restore tails.
+
+### RetryGuard-only run18 (same mix as run157)
+
+One 600 s hold with TopFull off and RetryGuard on (`edge_rpr`). Same mix as run157 (340/115/150/5/5). Paper-C1, frontend at 4 for every resource sample, Layer A stayed at the 10000 passthrough. `grpc_5xx` is recorded and unused. Folder: `experiments/results/campaign_48/S2_sustained_overload/run_retryguard_no_topfull_sustained_overload_run18`.
+
+| | run157 (both-off) | run18 (RG-only) |
+|---|---:|---:|
+| Locust `total.csv` rows | 560 | 560 |
+| Total arrived / goodput (req/s) | 388 / 111 | 521 / 261 |
+| Failure fraction | 0.71 | 0.50 |
+| P95 (ms) | 1318 | 493 |
+| Frontend replicas | 4 on 135/135 | 4 on 139/139 |
+| checkout Δresets / Δgrpc_5xx | 1,000 / 1,120 | 874 / 833 |
+| recommendations Δresets / Δgrpc_5xx | 108,865 / 281,669 | 68,266 / 106,652 |
+| frontend→checkout retries | 1,517 | 1,228 |
+| frontend→recommendations retries | 284,199 | 23,402 |
+| Shed / restore | (no controller) | `frontend→recommendationservice` 3→0 at rpr **1.47**; **no** OFF→ON |
+
+HTTP 5xx stayed 0 on checkout, recommendations, payment, and email. Checkout never cleared a high streak of 30 (max `high` was 9). Recommendations shed once about 115 s after Locust started and stayed at 0 attempts for the rest of the hold: 262 callee `rejection` samples, every one ≥ 0.129, so the 0→1 bar at 0.10 never advanced (`low` stayed 0).
+
+Longest streak of ticks with rejection > 0.20 (CSV reading only; controller decisions used rpr / reset rejection).
+
+| Service | `(Δ5xx+Δresets)/Δtotal` | `(Δ5xx+Δresets+Δgrpc_5xx)/Δtotal` | Partition ticks |
+|---|---:|---:|---:|
+| checkoutservice | 8 | 8 | 5 |
+| recommendationservice | 14 | 292 | 0 |
+| paymentservice | 0 | 0 | 0 |
+| emailservice | 2 | 3 | 0 |
+
+Against run157, shedding recommendations cut frontend→recommendations retries from 284k to 23k and raised storefront goodput from 111 to 261 req/s. Resets alone still never clear a streak of 30 on recommendations; adding `grpc_5xx` still makes a long high streak (292). The live restore path never saw a quiet reset window, so `grpc_5xx` was not needed to keep the edge off.
+
 ## Conclusions
 
 Leave `retryOn` and the rejection formula as they are. Keep recording `grpc_5xx`.
