@@ -207,7 +207,28 @@ One 600 s hold with TopFull off and RetryGuard off. Same mix as run157 (340/115/
 | frontend→checkout retries | 1,517 | 1,606 |
 | frontend→recommendations retries | 284,199 | 286,332 |
 
-`service_inbound.csv` ends with `grpc_2,grpc_4,grpc_13,grpc_14`. HTTP 5xx stayed 0 on recommendations and checkout. Recommendations `grpc_4` is non-zero (246,525). The retry edge did not rise clearly above run157, so RetryGuard-only run19 was not started. Inbound timestamps run 2026-10-07T19:50:56Z to 20:02:35Z (413 polls). Retry counters were monotonic, so the holes do not shrink the retry delta.
+`service_inbound.csv` ends with `grpc_2,grpc_4,grpc_13,grpc_14`. HTTP 5xx stayed 0 on recommendations and checkout. Recommendations `grpc_4` is non-zero (246,525). The retry edge did not rise clearly above run157, so RetryGuard-only run19 was not started on that mix. Inbound timestamps run 2026-10-07T19:50:56Z to 20:02:35Z (413 polls). Retry counters were monotonic, so the holes do not shrink the retry delta.
+
+### Run 89 mix: both-off run159 and RetryGuard-only run19
+
+Two 600 s holds on Paper-C1 with the run 89 counts (275 / 90 / 100 / 90 / 5), `spawn_rate` 50, frontend pinned at 4, sidecar request 100 m with no CPU limit. Checkout and recommendations were rolled before each hold. Cool-off between them was 360 s. Per-callee `retryOn` is live: the four read-only callees include `unavailable,deadline-exceeded`; cart, shipping, checkout, payment, and email stay on `5xx,reset,connect-failure`. Folders: `baseline_no_topfull_sustained_overload_run159`, `run_retryguard_no_topfull_sustained_overload_run19`.
+
+| | run89 (both-off, older) | run159 (both-off) | run19 (RG-only) |
+|---|---:|---:|---:|
+| Locust `total.csv` rows | 567 | 545 | 562 |
+| Total arrived / goodput (req/s) | (tag means; browse storm) | 357 / 161 | 511 / 380 |
+| Failure fraction | ~0.65 on browse tags | 0.55 | 0.26 |
+| Mean P95 (ms) | getproduct ~1826 | 1242 | 526 |
+| Frontend replicas | 4 on 134/134 | 4 on 135/135 | 4 on 140/140 |
+| recommendations Δresets / Δgrpc_4 / Δgrpc_14 | (pre per-code) | 77,659 / 312,869 / 0 | 28,965 / 77,112 / 0 |
+| checkout Δresets / Δgrpc_4 / Δgrpc_14 | (pre per-code) | 921 / 889 / 34 | 4,426 / 4,317 / 144 |
+| frontend→recommendations retries | 224,314 | 306,370 | 34,293 |
+| frontend→checkout retries | 9,302 | 1,347 | 6,267 |
+| retries per first attempt (recs / checkout) | — | 1.89 / 0.09 | 0.13 / 0.21 |
+
+Run159 stays in the recommendations-storm regime of run89 (frontend→recommendations retries hundreds of thousands), not the checkout latch of run94/run95. Recommendations `DEADLINE_EXCEEDED` is again the bulk of the completed gRPC failures (`grpc_14` is 0). Against run89 the recommendations retry edge is higher (306k vs 224k); checkout is quieter (1.3k vs 9.3k).
+
+Run19 (`START metric=edge_rpr`): no `PATCH_FAIL`. `frontend→checkoutservice` went OFF at rpr **2.35**, restored to attempts **1** at rejection **0.00**, then climbed **1→2→3** on quiet rpr. `frontend→recommendationservice` went OFF at rpr **2.32** and stayed at 0 until SHUTDOWN (no OFF→ON). Shedding recommendations cut that edge from 306k retries to 34k and raised storefront goodput from 161 to 380 req/s. Checkout climbed back to 3 after a quiet window, so its hold-long retry total (6,267) is the pre-shed storm plus the restored attempts.
 
 ## Conclusions
 

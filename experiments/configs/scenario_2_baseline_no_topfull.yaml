@@ -1,22 +1,22 @@
 # Scenario 2 | Both controllers off
-# Next free slot after run158 (per-callee retryOn; retries did not rise). Mix 340/115/150/5/5.
+# Next free slot after run159 (run 89 mix 275/90/100/90/5, both-off).
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 159
+run_number: 160
 description: >
-  Next free both-off slot after run158 (mix 340/115/150/5/5, per-callee gRPC retryOn).
+  Next free both-off slot after run159 (run 89 mix 275/90/100/90/5).
   Paper-C1 pin. Checkout and recommendations rolled before the hold.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   340
-    postcheckout: 115
-    getcart:      150
-    postcart:     5
+    getproduct:   275
+    postcheckout: 90
+    getcart:      100
+    postcart:     90
     emptycart:    5
   spawn_rate: 50
   scripts:
@@ -111,7 +111,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run159
+log_folder: baseline_no_topfull_sustained_overload_run160
 
 infra:
   master_ssh_host: topfull-master
