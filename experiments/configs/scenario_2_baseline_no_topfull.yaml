@@ -1,12 +1,12 @@
 # Scenario 2 | Both controllers off
-# Observation hold for grpc_5xx (same column as runs 16/17). Mix 340/115/150/5/5.
+# Next free slot after run158 (per-callee retryOn; retries did not rise). Mix 340/115/150/5/5.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 158
+run_number: 159
 description: >
-  Next free both-off slot after run157 (mix 340/115/150/5/5, grpc_5xx observation).
+  Next free both-off slot after run158 (mix 340/115/150/5/5, per-callee gRPC retryOn).
   Paper-C1 pin. Checkout and recommendations rolled before the hold.
 
 duration_seconds: 600
@@ -111,7 +111,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run158
+log_folder: baseline_no_topfull_sustained_overload_run159
 
 infra:
   master_ssh_host: topfull-master

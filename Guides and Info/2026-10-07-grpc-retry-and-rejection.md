@@ -103,9 +103,13 @@ The runs already scored — streaks, blend bars, RetryGuard logs — use the old
 
 ## Decision
 
-Leave `retryOn` at `5xx,reset,connect-failure`. Leave the off-state rate at `(Δ5xx + Δresets) / Δtotal`.
+The retry string and the rejection rate now differ per callee.
 
-Record the completed gRPC failures anyway, as their own column, so a later hold can show them without moving the threshold. `experiments/envoy_retry_collector.py` appends `grpc_5xx` to `service_inbound.csv`. The value is the sum of `istio_requests_total` on that scrape with `reporter="destination"`, `response_code="200"`, and `grpc_response_status` in `2`, `4`, `13`, `14`. `retryguard.py` does not read the column. Rows written before this change have no such column; readers that use column names keep working.
+`adservice`, `currencyservice`, `productcatalogservice`, and `recommendationservice` use `retryOn: 5xx,reset,connect-failure,unavailable,deadline-exceeded` and count `grpc_4 + grpc_14` (deadline-exceeded and unavailable) in the rejection rate. `cartservice` and `shippingservice` stay on the current string, `5xx,reset,connect-failure`, and on `(Δ5xx + Δresets) / Δtotal`. So do `checkoutservice`, `paymentservice`, and `emailservice`. Each callee still has one route rule.
+
+`service_inbound.csv` stores those codes as `grpc_2`, `grpc_4`, `grpc_13`, and `grpc_14`. Folders written before this change keep the single `grpc_5xx` column.
+
+Both-off run158 is the live check of that split on run157's mix, with RetryGuard off. Mid-hold, the VirtualServices matched it. `recommendationservice` `grpc_4` rose by 246,525 and `grpc_14` stayed 0. frontend→recommendations retries were 286,332, against run157's 284,199. That is not a clear rise, so the new tokens did not add retries. frontend→checkout retries were 1,606, against 1,517. Hold B was not started. The rejection-rate half is in the controller for those four callees and was not exercised on this hold.
 
 ## Holds
 
@@ -187,9 +191,27 @@ Longest streak of ticks with rejection > 0.20 (CSV reading only; controller deci
 
 Against run157, shedding recommendations cut frontend→recommendations retries from 284k to 23k and raised storefront goodput from 111 to 261 req/s. Resets alone still never clear a streak of 30 on recommendations; adding `grpc_5xx` still makes a long high streak (292). The live restore path never saw a quiet reset window, so `grpc_5xx` was not needed to keep the edge off.
 
+### Both-off run158 (same mix, per-callee retryOn)
+
+One 600 s hold with TopFull off and RetryGuard off. Same mix as run157 (340/115/150/5/5). Paper-C1, frontend HPA already min=max=4 (sidecar request left at 100m, `proxyCPULimit` unset). The four read-only callees retry on `unavailable,deadline-exceeded`; cart, shipping, checkout, payment, and email stay on `5xx,reset,connect-failure`. Folder: `experiments/results/campaign_48/S2_sustained_overload/baseline_no_topfull_sustained_overload_run158`.
+
+| | run157 | run158 |
+|---|---:|---:|
+| Locust `total.csv` rows | 560 | 562 |
+| Total arrived / goodput (req/s) | 388 / 111 | 380 / 135 |
+| Failure fraction | 0.71 | 0.65 |
+| P95 (ms) | 1318 | 1258 |
+| Frontend replicas | 4 on 135/135 | 4 on 135/135 |
+| recommendations Δresets / Δgrpc_4 / Δgrpc_14 | 108,865 / (grpc_5xx 281,669) | 109,469 / 246,525 / 0 |
+| checkout Δresets / Δgrpc_4 / Δgrpc_14 | 1,000 / (grpc_5xx 1,120) | 1,094 / 1,077 / 32 |
+| frontend→checkout retries | 1,517 | 1,606 |
+| frontend→recommendations retries | 284,199 | 286,332 |
+
+`service_inbound.csv` ends with `grpc_2,grpc_4,grpc_13,grpc_14`. HTTP 5xx stayed 0 on recommendations and checkout. Recommendations `grpc_4` is non-zero (246,525). The retry edge did not rise clearly above run157, so RetryGuard-only run19 was not started. Inbound timestamps run 2026-10-07T19:50:56Z to 20:02:35Z (413 polls). Retry counters were monotonic, so the holes do not shrink the retry delta.
+
 ## Conclusions
 
-Leave `retryOn` and the rejection formula as they are. Keep recording `grpc_5xx`.
+The live policy is the Decision section above: the retry string and the rate differ per callee, and cart and shipping stay on `5xx,reset,connect-failure`. The paragraphs below describe the earlier `grpc_5xx` observation holds, which predate that split.
 
 HTTP 5xx is still 0, so the live numerator is the reset count. `grpc_5xx` is a second failure count of the same order. On checkout it was about 0.85 of the resets (9,644 / 11,034 on run16, 8,062 / 9,909 on run17). On recommendations in run17 it was larger than the resets (51,596 against 29,354). The lifetime scrape that put deadline-exceeded inside `2xx` is the same split, now measured on a single hold.
 
@@ -203,4 +225,4 @@ The two counters also slip against each other. On checkout, 27 of 609 ticks in r
 
 The two holds used the same mix and the same controller, and recommendations did not repeat. run16 shed it once (14,078 retries, `grpc_5xx` at 5% of arrivals). run17 left it at 3 attempts (59,617 retries, `grpc_5xx` at 16%, reset rate 0.093). Storefront goodput was 486 req/s, then 414. The shed and the restore followed retries per request and then the reset rate. `grpc_5xx` rose and fell with that storm and stayed out of the decision.
 
-`retryOn` stays `5xx,reset,connect-failure`. The failures in these holds completed as HTTP 200, which is the trailer case Envoy 1.25 leaves unretriable. The holds did not produce a header-level gRPC status to retry.
+On runs 16 and 17, `retryOn` was still `5xx,reset,connect-failure`. The failures in those holds completed as HTTP 200, which is the trailer case Envoy 1.25 leaves unretriable. Those holds did not produce a header-level gRPC status to retry. Run158 then added `unavailable,deadline-exceeded` on the four read-only callees, and frontend→recommendations retries still did not rise clearly above run157.
