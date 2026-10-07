@@ -137,6 +137,9 @@ class ServiceState:
     # We start ON so the controller matches the default VirtualService
     # (attempts=3) and Scenario 1 (healthy load) produces zero patches.
     retries_state: str = "ON"
+    # Edge mode only. 0 is off, attempts_on (3) is the full policy, and 1 or 2
+    # is a ramp step. Rejection mode does not read this.
+    attempts: int = 3
 
 
 @dataclass(frozen=True)
@@ -366,41 +369,70 @@ def make_custom_api():
     return client.CustomObjectsApi()
 
 
-def build_vs_patch_body(route: list, attempts: int, per_try_timeout_ms: int) -> dict:
-    """VirtualService merge-patch body: full retry policy, or bare attempts: 0."""
+def http_retry_fields(attempts: int, per_try_timeout_ms: int) -> dict:
+    """
+    Retry fields for one HTTP rule.
+
+    attempts > 0: full retry policy. Each try is capped by perTryTimeout, so a
+    slow callee becomes a reset and can be retried. No route-level timeout,
+    so the request may use every attempt.
+
+    attempts == 0: bare ``retries: {attempts: 0}`` plus a route ``timeout``
+    equal to perTryTimeout. Istio rejects attempts 0 combined with retryOn or
+    perTryTimeout, and omitting the retries block falls back to Istio's
+    default of 2 retries. The route timeout is what still turns a slow callee
+    into an inbound reset, so the paper's rejection rate stays visible while
+    retries are off. Without it, the request waits and completes as 2xx.
+    """
     if int(attempts) > 0:
-        retries = {
-            "attempts": int(attempts),
-            "retryOn": RETRY_ON,
-            "perTryTimeout": f"{per_try_timeout_ms}ms",
+        return {
+            "retries": {
+                "attempts": int(attempts),
+                "retryOn": RETRY_ON,
+                "perTryTimeout": f"{per_try_timeout_ms}ms",
+            }
         }
-    else:
-        retries = {"attempts": 0}
-    return {"spec": {"http": [{"route": route, "retries": retries}]}}
+    return {
+        "timeout": f"{int(per_try_timeout_ms)}ms",
+        "retries": {"attempts": 0},
+    }
+
+
+def build_vs_patch_body(route: list, attempts: int, per_try_timeout_ms: int) -> dict:
+    """VirtualService merge-patch body: full retry policy, or attempts 0 with a route timeout."""
+    rule = {"route": route, **http_retry_fields(attempts, per_try_timeout_ms)}
+    return {"spec": {"http": [rule]}}
 
 
 def build_edge_vs_patch_body(
     route: list,
-    off_callers,
+    caller_attempts: dict,
     attempts_on: int,
     per_try_timeout_ms: int,
 ) -> dict:
     """
-    Per-edge VirtualService body: one match route per OFF caller with bare
-    attempts: 0, then the default route with the full retry policy last.
-    Match routes must come first, Istio takes the first rule that matches.
+    Per-edge VirtualService body. ``caller_attempts`` maps a caller to its
+    attempt count when that count is not the default ``attempts_on``.
+    attempts 0 is a bare retries block plus a route timeout equal to
+    perTryTimeout (Istio rejects attempts 0 with a retry policy, and without
+    the route timeout a slow callee completes as 2xx). attempts 1 or 2 get
+    the full policy at that count and no route timeout.
+    The default route, with ``attempts_on``, is last. Match routes come
+    first; Istio takes the first rule that matches.
     """
     default = build_vs_patch_body(route, attempts_on, per_try_timeout_ms)["spec"][
         "http"
     ][0]
-    rules = [
-        {
-            "match": [{"sourceLabels": {"app": caller}}],
-            "route": route,
-            "retries": {"attempts": 0},
-        }
-        for caller in sorted(off_callers)
-    ]
+    rules = []
+    for caller in sorted(caller_attempts):
+        attempts = int(caller_attempts[caller])
+        rules.append(
+            {
+                "match": [{"sourceLabels": {"app": caller}}],
+                "route": route,
+                **http_retry_fields(attempts, per_try_timeout_ms),
+            }
+        )
     return {"spec": {"http": rules + [default]}}
 
 
@@ -410,18 +442,21 @@ def patch_virtualservice(
     attempts: int,
     per_try_timeout_ms: int = 500,
     namespace: str = VS_NAMESPACE,
-    off_callers=None,
+    caller_attempts=None,
 ) -> None:
     """
     GET the existing VirtualService, then merge-patch retries while
     preserving the existing route (Istio rejects an http rule with no route).
 
-    To disable retries we send ``retries: {attempts: 0}`` and nothing else.
-    Istio's webhook rejects ``attempts: 0`` combined with ``retryOn`` or
-    ``perTryTimeout``, but a bare ``attempts: 0`` is accepted and yields no
-    Envoy retry policy (true zero retries). Omitting the block instead would
-    fall back to Istio's built-in default (2 retries on connect-failure,
-    refused-stream, unavailable, cancelled, 503) — verified 2026-10-06.
+    To disable retries we send ``retries: {attempts: 0}`` plus a route
+    ``timeout`` equal to perTryTimeout. Istio's webhook rejects
+    ``attempts: 0`` combined with ``retryOn`` or ``perTryTimeout``, but a bare
+    ``attempts: 0`` is accepted and yields no Envoy retry policy (true zero
+    retries). The route timeout is separate from the retry policy: it cancels
+    a slow request so the callee still records an inbound reset. Omitting the
+    retries block instead would fall back to Istio's built-in default
+    (2 retries on connect-failure, refused-stream, unavailable, cancelled,
+    503) — verified 2026-10-06.
     Merge-patch replaces the ``http`` array, so the old retries key is dropped.
     """
     existing = api.get_namespaced_custom_object(
@@ -438,12 +473,13 @@ def patch_virtualservice(
     else:
         route = [{"destination": {"host": service_name}}]
 
-    if off_callers is None:
+    if caller_attempts is None:
         body = build_vs_patch_body(route, attempts, per_try_timeout_ms)
     else:
-        # Edge mode: `attempts` is the ON policy for callers not in off_callers.
+        # Edge mode: `attempts` is the default policy. `caller_attempts` overrides
+        # callers that are off (0) or on a ramp step (1, 2, ...).
         body = build_edge_vs_patch_body(
-            route, off_callers, attempts, per_try_timeout_ms
+            route, caller_attempts, attempts, per_try_timeout_ms
         )
 
     api.patch_namespaced_custom_object(
@@ -543,13 +579,35 @@ def apply_algorithm1(
     return None
 
 
+# Stricter than rejection_threshold. Used only for the 0→1 step in edge mode.
+# A callee that is merely under the 0.20 disable bar (run15 recommendations
+# re-enabled at 0.14) is not quiet enough to start allowing retries again.
+REENABLE_REJECTION_THRESHOLD = 0.10
+
+
+def climb_rpr_limit(attempts: int, attempts_on: int, rpr_threshold: float) -> float:
+    """
+    Highest rpr at which adding attempts is still predicted to land on
+    ``rpr_threshold`` once the edge is back at ``attempts_on``.
+
+    rpr is assumed to scale with the attempt cap (every allowed retry is
+    used). That is an upper bound: ``rpr_hat(attempts_on) = rpr_now *
+    attempts_on / attempts_now``. Rounded to two decimals so attempts 1 and 2
+    with threshold 0.5 and attempts_on 3 are 0.17 and 0.33.
+    """
+    return round(float(rpr_threshold) * int(attempts) / int(attempts_on), 2)
+
+
 @dataclass
 class Change:
     service: str          # callee whose VirtualService must be patched
-    transition: str       # "OFF" (some edges turn OFF) or "ON" (all back ON)
-    new_off: frozenset    # callers that should be OFF after the patch
+    transition: str       # "OFF" (shed to 0), "ON" (0→1), or "RAMP" (climb)
+    new_off: frozenset    # callers at 0 after the patch
     metric: str           # "rpr" or "rejection"
-    lines: list           # [(name, value, counter), ...] for the log
+    # (name, old, new, value, counter, attempts, from_attempts)
+    lines: list
+    desired_attempts: dict  # caller → attempts this change sets
+    caller_attempts: dict   # caller → attempts for every caller not at attempts_on
 
 
 class EdgeController:
@@ -557,83 +615,184 @@ class EdgeController:
     Edge mode state. step() proposes changes without committing retries
     state; the caller patches the VirtualService and then commit()s, so a
     failed patch is retried on the next tick (counters stay >= interval).
+
+    Leaving 0 uses the rejection fallback and restores one attempt, but only
+    while rejection stays under reenable_rejection_threshold (0.10), not the
+    0.20 rejection_threshold. Further attempts climb one at a time while rpr
+    stays at or under climb_rpr_limit. rpr above rpr_threshold for a full
+    interval sheds straight to 0 from any attempt count.
     """
 
-    def __init__(self, edges, rpr_threshold, rejection_threshold, interval):
+    def __init__(
+        self, edges, rpr_threshold, rejection_threshold, interval, attempts_on=3,
+        reenable_rejection_threshold=REENABLE_REJECTION_THRESHOLD,
+    ):
         self.rpr_threshold = rpr_threshold
         self.rejection_threshold = rejection_threshold
+        self.reenable_rejection_threshold = reenable_rejection_threshold
         self.interval = interval
-        self.edge_state = {e: ServiceState() for e in edges}
+        self.attempts_on = int(attempts_on)
+        self.edge_state = {
+            e: ServiceState(attempts=self.attempts_on) for e in edges
+        }
         # Per-callee rejection counters; a key exists only while the callee
-        # has at least one OFF edge.
+        # has at least one edge at 0 attempts.
         self.svc_state: Dict[str, ServiceState] = {}
 
     def off_callers(self, service: str) -> frozenset:
         return frozenset(
             c
             for (c, t), st in self.edge_state.items()
-            if t == service and st.retries_state == "OFF"
+            if t == service and st.attempts == 0
         )
+
+    def _resulting_attempts(self, service: str, desired: dict) -> dict:
+        out = {}
+        for (caller, target), st in self.edge_state.items():
+            if target != service:
+                continue
+            out[caller] = desired.get(caller, st.attempts)
+        return out
+
+    def _make_change(
+        self, service: str, transition: str, metric: str, lines: list, desired: dict
+    ) -> Change:
+        resulting = self._resulting_attempts(service, desired)
+        return Change(
+            service,
+            transition,
+            frozenset(c for c, attempts in resulting.items() if attempts == 0),
+            metric,
+            lines,
+            desired,
+            {c: a for c, a in resulting.items() if a != self.attempts_on},
+        )
+
+    def _ramp_tick(self, state: ServiceState, value: float) -> Optional[str]:
+        """One tick at 1..attempts_on-1. Returns 'shed', 'climb', or None."""
+        limit = climb_rpr_limit(state.attempts, self.attempts_on, self.rpr_threshold)
+        if value <= limit:
+            state.consecutive_low += 1
+            state.consecutive_high = 0
+        elif value > self.rpr_threshold:
+            state.consecutive_high += 1
+            state.consecutive_low = 0
+        else:
+            # Above the climb bar and at or under the shed bar: hold.
+            state.consecutive_low = 0
+            state.consecutive_high = 0
+        if state.consecutive_high >= self.interval:
+            return "shed"
+        if state.consecutive_low >= self.interval:
+            return "climb"
+        return None
 
     def step(self, rpr: dict, rejection: dict) -> list:
         changes = []
         handled = set()
 
-        # Fallback: per-service rejection rate while any edge is OFF.
+        # Fallback: per-service rejection rate while any edge is at 0 attempts.
+        # A quiet interval (rejection under the 0.10 re-enable bar, not the
+        # 0.20 rejection_threshold) moves those edges to 1, not to attempts_on.
         for service, st in self.svc_state.items():
             value = rejection.get(service)
             if value is None:
                 continue
-            desired = apply_algorithm1(
-                st, value, self.rejection_threshold, self.interval
-            )
-            if desired == "ON":
-                changes.append(
-                    Change(
-                        service, "ON", frozenset(), "rejection",
-                        [(service, value, st.consecutive_low)],
-                    )
+            if (
+                apply_algorithm1(
+                    st, value, self.reenable_rejection_threshold, self.interval
                 )
-                handled.add(service)
+                != "ON"
+            ):
+                continue
+            desired = {
+                caller: 1
+                for (caller, target), est in self.edge_state.items()
+                if target == service and est.attempts == 0
+            }
+            if not desired:
+                continue
+            changes.append(
+                self._make_change(
+                    service,
+                    "ON",
+                    "rejection",
+                    [(
+                        service, "OFF", "ON", value, st.consecutive_low, 1, 0,
+                    )],
+                    desired,
+                )
+            )
+            handled.add(service)
 
-        # Per-edge retries per request for edges that are still ON.
-        turning_off: Dict[str, list] = {}
+        pending: Dict[str, dict] = {}
+        pending_lines: Dict[str, list] = {}
         for edge, st in self.edge_state.items():
             caller, service = edge
-            if st.retries_state != "ON" or service in handled:
+            if st.attempts <= 0 or service in handled:
                 continue
             value = rpr.get(edge)
             if value is None:
                 continue
-            if (
-                apply_algorithm1(st, value, self.rpr_threshold, self.interval)
-                == "OFF"
-            ):
-                turning_off.setdefault(service, []).append(
-                    (f"{caller}->{service}", value, st.consecutive_high, caller)
+            name = f"{caller}->{service}"
+            if st.attempts >= self.attempts_on:
+                if (
+                    apply_algorithm1(st, value, self.rpr_threshold, self.interval)
+                    != "OFF"
+                ):
+                    continue
+                pending.setdefault(service, {})[caller] = 0
+                pending_lines.setdefault(service, []).append(
+                    (name, "ON", "OFF", value, st.consecutive_high, 0, st.attempts)
                 )
-        for service, items in turning_off.items():
-            new_off = self.off_callers(service) | {i[3] for i in items}
+                continue
+            action = self._ramp_tick(st, value)
+            if action == "shed":
+                pending.setdefault(service, {})[caller] = 0
+                pending_lines.setdefault(service, []).append(
+                    (name, "ON", "OFF", value, st.consecutive_high, 0, st.attempts)
+                )
+            elif action == "climb":
+                nxt = st.attempts + 1
+                pending.setdefault(service, {})[caller] = nxt
+                pending_lines.setdefault(service, []).append(
+                    (
+                        name, str(st.attempts), str(nxt), value,
+                        st.consecutive_low, nxt, st.attempts,
+                    )
+                )
+        for service, desired in pending.items():
+            climbs = any(attempts > 0 for attempts in desired.values())
+            transition = "RAMP" if climbs and 0 not in desired.values() else "OFF"
             changes.append(
-                Change(
-                    service, "OFF", frozenset(new_off), "rpr",
-                    [(n, v, c) for n, v, c, _ in items],
+                self._make_change(
+                    service, transition, "rpr", pending_lines[service], desired
                 )
             )
         return changes
 
     def commit(self, change: Change) -> None:
-        if change.transition == "OFF":
-            for caller in change.new_off:
-                self.edge_state[(caller, change.service)].retries_state = "OFF"
+        for caller, attempts in change.desired_attempts.items():
+            edge = (caller, change.service)
+            prev = self.edge_state[edge]
+            if attempts == 0:
+                prev.retries_state = "OFF"
+                prev.attempts = 0
+                prev.consecutive_low = 0
+                prev.consecutive_high = 0
+            elif prev.attempts == 0:
+                # Fresh streaks. A sibling that stayed above 0 is not in this map.
+                self.edge_state[edge] = ServiceState(attempts=attempts)
+            else:
+                prev.attempts = attempts
+                prev.retries_state = "ON"
+                prev.consecutive_low = 0
+                prev.consecutive_high = 0
+        if self.off_callers(change.service):
             self.svc_state.setdefault(
-                change.service, ServiceState(retries_state="OFF")
+                change.service, ServiceState(retries_state="OFF", attempts=0)
             )
         else:
-            # Only OFF edges restart. A sibling that stayed ON keeps its rpr streak.
-            for (caller, target), st in list(self.edge_state.items()):
-                if target == change.service and st.retries_state == "OFF":
-                    self.edge_state[(caller, target)] = ServiceState()
             self.svc_state.pop(change.service, None)
 
 
@@ -650,16 +809,20 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
 
     wait_for_inbound_csv(record_path)
 
-    ctrl = EdgeController(CONTROLLED_EDGES, rpr_threshold, rejection_threshold, interval)
+    ctrl = EdgeController(
+        CONTROLLED_EDGES, rpr_threshold, rejection_threshold, interval, attempts_on
+    )
     inbound = InboundCsvTailer(record_path / INBOUND_CSV_NAME)
     edges = EdgesCsvTailer(record_path / EDGES_CSV_NAME)
     prev_in: Dict[str, Optional[InboundSnapshot]] = {s: None for s in CONTROLLED_SERVICES}
     prev_edge: Dict[tuple, Optional[EdgeSnapshot]] = {e: None for e in CONTROLLED_EDGES}
     log.info(
         "%s  START  metric=edge_rpr rpr_threshold=%.2f rejection_threshold=%.2f "
-        "sample_interval=%ss interval_samples=%d edges=%d",
+        "reenable_rejection=%.2f sample_interval=%ss interval_samples=%d "
+        "edges=%d attempts_on=%d",
         utc_now(), rpr_threshold, rejection_threshold,
-        sample_interval, interval, len(CONTROLLED_EDGES),
+        ctrl.reenable_rejection_threshold,
+        sample_interval, interval, len(CONTROLLED_EDGES), attempts_on,
     )
 
     while not _shutdown:
@@ -683,11 +846,12 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
         changes = ctrl.step(rpr, rejection)
 
         for edge, st in ctrl.edge_state.items():
-            if st.retries_state == "ON" and rpr.get(edge) is not None:
+            if st.attempts > 0 and rpr.get(edge) is not None:
                 log.info(
-                    "%s  OBSERVE  %s->%s  rpr=%.4f  low=%d high=%d  state=ON  metric=rpr",
+                    "%s  OBSERVE  %s->%s  rpr=%.4f  low=%d high=%d  attempts=%d  "
+                    "state=ON  metric=rpr",
                     utc_now(), edge[0], edge[1], rpr[edge],
-                    st.consecutive_low, st.consecutive_high,
+                    st.consecutive_low, st.consecutive_high, st.attempts,
                 )
         for service, st in ctrl.svc_state.items():
             if rejection.get(service) is not None:
@@ -701,7 +865,7 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
             try:
                 patch_virtualservice(
                     api, change.service, attempts_on, per_try_timeout_ms,
-                    off_callers=change.new_off,
+                    caller_attempts=change.caller_attempts,
                 )
             except Exception as exc:  # noqa: BLE001 — keep loop alive
                 log.info(
@@ -709,15 +873,14 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
                     utc_now(), change.service, change.transition, exc,
                 )
                 continue
-            old, new = ("ON", "OFF") if change.transition == "OFF" else ("OFF", "ON")
             label = "rpr" if change.metric == "rpr" else "rejection"
-            counter = "consecutive_high" if new == "OFF" else "consecutive_low"
-            attempts = 0 if new == "OFF" else attempts_on
-            for name, value, count in change.lines:
+            for name, old, new, value, count, attempts, from_attempts in change.lines:
+                counter = "consecutive_high" if new == "OFF" else "consecutive_low"
                 log.info(
-                    "%s  %s  %s→%s   %s=%.2f  %s=%d  attempts=%d  metric=%s",
+                    "%s  %s  %s→%s   %s=%.2f  %s=%d  attempts=%d  "
+                    "from_attempts=%d  metric=%s",
                     utc_now(), name, old, new, label, value,
-                    counter, count, attempts, change.metric,
+                    counter, count, attempts, from_attempts, change.metric,
                 )
             ctrl.commit(change)
 

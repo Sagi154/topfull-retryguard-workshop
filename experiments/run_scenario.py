@@ -1125,9 +1125,11 @@ def restore_virtualservice_retries(cfg: dict):
     """
     Re-apply default retries.attempts after a RetryGuard run.
 
-    RetryGuard disables retries by *omitting* the retries block (Istio rejects
-    attempts:0). If the controller is killed while retries are OFF, the mesh
-    would otherwise stay without retries for subsequent experiments.
+    RetryGuard disables retries with ``retries: {attempts: 0}`` plus a route
+    timeout (Istio rejects attempts:0 inside a retry policy). If the controller
+    is killed while retries are OFF, the mesh would otherwise stay without
+    retries for subsequent experiments. Replacing the http array also drops
+    that route timeout.
     """
     if not cfg.get("retryguard", {}).get("enabled", False):
         return
@@ -1156,7 +1158,8 @@ def restore_virtualservice_retries(cfg: dict):
             }
         })
         ssh(master,
-            f"kubectl patch virtualservice {svc} -n default -p '{patch}'",
+            f"kubectl patch virtualservice {svc} -n default "
+            f"--type merge -p '{patch}'",
             check=False)
     step(f"Restored retries.attempts={attempts} on {len(services)} VirtualServices")
 
