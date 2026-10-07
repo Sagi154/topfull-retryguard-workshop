@@ -113,7 +113,14 @@ ALL_SERVICES: List[str] = [
 ]
 
 OUTBOUND_METRICS = ("total", "2xx", "4xx", "5xx", "retry", "rq_time_sum_ms", "rq_time_count")
-INBOUND_METRICS = ("total", "2xx", "4xx", "5xx", "resets", "rq_time_sum_ms", "rq_time_count")
+INBOUND_METRICS = (
+    "total", "2xx", "4xx", "5xx", "resets", "rq_time_sum_ms", "rq_time_count",
+    "grpc_5xx",
+)
+# Completed gRPC failures that Envoy still counts as HTTP 200. Observation
+# only: retryguard.py does not read this column. Codes are UNKNOWN (2),
+# DEADLINE_EXCEEDED (4), INTERNAL (13), UNAVAILABLE (14).
+GRPC_5XX_STATUSES = frozenset({"2", "4", "13", "14"})
 
 PROM_LINE_RE = re.compile(
     r"^(?P<name>[a-zA-Z_:][a-zA-Z0-9_:]*)"
@@ -154,7 +161,7 @@ EDGES_CSV_COLUMNS = [
 ]
 INBOUND_CSV_COLUMNS = [
     "timestamp", "service", "total", "2xx", "4xx", "5xx", "resets",
-    "rq_time_sum_ms", "rq_time_count", "rq_time_buckets",
+    "rq_time_sum_ms", "rq_time_count", "rq_time_buckets", "grpc_5xx",
 ]
 
 DEFAULT_POLL_INTERVAL_SECONDS = 5
@@ -353,6 +360,12 @@ def parse_inbound(stats_text: str) -> Dict[str, Any]:
     `le` labels (ms, or "+Inf") to cumulative bucket counts. Empty string
     when no bucket series were present. Used offline to derive P50/P95
     sojourn-time deltas (see estimate_service_mu.histogram_percentile).
+
+    `grpc_5xx` is separate from the listener counters. It is the sum of
+    `istio_requests_total` rows on this scrape with reporter=destination,
+    response_code=200, and grpc_response_status in 2, 4, 13, or 14.
+    response_code 0 is left out because that series is the reset count.
+    The controller does not read it.
     """
     per_listener: Dict[str, Dict[str, Any]] = {}
 
@@ -392,15 +405,41 @@ def parse_inbound(stats_text: str) -> Dict[str, Any]:
             le = labels.get("le")
             if le is not None:
                 bucket(bucket_m.group("listener"))["rq_time_buckets"][le] = value
+    grpc_5xx = count_destination_grpc_5xx(stats_text)
     if not per_listener:
         empty = {k: 0 for k in INBOUND_METRICS}
         empty["rq_time_buckets"] = ""
+        empty["grpc_5xx"] = grpc_5xx
         return empty
     chosen = max(per_listener.values(), key=lambda d: d["total"])
     out: Dict[str, Any] = {k: chosen[k] for k in INBOUND_METRICS}
     buckets = chosen.get("rq_time_buckets") or {}
     out["rq_time_buckets"] = json.dumps(buckets, separators=(",", ":")) if buckets else ""
+    out["grpc_5xx"] = grpc_5xx
     return out
+
+
+def count_destination_grpc_5xx(stats_text: str) -> int:
+    """Sum completed gRPC failures that arrived as HTTP 200.
+
+    Restricted to reporter=destination so a caller's outbound row is not
+    added to the callee. response_code other than 200 is excluded: code 0
+    is the reset the `resets` column already counts.
+    """
+    total = 0
+    for line in stats_text.splitlines():
+        m = PROM_LINE_RE.match(line.strip())
+        if not m or m.group("name") != "istio_requests_total":
+            continue
+        labels = parse_prom_labels(m.group("labels") or "")
+        if labels.get("reporter") != "destination":
+            continue
+        if labels.get("response_code") != "200":
+            continue
+        if labels.get("grpc_response_status") not in GRPC_5XX_STATUSES:
+            continue
+        total += int(float(m.group("value")))
+    return total
 
 
 def sum_edge_maps(
@@ -511,6 +550,7 @@ def write_inbound_csv(
             "rq_time_sum_ms": inbound["rq_time_sum_ms"],
             "rq_time_count": inbound["rq_time_count"],
             "rq_time_buckets": inbound.get("rq_time_buckets", ""),
+            "grpc_5xx": inbound.get("grpc_5xx", 0),
         })
 
 
