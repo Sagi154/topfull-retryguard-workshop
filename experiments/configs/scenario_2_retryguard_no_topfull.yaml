@@ -1,25 +1,24 @@
 # Scenario 2 | RetryGuard ON, TopFull RL OFF
-# Edge-rpr series, run 89 mix 275/90/100/90/5. Slots run13–run14 are the
-# 2026-10-07 attempt-ramp holds. run15 is the OFF-route timeout hold.
-# run16 and run17 record grpc_5xx without changing retryOn or the
-# rejection formula. Next free slot after those two is run18.
+# Edge-rpr series. run18 is the RetryGuard-only hold of both-off run157's
+# mix (340/115/150/5/5), grpc_5xx observation-only. Next free slot is run19.
+# Slots run13–run14 attempt-ramp; run15 OFF-route timeout; run16–run17
+# grpc_5xx on the run 89 mix.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: retryguard
-run_number: 18
+run_number: 19
 description: >
-  Unused next slot after the 2026-10-07 grpc_5xx observation holds
-  (run16, run17). Those left retryOn and the rejection formula unchanged.
-  Run 89 mix 275/90/100/90/5. Checkout and recommendations rolled before
-  the hold.
+  Next free RetryGuard-only slot after run18 (mix 340/115/150/5/5,
+  grpc_5xx observation). Paper-C1. Checkout and recommendations rolled
+  before the hold.
 duration_seconds: 600
 locust:
   user_counts:
-    getproduct: 275
-    postcheckout: 90
-    getcart: 100
-    postcart: 90
+    getproduct: 340
+    postcheckout: 115
+    getcart: 150
+    postcart: 5
     emptycart: 5
   spawn_rate: 50
   scripts:
@@ -105,7 +104,7 @@ resource_usage_collector:
 topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
-log_folder: run_retryguard_no_topfull_sustained_overload_run18
+log_folder: run_retryguard_no_topfull_sustained_overload_run19
 infra:
   master_ssh_host: topfull-master
   loadgen_ssh_host: topfull-load
