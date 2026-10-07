@@ -849,6 +849,17 @@ class TestGrpcRetryCallees(unittest.TestCase):
         self.assertAlmostEqual(on, 0.40)
 
 
+class TestRunScenarioRetryOnMatches(unittest.TestCase):
+    def test_same_string_as_controller(self):
+        import run_scenario
+        for svc in (
+            "adservice", "cartservice", "checkoutservice", "currencyservice",
+            "emailservice", "frontend", "paymentservice", "productcatalogservice",
+            "recommendationservice", "shippingservice",
+        ):
+            self.assertEqual(run_scenario.retry_on_for(svc), retryguard.retry_on_for(svc))
+
+
 if __name__ == "__main__":
     unittest.main()
 

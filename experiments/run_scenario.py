@@ -1121,6 +1121,19 @@ def envoy_collector_manifest(cfg: dict) -> dict:
     return raw
 
 
+# Keep in step with retryguard.py (deployed standalone, so not imported).
+RETRY_ON = "5xx,reset,connect-failure"
+GRPC_RETRY_CALLEES = (
+    "adservice", "currencyservice", "productcatalogservice", "recommendationservice",
+)
+
+
+def retry_on_for(service: str) -> str:
+    if service in GRPC_RETRY_CALLEES:
+        return RETRY_ON + ",unavailable,deadline-exceeded"
+    return RETRY_ON
+
+
 def restore_virtualservice_retries(cfg: dict):
     """
     Re-apply default retries.attempts after a RetryGuard run.
@@ -1150,7 +1163,7 @@ def restore_virtualservice_retries(cfg: dict):
                 "http": [{
                     "retries": {
                         "attempts": attempts,
-                        "retryOn": "5xx,reset,connect-failure",
+                        "retryOn": retry_on_for(svc),
                         "perTryTimeout": f"{per_try_timeout_ms}ms",
                     },
                     "route": [{"destination": {"host": svc}}],
@@ -1189,7 +1202,7 @@ def apply_per_try_timeout(cfg: dict):
                 "http": [{
                     "retries": {
                         "attempts": attempts,
-                        "retryOn": "5xx,reset,connect-failure",
+                        "retryOn": retry_on_for(svc),
                         "perTryTimeout": f"{per_try_timeout_ms}ms",
                     },
                     "route": [{"destination": {"host": svc}}],
