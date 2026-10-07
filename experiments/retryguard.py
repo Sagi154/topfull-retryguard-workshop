@@ -83,6 +83,21 @@ VS_VERSION = "v1alpha3"
 VS_PLURAL = "virtualservices"
 VS_NAMESPACE = "default"
 RETRY_ON = "5xx,reset,connect-failure"
+# Callees whose methods are all reads, so a repeated call only costs load.
+# cartservice (AddItem) and shippingservice (ShipOrder) stay on RETRY_ON:
+# one route rule cannot split a read from a write, and the rejection rate
+# has no per-method split either.
+GRPC_RETRY_CALLEES = (
+    "adservice",
+    "currencyservice",
+    "productcatalogservice",
+    "recommendationservice",
+)
+RETRY_ON_GRPC = RETRY_ON + ",unavailable,deadline-exceeded"
+
+
+def retry_on_for(service: str) -> str:
+    return RETRY_ON_GRPC if service in GRPC_RETRY_CALLEES else RETRY_ON
 
 STARTUP_POLL_SECONDS = 5
 STARTUP_TIMEOUT_SECONDS = 60
@@ -148,6 +163,8 @@ class InboundSnapshot:
     total: float
     five_xx: float
     resets: float = 0.0  # downstream_rq_rx_reset (per-try timeout aborts)
+    grpc_4: float = 0.0  # DEADLINE_EXCEEDED, recorded as HTTP 200
+    grpc_14: float = 0.0  # UNAVAILABLE, recorded as HTTP 200
 
 
 @dataclass(frozen=True)
@@ -199,6 +216,8 @@ def read_latest_inbound_row(csv_path: Path, service: str) -> Optional[InboundSna
                 total=float(row["total"]),
                 five_xx=float(row["5xx"]),
                 resets=float(row.get("resets", 0)),
+                grpc_4=float(row.get("grpc_4", 0) or 0),
+                grpc_14=float(row.get("grpc_14", 0) or 0),
             )
         except (KeyError, TypeError, ValueError):
             continue
@@ -208,6 +227,7 @@ def read_latest_inbound_row(csv_path: Path, service: str) -> Optional[InboundSna
 def measure_inbound_rejection(
     previous: Optional[InboundSnapshot],
     current: Optional[InboundSnapshot],
+    count_grpc: bool = False,
 ) -> tuple[Optional[float], Optional[InboundSnapshot]]:
     if current is None:
         return None, previous
@@ -219,6 +239,10 @@ def measure_inbound_rejection(
     delta_failures = (current.five_xx - previous.five_xx) + (
         current.resets - previous.resets
     )
+    if count_grpc:
+        delta_failures += (current.grpc_4 - previous.grpc_4) + (
+            current.grpc_14 - previous.grpc_14
+        )
     if delta_total <= 0:
         return 0.0, current
     return delta_failures / delta_total, current
@@ -265,6 +289,8 @@ class InboundCsvTailer:
                 total=float(row["total"]),
                 five_xx=float(row["5xx"]),
                 resets=float(row.get("resets", 0)),
+                grpc_4=float(row.get("grpc_4", 0) or 0),
+                grpc_14=float(row.get("grpc_14", 0) or 0),
             )
         except (KeyError, TypeError, ValueError):
             return
@@ -369,7 +395,9 @@ def make_custom_api():
     return client.CustomObjectsApi()
 
 
-def http_retry_fields(attempts: int, per_try_timeout_ms: int) -> dict:
+def http_retry_fields(
+    attempts: int, per_try_timeout_ms: int, retry_on: str = RETRY_ON
+) -> dict:
     """
     Retry fields for one HTTP rule.
 
@@ -388,7 +416,7 @@ def http_retry_fields(attempts: int, per_try_timeout_ms: int) -> dict:
         return {
             "retries": {
                 "attempts": int(attempts),
-                "retryOn": RETRY_ON,
+                "retryOn": retry_on,
                 "perTryTimeout": f"{per_try_timeout_ms}ms",
             }
         }
@@ -398,9 +426,14 @@ def http_retry_fields(attempts: int, per_try_timeout_ms: int) -> dict:
     }
 
 
-def build_vs_patch_body(route: list, attempts: int, per_try_timeout_ms: int) -> dict:
+def build_vs_patch_body(
+    route: list, attempts: int, per_try_timeout_ms: int, retry_on: str = RETRY_ON
+) -> dict:
     """VirtualService merge-patch body: full retry policy, or attempts 0 with a route timeout."""
-    rule = {"route": route, **http_retry_fields(attempts, per_try_timeout_ms)}
+    rule = {
+        "route": route,
+        **http_retry_fields(attempts, per_try_timeout_ms, retry_on=retry_on),
+    }
     return {"spec": {"http": [rule]}}
 
 
@@ -409,6 +442,7 @@ def build_edge_vs_patch_body(
     caller_attempts: dict,
     attempts_on: int,
     per_try_timeout_ms: int,
+    retry_on: str = RETRY_ON,
 ) -> dict:
     """
     Per-edge VirtualService body. ``caller_attempts`` maps a caller to its
@@ -420,9 +454,9 @@ def build_edge_vs_patch_body(
     The default route, with ``attempts_on``, is last. Match routes come
     first; Istio takes the first rule that matches.
     """
-    default = build_vs_patch_body(route, attempts_on, per_try_timeout_ms)["spec"][
-        "http"
-    ][0]
+    default = build_vs_patch_body(
+        route, attempts_on, per_try_timeout_ms, retry_on=retry_on
+    )["spec"]["http"][0]
     rules = []
     for caller in sorted(caller_attempts):
         attempts = int(caller_attempts[caller])
@@ -430,7 +464,7 @@ def build_edge_vs_patch_body(
             {
                 "match": [{"sourceLabels": {"app": caller}}],
                 "route": route,
-                **http_retry_fields(attempts, per_try_timeout_ms),
+                **http_retry_fields(attempts, per_try_timeout_ms, retry_on=retry_on),
             }
         )
     return {"spec": {"http": rules + [default]}}
@@ -473,13 +507,16 @@ def patch_virtualservice(
     else:
         route = [{"destination": {"host": service_name}}]
 
+    retry_on = retry_on_for(service_name)
     if caller_attempts is None:
-        body = build_vs_patch_body(route, attempts, per_try_timeout_ms)
+        body = build_vs_patch_body(
+            route, attempts, per_try_timeout_ms, retry_on=retry_on
+        )
     else:
         # Edge mode: `attempts` is the default policy. `caller_attempts` overrides
         # callers that are off (0) or on a ramp step (1, 2, ...).
         body = build_edge_vs_patch_body(
-            route, caller_attempts, attempts, per_try_timeout_ms
+            route, caller_attempts, attempts, per_try_timeout_ms, retry_on=retry_on
         )
 
     api.patch_namespaced_custom_object(
@@ -840,7 +877,9 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
         rejection = {}
         for service in CONTROLLED_SERVICES:
             rejection[service], prev_in[service] = measure_inbound_rejection(
-                prev_in[service], inbound.latest.get(service)
+                prev_in[service],
+                inbound.latest.get(service),
+                service in GRPC_RETRY_CALLEES,
             )
 
         changes = ctrl.step(rpr, rejection)
@@ -928,7 +967,7 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
         for service in CONTROLLED_SERVICES:
             current = tailer.latest.get(service)
             rejection, previous[service] = measure_inbound_rejection(
-                previous[service], current
+                previous[service], current, service in GRPC_RETRY_CALLEES
             )
             if rejection is None:
                 log.info(

@@ -820,6 +820,35 @@ class TestAttemptRamp(unittest.TestCase):
         self.assertEqual(again[0].desired_attempts, {"frontend": 2})
 
 
+class TestGrpcRetryCallees(unittest.TestCase):
+    def test_retry_on_for(self):
+        self.assertEqual(
+            retryguard.retry_on_for("recommendationservice"),
+            "5xx,reset,connect-failure,unavailable,deadline-exceeded",
+        )
+        for svc in ("checkoutservice", "paymentservice", "emailservice",
+                    "cartservice", "shippingservice", "frontend"):
+            self.assertEqual(retryguard.retry_on_for(svc), "5xx,reset,connect-failure")
+
+    def test_patch_body_uses_given_retry_on(self):
+        route = [{"destination": {"host": "recommendationservice"}}]
+        body = retryguard.build_vs_patch_body(
+            route, 3, 500, retry_on=retryguard.retry_on_for("recommendationservice")
+        )
+        self.assertEqual(len(body["spec"]["http"]), 1)
+        self.assertIn("deadline-exceeded", body["spec"]["http"][0]["retries"]["retryOn"])
+
+    def test_rejection_counts_grpc_only_when_asked(self):
+        prev = retryguard.InboundSnapshot("2026-10-07T10:00:01Z", 100.0, 0.0)
+        curr = retryguard.InboundSnapshot(
+            "2026-10-07T10:00:02Z", 200.0, 0.0, resets=0.0, grpc_4=30.0, grpc_14=10.0
+        )
+        off, _ = retryguard.measure_inbound_rejection(prev, curr)
+        on, _ = retryguard.measure_inbound_rejection(prev, curr, count_grpc=True)
+        self.assertAlmostEqual(off, 0.0)
+        self.assertAlmostEqual(on, 0.40)
+
+
 if __name__ == "__main__":
     unittest.main()
 
