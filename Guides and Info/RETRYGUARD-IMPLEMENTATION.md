@@ -188,8 +188,8 @@ The whole ramp from 0 to 3 now takes at least 60 s (was 90 s). The 15 s value is
 2026-10-06T20:00:30Z  frontend->recommendationservice  ON→OFF   rpr=0.62  consecutive_high=30  attempts=0  from_attempts=3  metric=rpr
 2026-10-06T20:01:00Z  OBSERVE  recommendationservice  rejection=0.0800  low=1 high=0  state=OFF  metric=rejection
 2026-10-06T20:01:30Z  recommendationservice  OFF→ON   rejection=0.08  consecutive_low=30  attempts=1  from_attempts=0  metric=rejection
-2026-10-06T20:02:00Z  frontend->recommendationservice  1→2   rpr=0.10  consecutive_low=30  attempts=2  from_attempts=1  metric=rpr
-2026-10-06T20:02:30Z  frontend->recommendationservice  2→3   rpr=0.10  consecutive_low=30  attempts=3  from_attempts=2  metric=rpr
+2026-10-06T20:01:45Z  frontend->recommendationservice  1→2   rpr=0.10  consecutive_low=15  attempts=2  from_attempts=1  metric=rpr
+2026-10-06T20:02:00Z  frontend->recommendationservice  2→3   rpr=0.10  consecutive_low=15  attempts=3  from_attempts=2  metric=rpr
 ```
 
 ---
