@@ -117,7 +117,9 @@ Files land in the run `record_path` on master during the run, so RetryGuard's `m
 
 ### Legacy shape (historical only — `campaign_48/`, `august_38/`)
 
-Before 2026-09-08 the collector only scraped two caller sidecars (`frontend`, `checkoutservice`) and wrote `envoy_retries_frontend.csv` / `envoy_retries_checkoutservice.csv` (`timestamp, target_service, upstream_rq_total, upstream_rq_retry, upstream_rq_retry_success, upstream_rq_retry_limit_exceeded`). **Why it was narrow:** it only needed to cover the three services RetryGuard could toggle plus `paymentservice` for Scenario 4B — a minimum viable "retries per request" signal to close Gap 3 from the August audit. It was superseded, not extended — a run has either the legacy files or the full-mesh files, never both, and no folder anywhere yet has the full-mesh files (next new run will be first).
+Before 2026-09-08 the collector only scraped two caller sidecars (`frontend`, `checkoutservice`) and wrote `envoy_retries_frontend.csv` / `envoy_retries_checkoutservice.csv` (`timestamp, target_service, upstream_rq_total, upstream_rq_retry, upstream_rq_retry_success, upstream_rq_retry_limit_exceeded`). **Why it was narrow:** it only needed to cover the three services RetryGuard could toggle plus `emailservice` for Scenario 4B — a minimum viable "retries per request" signal to close Gap 3 from the August audit. It was superseded, not extended — a run has either the legacy files or the full-mesh files, never both, and no folder anywhere yet has the full-mesh files (next new run will be first).
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ---
 
@@ -186,8 +188,10 @@ Cross-reference against AGENTS.md §8 / the eval deck (slides 8–9):
 | Does RetryGuard help at the **per-microservice level**, and which services benefit most? | `service_inbound.csv` (per-service rejection), `resource_usage.csv` (per-service CPU/memory), `service_edges.csv` (per-service retries) (§4, §5a) |
 | **Chain propagation** — does relief at a bottleneck propagate upstream to callers? | `service_edges.csv` joined across hops, cross-referenced with the 5 Locust endpoint CSVs (coarse — only 5 storefront APIs) (§2, §4) |
 | **Controller interaction** — how do TopFull's RL loop and RetryGuard interact? | `topfull_throttle.csv` (RL admission), `topfull_detect.csv` (RL's overload belief), `retryguard.log` (RetryGuard's own actions), joined on their shared 1s wall-clock grid (§3, §6) |
-| **Topology position sensitivity** (S4A vs S4B) | `postcheckout.csv` / `getproduct.csv` (§2) plus `service_inbound.csv` at `paymentservice` vs `productcatalogservice` (§4) |
+| **Topology position sensitivity** (S4A vs S4B) | `postcheckout.csv` / `getproduct.csv` (§2) plus `service_inbound.csv` at `emailservice` vs `productcatalogservice` (§4) |
 | **Interval sensitivity** (paper's 30s default) | `retryguard.log` toggle counts/timing across Scenario 5's `interval_samples` sweep (10/20/30/60), cross-referenced with `postcheckout.csv` recovery time (§2, §6) |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ---
 

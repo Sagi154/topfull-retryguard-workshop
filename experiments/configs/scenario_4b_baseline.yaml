@@ -1,20 +1,19 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 4B — Topology Position: Checkout-Mediated  |  BASELINE
 #
-# Constrained service: paymentservice
+# Constrained service: emailservice
 # Position: Indirect / Checkout-mediated.
-# Path: Frontend → Checkout → Payment  (payment is only reachable via checkout)
+# Path: Frontend → Checkout → Email  (email is only reachable via checkout)
 # TopFull's overload signal at the entry proxy is attenuated — it sees stress
-# on the postcheckout entry API but must infer payment is the root cause.
-# Istio retries stack specifically at the Checkout → Payment link.
+# on the postcheckout entry API but must infer email is the root cause.
+# Istio retries stack specifically at the Checkout → Email link.
 #
 # Comparison point (vs 4A): RetryGuard is expected to provide GREATER relative
 # benefit here because TopFull's indirect signal is weaker, leaving more room
 # for per-service retry suppression to matter.
 #
-# Constraint: absolute cpu_limit_millicores: 50 (ADR-0006), same value used
-# for S3 (checkoutservice) and S4A (productcatalogservice) — "limit different
-# services in a similar way."
+# Constraint: absolute cpu_limit_millicores: 40 on emailservice.
+# Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 4
@@ -22,7 +21,7 @@ scenario_name: topology_position_B
 condition: baseline
 run_number: 7
 description: >
-  paymentservice constrained (Checkout-mediated, indirect position).
+  emailservice constrained to 40m (Checkout-mediated, indirect position).
   TopFull active, RetryGuard OFF. TopFull signal is attenuated through Checkout.
 
 duration_seconds: 600
@@ -39,10 +38,10 @@ locust:
     - online_boutique_create_v2.sh
 
 scale_constraints:
-  - deployment: paymentservice
+  - deployment: emailservice
     namespace: default
     method: cpu_limit
-    cpu_limit_millicores: 50   # absolute cap (ADR-0006), same value as S3/S4A
+    cpu_limit_millicores: 40   # absolute cap; Checkout-mediated email
     container: server
 
 # ── Retry policy (Istio VirtualService — applies both arms) ──────────────────

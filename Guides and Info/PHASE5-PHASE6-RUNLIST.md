@@ -76,7 +76,9 @@ Config: `experiments/configs/scenario_4a_baseline.yaml` · **run1–run3** (loca
 
 ---
 
-### Scenario 4B — Topology: paymentservice (10 min each)
+### Scenario 4B — Topology: emailservice at 40m (10 min each)
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 Config: `experiments/configs/scenario_4b_baseline.yaml` · **run1–run3** (local)
 
@@ -153,7 +155,9 @@ Config: `experiments/configs/scenario_4a_retryguard.yaml` · **run1–run3** (lo
 
 ---
 
-### Scenario 4B — Topology: paymentservice + RetryGuard (10 min each)
+### Scenario 4B — Topology: emailservice at 40m + RetryGuard (10 min each)
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 Config: `experiments/configs/scenario_4b_retryguard.yaml` · **run1–run3** (local)
 

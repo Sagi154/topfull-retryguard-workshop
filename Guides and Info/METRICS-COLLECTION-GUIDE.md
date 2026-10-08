@@ -459,8 +459,10 @@ avg_series = pd.concat([df["Goodput"].iloc[:min_len] for df in dfs], axis=1).mea
 | 2 — Sustained Overload | `postcheckout.csv`, `getproduct.csv` | Baseline: `Fail` high throughout. RetryGuard: `Fail` dips after toggle events |
 | 3 — Targeted Bottleneck | `postcheckout.csv` (primary), all others (propagation) | Baseline: `postcheckout` rejection spikes. RetryGuard: toggle events in log align with goodput recovery |
 | 4A — Topology: ProductCatalog | `getproduct.csv` | Same structure as S3 but at `getproduct` |
-| 4B — Topology: Payment | `postcheckout.csv` | Payment is reached via checkout path — rejection appears in `postcheckout` |
+| 4B — Topology: Email | `postcheckout.csv` | Email is reached only via checkout — rejection appears in `postcheckout` |
 | 5 — Interval Tuning | `postcheckout.csv` + `retryguard.log` | Count toggle events per run; compare time-to-recovery across interval configs |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ---
 

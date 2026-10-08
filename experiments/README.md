@@ -77,14 +77,16 @@ The runner will:
 | `scenario_3_retryguard.yaml` | Targeted Bottleneck (checkout) | RetryGuard on | 10 min |
 | `scenario_4a_baseline.yaml` | Topology Position A (productcatalog) | baseline | 10 min |
 | `scenario_4a_retryguard.yaml` | Topology Position A (productcatalog) | RetryGuard on | 10 min |
-| `scenario_4b_baseline.yaml` | Topology Position B (payment) | baseline | 10 min |
-| `scenario_4b_retryguard.yaml` | Topology Position B (payment) | RetryGuard on | 10 min |
+| `scenario_4b_baseline.yaml` | Topology Position B (`emailservice`, 40m, Checkout-mediated) | baseline | 10 min |
+| `scenario_4b_retryguard.yaml` | Topology Position B (`emailservice`, 40m, Checkout-mediated) | RetryGuard on | 10 min |
 | `scenario_5_interval_10s.yaml` | Interval Tuning — 10s label (30s wait); **S6 load** | RetryGuard on | 15 min |
 | `scenario_5_interval_20s.yaml` | Interval Tuning — 20s label (60s wait); **S6 load** | RetryGuard on | 15 min |
 | `scenario_5_interval_30s.yaml` | Interval Tuning — 30s label (90s wait); **S6 load** | RetryGuard on | 15 min |
 | `scenario_5_interval_60s.yaml` | Interval Tuning — 60s label (180s wait); **S6 load** | RetryGuard on | 15 min |
 | `scenario_6_recovery_baseline.yaml` | Forced Recovery | baseline | 15 min |
 | `scenario_6_recovery_retryguard.yaml` | Forced Recovery | RetryGuard on | 15 min |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ---
 
@@ -185,7 +187,9 @@ scale_constraints:
     container: server         # container name inside the pod
 ```
 
-With fraction `0.1`: S3 checkout → **100m**, S4A productcatalog → **50m** (not comparable to `campaign_48/`’s absolute 100m), S4B payment → **100m**. Before load, the runner reconciles every Boutique service to paper limits, applies the fraction on the bottleneck, writes `topfull_run_quotas.json`, and patches Detector to load it. Teardown deletes the JSON and reconciles K8s back to paper (not “remove the limit”).
+With fraction `0.1`: S3 checkout → **100m**, S4A productcatalog → **50m** (not comparable to `campaign_48/`’s absolute 100m), S4B `emailservice` → **40m** (Checkout-mediated: Frontend → Checkout → Email). Before load, the runner reconciles every Boutique service to paper limits, applies the fraction on the bottleneck, writes `topfull_run_quotas.json`, and patches Detector to load it. Teardown deletes the JSON and reconciles K8s back to paper (not “remove the limit”).
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ---
 

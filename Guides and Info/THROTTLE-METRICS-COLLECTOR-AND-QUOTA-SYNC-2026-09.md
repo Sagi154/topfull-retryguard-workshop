@@ -92,7 +92,9 @@ Implemented on `feat/topfull-quota-k8s-sync` (off the throttle-collector branch)
 5. Layer B `quota_for` uses that map (never default 200).
 6. S3/S4 YAMLs + docs (`experiments/README.md`, [PHASE5-EXPERIMENTS-GUIDE.md](PHASE5-EXPERIMENTS-GUIDE.md), [SCENARIOS-GUIDE.md](SCENARIOS-GUIDE.md), `AGENTS.md`, [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md)).
 
-Effective bottlenecks: S3/S4B **100m**, S4A **50m** (not comparable to `campaign_48` S4A at absolute 100m).
+Effective bottlenecks: S3 **100m**, S4A **50m** (not comparable to `campaign_48` S4A at absolute 100m), S4B `emailservice` **40m**.
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ---
 

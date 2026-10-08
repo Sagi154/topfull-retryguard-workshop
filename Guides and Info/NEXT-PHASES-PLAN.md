@@ -94,8 +94,10 @@ Execute the **five scenarios** from the prompt (each with **multiple runs**):
 | 1 Normal Operation | RetryGuard non-intrusive when healthy (sanity) |
 | 2 Sustained Overload 5–10 min | Core: system gains, beneficiaries, chain, controller interaction |
 | 3 Targeted Bottleneck | Surgical vs blunt TopFull throttling |
-| 4 Topology Position (ProductCatalog vs Payment) | Direct vs Checkout-mediated control |
+| 4 Topology Position (ProductCatalog vs Email) | Direct vs Checkout-mediated control |
 | 5 Re-enable interval (10/20/30/60s) | Only meaningful once RetryGuard exists — run fully in Phase 6 |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 For Phase 5: run scenarios **1–4** with RetryGuard **off**; save CSVs under consistent folders e.g. `baseline_topfull_<scenario>_run<N>/`.
 

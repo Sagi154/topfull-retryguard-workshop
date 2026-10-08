@@ -71,7 +71,8 @@ _Avoid_: "the mix" (ambiguous with loadgen numbers)
 ### Targeted-bottleneck sizing
 
 **Bottleneck cap**:
-The deliberate CPU limit applied to one Deployment's replicas in Scenarios 3/4A/4B to force it into overload — an absolute millicore value (`cpu_limit_millicores`), not a fraction of that service's normal quota. Chosen to match the one CPU point (50m) the recalibration battery actually measured saturation at, since `mu_per_millicore` doesn't extrapolate across CPU values (see Capacity beliefs).
+The deliberate CPU limit applied to one Deployment's replicas in Scenarios 3/4A/4B to force it into overload — an absolute millicore value (`cpu_limit_millicores`), not a fraction of that service's normal quota. S3 and S4A use 50m, the one CPU point the recalibration battery actually measured saturation at, since `mu_per_millicore` doesn't extrapolate across CPU values (see Capacity beliefs). S4B constrains `emailservice` at 40m (Checkout-mediated: Frontend → Checkout → Email).
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 _Avoid_: `cpu_limit_fraction` (superseded for S3/S4A/S4B specifically — still valid elsewhere), "the constraint" alone (ambiguous with `scale_constraints` in general)
 
 **Recalibration battery**:

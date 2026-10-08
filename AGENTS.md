@@ -268,9 +268,11 @@ If it doesn't recover within a few minutes, follow the troubleshooting table in 
 | 1 | Normal Operation | Flat load, well within capacity. Locked mix **175 / 30 / 70 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run8) | 5 min | `scenario_1_{baseline,retryguard,baseline_no_topfull}.yaml` |
 | 2 | Sustained Overload (core) | Peak from t=0, **hold flat**. Locked mix **275 / 90 / 100 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run 89) | 10 min | `scenario_2_{baseline,retryguard,baseline_no_topfull,retryguard_no_topfull}.yaml` |
 | 3 | Targeted Bottleneck | `checkoutservice` at `cpu_limit_fraction: 0.1` (paper 1000m → **100m**) | 10 min | `scenario_3_{baseline,retryguard}.yaml` |
-| 4A/4B | Topology Position | productcatalog (A → **50m**) vs payment (B → **100m**) at fraction 0.1 | 10 min | `scenario_4{a,b}_{baseline,retryguard}.yaml` |
+| 4A/4B | Topology Position | productcatalog (A → **50m**) vs `emailservice` (B → **40m**, Checkout-mediated: Frontend → Checkout → Email) | 10 min | `scenario_4{a,b}_{baseline,retryguard}.yaml` |
 | 5 | Interval Tuning | Same load as S6; `interval_samples` = 10/20/30/60 | 15 min | `scenario_5_interval_{10,20,30,60}s.yaml` |
 | 6 | Forced Recovery | Peak 5 min, then ~25% load for 10 min | 15 min | `scenario_6_recovery_{baseline,retryguard}.yaml` |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit` + **`cpu_limit_fraction: 0.1`** (not absolute `"100m"`), and the runner reconciles K8s + Detector to paper quotas before/after each run — a leftover checkout `100m` from an older S3/S4 is healed and must not be treated as the S2 baseline. New S4A (**50m**) is not comparable to `campaign_48/` S4A (absolute 100m). Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
 
@@ -349,7 +351,9 @@ Full config schema, `scale_constraints` methods, and troubleshooting: [PHASE5-EX
 - **Topology beneficiaries** — which services gain most from suppressed retries? — **answerable** (per-endpoint CSVs).
 - **Chain propagation** — does relief at a bottleneck propagate upstream to callers? — **answerable**, coarse (only 5 Locust endpoints).
 - **Controller interaction** — how do TopFull's RL loop (1s) and RetryGuard (30s windows) interact/oscillate? — **partial** (`RPS` as proxy; `num_agent.csv` is empty). Recover→re-enable is the S6 load-drop (campaign complete), not flat S2.
-- **Topology position sensitivity** — does RetryGuard help more where TopFull's entry-level signal is weaker (Checkout-mediated Payment vs direct ProductCatalog)? — **answerable** (S4A vs S4B).
+- **Topology position sensitivity** — does RetryGuard help more where TopFull's entry-level signal is weaker (Checkout-mediated `emailservice` vs direct ProductCatalog)? — **answerable** (S4A vs S4B).
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 - **Interval sensitivity** — does the paper's 30s default hold up when running alongside TopFull's 1s RL loop? — **answerable** on campaign S5 ×3 (`campaign_48/`, recovery load). August S5 remains a negative result (flat hold, never re-enabled).
 
 ---

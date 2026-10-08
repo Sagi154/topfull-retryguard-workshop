@@ -76,9 +76,11 @@ Run each scenario **≥3 times per condition** (≥2 for Scenario 5 intervals). 
 | 2 — Sustained Overload | `scenario_2_baseline.yaml` | `scenario_2_retryguard.yaml` | both→run1 |
 | 3 — Targeted Bottleneck | `scenario_3_baseline.yaml` | `scenario_3_retryguard.yaml` | both→run2 (smoke used run1) |
 | 4A — Topology (ProductCatalog) | `scenario_4a_baseline.yaml` | `scenario_4a_retryguard.yaml` | both→run1 |
-| 4B — Topology (Payment) | `scenario_4b_baseline.yaml` | `scenario_4b_retryguard.yaml` | both→run1 |
+| 4B — Topology (Email) | `scenario_4b_baseline.yaml` | `scenario_4b_retryguard.yaml` | both→run1 |
 | 5 — Interval tuning | — (use S6 baseline) | `scenario_5_interval_{10,20,30,60}s.yaml` | all→run3 |
 | 6 — Forced Recovery | `scenario_6_recovery_baseline.yaml` | `scenario_6_recovery_retryguard.yaml` | both→run1 |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ---
 
@@ -272,9 +274,11 @@ Two Targeted Bottleneck runs using identical load and the same constraint method
 | Run | Service constrained | Position description | TopFull's entry signal |
 |-----|--------------------|-----------------------|------------------------|
 | **Run A** | `productcatalogservice` | Gateway-adjacent, directly controlled | Frontend calls ProductCatalog directly on many product-browse paths; TopFull maps and throttles this bottleneck most directly at entry |
-| **Run B** | `paymentservice` | Indirect, Checkout-mediated | Reachable only via Frontend → Checkout → Payment; TopFull's signal is mediated by Checkout and most attenuated; Istio retries stack at Checkout→Payment |
+| **Run B** | `emailservice` | Indirect, Checkout-mediated | Reachable only via Frontend → Checkout → Email; TopFull's signal is mediated by Checkout and most attenuated; Istio retries stack at Checkout→Email |
 
 **Scope note:** Online Boutique is a shallow topology. This contrasts the *directness* of TopFull's control (direct vs Checkout-mediated) and fan-in (many direct entry APIs vs one mediated path), not literal chain depth. State this as a limitation in the report.
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ### Open questions answered
 
@@ -284,7 +288,9 @@ Two Targeted Bottleneck runs using identical load and the same constraint method
 
 ### Load setup
 
-Same as Scenario 3 — normal-to-moderate Locust load, full call chain exercised. Both arms use `cpu_limit_fraction: 0.1` of the paper quota: **4A** productcatalog → **50m** (paper 500m; not comparable to `campaign_48/`’s absolute 100m), **4B** payment → **100m** (paper 1000m).
+Same as Scenario 3 — normal-to-moderate Locust load, full call chain exercised. Both arms use `cpu_limit_fraction: 0.1` of the paper quota: **4A** productcatalog → **50m** (paper 500m; not comparable to `campaign_48/`’s absolute 100m), **4B** `emailservice` → **40m** (Checkout-mediated: Frontend → Checkout → Email).
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ### How to run
 
@@ -302,7 +308,7 @@ python experiments/run_scenario.py experiments/configs/scenario_4a_retryguard.ya
 scp -r topfull-master:/home/idozacharia/experiments/results/run_topfull_retryguard_topology_position_A_run1 experiments/results/
 ```
 
-**Run 4B — Payment bottleneck (Checkout-mediated):**
+**Run 4B — Email bottleneck (Checkout-mediated):**
 
 ```powershell
 # Baseline — run1
@@ -320,7 +326,7 @@ For each repeat: bump `run_number` and `log_folder` in the YAML. Run ≥3 times 
 
 - Does RetryGuard's benefit differ between Run A and Run B?
 - In Run A: TopFull detects ProductCatalog overload quickly via direct entry API mapping. Does RetryGuard add meaningful value on top of that?
-- In Run B: TopFull's signal must travel through Checkout before reaching the Payment path. Does RetryGuard's per-service suppression at Payment provide greater relative benefit here?
+- In Run B: TopFull's signal must travel through Checkout before reaching the Email path. Does RetryGuard's per-service suppression at Email provide greater relative benefit here?
 - Compare: retries/request, rejection rate, and goodput for the constrained service and its upstream callers across both positions.
 
 ---

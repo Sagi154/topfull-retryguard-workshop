@@ -63,7 +63,9 @@ Services we specifically constrain (CPU-limit) in later scenarios to create a co
 |---|---|---|
 | `checkoutservice` | Scenario 3 | Critical path: Frontend → Checkout → {Cart, Shipping, Currency, ProductCatalog, Email, Payment} |
 | `productcatalogservice` | Scenario 4A | Gateway-adjacent — Frontend calls it directly on many product-browse paths |
-| `paymentservice` | Scenario 4B | Indirect — reachable only via Frontend → Checkout → Payment |
+| `emailservice` | Scenario 4B | Indirect — reachable only via Frontend → Checkout → Email |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 All services stay at that fixed 1 replica in both conditions, so any effect we see is due to retry behavior and CPU limits, not replica count changes.
 
@@ -78,9 +80,11 @@ Each scenario is run under two conditions with identical load: **Baseline** (Top
 | 1 | Normal Operation | Flat load, well within capacity | 5 min | Sanity check — RetryGuard should stay inert |
 | 2 | Sustained Overload | Peak load from t=0, held flat | 10 min | System-level gains, topology beneficiaries, chain propagation |
 | 3 | Targeted Bottleneck | `checkoutservice` CPU-limited | 10 min | Topology beneficiaries, chain propagation |
-| 4A / 4B | Topology Position | `productcatalogservice` (A) vs `paymentservice` (B) CPU-limited | 10 min | Topology position sensitivity |
+| 4A / 4B | Topology Position | `productcatalogservice` (A) vs `emailservice` (B, 40m) CPU-limited | 10 min | Topology position sensitivity |
 | 5 | Re-enable Interval Tuning | Same load as S6; re-enable window swept 10/20/30/60s | 15 min | Interval parameter sensitivity |
 | 6 | Forced Recovery | Peak 5 min, then ~25% load for 10 min | 15 min | Combined equilibrium; also the reference for Scenario 5 |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 Section 4 walks through the dry results for each of these, grouping Scenario 5 into Scenario 6's subsection since S5 has no baseline of its own — it's only meaningful compared against S6.
 
@@ -149,9 +153,11 @@ Only `checkoutservice` is CPU-limited; the system-wide view and the checkout-spe
 
 Additional endpoint-level charts: `charts_gallery/S3_targeted_bottleneck/`.
 
-### 4.4 Scenario 4 — Topology Position (A: ProductCatalog vs B: Payment)
+### 4.4 Scenario 4 — Topology Position (A: ProductCatalog vs B: Email)
 
-Same constraint method, different position in the call graph — A is gateway-adjacent (Frontend calls it directly), B is Checkout-mediated (Frontend → Checkout → Payment).
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
+
+Same constraint method, different position in the call graph — A is gateway-adjacent (Frontend calls it directly), B is Checkout-mediated (Frontend → Checkout → Email).
 
 ![S4 Goodput, A vs B side-by-side](charts/S4_topology_position/total_goodput.png)
 ![S4 P95 latency, A vs B side-by-side](charts/S4_topology_position/total_p95_latency.png)
