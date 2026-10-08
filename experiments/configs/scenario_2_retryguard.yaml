@@ -1,12 +1,12 @@
 # Scenario 2 | TopFull RL ON, RetryGuard ON
-# Next free slot after the run 89 mix replay (run24, run25).
+# Next free slot after the 30s-interval both-on holds (run28, run29).
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: retryguard
-run_number: 26
+run_number: 30
 description: >
-  Next free both-on slot after the run 89 mix replay (run24 and run25).
+  Next both-on slot after the timestamp-interval holds run28 and run29.
   Paper-C1 pin. Checkout and recommendations rolled before the hold.
 duration_seconds: 600
 locust:
@@ -100,7 +100,7 @@ resource_usage_collector:
 topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
-log_folder: run_topfull_retryguard_sustained_overload_run26
+log_folder: run_topfull_retryguard_sustained_overload_run30
 infra:
   master_ssh_host: topfull-master
   loadgen_ssh_host: topfull-load
