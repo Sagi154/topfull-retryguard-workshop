@@ -1,0 +1,139 @@
+{
+  "generated_at": "2026-10-08T01:17:11Z",
+  "run_dir": "experiments\\results\\campaign_48\\S2_sustained_overload\\run_topfull_retryguard_sustained_overload_run24",
+  "estimates": [
+    {
+      "service": "adservice",
+      "lambda_mean": 144.82080610021788,
+      "mu_sat": null,
+      "w_mean_ms": 1.335482747346808,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 2.9587628865979383
+    },
+    {
+      "service": "cartservice",
+      "lambda_mean": 481.19825708061006,
+      "mu_sat": null,
+      "w_mean_ms": 3.511019513394112,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 9.835676372331224e-05,
+      "note": null,
+      "w_p50_ms": 3.618801652892562
+    },
+    {
+      "service": "checkoutservice",
+      "lambda_mean": 35.03752759381898,
+      "mu_sat": 66.5,
+      "w_mean_ms": 100.47159155564754,
+      "n_ticks_with_latency": 121,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.02488783943329398,
+      "note": null,
+      "w_p50_ms": 88.91752577319588
+    },
+    {
+      "service": "currencyservice",
+      "lambda_mean": 686.937908496732,
+      "mu_sat": null,
+      "w_mean_ms": 2.9697147441531326,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0,
+      "note": null,
+      "w_p50_ms": 3.4634920634920636
+    },
+    {
+      "service": "emailservice",
+      "lambda_mean": 33.49724061810155,
+      "mu_sat": 2.5,
+      "w_mean_ms": 14.835658053874264,
+      "n_ticks_with_latency": 121,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.00281537093746913,
+      "note": null,
+      "w_p50_ms": 3.7225806451612904
+    },
+    {
+      "service": "frontend",
+      "lambda_mean": 459.4098805646036,
+      "mu_sat": 364.5,
+      "w_mean_ms": 580.5452816048319,
+      "n_ticks_with_latency": 241,
+      "inbound_5xx_fraction": 0.28732734476519595,
+      "inbound_failure_fraction": 0.28818066261370195,
+      "note": null,
+      "w_p50_ms": 692.7625354777672
+    },
+    {
+      "service": "paymentservice",
+      "lambda_mean": 34.86754966887417,
+      "mu_sat": 117.5,
+      "w_mean_ms": 2.3786484505117387,
+      "n_ticks_with_latency": 121,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0014236226450908746,
+      "note": null,
+      "w_p50_ms": 3.0652173913043477
+    },
+    {
+      "service": "productcatalogservice",
+      "lambda_mean": 1894.2777777777778,
+      "mu_sat": null,
+      "w_mean_ms": 2.576545296501717,
+      "n_ticks_with_latency": 123,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 3.4452137798215552e-06,
+      "note": null,
+      "w_p50_ms": 3.3182254196642686
+    },
+    {
+      "service": "recommendationservice",
+      "lambda_mean": 478.609477124183,
+      "mu_sat": 391.0,
+      "w_mean_ms": 427.4101226996763,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.12213823778208312,
+      "note": null,
+      "w_p50_ms": 454.14704555400493
+    },
+    {
+      "service": "redis-cart",
+      "lambda_mean": null,
+      "mu_sat": null,
+      "w_mean_ms": null,
+      "n_ticks_with_latency": 0,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0,
+      "note": "no ticks with traffic",
+      "w_p50_ms": null
+    },
+    {
+      "service": "shippingservice",
+      "lambda_mean": 128.4311475409836,
+      "mu_sat": null,
+      "w_mean_ms": 0.9520064321442249,
+      "n_ticks_with_latency": 122,
+      "inbound_5xx_fraction": 0.0,
+      "inbound_failure_fraction": 0.0004591368227731864,
+      "note": null,
+      "w_p50_ms": 2.4404882367821905
+    }
+  ],
+  "estimate_error": null,
+  "retryguard_log_present": true,
+  "toggle_events": [
+    {
+      "timestamp": "2026-10-08T01:09:08Z",
+      "service": "frontend->recommendationservice",
+      "direction": "ON\u2192OFF",
+      "rejection": 2.4,
+      "counter": "consecutive_high=30",
+      "attempts": 0
+    }
+  ]
+}

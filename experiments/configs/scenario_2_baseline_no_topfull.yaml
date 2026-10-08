@@ -1,12 +1,12 @@
 # Scenario 2 | Both controllers off
-# Next free slot after run159 (run 89 mix 275/90/100/90/5, both-off).
+# Next free slot after the run 89 mix replay (run160, run161).
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 160
+run_number: 162
 description: >
-  Next free both-off slot after run159 (run 89 mix 275/90/100/90/5).
+  Next free both-off slot after the run 89 mix replay (run160 and run161).
   Paper-C1 pin. Checkout and recommendations rolled before the hold.
 
 duration_seconds: 600
@@ -111,7 +111,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run160
+log_folder: baseline_no_topfull_sustained_overload_run162
 
 infra:
   master_ssh_host: topfull-master
