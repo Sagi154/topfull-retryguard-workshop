@@ -6,10 +6,12 @@ Usage (on master, with venv active):
     python3 retryguard.py --params /tmp/retryguard_params.json
 
 Reads {record_path}/service_inbound.csv (Δ5xx / Δtotal per service) and
-patches Istio VirtualService retries.attempts when Interval consecutive
-samples cross the threshold (RetryGuard paper Algorithm 1, applied
-literally: 1 raw sample per second, one symmetric Interval for both the
-disable and re-enable transitions).
+patches Istio VirtualService retries.attempts when a streak of rows
+stays past the threshold for Interval seconds of row timestamps
+(RetryGuard paper Algorithm 1, one symmetric Interval for both the
+disable and re-enable transitions). A skipped row does not count and
+does not clear the streak. Rows already in the file at process start
+are not replayed.
 """
 
 from __future__ import annotations
@@ -155,6 +157,11 @@ class ServiceState:
     # Edge mode only. 0 is off, attempts_on (3) is the full policy, and 1 or 2
     # is a ramp step. Rejection mode does not read this.
     attempts: int = 3
+    # Timestamp of the first row in the open streak. The transition fires
+    # when the newest row is at least `interval` seconds after this, not
+    # when the row count reaches `interval`.
+    high_since: Optional[str] = None
+    low_since: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -579,36 +586,85 @@ def wait_for_inbound_csv(
 #  Main control loop (Algorithm 1)
 # --------------------------------------------------------------------------- #
 
+def format_row_timestamp(epoch_s: int) -> str:
+    """UTC timestamp string used by the mesh CSVs and by unit-test clocks."""
+    return datetime.fromtimestamp(int(epoch_s), tz=timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+
+def parse_row_timestamp(timestamp: str) -> datetime:
+    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ").replace(
+        tzinfo=timezone.utc
+    )
+
+
+def streak_elapsed_s(since: Optional[str], now: Optional[str]) -> float:
+    """Seconds from the first row of a streak to `now`. 0 if either is missing."""
+    if not since or not now:
+        return 0.0
+    return (parse_row_timestamp(now) - parse_row_timestamp(since)).total_seconds()
+
+
+def streak_met(since: Optional[str], now: Optional[str], interval: int) -> bool:
+    """True when the newest row is at least `interval` seconds after the first."""
+    if not since or not now:
+        return False
+    return streak_elapsed_s(since, now) >= int(interval)
+
+
+def _open_high(state: ServiceState, timestamp: str) -> None:
+    state.consecutive_high += 1
+    state.consecutive_low = 0
+    state.low_since = None
+    if state.high_since is None:
+        state.high_since = timestamp
+
+
+def _open_low(state: ServiceState, timestamp: str) -> None:
+    state.consecutive_low += 1
+    state.consecutive_high = 0
+    state.high_since = None
+    if state.low_since is None:
+        state.low_since = timestamp
+
+
+def _clear_streaks(state: ServiceState) -> None:
+    state.consecutive_low = 0
+    state.consecutive_high = 0
+    state.low_since = None
+    state.high_since = None
+
+
 def apply_algorithm1(
     state: ServiceState,
     rejection: float,
     threshold: float,
     interval: int,
+    timestamp: str,
 ) -> Optional[str]:
     """
     One Algorithm 1 iteration. Mutates state counters.
-    `interval` is the paper's single `Interval` parameter, applied
-    symmetrically to both the ON (line 13) and OFF (line 14) transitions.
-    Returns desired retries state ("ON"/"OFF") if a transition should fire,
-    otherwise None (keep current state).
-    """
-    # Lines 5–12
-    if rejection < threshold:
-        state.consecutive_low += 1
-        state.consecutive_high = 0
-    elif rejection > threshold:
-        state.consecutive_high += 1
-        state.consecutive_low = 0
-    else:
-        # Exactly == Threshold (float rarity): reset both counters
-        state.consecutive_low = 0
-        state.consecutive_high = 0
 
-    # Lines 13–14 (single symmetric Interval, per the paper)
+    `interval` is seconds of row timestamps, applied symmetrically to both
+    the ON and OFF transitions. The row count (`consecutive_low` /
+    `consecutive_high`) is recorded, but the transition fires when the
+    newest row is at least `interval` seconds after the first row of the
+    streak. Returns desired retries state ("ON"/"OFF") if a transition
+    should fire, otherwise None (keep current state).
+    """
+    if rejection < threshold:
+        _open_low(state, timestamp)
+    elif rejection > threshold:
+        _open_high(state, timestamp)
+    else:
+        # Exactly == Threshold (float rarity): reset both streaks.
+        _clear_streaks(state)
+
     desired = state.retries_state
-    if state.consecutive_low >= interval:
+    if streak_met(state.low_since, timestamp, interval):
         desired = "ON"
-    elif state.consecutive_high >= interval:
+    elif streak_met(state.high_since, timestamp, interval):
         desired = "OFF"
 
     if desired != state.retries_state:
@@ -651,13 +707,13 @@ class EdgeController:
     """
     Edge mode state. step() proposes changes without committing retries
     state; the caller patches the VirtualService and then commit()s, so a
-    failed patch is retried on the next tick (counters stay >= interval).
+    failed patch is retried on the next tick (the streak timestamp stays).
 
     Leaving 0 uses the rejection fallback and restores one attempt, but only
     while rejection stays under reenable_rejection_threshold (0.10), not the
     0.20 rejection_threshold. Further attempts climb one at a time while rpr
     stays at or under climb_rpr_limit. rpr above rpr_threshold for a full
-    interval sheds straight to 0 from any attempt count.
+    interval of row timestamps sheds straight to 0 from any attempt count.
     """
 
     def __init__(
@@ -705,39 +761,48 @@ class EdgeController:
             {c: a for c, a in resulting.items() if a != self.attempts_on},
         )
 
-    def _ramp_tick(self, state: ServiceState, value: float) -> Optional[str]:
+    def _ramp_tick(
+        self, state: ServiceState, value: float, timestamp: str
+    ) -> Optional[str]:
         """One tick at 1..attempts_on-1. Returns 'shed', 'climb', or None."""
         limit = climb_rpr_limit(state.attempts, self.attempts_on, self.rpr_threshold)
         if value <= limit:
-            state.consecutive_low += 1
-            state.consecutive_high = 0
+            _open_low(state, timestamp)
         elif value > self.rpr_threshold:
-            state.consecutive_high += 1
-            state.consecutive_low = 0
+            _open_high(state, timestamp)
         else:
             # Above the climb bar and at or under the shed bar: hold.
-            state.consecutive_low = 0
-            state.consecutive_high = 0
-        if state.consecutive_high >= self.interval:
+            _clear_streaks(state)
+        if streak_met(state.high_since, timestamp, self.interval):
             return "shed"
-        if state.consecutive_low >= self.interval:
+        if streak_met(state.low_since, timestamp, self.interval):
             return "climb"
         return None
 
-    def step(self, rpr: dict, rejection: dict) -> list:
+    def step(
+        self,
+        rpr: dict,
+        rejection: dict,
+        rpr_ts: Optional[dict] = None,
+        rejection_ts: Optional[dict] = None,
+    ) -> list:
         changes = []
         handled = set()
+        rpr_ts = rpr_ts or {}
+        rejection_ts = rejection_ts or {}
 
         # Fallback: per-service rejection rate while any edge is at 0 attempts.
         # A quiet interval (rejection under the 0.10 re-enable bar, not the
         # 0.20 rejection_threshold) moves those edges to 1, not to attempts_on.
         for service, st in self.svc_state.items():
             value = rejection.get(service)
-            if value is None:
+            timestamp = rejection_ts.get(service)
+            if value is None or not timestamp:
                 continue
             if (
                 apply_algorithm1(
-                    st, value, self.reenable_rejection_threshold, self.interval
+                    st, value, self.reenable_rejection_threshold, self.interval,
+                    timestamp,
                 )
                 != "ON"
             ):
@@ -749,6 +814,7 @@ class EdgeController:
             }
             if not desired:
                 continue
+            elapsed = int(round(streak_elapsed_s(st.low_since, timestamp)))
             changes.append(
                 self._make_change(
                     service,
@@ -756,6 +822,7 @@ class EdgeController:
                     "rejection",
                     [(
                         service, "OFF", "ON", value, st.consecutive_low, 1, 0,
+                        elapsed,
                     )],
                     desired,
                 )
@@ -769,33 +836,45 @@ class EdgeController:
             if st.attempts <= 0 or service in handled:
                 continue
             value = rpr.get(edge)
-            if value is None:
+            timestamp = rpr_ts.get(edge)
+            if value is None or not timestamp:
                 continue
             name = f"{caller}->{service}"
             if st.attempts >= self.attempts_on:
                 if (
-                    apply_algorithm1(st, value, self.rpr_threshold, self.interval)
+                    apply_algorithm1(
+                        st, value, self.rpr_threshold, self.interval, timestamp
+                    )
                     != "OFF"
                 ):
                     continue
+                elapsed = int(round(streak_elapsed_s(st.high_since, timestamp)))
                 pending.setdefault(service, {})[caller] = 0
                 pending_lines.setdefault(service, []).append(
-                    (name, "ON", "OFF", value, st.consecutive_high, 0, st.attempts)
+                    (
+                        name, "ON", "OFF", value, st.consecutive_high, 0,
+                        st.attempts, elapsed,
+                    )
                 )
                 continue
-            action = self._ramp_tick(st, value)
+            action = self._ramp_tick(st, value, timestamp)
             if action == "shed":
+                elapsed = int(round(streak_elapsed_s(st.high_since, timestamp)))
                 pending.setdefault(service, {})[caller] = 0
                 pending_lines.setdefault(service, []).append(
-                    (name, "ON", "OFF", value, st.consecutive_high, 0, st.attempts)
+                    (
+                        name, "ON", "OFF", value, st.consecutive_high, 0,
+                        st.attempts, elapsed,
+                    )
                 )
             elif action == "climb":
+                elapsed = int(round(streak_elapsed_s(st.low_since, timestamp)))
                 nxt = st.attempts + 1
                 pending.setdefault(service, {})[caller] = nxt
                 pending_lines.setdefault(service, []).append(
                     (
                         name, str(st.attempts), str(nxt), value,
-                        st.consecutive_low, nxt, st.attempts,
+                        st.consecutive_low, nxt, st.attempts, elapsed,
                     )
                 )
         for service, desired in pending.items():
@@ -815,16 +894,14 @@ class EdgeController:
             if attempts == 0:
                 prev.retries_state = "OFF"
                 prev.attempts = 0
-                prev.consecutive_low = 0
-                prev.consecutive_high = 0
+                _clear_streaks(prev)
             elif prev.attempts == 0:
                 # Fresh streaks. A sibling that stayed above 0 is not in this map.
                 self.edge_state[edge] = ServiceState(attempts=attempts)
             else:
                 prev.attempts = attempts
                 prev.retries_state = "ON"
-                prev.consecutive_low = 0
-                prev.consecutive_high = 0
+                _clear_streaks(prev)
         if self.off_callers(change.service):
             self.svc_state.setdefault(
                 change.service, ServiceState(retries_state="OFF", attempts=0)
@@ -855,7 +932,7 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
     prev_edge: Dict[tuple, Optional[EdgeSnapshot]] = {e: None for e in CONTROLLED_EDGES}
     log.info(
         "%s  START  metric=edge_rpr rpr_threshold=%.2f rejection_threshold=%.2f "
-        "reenable_rejection=%.2f sample_interval=%ss interval_samples=%d "
+        "reenable_rejection=%.2f sample_interval=%ss interval_samples=%ds "
         "edges=%d attempts_on=%d",
         utc_now(), rpr_threshold, rejection_threshold,
         ctrl.reenable_rejection_threshold,
@@ -870,34 +947,47 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
         edges.poll()
 
         rpr = {}
+        rpr_ts = {}
         for edge in CONTROLLED_EDGES:
             rpr[edge], prev_edge[edge] = measure_edge_rpr(
                 prev_edge[edge], edges.latest.get(edge)
             )
+            snap = prev_edge[edge]
+            if rpr[edge] is not None and snap is not None:
+                rpr_ts[edge] = snap.timestamp
         rejection = {}
+        rejection_ts = {}
         for service in CONTROLLED_SERVICES:
             rejection[service], prev_in[service] = measure_inbound_rejection(
                 prev_in[service],
                 inbound.latest.get(service),
                 service in GRPC_RETRY_CALLEES,
             )
+            snap = prev_in[service]
+            if rejection[service] is not None and snap is not None:
+                rejection_ts[service] = snap.timestamp
 
-        changes = ctrl.step(rpr, rejection)
+        changes = ctrl.step(rpr, rejection, rpr_ts, rejection_ts)
 
         for edge, st in ctrl.edge_state.items():
             if st.attempts > 0 and rpr.get(edge) is not None:
+                since = st.high_since if st.consecutive_high else st.low_since
+                elapsed = int(round(streak_elapsed_s(since, rpr_ts.get(edge))))
                 log.info(
-                    "%s  OBSERVE  %s->%s  rpr=%.4f  low=%d high=%d  attempts=%d  "
-                    "state=ON  metric=rpr",
+                    "%s  OBSERVE  %s->%s  rpr=%.4f  low=%d high=%d  elapsed_s=%d  "
+                    "attempts=%d  state=ON  metric=rpr",
                     utc_now(), edge[0], edge[1], rpr[edge],
-                    st.consecutive_low, st.consecutive_high, st.attempts,
+                    st.consecutive_low, st.consecutive_high, elapsed, st.attempts,
                 )
         for service, st in ctrl.svc_state.items():
             if rejection.get(service) is not None:
+                since = st.high_since if st.consecutive_high else st.low_since
+                elapsed = int(round(streak_elapsed_s(since, rejection_ts.get(service))))
                 log.info(
-                    "%s  OBSERVE  %s  rejection=%.4f  low=%d high=%d  state=OFF  metric=rejection",
+                    "%s  OBSERVE  %s  rejection=%.4f  low=%d high=%d  elapsed_s=%d  "
+                    "state=OFF  metric=rejection",
                     utc_now(), service, rejection[service],
-                    st.consecutive_low, st.consecutive_high,
+                    st.consecutive_low, st.consecutive_high, elapsed,
                 )
 
         for change in changes:
@@ -913,13 +1003,16 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
                 )
                 continue
             label = "rpr" if change.metric == "rpr" else "rejection"
-            for name, old, new, value, count, attempts, from_attempts in change.lines:
+            for (
+                name, old, new, value, count, attempts, from_attempts, elapsed_s
+            ) in change.lines:
                 counter = "consecutive_high" if new == "OFF" else "consecutive_low"
                 log.info(
                     "%s  %s  %s→%s   %s=%.2f  %s=%d  attempts=%d  "
-                    "from_attempts=%d  metric=%s",
+                    "from_attempts=%d  metric=%s  elapsed_s=%d",
                     utc_now(), name, old, new, label, value,
                     counter, count, attempts, from_attempts, change.metric,
+                    elapsed_s,
                 )
             ctrl.commit(change)
 
@@ -948,13 +1041,12 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
     inbound_path = record_path / INBOUND_CSV_NAME
     tailer = InboundCsvTailer(inbound_path)
     log.info(
-        "%s  START  threshold=%.2f sample_interval=%ss interval_samples=%d "
-        "(%ds) services=%s",
+        "%s  START  threshold=%.2f sample_interval=%ss interval_samples=%ds "
+        "services=%s",
         utc_now(),
         threshold,
         sample_interval,
         interval,
-        sample_interval * interval,
         list(CONTROLLED_SERVICES),
     )
 
@@ -978,15 +1070,22 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
                 continue
 
             state = states[service]
-            desired = apply_algorithm1(state, rejection, threshold, interval)
+            row_ts = previous[service].timestamp
+            desired = apply_algorithm1(
+                state, rejection, threshold, interval, row_ts
+            )
+            since = state.high_since if state.consecutive_high else state.low_since
+            elapsed = int(round(streak_elapsed_s(since, row_ts)))
 
             log.info(
-                "%s  OBSERVE  %s  rejection=%.4f  low=%d high=%d  state=%s",
+                "%s  OBSERVE  %s  rejection=%.4f  low=%d high=%d  elapsed_s=%d  "
+                "state=%s",
                 utc_now(),
                 service,
                 rejection,
                 state.consecutive_low,
                 state.consecutive_high,
+                elapsed,
                 state.retries_state,
             )
 
@@ -1027,7 +1126,7 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
                 else f"consecutive_high={state.consecutive_high}"
             )
             log.info(
-                "%s  %s  %s→%s   rejection=%.2f  %s  attempts=%d",
+                "%s  %s  %s→%s   rejection=%.2f  %s  attempts=%d  elapsed_s=%d",
                 utc_now(),
                 service,
                 old,
@@ -1035,6 +1134,7 @@ def run(params: dict, record_path: Path, api: client.CustomObjectsApi) -> None:
                 rejection,
                 counter,
                 attempts,
+                elapsed,
             )
             state.retries_state = desired
 

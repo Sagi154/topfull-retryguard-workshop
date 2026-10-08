@@ -353,65 +353,74 @@ class TestMeasureInboundRejection(unittest.TestCase):
 
 class TestApplyAlgorithm1Symmetric(unittest.TestCase):
     """
-    Paper Algorithm 1 uses ONE Interval for both transitions:
-        13: if Consecutive_low >= Interval then Retries <- ON
-        14: else if Consecutive_high >= Interval then Retries <- OFF
-    apply_algorithm1 must take a single `interval` argument applied
-    symmetrically to both directions.
+    Paper Algorithm 1 uses ONE Interval for both transitions. The interval
+    is seconds from the first row of a streak to the newest row.
     """
+
+    def setUp(self):
+        self.clock = 0
 
     def _state(self, initial="ON"):
         state = retryguard.ServiceState()
         state.retries_state = initial
         return state
 
+    def tick(self, state, value, threshold=0.20, interval=3, step=1):
+        ts = retryguard.format_row_timestamp(self.clock)
+        self.clock += step
+        return retryguard.apply_algorithm1(
+            state, value, threshold, interval, ts
+        )
+
     def test_no_transition_below_interval_low(self):
         state = self._state(initial="OFF")
         for _ in range(2):
-            result = retryguard.apply_algorithm1(state, 0.05, 0.20, interval=3)
+            result = self.tick(state, 0.05)
         self.assertIsNone(result)
         self.assertEqual(state.consecutive_low, 2)
 
-    def test_turns_on_after_interval_consecutive_low_samples(self):
+    def test_turns_on_when_row_span_reaches_interval(self):
         state = self._state(initial="OFF")
         result = None
         for _ in range(3):
-            result = retryguard.apply_algorithm1(state, 0.05, 0.20, interval=3)
+            result = self.tick(state, 0.05)
+            self.assertIsNone(result)
+        result = self.tick(state, 0.05)
         self.assertEqual(result, "ON")
 
-    def test_turns_off_after_interval_consecutive_high_samples(self):
+    def test_turns_off_when_row_span_reaches_interval(self):
         state = self._state(initial="ON")
         result = None
         for _ in range(3):
-            result = retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)
+            result = self.tick(state, 0.50)
+            self.assertIsNone(result)
+        result = self.tick(state, 0.50)
         self.assertEqual(result, "OFF")
 
     def test_same_interval_value_governs_both_directions(self):
-        # A single dip resets the high-streak (paper lines 9-10), so with
-        # interval=2, two highs then one low then two highs never reaches 2
-        # consecutive highs until the streak restarts cleanly.
         state = self._state(initial="ON")
-        retryguard.apply_algorithm1(state, 0.50, 0.20, interval=2)  # high=1
-        result = retryguard.apply_algorithm1(state, 0.05, 0.20, interval=2)  # resets to low=1
+        self.tick(state, 0.50, interval=2)
+        result = self.tick(state, 0.05, interval=2)
         self.assertIsNone(result)
         self.assertEqual(state.consecutive_high, 0)
         self.assertEqual(state.consecutive_low, 1)
+        self.assertIsNone(state.high_since)
 
     def test_single_dip_resets_consecutive_high_streak(self):
         state = self._state(initial="ON")
-        retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)  # high=1
-        retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)  # high=2
-        retryguard.apply_algorithm1(state, 0.05, 0.20, interval=3)  # dip -> high resets to 0
-        result = retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)  # high=1 again
+        self.tick(state, 0.50)
+        self.tick(state, 0.50)
+        self.tick(state, 0.05)
+        self.assertIsNone(state.high_since)
+        result = self.tick(state, 0.50)
         self.assertIsNone(result)
         self.assertEqual(state.consecutive_high, 1)
 
     def test_no_repeat_transition_once_already_in_target_state(self):
         state = self._state(initial="OFF")
-        for _ in range(3):
-            retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)
-        # already OFF and still above threshold: no further transition fires
-        result = retryguard.apply_algorithm1(state, 0.50, 0.20, interval=3)
+        for _ in range(4):
+            self.tick(state, 0.50)
+        result = self.tick(state, 0.50)
         self.assertIsNone(result)
 
 
@@ -610,35 +619,68 @@ class TestEdgeController(unittest.TestCase):
     EDGE = ("frontend", "recommendationservice")
     EDGES = (EDGE, ("recommendationservice", "productcatalogservice"))
 
+    def setUp(self):
+        self.clock = 0
+
     def make(self):
         return retryguard.EdgeController(self.EDGES, 0.5, 0.2, 30)
 
-    def feed(self, ctrl, ticks, rpr, rejection=None):
+    def feed(self, ctrl, ticks, rpr, rejection=None, step=1):
         out = []
+        rejection = rejection or {}
         for _ in range(ticks):
-            out += ctrl.step({self.EDGE: rpr}, rejection or {})
+            ts = retryguard.format_row_timestamp(self.clock)
+            self.clock += step
+            rpr_map = {}
+            rpr_ts = {}
+            if rpr is not None:
+                rpr_map[self.EDGE] = rpr
+                rpr_ts[self.EDGE] = ts
+            rej_ts = {svc: ts for svc in rejection}
+            out += ctrl.step(rpr_map, rejection, rpr_ts, rej_ts)
         return out
 
-    def test_streak_of_30_turns_edge_off(self):
+    def test_streak_fires_30s_after_the_first_row(self):
         ctrl = self.make()
-        self.assertEqual(self.feed(ctrl, 29, 0.9), [])
+        self.assertEqual(self.feed(ctrl, 30, 0.9), [])
         changes = self.feed(ctrl, 1, 0.9)
         self.assertEqual(len(changes), 1)
         self.assertEqual(changes[0].service, "recommendationservice")
         self.assertEqual(changes[0].transition, "OFF")
         self.assertEqual(changes[0].new_off, frozenset({"frontend"}))
         self.assertEqual(changes[0].metric, "rpr")
+        self.assertEqual(changes[0].lines[0][-1], 30)
+
+    def test_two_second_rows_fire_at_30s_with_fewer_than_30_rows(self):
+        ctrl = self.make()
+        self.assertEqual(self.feed(ctrl, 15, 0.9, step=2), [])
+        changes = self.feed(ctrl, 1, 0.9, step=2)
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0].lines[0][-1], 30)
+        self.assertLess(changes[0].lines[0][4], 30)
+
+    def test_under_bar_row_clears_high_since(self):
+        ctrl = self.make()
+        self.feed(ctrl, 5, 0.9)
+        self.assertIsNotNone(ctrl.edge_state[self.EDGE].high_since)
+        self.feed(ctrl, 1, 0.1)
+        state = ctrl.edge_state[self.EDGE]
+        self.assertIsNone(state.high_since)
+        self.assertEqual(state.consecutive_high, 0)
 
     def test_low_tick_resets_streak(self):
         ctrl = self.make()
-        self.feed(ctrl, 29, 0.9)
+        self.feed(ctrl, 30, 0.9)
         self.feed(ctrl, 1, 0.1)
-        self.assertEqual(self.feed(ctrl, 29, 0.9), [])
+        self.assertEqual(self.feed(ctrl, 30, 0.9), [])
 
     def test_skipped_ticks_change_nothing(self):
         ctrl = self.make()
-        self.feed(ctrl, 29, 0.9)
+        self.feed(ctrl, 30, 0.9)
+        since = ctrl.edge_state[self.EDGE].high_since
         self.feed(ctrl, 5, None)
+        self.assertEqual(ctrl.edge_state[self.EDGE].high_since, since)
+        self.assertEqual(ctrl.edge_state[self.EDGE].consecutive_high, 30)
         self.assertEqual(len(self.feed(ctrl, 1, 0.9)), 1)
 
     def test_rejection_fallback_idle_until_an_edge_is_off(self):
@@ -649,11 +691,11 @@ class TestEdgeController(unittest.TestCase):
 
     def test_fallback_reenables_all_off_edges_together(self):
         ctrl = self.make()
-        change = self.feed(ctrl, 30, 0.9)[0]
+        change = self.feed(ctrl, 31, 0.9)[0]
         ctrl.commit(change)
         self.assertEqual(ctrl.off_callers("recommendationservice"), {"frontend"})
         rej = {"recommendationservice": 0.05}
-        self.assertEqual(self.feed(ctrl, 29, None, rej), [])
+        self.assertEqual(self.feed(ctrl, 30, None, rej), [])
         back = self.feed(ctrl, 1, None, rej)
         self.assertEqual(len(back), 1)
         self.assertEqual(back[0].transition, "ON")
@@ -673,11 +715,14 @@ class TestEdgeController(unittest.TestCase):
             (off_a, off_b, sibling), 0.5, 0.2, 30
         )
         changes = []
-        for i in range(30):
+        for i in range(31):
+            ts = retryguard.format_row_timestamp(i)
             rpr = {off_a: 0.9, off_b: 0.9}
+            rpr_ts = {off_a: ts, off_b: ts}
             if i < 10:
                 rpr[sibling] = 0.9
-            changes += ctrl.step(rpr, {})
+                rpr_ts[sibling] = ts
+            changes += ctrl.step(rpr, {}, rpr_ts, {})
         offs = [c for c in changes if c.transition == "OFF"]
         self.assertEqual(len(offs), 1)
         self.assertEqual(
@@ -691,8 +736,9 @@ class TestEdgeController(unittest.TestCase):
         self.assertEqual(ctrl.edge_state[sibling].consecutive_high, 10)
 
         backs = []
-        for _ in range(30):
-            backs += ctrl.step({}, {catalog: 0.05})
+        for i in range(31):
+            ts = retryguard.format_row_timestamp(100 + i)
+            backs += ctrl.step({}, {catalog: 0.05}, {}, {catalog: ts})
         ons = [c for c in backs if c.transition == "ON"]
         self.assertEqual(len(ons), 1)
         self.assertEqual(ctrl.edge_state[sibling].consecutive_high, 10)
@@ -718,25 +764,36 @@ class TestAttemptRamp(unittest.TestCase):
     def make(self, interval=3):
         return retryguard.EdgeController((self.EDGE,), 0.5, 0.2, interval)
 
+    def setUp(self):
+        self.clock = 0
+
     def to_attempts(self, ctrl, attempts):
+        # One row to open the streak, then `interval` seconds of 1s rows.
+        span = ctrl.interval + 1
         if attempts == 0:
-            change = self.feed(ctrl, ctrl.interval, 0.9)[0]
+            change = self.feed(ctrl, span, 0.9)[0]
             ctrl.commit(change)
             return
         self.to_attempts(ctrl, 0)
-        back = self.feed(ctrl, ctrl.interval, None, {"checkoutservice": 0.05})[0]
+        back = self.feed(ctrl, span, None, {"checkoutservice": 0.05})[0]
         ctrl.commit(back)
         while ctrl.edge_state[self.EDGE].attempts < attempts:
-            climbed = self.feed(ctrl, ctrl.interval, 0.05)[0]
+            climbed = self.feed(ctrl, span, 0.05)[0]
             ctrl.commit(climbed)
 
-    def feed(self, ctrl, ticks, rpr, rejection=None):
+    def feed(self, ctrl, ticks, rpr, rejection=None, step=1):
         out = []
+        rejection = rejection or {}
         for _ in range(ticks):
-            out += ctrl.step(
-                {self.EDGE: rpr} if rpr is not None else {},
-                rejection or {},
-            )
+            ts = retryguard.format_row_timestamp(self.clock)
+            self.clock += step
+            rpr_map = {}
+            rpr_ts = {}
+            if rpr is not None:
+                rpr_map[self.EDGE] = rpr
+                rpr_ts[self.EDGE] = ts
+            rej_ts = {svc: ts for svc in rejection}
+            out += ctrl.step(rpr_map, rejection, rpr_ts, rej_ts)
         return out
 
     def test_climb_limits_are_0_17_and_0_33(self):
@@ -750,9 +807,9 @@ class TestAttemptRamp(unittest.TestCase):
         self.assertEqual(self.feed(ctrl, 5, None, {"checkoutservice": 0.15}), [])
         self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 0)
         # A tick at 0.15 breaks a quiet streak that was about to fire.
-        self.feed(ctrl, 2, None, {"checkoutservice": 0.05})
+        self.feed(ctrl, 3, None, {"checkoutservice": 0.05})
         self.assertEqual(self.feed(ctrl, 1, None, {"checkoutservice": 0.15}), [])
-        self.assertEqual(self.feed(ctrl, 2, None, {"checkoutservice": 0.05}), [])
+        self.assertEqual(self.feed(ctrl, 3, None, {"checkoutservice": 0.05}), [])
         back = self.feed(ctrl, 1, None, {"checkoutservice": 0.09})
         self.assertEqual(back[0].transition, "ON")
         self.assertEqual(back[0].lines[0][5], 1)
@@ -760,7 +817,7 @@ class TestAttemptRamp(unittest.TestCase):
     def test_rejection_restores_one_attempt(self):
         ctrl = self.make()
         self.to_attempts(ctrl, 0)
-        self.assertEqual(self.feed(ctrl, 2, None, {"checkoutservice": 0.05}), [])
+        self.assertEqual(self.feed(ctrl, 3, None, {"checkoutservice": 0.05}), [])
         back = self.feed(ctrl, 1, None, {"checkoutservice": 0.05})
         self.assertEqual(back[0].transition, "ON")
         self.assertEqual(back[0].lines[0][5], 1)
@@ -771,7 +828,7 @@ class TestAttemptRamp(unittest.TestCase):
     def test_quiet_rpr_climbs_one_step_at_a_time(self):
         ctrl = self.make()
         self.to_attempts(ctrl, 1)
-        self.assertEqual(self.feed(ctrl, 2, 0.10), [])
+        self.assertEqual(self.feed(ctrl, 3, 0.10), [])
         climb = self.feed(ctrl, 1, 0.10)
         self.assertEqual(climb[0].transition, "RAMP")
         self.assertEqual(climb[0].desired_attempts, {"frontend": 2})
@@ -779,7 +836,7 @@ class TestAttemptRamp(unittest.TestCase):
         ctrl.commit(climb[0])
         self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 2)
         self.assertEqual(ctrl.edge_state[self.EDGE].consecutive_low, 0)
-        self.assertEqual(self.feed(ctrl, 2, 0.10), [])
+        self.assertEqual(self.feed(ctrl, 3, 0.10), [])
         climb3 = self.feed(ctrl, 1, 0.10)
         self.assertEqual(climb3[0].desired_attempts, {"frontend": 3})
         self.assertEqual(climb3[0].caller_attempts, {})
@@ -802,7 +859,7 @@ class TestAttemptRamp(unittest.TestCase):
     def test_above_0_5_sheds_from_a_ramp_step(self):
         ctrl = self.make()
         self.to_attempts(ctrl, 1)
-        self.assertEqual(self.feed(ctrl, 2, 0.90), [])
+        self.assertEqual(self.feed(ctrl, 3, 0.90), [])
         shed = self.feed(ctrl, 1, 0.90)
         self.assertEqual(shed[0].transition, "OFF")
         self.assertEqual(shed[0].new_off, frozenset({"frontend"}))
@@ -814,7 +871,7 @@ class TestAttemptRamp(unittest.TestCase):
     def test_uncommitted_climb_is_proposed_again(self):
         ctrl = self.make()
         self.to_attempts(ctrl, 1)
-        first = self.feed(ctrl, 3, 0.05)
+        first = self.feed(ctrl, 4, 0.05)
         self.assertEqual(len(first), 1)
         again = self.feed(ctrl, 1, 0.05)
         self.assertEqual(again[0].desired_attempts, {"frontend": 2})
