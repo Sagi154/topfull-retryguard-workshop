@@ -167,9 +167,18 @@ from `service_edges.csv`. That is the paper's normalized retry rate (Λ − λ)/
 
 Disable is per edge. `rpr` above 0.5 for `interval_samples` seconds of row timestamps (Scenario 5's 10/20/30/60 are those seconds) sheds that edge to 0 attempts from whatever count it was on: the callee VirtualService gets a `sourceLabels: {app: <caller>}` route with `retries: {attempts: 0}` and `timeout: {per_try_timeout_ms}ms` ahead of the default route. Other callers keep their own counts. The shed is immediate (3→0, 2→0, or 1→0). There is no step down. The route timeout is only on the 0-attempt rule. Routes at 1, 2, or 3 attempts keep `perTryTimeout` and have no route timeout.
 
-Restore is a ramp, so a recovered edge does not jump straight back to 3. While any edge of a callee is at 0, that callee's inbound rejection rate (`Δ(5xx + resets) / Δtotal`) is the fallback, because rpr is ~0 while retries are off. The 0-attempt route's timeout is what produces those resets when the callee is slow. The 0→1 step uses its own bar, `reenable_rejection` **0.10**, not `rejection_threshold` 0.20: a full interval strictly under 0.10 moves every 0-attempt edge of that callee to **1** attempt (full `retryOn` + `perTryTimeout`), not to 3. A sample at or above 0.10 resets that streak. `rejection_threshold` 0.20 stays the Algorithm 1 bar for rejection mode. An edge that never left 3 keeps its rpr streak. Climbs from 1 and 2 stay on rpr.
+Restore is a ramp, so a recovered edge does not jump straight back to 3. While any edge of a callee is at 0, that callee's inbound rejection rate (`Δ(5xx + resets) / Δtotal`) is the fallback, because rpr is ~0 while retries are off. The 0-attempt route's timeout is what produces those resets when the callee is slow. The 0→1 step uses its own bar, `reenable_rejection` **0.10**, not `rejection_threshold` 0.20: rejection strictly under 0.10 for the quiet time below moves every 0-attempt edge of that callee to **1** attempt (full `retryOn` + `perTryTimeout`), not to 3. A sample at or above 0.10 resets that streak. `rejection_threshold` 0.20 stays the Algorithm 1 bar for rejection mode. An edge that never left 3 keeps its rpr streak. Climbs from 1 and 2 stay on rpr.
 
-From 1 or 2, the edge is watched on rpr again. The climb bar is the rpr that still projects to 0.5 at 3 attempts, assuming retries scale with the cap (`rpr_now × 3 / attempts_now`). Rounded to two decimals that is **0.17 at 1 attempt** and **0.33 at 2**. A full interval at or under the bar adds one attempt. A full interval above 0.5 sheds to 0. In between, the attempt count holds and both streaks reset. Reaching 3 puts the caller back on the default route. Each edge ramps on its own.
+From 1 or 2, the edge is watched on rpr again. The climb bar is the rpr that still projects to 0.5 at 3 attempts, assuming retries scale with the cap (`rpr_now × 3 / attempts_now`). Rounded to two decimals that is **0.17 at 1 attempt** and **0.33 at 2**. Quiet time at or under the bar adds one attempt. Quiet time above 0.5 sheds to 0. In between, the attempt count holds and both streaks reset. Reaching 3 puts the caller back on the default route. Each edge ramps on its own.
+
+| Step | Condition | Quiet time |
+|---|---|---|
+| 0 → 1 | inbound rejection under 0.10 | 30 s (`interval_samples`) |
+| 1 → 2 | rpr ≤ 0.17 | 15 s (`CLIMB_INTERVAL_SECONDS`) |
+| 2 → 3 | rpr ≤ 0.33 | 15 s (`CLIMB_INTERVAL_SECONDS`) |
+| any → 0 (shed) | rpr > 0.5 | 30 s (`interval_samples`) |
+
+The whole ramp from 0 to 3 now takes at least 60 s (was 90 s). The 15 s value is a constant in `retryguard.py`, not a YAML key.
 
 `ON→OFF` and `OFF→ON` stay the shed and the 0→1 step, so the toggle parser still matches. `OFF→ON` logs `attempts=1`. Climbs log `1→2` and `2→3` and are not toggle events. The name field is `caller->target` on an edge line and the service name on a rejection line:
 
