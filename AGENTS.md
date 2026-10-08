@@ -273,11 +273,31 @@ pip install pyyaml   # once
 # /tmp has a sticky bit — if a previous run was by a different Linux user, their
 # files block SCP uploads. sudo rm is a no-op when files don't exist.
 ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp/rg_retryguard.sh /tmp/rg_envoy_retry.sh /tmp/rg_resource_usage.sh /tmp/rg_topfull_throttle.sh /tmp/rg_locust_launch.sh /tmp/envoy_retry_params.json"
+```
 
+**After the cool-off, before `run_scenario.py`:** stop leftover writers, then confirm the live log directory stays empty. The previous run's cleanup already stops Locust and the master processes and copies that run's folder. The runner does not repeat that stop. `clear_logs` only deletes files in the live `src/logs` directory, and a collector that is still running creates them again on its next poll. Locust is on the load VM and keeps sending until it is stopped. Do not delete `experiments/results/` or a finished `results/<log_folder>/`.
+
+1. Stop Locust, the same way a finished run does: `ssh topfull-load "tmux kill-server 2>/dev/null; pkill -9 -f '[l]ocust' 2>/dev/null; true"`
+2. Stop the master processes, the same way a finished run does: mesh collector, throttle collector, CPU collector, RetryGuard, proxy, TopFull, and Ray.
+   ```powershell
+   ssh topfull-master "pkill -f '[m]etric_collector.py' 2>/dev/null; pkill -f '[d]eploy_rl.py' 2>/dev/null; pkill -f '[p]roxy_online_boutique' 2>/dev/null; pkill -f '[r]etryguard.py' 2>/dev/null; pkill -f '[e]nvoy_retry_collector.py' 2>/dev/null; pkill -f '[r]esource_usage_collector.py' 2>/dev/null; pkill -f '[t]opfull_throttle_collector.py' 2>/dev/null; sleep 2; pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; tmux kill-server 2>/dev/null; true"
+   ```
+3. Confirm both hosts are clear. Any output other than the `-clear` line means a process is still alive. Do not continue.
+   ```powershell
+   ssh topfull-load "pgrep -af '[l]ocust' || echo locust-clear"
+   ssh topfull-master "pgrep -af '[m]etric_collector.py|[d]eploy_rl.py|[p]roxy_online_boutique|[r]etryguard.py|[e]nvoy_retry_collector.py|[r]esource_usage_collector.py|[t]opfull_throttle_collector.py' || echo master-clear"
+   ```
+4. Clear the live log directory: `ssh topfull-master "rm -f /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs/*.csv /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs/*.log"`
+5. Wait two seconds and list that directory. If a `.csv` or `.log` is back, a writer is still alive. Do not start the run.
+   ```powershell
+   ssh topfull-master "sleep 2; ls /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs"
+   ```
+
+```powershell
 python experiments/run_scenario.py experiments/configs/scenario_1_baseline.yaml
 ```
 
-The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, `resource_usage_collector.py`, and `topfull_throttle_collector.py` from this repo onto master before those processes start. Results go to `results_base_path/<log_folder>/` **on master**. The runner's printed `scp` command already routes to the correct `campaign_48/<scenario_subfolder>/` (e.g. `S2_sustained_overload/`) based on the scenario — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md).
+The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, `resource_usage_collector.py`, and `topfull_throttle_collector.py` from this repo onto master before those processes start. It clears `src/logs` again at startup. That second clear is safe only when step 5 above showed an empty directory. Results go to `results_base_path/<log_folder>/` **on master**. The runner's printed `scp` command already routes to the correct `campaign_48/<scenario_subfolder>/` (e.g. `S2_sustained_overload/`) based on the scenario — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md).
 
 **Before repeating a scenario:** bump `run_number` and change `log_folder` in the YAML, or the new run will overwrite the folder **on master**. Completed campaign slots are run4–6 (S1–S4), run3–5 (S5), run1–3 (S6). Post-campaign checkpoints (usable): S1 baseline **run24** (YAML now **run25**), S1 RG **run7** (YAML **run8**), S2 baseline **run23** (YAML **run24**), S2 RG **run12** (YAML **run13**), S3 baseline **run9** (YAML **run10**), S3 RG **run8** (YAML **run9**); earlier e2-8 / §7b / Locust-truncated S1 run23 folders remain historical. S6 YAMLs are at **run4**. Other S4/S5 YAMLs still point at the next free campaign-style slot (run7 / S5 run6) unless a later session bumped them. Never reuse August `run1–3` (S1–S4) or S5 `run1–2`.
 

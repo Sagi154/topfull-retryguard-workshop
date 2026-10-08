@@ -29,13 +29,31 @@ Host topfull-load
 ## Running an experiment
 
 ```powershell
-# From the repo root
+# From the repo root, after the leftover stop below
 python experiments/run_scenario.py experiments/configs/scenario_2_baseline.yaml
 ```
 
+After the cool-off, and before that command, stop leftover writers and confirm the live log directory stays empty. A finished run already stops its processes and copies its own folder. This runner does not stop a writer that is still alive. Its log clear only deletes files, and a live collector creates them again. Do not delete `experiments/results/` or a finished `results/<log_folder>/`. Clear only `/home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs`.
+
+1. Stop Locust: `ssh topfull-load "tmux kill-server 2>/dev/null; pkill -9 -f '[l]ocust' 2>/dev/null; true"`
+2. Stop the master processes (mesh collector, throttle collector, CPU collector, RetryGuard, proxy, TopFull, Ray):
+   ```powershell
+   ssh topfull-master "pkill -f '[m]etric_collector.py' 2>/dev/null; pkill -f '[d]eploy_rl.py' 2>/dev/null; pkill -f '[p]roxy_online_boutique' 2>/dev/null; pkill -f '[r]etryguard.py' 2>/dev/null; pkill -f '[e]nvoy_retry_collector.py' 2>/dev/null; pkill -f '[r]esource_usage_collector.py' 2>/dev/null; pkill -f '[t]opfull_throttle_collector.py' 2>/dev/null; sleep 2; pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; tmux kill-server 2>/dev/null; true"
+   ```
+3. Confirm both hosts are clear. Any output other than the `-clear` line means stop. Do not launch.
+   ```powershell
+   ssh topfull-load "pgrep -af '[l]ocust' || echo locust-clear"
+   ssh topfull-master "pgrep -af '[m]etric_collector.py|[d]eploy_rl.py|[p]roxy_online_boutique|[r]etryguard.py|[e]nvoy_retry_collector.py|[r]esource_usage_collector.py|[t]opfull_throttle_collector.py' || echo master-clear"
+   ```
+4. Clear the live directory: `ssh topfull-master "rm -f /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs/*.csv /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs/*.log"`
+5. Wait two seconds and list it. If a `.csv` or `.log` is back, a writer is still alive. Do not launch.
+   ```powershell
+   ssh topfull-master "sleep 2; ls /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs"
+   ```
+
 The runner will:
 1. Check cluster health (SSH to master, verify nodes + pods)
-2. Clear previous logs on master
+2. Clear previous logs on master again. That clear is safe only when step 5 above left the directory empty.
 3. Apply topology constraints (`kubectl scale` or CPU limit)
 4. Start proxy → deploy_rl → metric_collector in tmux sessions on master
 5. Optionally start RetryGuard
@@ -72,7 +90,7 @@ The runner will:
 
 ## Repeating runs
 
-Increment `run_number` and update `log_folder` before each repeat:
+After the cool-off, run the leftover stop in [Running an experiment](#running-an-experiment) before the next launch. Then increment `run_number` and update `log_folder`:
 
 ```yaml
 run_number: 2

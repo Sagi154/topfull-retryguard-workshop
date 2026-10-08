@@ -175,7 +175,7 @@ experiments/
 Runs on Windows. Reads a YAML config and orchestrates the entire experiment over SSH. Steps in order:
 
 1. **Pre-flight** — verifies SSH reachability to master and loadgen, all K8s nodes Ready, all pods Running
-2. **Clear logs** — wipes `logs/*.csv` on master so results don't bleed across runs
+2. **Clear logs** — wipes the live `src/logs/*.csv` and `*.log` on master. This does not stop a collector or Locust that is still running. Those processes recreate the files and keep writing the previous load into the new run. Do the leftover stop in [Repeating runs](#repeating-runs) after the cool-off and before this launch.
 3. **Apply constraints** — runs `kubectl scale` or `kubectl patch` cpu_limit on the appropriate deployment; auto-detects and records original replica counts for clean restore
 4. **Start master stack** — SCPs LF-safe start scripts to master, launches proxy → deploy_rl → metric_collector into named tmux sessions; verifies `deploy_rl.py` actually started
 5. **Start Envoy retry collector** — if `envoy_retry_collector.enabled: true` (default in all 14 configs): first idempotently patches `frontend`/`checkoutservice` Deployments with the `sidecar.istio.io/statsInclusionRegexps` annotation so Envoy actually exposes retry counters (Istio hides them by default — see [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md) Gap 3), then SCPs params JSON and starts `envoy_retry_collector.py` in tmux session `envoyretry` (both baseline and RetryGuard arms)
@@ -212,6 +212,22 @@ Before each repeat:
    ```powershell
    ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp/rg_retryguard.sh /tmp/rg_locust_launch.sh"
    ```
+3. After the cool-off, and before `run_scenario.py`, stop leftover writers and confirm the live log directory stays empty. The finished run has already stopped its processes and copied its own folder. The runner does not stop a writer that is still alive, and its log clear only deletes files. Do not delete `experiments/results/` or a finished `results/<log_folder>/`. The only directory to clear is `/home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs`.
+   1. Stop Locust: `ssh topfull-load "tmux kill-server 2>/dev/null; pkill -9 -f '[l]ocust' 2>/dev/null; true"`
+   2. Stop the master processes (mesh collector, throttle collector, CPU collector, RetryGuard, proxy, TopFull, Ray):
+      ```powershell
+      ssh topfull-master "pkill -f '[m]etric_collector.py' 2>/dev/null; pkill -f '[d]eploy_rl.py' 2>/dev/null; pkill -f '[p]roxy_online_boutique' 2>/dev/null; pkill -f '[r]etryguard.py' 2>/dev/null; pkill -f '[e]nvoy_retry_collector.py' 2>/dev/null; pkill -f '[r]esource_usage_collector.py' 2>/dev/null; pkill -f '[t]opfull_throttle_collector.py' 2>/dev/null; sleep 2; pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; tmux kill-server 2>/dev/null; true"
+      ```
+   3. Confirm both hosts are clear. Any output other than the `-clear` line means stop. Do not launch.
+      ```powershell
+      ssh topfull-load "pgrep -af '[l]ocust' || echo locust-clear"
+      ssh topfull-master "pgrep -af '[m]etric_collector.py|[d]eploy_rl.py|[p]roxy_online_boutique|[r]etryguard.py|[e]nvoy_retry_collector.py|[r]esource_usage_collector.py|[t]opfull_throttle_collector.py' || echo master-clear"
+      ```
+   4. Clear the live directory: `ssh topfull-master "rm -f /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs/*.csv /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs/*.log"`
+   5. Wait two seconds and list it. If a `.csv` or `.log` is back, a writer is still alive. Do not launch.
+      ```powershell
+      ssh topfull-master "sleep 2; ls /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs"
+      ```
 
 ### YAML config schema
 
