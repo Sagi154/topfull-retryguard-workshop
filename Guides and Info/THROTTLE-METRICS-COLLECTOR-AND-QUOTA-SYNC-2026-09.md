@@ -81,7 +81,7 @@ Hardening that followed the first wiring: `poll_once` always writes rows on scra
 
 S2 RetryGuard run7 showed a real mismatch: Kubernetes still had leftover **checkout 100m**, while Detector used **quota 1000**. Layer B never saw overload. Spec: [2026-09-09-topfull-quota-k8s-sync-design.md](../docs/superpowers/specs/2026-09-09-topfull-quota-k8s-sync-design.md).
 
-Paper table is baseline; S3/S4 use **one** `cpu_limit_fraction: 0.1`; the runner keeps K8s and Detector on the same numbers. Locust user counts were not auto-adjusted.
+Paper table is baseline. September S3/S4 configs used **one** `cpu_limit_fraction: 0.1`; the runner keeps K8s and Detector on the same numbers. Current S4B sets absolute `cpu_limit_millicores: 40` on `emailservice`. Locust user counts were not auto-adjusted.
 
 Implemented on `feat/topfull-quota-k8s-sync` (off the throttle-collector branch), then fast-forwarded into `feat/topfull-throttle-collector` (`fa0d795`). Feature branch and worktree deleted after the local merge.
 
@@ -92,7 +92,7 @@ Implemented on `feat/topfull-quota-k8s-sync` (off the throttle-collector branch)
 5. Layer B `quota_for` uses that map (never default 200).
 6. S3/S4 YAMLs + docs (`experiments/README.md`, [PHASE5-EXPERIMENTS-GUIDE.md](PHASE5-EXPERIMENTS-GUIDE.md), [SCENARIOS-GUIDE.md](SCENARIOS-GUIDE.md), `AGENTS.md`, [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md)).
 
-Effective bottlenecks: S3 **100m**, S4A **50m** (not comparable to `campaign_48` S4A at absolute 100m), S4B `emailservice` **40m**.
+Effective bottlenecks from that fraction: S3 **100m**, S4A **50m** (not comparable to `campaign_48` S4A at absolute 100m). Current S4B sets absolute `cpu_limit_millicores: 40` on `emailservice`.
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 

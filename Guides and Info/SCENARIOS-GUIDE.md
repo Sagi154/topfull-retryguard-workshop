@@ -288,13 +288,13 @@ Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used payments
 
 ### Load setup
 
-Same as Scenario 3 — normal-to-moderate Locust load, full call chain exercised. Both arms use `cpu_limit_fraction: 0.1` of the paper quota: **4A** productcatalog → **50m** (paper 500m; not comparable to `campaign_48/`’s absolute 100m), **4B** `emailservice` → **40m** (Checkout-mediated: Frontend → Checkout → Email).
+Same as Scenario 3 — normal-to-moderate Locust load, full call chain exercised. **4A** productcatalog → **50m** (paper 500m; not comparable to `campaign_48/`’s absolute 100m). **4B** sets absolute `cpu_limit_millicores: 40` on `emailservice` (Checkout-mediated: Frontend → Checkout → Email).
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ### How to run
 
-The runner reconciles to paper, applies the fraction on the target service, syncs Detector, and restores paper limits after the run for both 4A and 4B. Finish all runs for one position before starting the other.
+The runner reconciles to paper, applies the configured cap on the target service (4B: absolute `cpu_limit_millicores: 40` on `emailservice`), syncs Detector, and restores paper limits after the run for both 4A and 4B. Finish all runs for one position before starting the other.
 
 **Run 4A — ProductCatalog bottleneck (gateway-adjacent):**
 

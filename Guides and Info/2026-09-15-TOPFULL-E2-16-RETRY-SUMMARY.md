@@ -143,7 +143,7 @@ Unconstrained S2 will keep preferring frontend. To get other services into `dete
 | Option | How | What TopFull does |
 |---|---|---|
 | **S3** | `checkoutservice` at `cpu_limit_fraction: 0.1` (paper 1000m → 100m); quota↔K8s sync already fixed | Detector should see checkout overloaded; cluster APIs that touch checkout |
-| **S4A / S4B** | productcatalog / `emailservice` at 40m | Topology-position story; non-frontend overload by design |
+| **S4A / S4B** | productcatalog at 50m; `emailservice` at absolute `cpu_limit_millicores: 40` | Topology-position story; non-frontend overload by design |
 | Soft constrain catalog on “S2-like” load | e.g. fraction 0.5 on `productcatalogservice` (α already 0.95) | Blurs S2 vs S3; use only as a diagnostic |
 | Include sidecar CPU in Detector | Patch TopFull `resource_collector` to count istio-proxy | Most “honest” for mesh tax; larger code/paper deviation; needs quota recalibration |
 

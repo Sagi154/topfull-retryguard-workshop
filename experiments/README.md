@@ -176,7 +176,9 @@ scale_constraints:
 
 ### scale_constraints — method: cpu_limit
 
-Bottlenecks use a **fraction of the TopFull paper CPU quota** (not a hard-coded millicore string). Paper baselines live in `topfull_cpu_quotas.py` (e.g. checkout/payment **1000m**, productcatalog **500m**, default **1000m**). Absolute `cpu_limit: "…"` in YAML is rejected at run start.
+Bottlenecks use `method: cpu_limit`. A `cpu_limit_fraction` is a fraction of the TopFull paper CPU quota (not a hard-coded millicore string). Paper baselines live in `topfull_cpu_quotas.py` (e.g. checkout/payment **1000m**, productcatalog **500m**, default **1000m**). Absolute `cpu_limit: "…"` in YAML is rejected at run start.
+
+S4B sets absolute `cpu_limit_millicores: 40` on `emailservice`.
 
 ```yaml
 scale_constraints:
@@ -187,7 +189,7 @@ scale_constraints:
     container: server         # container name inside the pod
 ```
 
-With fraction `0.1`: S3 checkout → **100m**, S4A productcatalog → **50m** (not comparable to `campaign_48/`’s absolute 100m), S4B `emailservice` → **40m** (Checkout-mediated: Frontend → Checkout → Email). Before load, the runner reconciles every Boutique service to paper limits, applies the fraction on the bottleneck, writes `topfull_run_quotas.json`, and patches Detector to load it. Teardown deletes the JSON and reconciles K8s back to paper (not “remove the limit”).
+With fraction `0.1`: S3 checkout → **100m**, S4A productcatalog → **50m** (not comparable to `campaign_48/`’s absolute 100m). S4B sets absolute `cpu_limit_millicores: 40` on `emailservice` (Checkout-mediated: Frontend → Checkout → Email). Before load, the runner reconciles every Boutique service to paper limits, applies the configured bottleneck cap, writes `topfull_run_quotas.json`, and patches Detector to load it. Teardown deletes the JSON and reconciles K8s back to paper (not “remove the limit”).
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 

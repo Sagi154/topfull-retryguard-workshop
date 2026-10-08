@@ -274,7 +274,7 @@ If it doesn't recover within a few minutes, follow the troubleshooting table in 
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
-Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit` + **`cpu_limit_fraction: 0.1`** (not absolute `"100m"`), and the runner reconciles K8s + Detector to paper quotas before/after each run — a leftover checkout `100m` from an older S3/S4 is healed and must not be treated as the S2 baseline. New S4A (**50m**) is not comparable to `campaign_48/` S4A (absolute 100m). Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
+Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit`. S3 and S4A use **`cpu_limit_fraction: 0.1`** (not absolute `"100m"`). S4B sets absolute `cpu_limit_millicores: 40` on `emailservice`. The runner reconciles K8s + Detector to paper quotas before/after each run — a leftover checkout `100m` from an older S3/S4 is healed and must not be treated as the S2 baseline. New S4A (**50m**) is not comparable to `campaign_48/` S4A (absolute 100m). Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
 
 ---
 

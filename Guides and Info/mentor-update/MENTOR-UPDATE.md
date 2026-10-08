@@ -153,11 +153,13 @@ Only `checkoutservice` is CPU-limited; the system-wide view and the checkout-spe
 
 Additional endpoint-level charts: `charts_gallery/S3_targeted_bottleneck/`.
 
-### 4.4 Scenario 4 — Topology Position (A: ProductCatalog vs B: Email)
+### 4.4 Scenario 4 — Topology Position (A: ProductCatalog vs B: Payment)
+
+Same constraint method, different position in the call graph — A is gateway-adjacent (Frontend calls it directly), B is Checkout-mediated (Frontend → Checkout → Payment).
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
-Same constraint method, different position in the call graph — A is gateway-adjacent (Frontend calls it directly), B is Checkout-mediated (Frontend → Checkout → Email).
+Current S4B constrains `emailservice` at 40m (Checkout-mediated: Frontend → Checkout → Email).
 
 ![S4 Goodput, A vs B side-by-side](charts/S4_topology_position/total_goodput.png)
 ![S4 P95 latency, A vs B side-by-side](charts/S4_topology_position/total_p95_latency.png)

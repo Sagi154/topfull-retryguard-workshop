@@ -319,7 +319,7 @@ infra:
 
 ### Constraint methods for Scenarios 3/4
 
-Our setup has all Online Boutique services at **1 replica** (set by `instance_scaling.py`). This means `kubectl scale --replicas=1` would be a no-op. For Scenarios 3 and 4, the configs use `method: cpu_limit` with **`cpu_limit_fraction: 0.1`** — a tenth of that service’s TopFull paper quota creates genuine local overload without touching replica counts. Absolute millicore strings (`cpu_limit: "100m"`) are rejected. Effective limits: S3 **100m**, S4A **50m** (paper productcatalog is 500m), S4B `emailservice` **40m**. New S4A runs are **not** comparable to `campaign_48/` S4A (which used absolute 100m). The runner reconciles the cluster to paper quotas before/after each run and feeds the same effective map into Detector via `topfull_run_quotas.json`.
+Our setup has all Online Boutique services at **1 replica** (set by `instance_scaling.py`). This means `kubectl scale --replicas=1` would be a no-op. For Scenarios 3 and 4, the configs use `method: cpu_limit`. S3 and S4A use **`cpu_limit_fraction: 0.1`** — a tenth of that service’s TopFull paper quota creates genuine local overload without touching replica counts. Absolute millicore strings (`cpu_limit: "100m"`) are rejected. Effective limits from that fraction: S3 **100m**, S4A **50m** (paper productcatalog is 500m). S4B sets absolute `cpu_limit_millicores: 40` on `emailservice`. New S4A runs are **not** comparable to `campaign_48/` S4A (which used absolute 100m). The runner reconciles the cluster to paper quotas before/after each run and feeds the same effective map into Detector via `topfull_run_quotas.json`.
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
