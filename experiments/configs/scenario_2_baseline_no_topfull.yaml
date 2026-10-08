@@ -1,28 +1,38 @@
-# Slot run155. Run154 was the ceiling snapshot (gate failed).
+# Scenario 2 | Both controllers off
+# Locked 2026-10-08 from both-off run 89. Same counts on every S2 variant.
+# Paper-C1: frontend 1150m x 4 (HPA), catalog HPA max 1, other services x 1,
+# sidecar request 100m, proxyCPULimit unset. Millicores are scale_constraints.
+# run_number stays 162.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 155
+run_number: 162
 description: >
-  Both controllers off. Paper-C1 pin. Ceiling snapshot, mix 150/30/150/250/250.
-  See docs/superpowers/specs/2026-10-05-600-rps-ceiling-snapshot-design.md.
+  Locked S2 mix from both-off run 89: 275/90/100/90/5, spawn_rate 50, Paper-C1.
+  Unused slot run162. Checkout and recommendations rolled before the hold.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   150
-    postcheckout: 30
-    getcart:      150
-    postcart:     250
-    emptycart:    250
+    getproduct:   275
+    postcheckout: 90
+    getcart:      100
+    postcart:     90
+    emptycart:    5
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
-# Stay on the Paper-C1 pin. Do not reconcile back to the default paper table.
+# Paper-C1 millicores. Frontend 1150m is the HPA pin, not a scale_constraint.
 paper_cpu_reconcile: false
+
+restart_before_hold:
+  deployments:
+  - checkoutservice
+  - recommendationservice
+  settle_seconds: 60
 
 scale_constraints:
   - deployment: checkoutservice
@@ -104,7 +114,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_sustained_overload_run155
+log_folder: baseline_no_topfull_sustained_overload_run162
 
 infra:
   master_ssh_host: topfull-master

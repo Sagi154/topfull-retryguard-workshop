@@ -71,7 +71,7 @@ These are the live signals on `topfull-master` **during a run**. None of them ar
 
 | Signal | Source | Meaning |
 |---|---|---|
-| **Threshold** (the cap the RL set) | `rate_config/<api>` files, or `GET :8090/thresholds` | Current admitted-rate limit per Locust API (req/s). This **is** TopFull’s decision. |
+| **Threshold** (the cap the RL set) | `rate_config/<api>` files, or `GET :8090/thresholds` | Current admitted-rate limit per Locust API (req/s). This **is** TopFull’s decision, except a live **10000**, which is the passthrough (no cap), and a live **0**, which is an empty read. Leave both off a per-second series. |
 | **Admitted RPS** | `GET :8090/stats` | What the proxy actually let through per API that second — not what Locust saw complete. |
 | **Overloaded-service list / RL actions** | stdout of tmux session `toprl` (`deploy_rl.py`) | Printed only, not persisted — the messiest signal. |
 | **Completed `RPS` / Fail / Goodput** (proxy) | Locust CSVs (already collected) | What came back to the client. Weak proxy for admitted load, **not** the cap itself. |
@@ -255,7 +255,9 @@ Same pattern as `resource_usage_collector.py` / `envoy_retry_collector.py`. Coll
 
 `threshold_fresh` / `admitted_fresh` are `1` if that column was measured this tick, `0` if carried forward (or still unknown). After the split cadence, most `0`s under the default are "not attempted this tick by design," not "attempted and timed out." Analysts who need a true per-second admitted rate should still filter `admitted_fresh==1`. Threshold last-good is the sticky cap. Do not introduce a third freshness value.
 
-Derived later: `action ≈ (threshold_t / threshold_{t-1}) − 1` on APIs that moved; `tightness = admitted_rps / threshold` (prefer rows with both fresh flags set).
+**Per-second cap series.** The CSV still stores the raw `threshold`, including 10000. When the cap is drawn or compared with other 1 s metrics, a live **10000** is no cap and is left off the series. It is the proxy's passthrough sentinel, not a decision, and a point at 10000 sets the axis far above the caps TopFull actually installs. A live **0** is an empty read and is left off the same way. Keep the last usable cap for at most 6 s between live reads (the live scrape defaults to every 5 s). Do not carry it across a longer hole, and do not keep the repeated value after live reads stop.
+
+Derived later, only on seconds where the cap is a real number under that rule: `action ≈ (threshold_t / threshold_{t-1}) − 1` on APIs that moved; `tightness = admitted_rps / threshold` (prefer rows with both fresh flags set). A passthrough or an empty read is not an input to either ratio.
 
 **Follow-up not implemented:** a longer-wait **background `/stats` thread** was considered for denser admitted samples under S2 load (TopFull’s own `Detector.current_rps()` has no timeout). It is **not** in this collector. If `admitted_fresh==1` stays sparse after the parallel + last-good change, that side thread is the next lever — not a longer timeout on the 1 s loop (that would re-stall Layer B).
 

@@ -1,23 +1,28 @@
 # Scenario 2 | TopFull RL ON, RetryGuard OFF
-# Next free slot run37. Last completed mix was 360/140/180/5/5.
+# Locked 2026-10-08 from both-off run 89. Same counts on every S2 variant.
+# Paper-C1: frontend 1150m x 4 (HPA), catalog HPA max 1, other services x 1,
+# sidecar request 100m, proxyCPULimit unset. Millicores are scale_constraints.
+# run_number stays 41.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
-run_number: 37
-description: Next free slot after the postcart-5 holds. TopFull RL ON, RetryGuard OFF.
-  Frontend HPA 4/4, catalog HPA 1/1. Checkout and recommendations rolled before the hold.
+run_number: 41
+description: >
+  Locked S2 mix from both-off run 89: 275/90/100/90/5, spawn_rate 50, Paper-C1.
+  Unused slot run41. Checkout and recommendations rolled before the hold.
 duration_seconds: 600
 locust:
   user_counts:
-    getproduct: 360
-    postcheckout: 140
-    getcart: 180
-    postcart: 5
+    getproduct: 275
+    postcheckout: 90
+    getcart: 100
+    postcart: 90
     emptycart: 5
   spawn_rate: 50
   scripts:
   - online_boutique_create_v2.sh
+# Paper-C1 millicores. Frontend 1150m is the HPA pin, not a scale_constraint.
 paper_cpu_reconcile: false
 restart_before_hold:
   deployments:
@@ -97,7 +102,7 @@ resource_usage_collector:
 topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
-log_folder: baseline_topfull_no_retryguard_sustained_overload_run37
+log_folder: baseline_topfull_no_retryguard_sustained_overload_run41
 infra:
   master_ssh_host: topfull-master
   loadgen_ssh_host: topfull-load

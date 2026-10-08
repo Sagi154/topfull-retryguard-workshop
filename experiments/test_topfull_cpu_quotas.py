@@ -264,17 +264,50 @@ class TestCpuLimitMillicoresFor(unittest.TestCase):
             q.cpu_limit_millicores_for({"deployment": "checkoutservice"})
 
 
-class TestBothOffYamlRestored(unittest.TestCase):
-    def test_next_slot_is_paper_and_unused(self):
+class TestS2BothOffYamlLocked(unittest.TestCase):
+    """S2 both-off stays on the run 89 mix and the Paper-C1 table."""
+
+    def test_run89_mix_and_paper_c1_stay(self):
         import yaml
         from pathlib import Path
 
         path = Path(__file__).resolve().parent / "configs" / "scenario_2_baseline_no_topfull.yaml"
         cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
-        self.assertTrue(cfg.get("paper_cpu_reconcile", True))
-        self.assertEqual(cfg.get("scale_constraints") or [], [])
-        self.assertEqual(cfg["run_number"], 87)
-        self.assertEqual(cfg["log_folder"], "baseline_no_topfull_sustained_overload_run87")
+        self.assertIs(cfg["paper_cpu_reconcile"], False)
+        self.assertEqual(cfg["run_number"], 162)
+        self.assertEqual(
+            cfg["log_folder"], "baseline_no_topfull_sustained_overload_run162"
+        )
+        self.assertEqual(
+            cfg["locust"]["user_counts"],
+            {
+                "getproduct": 275,
+                "postcheckout": 90,
+                "getcart": 100,
+                "postcart": 90,
+                "emptycart": 5,
+            },
+        )
+        self.assertEqual(cfg["locust"]["spawn_rate"], 50)
+        got = {
+            c["deployment"]: c["cpu_limit_millicores"]
+            for c in cfg["scale_constraints"]
+        }
+        self.assertEqual(
+            got,
+            {
+                "checkoutservice": 800,
+                "recommendationservice": 1150,
+                "productcatalogservice": 800,
+                "cartservice": 800,
+                "currencyservice": 770,
+                "shippingservice": 770,
+                "adservice": 1150,
+                "paymentservice": 155,
+                "emailservice": 120,
+                "redis-cart": 540,
+            },
+        )
         self.assertIs(cfg["topfull_rl"]["enabled"], False)
         self.assertIs(cfg["retryguard"]["enabled"], False)
 

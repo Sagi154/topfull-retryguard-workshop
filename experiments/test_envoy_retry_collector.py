@@ -93,6 +93,8 @@ class TestParseInbound(unittest.TestCase):
         self.assertEqual(inbound["4xx"], 15)
         self.assertEqual(inbound["5xx"], 5)
         self.assertEqual(inbound["resets"], 0)
+        for col in ("grpc_2", "grpc_4", "grpc_13", "grpc_14"):
+            self.assertEqual(inbound[col], 0)
         self.assertEqual(inbound["rq_time_sum_ms"], 9000)
         self.assertEqual(inbound["rq_time_count"], 200)
         import json
@@ -109,7 +111,8 @@ class TestParseInbound(unittest.TestCase):
             inbound,
             {
                 "total": 0, "2xx": 0, "4xx": 0, "5xx": 0, "resets": 0,
-                "rq_time_sum_ms": 0, "rq_time_count": 0, "rq_time_buckets": "",
+                "rq_time_sum_ms": 0, "rq_time_count": 0, "grpc_2": 0, "grpc_4": 0, "grpc_13": 0, "grpc_14": 0,
+                "rq_time_buckets": "",
             },
         )
 
@@ -123,6 +126,41 @@ class TestParseInbound(unittest.TestCase):
         self.assertEqual(inbound["rq_time_sum_ms"], 250)
         self.assertEqual(inbound["rq_time_count"], 10)
         self.assertEqual(inbound["rq_time_buckets"], "")
+
+class TestDestinationGrpcStatus(unittest.TestCase):
+    def test_sums_completed_grpc_failures_only(self):
+        text = "\n".join([
+            'istio_requests_total{reporter="destination",response_code="200",grpc_response_status="0"} 100',
+            'istio_requests_total{reporter="destination",response_code="200",grpc_response_status="2"} 5',
+            'istio_requests_total{reporter="destination",response_code="200",grpc_response_status="4"} 40',
+            'istio_requests_total{reporter="destination",response_code="200",grpc_response_status="13"} 3',
+            'istio_requests_total{reporter="destination",response_code="200",grpc_response_status="14"} 2',
+            'istio_requests_total{reporter="destination",response_code="200",grpc_response_status="1"} 9',
+            'istio_requests_total{reporter="destination",response_code="0",grpc_response_status="4"} 70',
+            'istio_requests_total{reporter="source",response_code="200",grpc_response_status="4"} 80',
+            "envoy_http_inbound_0_0_0_0_8080_downstream_rq_total{} 200",
+            'envoy_http_inbound_0_0_0_0_8080_downstream_rq_rx_reset{} 70',
+        ])
+        inbound = erc.parse_inbound(text)
+        self.assertEqual(
+            (inbound["grpc_2"], inbound["grpc_4"], inbound["grpc_13"], inbound["grpc_14"]),
+            (5, 40, 3, 2),
+        )
+        self.assertEqual(inbound["resets"], 70)
+        self.assertEqual(inbound["total"], 200)
+
+    def test_sums_across_pods(self):
+        summed = erc.sum_inbound_maps([
+            {"total": 10, "2xx": 10, "4xx": 0, "5xx": 0, "resets": 1,
+             "rq_time_sum_ms": 0, "rq_time_count": 0, "grpc_4": 4, "grpc_2": 0, "grpc_13": 0, "grpc_14": 0,
+             "rq_time_buckets": ""},
+            {"total": 20, "2xx": 20, "4xx": 0, "5xx": 0, "resets": 2,
+             "rq_time_sum_ms": 0, "rq_time_count": 0, "grpc_4": 6, "grpc_2": 0, "grpc_13": 0, "grpc_14": 0,
+             "rq_time_buckets": ""},
+        ])
+        self.assertEqual(summed["grpc_4"], 10)
+        self.assertEqual(summed["resets"], 3)
+
 
 class TestParsePromLabels(unittest.TestCase):
     def test_empty_braces(self):
@@ -311,6 +349,11 @@ class TestWriteInboundCsv(unittest.TestCase):
             self.assertEqual(rows[1]["total"], "150")
             self.assertIn("rq_time_buckets", rows[0])
             self.assertEqual(rows[0]["rq_time_buckets"], '{"10":50,"+Inf":100}')
+            self.assertEqual(rows[0]["grpc_4"], "0")
+            self.assertEqual(
+                list(rows[0].keys())[-4:], ["grpc_2", "grpc_4", "grpc_13", "grpc_14"]
+            )
+            self.assertNotIn("grpc_5xx", rows[0])
 
 
 class TestPrometheusStatsUrl(unittest.TestCase):

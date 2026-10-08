@@ -16,13 +16,14 @@ description: >
 
 duration_seconds: 300
 
+# Locked 2026-10-08 from both-off run8. Same counts on every S1 variant.
 locust:
   user_counts:
-    getproduct:   50
-    postcheckout: 15
-    getcart:      50
-    postcart:     50
-    emptycart:    50
+    getproduct:   175
+    postcheckout: 30
+    getcart:      70
+    postcart:     90
+    emptycart:    5
   spawn_rate: 50               # Ron's divisor: Locust -r = count / RATE
   scripts:
     - online_boutique_create_v2.sh
@@ -40,6 +41,8 @@ retryguard:
   rejection_threshold: 0.20
   sample_interval_seconds: 1
   interval_samples: 30         # paper default (Sec. 6.2), symmetric ON/OFF
+  retry_metric: edge_rpr
+  retries_threshold: 0.5
 
 # ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
 # Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).

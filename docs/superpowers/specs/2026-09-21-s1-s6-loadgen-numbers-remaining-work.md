@@ -1,5 +1,7 @@
 # Remaining work: S1–S6 methodology, loadgen numbers, YAML rewiring (2026-09-21)
 
+> **Status (2026-10-08):** The [implementation plan](../plans/2026-09-21-s1-s6-methodology-and-calibration-implementation.md) is discontinued at Task 9 step 2a. S1 is locked to both-off run 8 (175/30/70/90/5, `spawn_rate` 50, Paper-C1). S2 is locked to both-off run 89 (275/90/100/90/5, `spawn_rate` 50, Paper-C1). S3, S4, and S6 calibration is later work, outside this tracker. Unchecked boxes below are the historical inventory.
+
 Tracker for the work still deferred in:
 
 - [2026-09-20-ron-nezer-base-migration-design.md](2026-09-20-ron-nezer-base-migration-design.md) §8
@@ -24,7 +26,7 @@ These are context only. They are what the remaining work sits on.
   - `@task()` weight remix patcher exists (`experiments/patch_locust_task_weights.py`)
   - auto-deploy of repo-tracked loadgen scripts wired into `_launch_locust()`
 
-What's still open is everything that depends on **loadgen numbers** and **scenario methodology**, not shape.
+The 2026-09-21 plan's remaining checkboxes are a historical inventory. S1 and S2 numbers are locked (status note above). S3, S4, and S6 calibration is a separate later effort.
 
 ---
 
@@ -33,7 +35,7 @@ What's still open is everything that depends on **loadgen numbers** and **scenar
 **Methodology decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md). Bottleneck-cap half executed as Task 8b (v2).
 
 - [x] Run the 5-run recalibration battery (design doc §3): frontend, checkoutservice, productcatalogservice, paymentservice at 50m under the current Ron-config topology, plus one unconstrained bottleneck reference load — Task 8b, 2026-09-21-v2 (`online_boutique_create_v2.sh`). Task 8's legacy-launcher freeze is superseded.
-- [ ] Re-calibrate S1/S2/S5/S6 per-tag user counts and spawn rate under the Ron-config regime (separate from the battery above — no mechanism dependency, just new numbers) — Task 9. **S1 locked 2026-09-22** (not run as its own hold): getproduct 50, postcheckout 15, getcart 50, postcart 50, emptycart 50, `spawn_rate` 50. Written into both S1 YAMLs. S2 try 1 `…_run24` (100/60/100/50/50), try 2 `…_run25` (200/60/140/50/50), and try 3 `…_run26` (250/60/180/50/50), all divisor 50. A first launch of try 3 died before Locust (CRLF in the deployed v2 script) and was not kept. Try 4 `…_run27` repeated try 3's counts with frontend pinned at 4 replicas (sidecar request 90 m for that hold only, then restored). Try 5 `S2 RetryGuard …_run13` reused try 4's counts with RetryGuard on and frontend pinned at 4 / catalog HPA max 1 — zero ON→OFF (checkout high streak 7/30). Try 6 baseline `…_run28` raised getproduct/getcart to 300/210 (postcheckout stayed 60), same pin — checkout inbound failure 0.30 and 20k frontend→checkout retries; recommendations failure stayed ~0 and currency never overloaded. Try 7 `S2 RetryGuard …_run14` + try 8 baseline `…_run29` used 300/80/180/50/50 with the same pin — both left checkout inbound failure ~0.02 and rec cool (RG streak 6/30; browse uncapped on run14). Try 9 `run_retryguard_no_topfull_sustained_overload_run1` repeated try 6's 300/60/210/50/50 mix with RetryGuard on and TopFull RL off (same pin) — zero ON→OFF (recommendations streak 2/30, inbound failure 0.135; checkout inbound failure 0.003; Layer A threshold stayed 10000). YAML next-free: S2 baseline **run30**, S2 RG **run15**, S2 RetryGuard-without-TopFull **run2**. S6 not started.
+- [ ] S1/S2/S5/S6 per-tag user counts (was Task 9). **Resume path closed 2026-10-08.** S1 is locked to both-off run 8 (175/30/70/90/5, `spawn_rate` 50, Paper-C1). S2 is locked to both-off run 89 (275/90/100/90/5, `spawn_rate` 50, Paper-C1). S5 and S6 stay for a later effort. Historical tries follow. **S1 locked 2026-09-22** (superseded by the run 8 lock): getproduct 50, postcheckout 15, getcart 50, postcart 50, emptycart 50, `spawn_rate` 50. Written into both S1 YAMLs at the time. S2 try 1 `…_run24` (100/60/100/50/50), try 2 `…_run25` (200/60/140/50/50), and try 3 `…_run26` (250/60/180/50/50), all divisor 50. A first launch of try 3 died before Locust (CRLF in the deployed v2 script) and was not kept. Try 4 `…_run27` repeated try 3's counts with frontend pinned at 4 replicas (sidecar request 90 m for that hold only, then restored). Try 5 `S2 RetryGuard …_run13` reused try 4's counts with RetryGuard on and frontend pinned at 4 / catalog HPA max 1 — zero ON→OFF (checkout high streak 7/30). Try 6 baseline `…_run28` raised getproduct/getcart to 300/210 (postcheckout stayed 60), same pin — checkout inbound failure 0.30 and 20k frontend→checkout retries; recommendations failure stayed ~0 and currency never overloaded. Try 7 `S2 RetryGuard …_run14` + try 8 baseline `…_run29` used 300/80/180/50/50 with the same pin — both left checkout inbound failure ~0.02 and rec cool (RG streak 6/30; browse uncapped on run14). Try 9 `run_retryguard_no_topfull_sustained_overload_run1` repeated try 6's 300/60/210/50/50 mix with RetryGuard on and TopFull RL off (same pin) — zero ON→OFF (recommendations streak 2/30, inbound failure 0.135; checkout inbound failure 0.003; Layer A threshold stayed 10000). YAML next-free: S2 baseline **run30**, S2 RG **run15**, S2 RetryGuard-without-TopFull **run2**. S6 not started.
 - [x] Update `experiments/capacity/capacity_frozen.json` / `README.md` from the battery's results — Task 8b freeze (frontend 0.79 low_confidence / checkout 1.34 / payment 0.30 / catalog 5.35 low_confidence). Reference-load path: **three separate**.
 - [x] 2026-09-22 second holds after 8888 Locust fix (`run5`/`run6` frontend; catalog `run4`/`run5`) — Locust CSVs live; **neither service re-frozen** (frontend streak gate fail; catalog recommendations co-saturation / low `n_sat` on midpoint). Freezes left at 0.79 / 5.35. **Decision (2026-09-22): accept and move on** — both failures are structural (frontend queues rather than rejects at 50m; catalog load always fans out through `recommendationservice`), not fixable by another storefront-load number. A real fix needs a method/load-path change, deferred and not scheduled. Task 9 proceeds without a higher-confidence freeze for these two.
 
@@ -54,7 +56,7 @@ Neither Ron's launcher-script numbers nor the 2026-09-20 loadgen-redesign §4 nu
 
 Some scenarios' *mechanism*, not just their load numbers, assumed the old regime.
 
-**Decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md), [ADR-0005](../../adr/0005-productcatalog-hpa-max-replicas-2.md), [ADR-0006](../../adr/0006-absolute-bottleneck-cap-not-fraction.md). Not yet implemented.
+**Decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md), [ADR-0005](../../adr/0005-productcatalog-hpa-max-replicas-2.md), [ADR-0006](../../adr/0006-absolute-bottleneck-cap-not-fraction.md). **Resume path closed (2026-10-08).** These boxes stay as the inventory. S3/S4 calibration is a separate later effort.
 
 - [ ] Add `cpu_limit_millicores` (absolute) as a new `scale_constraints` method in `topfull_cpu_quotas.py`/`run_scenario.py`
 - [ ] Switch S3/S4A/S4B's `scale_constraints` from `cpu_limit_fraction: 0.1` to `cpu_limit_millicores: 50`; fix stale pre-migration docstrings
@@ -72,12 +74,12 @@ Resolved issues (previously open, now settled by the design doc):
 
 ## 3. Rewire the 16 scenario YAMLs
 
-**Mechanics decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md) §5. Only the actual numbers are still blocked on §1's battery (including its S1/S2/S6 system-load half); everything else below is decidable/executable independent of that.
+**Mechanics decided (2026-09-21)** — [2026-09-21-s1-s6-methodology-and-calibration-design.md](2026-09-21-s1-s6-methodology-and-calibration-design.md) §5. **Resume path closed (2026-10-08).** S1 and S2 numbers are locked in the scenario YAMLs. S3/S4/S6 number write-in is a separate later effort. The boxes below stay as the inventory.
 
 - [x] Point `locust.scripts` at `online_boutique_create_v2.sh` (drop `create2.sh`; no trickle-pattern replacement) — Task 8a
-- [ ] Update `scale_constraints` on S3 / S4A / S4B to `cpu_limit_millicores: 50` (ADR-0006) — mechanical once the new constraint kind (§2's checklist item 1) exists
-- [ ] Write new `locust.user_counts` / `spawn_rate` from §1's completed battery (bottleneck-cap half for S3/S4A/S4B, system-load half for S1/S2/S6; S5's 4 files just inherit S6's numbers)
-- [ ] Bump `log_folder` / `run_number` to new slots (these are new runs, not resumes) — use whatever's next-free at execution time, not a number fixed today
+- [ ] Update `scale_constraints` on S3 / S4A / S4B to `cpu_limit_millicores: 50` (ADR-0006) — deferred with the discontinued plan. S3/S4 calibration is a separate later effort
+- [ ] Write new `locust.user_counts` / `spawn_rate` from §1's completed battery (bottleneck-cap half for S3/S4A/S4B, system-load half for S1/S2/S6; S5's 4 files just inherit S6's numbers) — S1 and S2 are locked (status note). S3/S4/S6 write-in is a separate later effort
+- [ ] Bump `log_folder` / `run_number` to new slots (these are new runs, not resumes) — deferred with the discontinued plan. S1 and S2 slots were left at their current next-free numbers when those mixes were locked
 
 The 16 files (all currently still on the legacy `online_boutique_create.sh` + `online_boutique_create2.sh` pair):
 
@@ -97,9 +99,9 @@ Also on disk, not in the 16, and not automatically in scope here: `scenario_2_ba
 
 ## 4. Deploying v2 for real use
 
-- [ ] First real scenario run that lists `online_boutique_create_v2.sh` in `locust.scripts`
+- [x] First real scenario run that lists `online_boutique_create_v2.sh` in `locust.scripts` — the holds after 2026-09-22. Not a next task.
 
-The auto-deploy mechanism already exists (`run_scenario.py` pushes any `experiments/loadgen/*.sh` listed in a scenario's `locust.scripts` onto `topfull-load` before launch), and the weight-remix patcher exists and was smoke-tested. Nothing has actually *run* v2 as part of a real scenario yet. Once a YAML is rewired, this happens automatically on the next `run_scenario.py` invocation — no separate manual deploy step.
+The auto-deploy mechanism already exists (`run_scenario.py` pushes any `experiments/loadgen/*.sh` listed in a scenario's `locust.scripts` onto `topfull-load` before launch), and the weight-remix patcher exists and was smoke-tested. v2 has been the launcher for the holds since 2026-09-22.
 
 ---
 
@@ -122,4 +124,4 @@ This is last. It has not been scheduled.
                          can be finalized)
 ```
 
-Do not fill §3 with guessed numbers. Do not start §5 until §3 is stable.
+This order applied while the 2026-09-21 plan was active. That plan is discontinued at Task 9 step 2a. S3, S4, and S6 calibration is a separate later effort.

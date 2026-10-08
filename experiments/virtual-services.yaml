@@ -14,7 +14,7 @@ spec:
     - retries:
         attempts: 3
         perTryTimeout: 500ms
-        retryOn: "5xx,reset,connect-failure"
+        retryOn: "5xx,reset,connect-failure,unavailable,deadline-exceeded"
       route:
         - destination:
             host: adservice
@@ -65,7 +65,7 @@ spec:
     - retries:
         attempts: 3
         perTryTimeout: 500ms
-        retryOn: "5xx,reset,connect-failure"
+        retryOn: "5xx,reset,connect-failure,unavailable,deadline-exceeded"
       route:
         - destination:
             host: currencyservice
@@ -133,7 +133,7 @@ spec:
     - retries:
         attempts: 3
         perTryTimeout: 500ms
-        retryOn: "5xx,reset,connect-failure"
+        retryOn: "5xx,reset,connect-failure,unavailable,deadline-exceeded"
       route:
         - destination:
             host: productcatalogservice
@@ -150,7 +150,7 @@ spec:
     - retries:
         attempts: 3
         perTryTimeout: 500ms
-        retryOn: "5xx,reset,connect-failure"
+        retryOn: "5xx,reset,connect-failure,unavailable,deadline-exceeded"
       route:
         - destination:
             host: recommendationservice

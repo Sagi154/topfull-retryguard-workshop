@@ -227,6 +227,14 @@ on `timestamp`; the live fraction of rows is lower by design under the
 default. Genuine timeouts vs skips are in `topfull_throttle_collector.log`
 (`WARNING  …fetch failed` only on failures).
 
+When this cap is placed on the same 1 s clock as the other run metrics, a live
+`threshold` of **10000** is no cap and is left off the series. It is the
+proxy's passthrough sentinel, not a TopFull decision, and plotting it scales
+the axis to 10000. A live **0** is an empty read and is left off the same way.
+The file still stores both numbers. Between live reads, keep the last usable
+cap for at most 6 s, which covers the default 5 s scrape. Do not carry it
+across a longer hole, and do not keep a repeated value after live reads stop.
+
 ### `topfull_detect.csv`
 timestamp, service, cadvisor_cpu, quota, alpha, utilization, overloaded
 

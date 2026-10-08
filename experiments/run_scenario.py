@@ -728,6 +728,8 @@ def start_retryguard(cfg: dict):
         "retry_attempts_on":       retries_cfg["attempts_on"],
         "retry_attempts_off":      retries_cfg["attempts_off"],
         "per_try_timeout_ms":      retries_cfg["per_try_timeout_ms"],
+        "retry_metric":            rg_cfg.get("retry_metric", "rejection"),
+        "retries_threshold":       rg_cfg.get("retries_threshold", 0.5),
     }
     write_remote_json(master, "/tmp/retryguard_params.json", params)
     step(f"Uploaded RetryGuard params: interval_samples={params['interval_samples']} "
@@ -1119,13 +1121,28 @@ def envoy_collector_manifest(cfg: dict) -> dict:
     return raw
 
 
+# Keep in step with retryguard.py (deployed standalone, so not imported).
+RETRY_ON = "5xx,reset,connect-failure"
+GRPC_RETRY_CALLEES = (
+    "adservice", "currencyservice", "productcatalogservice", "recommendationservice",
+)
+
+
+def retry_on_for(service: str) -> str:
+    if service in GRPC_RETRY_CALLEES:
+        return RETRY_ON + ",unavailable,deadline-exceeded"
+    return RETRY_ON
+
+
 def restore_virtualservice_retries(cfg: dict):
     """
     Re-apply default retries.attempts after a RetryGuard run.
 
-    RetryGuard disables retries by *omitting* the retries block (Istio rejects
-    attempts:0). If the controller is killed while retries are OFF, the mesh
-    would otherwise stay without retries for subsequent experiments.
+    RetryGuard disables retries with ``retries: {attempts: 0}`` plus a route
+    timeout (Istio rejects attempts:0 inside a retry policy). If the controller
+    is killed while retries are OFF, the mesh would otherwise stay without
+    retries for subsequent experiments. Replacing the http array also drops
+    that route timeout.
     """
     if not cfg.get("retryguard", {}).get("enabled", False):
         return
@@ -1146,7 +1163,7 @@ def restore_virtualservice_retries(cfg: dict):
                 "http": [{
                     "retries": {
                         "attempts": attempts,
-                        "retryOn": "5xx,reset,connect-failure",
+                        "retryOn": retry_on_for(svc),
                         "perTryTimeout": f"{per_try_timeout_ms}ms",
                     },
                     "route": [{"destination": {"host": svc}}],
@@ -1154,7 +1171,8 @@ def restore_virtualservice_retries(cfg: dict):
             }
         })
         ssh(master,
-            f"kubectl patch virtualservice {svc} -n default -p '{patch}'",
+            f"kubectl patch virtualservice {svc} -n default "
+            f"--type merge -p '{patch}'",
             check=False)
     step(f"Restored retries.attempts={attempts} on {len(services)} VirtualServices")
 
@@ -1184,7 +1202,7 @@ def apply_per_try_timeout(cfg: dict):
                 "http": [{
                     "retries": {
                         "attempts": attempts,
-                        "retryOn": "5xx,reset,connect-failure",
+                        "retryOn": retry_on_for(svc),
                         "perTryTimeout": f"{per_try_timeout_ms}ms",
                     },
                     "route": [{"destination": {"host": svc}}],

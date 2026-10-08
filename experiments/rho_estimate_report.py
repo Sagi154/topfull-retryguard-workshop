@@ -73,11 +73,12 @@ REPORT_JSON_NAME = "rho_estimate_report.json"
 
 # Matches lines like:
 #   2026-09-15T20:16:57Z  checkoutservice  ON\u2192OFF   rejection=0.48  consecutive_high=30  attempts=0
+#   2026-10-06T20:00:00Z  frontend->recommendationservice  ON\u2192OFF   rpr=0.62  consecutive_high=30  attempts=0  metric=rpr
 TOGGLE_LINE_RE = re.compile(
     r"^(?P<timestamp>\S+)\s+"
     r"(?P<service>\S+)\s+"
     r"(?P<old>ON|OFF)\u2192(?P<new>ON|OFF)\s+"
-    r"rejection=(?P<rejection>[\d.]+)\s+"
+    r"(?:rpr|rejection)=(?P<rejection>[\d.]+)\s+"
     r"(?P<counter>\S+)\s+"
     r"attempts=(?P<attempts>\d+)"
 )
