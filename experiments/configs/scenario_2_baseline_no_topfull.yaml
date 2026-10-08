@@ -1,13 +1,16 @@
 # Scenario 2 | Both controllers off
-# Next free slot after the run 89 mix replay (run160, run161).
+# Locked 2026-10-08 from both-off run 89. Same counts on every S2 variant.
+# Paper-C1: frontend 1150m x 4 (HPA), catalog HPA max 1, other services x 1,
+# sidecar request 100m, proxyCPULimit unset. Millicores are scale_constraints.
+# run_number stays 162.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: baseline
 run_number: 162
 description: >
-  Next free both-off slot after the run 89 mix replay (run160 and run161).
-  Paper-C1 pin. Checkout and recommendations rolled before the hold.
+  Locked S2 mix from both-off run 89: 275/90/100/90/5, spawn_rate 50, Paper-C1.
+  Unused slot run162. Checkout and recommendations rolled before the hold.
 
 duration_seconds: 600
 
@@ -22,7 +25,7 @@ locust:
   scripts:
     - online_boutique_create_v2.sh
 
-# Stay on the Paper-C1 pin. Do not reconcile back to the default paper table.
+# Paper-C1 millicores. Frontend 1150m is the HPA pin, not a scale_constraint.
 paper_cpu_reconcile: false
 
 restart_before_hold:

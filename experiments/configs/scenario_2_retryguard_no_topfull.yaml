@@ -1,13 +1,16 @@
 # Scenario 2 | RetryGuard ON, TopFull RL OFF
-# Next free slot after the run 89 mix replay (run20, run21).
+# Locked 2026-10-08 from both-off run 89. Same counts on every S2 variant.
+# Paper-C1: frontend 1150m x 4 (HPA), catalog HPA max 1, other services x 1,
+# sidecar request 100m, proxyCPULimit unset. Millicores are scale_constraints.
+# run_number stays 22.
 
 scenario_id: 2
 scenario_name: sustained_overload
 condition: retryguard
 run_number: 22
 description: >
-  Next free RetryGuard-only slot after the run 89 mix replay (run20 and run21).
-  Paper-C1. Checkout and recommendations rolled before the hold.
+  Locked S2 mix from both-off run 89: 275/90/100/90/5, spawn_rate 50, Paper-C1.
+  Unused slot run22. Checkout and recommendations rolled before the hold.
 duration_seconds: 600
 locust:
   user_counts:
@@ -19,6 +22,7 @@ locust:
   spawn_rate: 50
   scripts:
   - online_boutique_create_v2.sh
+# Paper-C1 millicores. Frontend 1150m is the HPA pin, not a scale_constraint.
 paper_cpu_reconcile: false
 restart_before_hold:
   deployments:

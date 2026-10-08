@@ -1,6 +1,8 @@
 # S1–S6 methodology rework + recalibration battery Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **DISCONTINUED (2026-10-08).** Stopped at Task 9 step 2a (commit `1cc1f95`, 2026-09-23: S2 try 1, `…_run24`). Later holds (S2 both-off, Paper-C1, latch probes, controller arms, S1 both-off runs) sit outside this plan. S1 is locked to both-off run 8 (**175 / 30 / 70 / 90 / 5**, Paper-C1). S2 is locked to both-off run 89 (**275 / 90 / 100 / 90 / 5**, Paper-C1). S3 and S4 calibration is a separate later effort. The checkboxes below are the record of where execution stopped. Unchecked boxes stay as that record.
+
+> **For agentic workers:** This file is a stopped plan. The checkbox syntax below is the execution record, not a queue.
 
 **Goal:** Implement everything designed in [2026-09-21-s1-s6-methodology-and-calibration-design.md](../specs/2026-09-21-s1-s6-methodology-and-calibration-design.md) — the `cpu_limit_millicores` absolute bottleneck-cap mechanism, productcatalog HPA, the 5-run bottleneck-cap recalibration battery, the S1/S2/S6 empirical system-load calibration, and rewiring all 16 scenario YAMLs onto real numbers and the v2 loadgen launcher — closing tracker sections [§1](../specs/2026-09-21-s1-s6-loadgen-numbers-remaining-work.md#1-fresh-calibration-pass-blocker-for-everything-else), [§2](../specs/2026-09-21-s1-s6-loadgen-numbers-remaining-work.md#2-s1s6-scenario-methodology-rework-not-just-numbers), and [§3](../specs/2026-09-21-s1-s6-loadgen-numbers-remaining-work.md#3-rewire-the-16-scenario-yamls).
 
