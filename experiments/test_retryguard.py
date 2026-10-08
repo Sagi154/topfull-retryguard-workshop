@@ -768,17 +768,18 @@ class TestAttemptRamp(unittest.TestCase):
         self.clock = 0
 
     def to_attempts(self, ctrl, attempts):
-        # One row to open the streak, then `interval` seconds of 1s rows.
-        span = ctrl.interval + 1
+        # One row to open the streak, then N seconds of 1s rows.
+        reenable_span = ctrl.interval + 1                      # 0 -> 1: 30 s
+        climb_span = retryguard.CLIMB_INTERVAL_SECONDS + 1     # 1 -> 2, 2 -> 3: 15 s
         if attempts == 0:
-            change = self.feed(ctrl, span, 0.9)[0]
+            change = self.feed(ctrl, reenable_span, 0.9)[0]
             ctrl.commit(change)
             return
         self.to_attempts(ctrl, 0)
-        back = self.feed(ctrl, span, None, {"checkoutservice": 0.05})[0]
+        back = self.feed(ctrl, reenable_span, None, {"checkoutservice": 0.05})[0]
         ctrl.commit(back)
         while ctrl.edge_state[self.EDGE].attempts < attempts:
-            climbed = self.feed(ctrl, span, 0.05)[0]
+            climbed = self.feed(ctrl, climb_span, 0.05)[0]
             ctrl.commit(climbed)
 
     def feed(self, ctrl, ticks, rpr, rejection=None, step=1):
@@ -799,6 +800,12 @@ class TestAttemptRamp(unittest.TestCase):
     def test_climb_limits_are_0_17_and_0_33(self):
         self.assertEqual(retryguard.climb_rpr_limit(1, 3, 0.5), 0.17)
         self.assertEqual(retryguard.climb_rpr_limit(2, 3, 0.5), 0.33)
+
+    def test_climb_interval_per_step(self):
+        self.assertEqual(retryguard.CLIMB_INTERVAL_SECONDS, 15)
+        self.assertEqual(retryguard.climb_interval_s(0, 30), 30)
+        self.assertEqual(retryguard.climb_interval_s(1, 30), 15)
+        self.assertEqual(retryguard.climb_interval_s(2, 30), 15)
 
     def test_reenable_needs_rejection_under_0_10(self):
         # 0.15 is under the 0.20 rejection bar and must still not restore.
@@ -828,15 +835,15 @@ class TestAttemptRamp(unittest.TestCase):
     def test_quiet_rpr_climbs_one_step_at_a_time(self):
         ctrl = self.make()
         self.to_attempts(ctrl, 1)
-        self.assertEqual(self.feed(ctrl, 3, 0.10), [])
-        climb = self.feed(ctrl, 1, 0.10)
+        self.assertEqual(self.feed(ctrl, 15, 0.10), [])      # rows 1..15 = 14 s elapsed
+        climb = self.feed(ctrl, 1, 0.10)                      # row 16 = 15 s elapsed
         self.assertEqual(climb[0].transition, "RAMP")
         self.assertEqual(climb[0].desired_attempts, {"frontend": 2})
         self.assertEqual(climb[0].lines[0][1:3], ("1", "2"))
         ctrl.commit(climb[0])
         self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 2)
         self.assertEqual(ctrl.edge_state[self.EDGE].consecutive_low, 0)
-        self.assertEqual(self.feed(ctrl, 3, 0.10), [])
+        self.assertEqual(self.feed(ctrl, 15, 0.10), [])
         climb3 = self.feed(ctrl, 1, 0.10)
         self.assertEqual(climb3[0].desired_attempts, {"frontend": 3})
         self.assertEqual(climb3[0].caller_attempts, {})
@@ -868,13 +875,33 @@ class TestAttemptRamp(unittest.TestCase):
         self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 0)
         self.assertIn("checkoutservice", ctrl.svc_state)
 
+    def test_shed_from_ramp_step_still_needs_30_seconds(self):
+        # The class fixture uses a 3 s interval. This regression needs the
+        # production 30 s bar, or shed fires on the fourth row.
+        ctrl = self.make(interval=30)
+        self.to_attempts(ctrl, 1)
+        self.assertEqual(self.feed(ctrl, 29, 0.90), [])      # 28 s elapsed
+        self.assertEqual(self.feed(ctrl, 1, 0.90), [])       # 29 s elapsed
+        shed = self.feed(ctrl, 2, 0.90)                       # reaches 30 s
+        self.assertEqual(shed[0].transition, "OFF")
+
     def test_uncommitted_climb_is_proposed_again(self):
         ctrl = self.make()
         self.to_attempts(ctrl, 1)
-        first = self.feed(ctrl, 4, 0.05)
+        first = self.feed(ctrl, 16, 0.05)
         self.assertEqual(len(first), 1)
         again = self.feed(ctrl, 1, 0.05)
         self.assertEqual(again[0].desired_attempts, {"frontend": 2})
+
+    def test_zero_to_one_still_needs_30_seconds(self):
+        # Same as the shed regression: 0→1 follows ctrl.interval, which is
+        # 3 s on the class fixture and 30 s in production.
+        ctrl = self.make(interval=30)
+        self.to_attempts(ctrl, 0)
+        self.assertEqual(self.feed(ctrl, 16, None, {"checkoutservice": 0.05}), [])  # 15 s
+        self.assertEqual(self.feed(ctrl, 14, None, {"checkoutservice": 0.05}), [])  # 29 s
+        back = self.feed(ctrl, 2, None, {"checkoutservice": 0.05})                  # 30 s
+        self.assertEqual(back[0].transition, "ON")
 
 
 class TestGrpcRetryCallees(unittest.TestCase):

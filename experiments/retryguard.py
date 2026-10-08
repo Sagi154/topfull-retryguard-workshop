@@ -677,6 +677,19 @@ def apply_algorithm1(
 # re-enabled at 0.14) is not quiet enough to start allowing retries again.
 REENABLE_REJECTION_THRESHOLD = 0.10
 
+# Quiet time needed for each ramp climb after the first attempt is restored.
+# 0 -> 1 keeps the configured interval (interval_samples, 30 s). 1 -> 2 and
+# 2 -> 3 use this shorter bar. Shed (rpr above the threshold) keeps the
+# configured interval.
+CLIMB_INTERVAL_SECONDS = 15
+
+
+def climb_interval_s(attempts: int, reenable_interval: int) -> int:
+    """Seconds of quiet needed to leave `attempts` for the next step up."""
+    if int(attempts) <= 0:
+        return int(reenable_interval)
+    return CLIMB_INTERVAL_SECONDS
+
 
 def climb_rpr_limit(attempts: int, attempts_on: int, rpr_threshold: float) -> float:
     """
@@ -712,8 +725,10 @@ class EdgeController:
     Leaving 0 uses the rejection fallback and restores one attempt, but only
     while rejection stays under reenable_rejection_threshold (0.10), not the
     0.20 rejection_threshold. Further attempts climb one at a time while rpr
-    stays at or under climb_rpr_limit. rpr above rpr_threshold for a full
-    interval of row timestamps sheds straight to 0 from any attempt count.
+    stays at or under climb_rpr_limit. Climbs 1→2 and 2→3 each need
+    CLIMB_INTERVAL_SECONDS (15 s) of quiet; 0→1 and shed use the full
+    interval (30 s). rpr above rpr_threshold for a full interval of row
+    timestamps sheds straight to 0 from any attempt count.
     """
 
     def __init__(
@@ -775,7 +790,8 @@ class EdgeController:
             _clear_streaks(state)
         if streak_met(state.high_since, timestamp, self.interval):
             return "shed"
-        if streak_met(state.low_since, timestamp, self.interval):
+        climb_s = climb_interval_s(state.attempts, self.interval)
+        if streak_met(state.low_since, timestamp, climb_s):
             return "climb"
         return None
 
