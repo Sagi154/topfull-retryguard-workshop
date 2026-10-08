@@ -730,6 +730,7 @@ def start_retryguard(cfg: dict):
         "per_try_timeout_ms":      retries_cfg["per_try_timeout_ms"],
         "retry_metric":            rg_cfg.get("retry_metric", "rejection"),
         "retries_threshold":       rg_cfg.get("retries_threshold", 0.5),
+        "reenable_rejection":      rg_cfg.get("reenable_rejection", 0.10),
     }
     write_remote_json(master, "/tmp/retryguard_params.json", params)
     step(f"Uploaded RetryGuard params: interval_samples={params['interval_samples']} "
@@ -1348,6 +1349,7 @@ def run(config_path: str):
         sample_interval = rg["sample_interval_seconds"]
         interval = rg["interval_samples"]
         print(f"    threshold      : {rg['rejection_threshold']*100:.0f}%")
+        print(f"    reenable_rejection: {rg.get('reenable_rejection', 0.10)}")
         print(f"    sample_interval_seconds: {sample_interval}s")
         print(f"    interval_samples: {interval}  ({interval*sample_interval}s, symmetric ON/OFF)")
     erc_enabled = cfg.get("envoy_retry_collector", {}).get("enabled", False)

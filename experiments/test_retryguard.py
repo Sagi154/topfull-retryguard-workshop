@@ -944,6 +944,12 @@ class TestRunScenarioRetryOnMatches(unittest.TestCase):
             self.assertEqual(run_scenario.retry_on_for(svc), retryguard.retry_on_for(svc))
 
 
+def test_reenable_rejection_param_overrides_default():
+    import retryguard as rg
+    assert rg.reenable_threshold_from_params({}) == rg.REENABLE_REJECTION_THRESHOLD
+    assert rg.reenable_threshold_from_params({"reenable_rejection": 0.15}) == 0.15
+
+
 if __name__ == "__main__":
     unittest.main()
 

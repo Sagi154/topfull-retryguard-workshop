@@ -677,6 +677,11 @@ def apply_algorithm1(
 # re-enabled at 0.14) is not quiet enough to start allowing retries again.
 REENABLE_REJECTION_THRESHOLD = 0.10
 
+
+def reenable_threshold_from_params(params: dict) -> float:
+    return float(params.get("reenable_rejection", REENABLE_REJECTION_THRESHOLD))
+
+
 # Quiet time needed for each ramp climb after the first attempt is restored.
 # 0 -> 1 keeps the configured interval (interval_samples, 30 s). 1 -> 2 and
 # 2 -> 3 use this shorter bar. Shed (rpr above the threshold) keeps the
@@ -940,7 +945,8 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
     wait_for_inbound_csv(record_path)
 
     ctrl = EdgeController(
-        CONTROLLED_EDGES, rpr_threshold, rejection_threshold, interval, attempts_on
+        CONTROLLED_EDGES, rpr_threshold, rejection_threshold, interval, attempts_on,
+        reenable_rejection_threshold=reenable_threshold_from_params(params),
     )
     inbound = InboundCsvTailer(record_path / INBOUND_CSV_NAME)
     edges = EdgesCsvTailer(record_path / EDGES_CSV_NAME)
