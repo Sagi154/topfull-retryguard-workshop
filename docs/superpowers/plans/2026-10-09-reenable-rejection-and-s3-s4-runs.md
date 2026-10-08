@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **Branch:** all work in this plan starts and stays on `study-reenable-rejection-s3-s4`, created from an updated `main` (Task 0). Do not commit on `main`. Do not push unless the user asks.
+- **Branch:** all work in this plan starts and stays on `study-reenable-rejection-s3-s4`, created from an updated `main` (Task 0). Do not commit on `main`. Do not push until Task 9, which pushes this branch and then stops the VMs.
 - SSH only via host aliases; user `idozacharia`; GCP project `project-76deda76-55f1-42d2-abb`, zone `us-central1-a`. Never start `networks-workshop` VMs.
 - **S2 lock (Set A):** counts `getproduct/postcheckout/getcart/postcart/emptycart = 275 / 90 / 100 / 90 / 5`, `spawn_rate` 50, 600 s, Paper-C1, frontend pinned at 4, `retry_metric: edge_rpr`, `retries_threshold` 0.5, `rejection_threshold` 0.20, `interval_samples` 30.
 - **S1 lock (Set B counts):** `175 / 30 / 70 / 90 / 5`, `spawn_rate` 50, Paper-C1 table. S3/S4 hold duration stays 600 s.
@@ -310,7 +310,34 @@ Set B readout per scenario × arm: constrained service detector-overloaded share
 - [ ] **Step 1:** Final Task 5 Steps 1–3 cleanup; restore Paper-C1 limits, HPAs (frontend 1–4, catalog max 2), sidecar `proxyCPU` 100m with `proxyCPULimit` unset; confirm VirtualServices at attempts 3.
 - [ ] **Step 2:** Write `Guides and Info/2026-10-09-reenable-rejection-and-s3-s4-readout.md` with the Set A and Set B tables, gate failures and reruns, and any anomalies.
 - [ ] **Step 3:** Update `AGENTS.md` §4 with a dated bullet (what ran, folders `study2_*`, `reenable_rejection` now a YAML param default 0.10, S4B = emailservice 40m), and note next-free slots unchanged for the original YAMLs.
-- [ ] **Step 4:** Commit; then stop VMs only if the user asks: `gcloud compute instances stop topfull-master topfull-worker-1 topfull-load --zone=us-central1-a --project=project-76deda76-55f1-42d2-abb`.
+- [ ] **Step 4: Commit everything left**
+
+```powershell
+git status -sb
+git add -A
+git status -sb
+git commit -m "docs: readout for re-enable rejection sweep and S3/S4 runs"
+```
+
+`git add -A` is safe here: the readout, `AGENTS.md`, the run log, and any leftover result folders from the last batch are the intended contents. If `git status` after `git add` shows a secret (`.env`, a key, `credentials.json`), unstage that file and stop. If `git status` is already clean, skip the commit.
+
+- [ ] **Step 5: Push the branch**
+
+```powershell
+git push -u origin study-reenable-rejection-s3-s4
+git status -sb
+```
+
+Expected: `## study-reenable-rejection-s3-s4...origin/study-reenable-rejection-s3-s4` with no "ahead" and a clean working tree. If the push is rejected, fix and push again before stopping the VMs.
+
+- [ ] **Step 6: Turn the VMs off**
+
+```powershell
+gcloud compute instances stop topfull-master topfull-worker-1 topfull-load --zone=us-central1-a --project=project-76deda76-55f1-42d2-abb
+gcloud compute instances list --project=project-76deda76-55f1-42d2-abb --format="table(name,status)"
+```
+
+Expected: all three are `TERMINATED`. Pass `--project` so a leftover `networks-workshop` config does not stop the original VMs. Do not start those originals.
 
 ---
 
@@ -320,5 +347,5 @@ Per hold ≈ 10 min run + ~3 min setup/pull + 6 min cool-off ≈ 19 min. Set A �
 
 ## Self-Review
 
-- Spec coverage: Set A (3 values × 2 arms × 2 runs = 12) ✔; Set B (3 scenarios × 3 arms × 2 = 18, 0.15, S1 counts, 300/300/40) ✔; S4B doc update ✔ (Task 2); cool-offs and cleanups ✔ (Task 5/7/9); branch from updated `main` ✔ (Task 0).
+- Spec coverage: Set A (3 values × 2 arms × 2 runs = 12) ✔; Set B (3 scenarios × 3 arms × 2 = 18, 0.15, S1 counts, 300/300/40) ✔; S4B doc update ✔ (Task 2); cool-offs and cleanups ✔ (Task 5/7/9); branch from updated `main` ✔ (Task 0); commit, push, then stop the VMs ✔ (Task 9 Steps 4–6).
 - Resolved: `run_scenario.py` has no `--dry-run` (Task 3 Step 5 uses an offline test), and the controller is built only in `run_edge_rpr` (Task 1).
