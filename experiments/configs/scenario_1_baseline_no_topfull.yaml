@@ -1,27 +1,33 @@
 # Both-off S1. run1 is 75/15/75/75/75. run2 is 150/30/150/75/75.
 # run3 is 150/25/150/75/75 with catalog pinned at 1.
-# All three used the run 89 CPU table with frontend pinned at 4.
-# Next unused slot is run4.
+# run4 is 175/50/70/90/5 on Paper-C1 (frontend pinned at 4, catalog at 1).
+# run5 is 175/40/70/90/5 on the same pin.
+# run6 is 175/30/70/90/5 on the same pin.
+# run7 is 175/35/70/90/5 on the same pin.
+# run8 is 175/30/70/90/5 on the same pin, a replay of run6.
+# run9 is 175/25/70/90/5 on the same pin.
+# Next unused slot is run10. Counts below are the run9 mix, not yet launched
+# as run10.
 # paper_cpu_reconcile is false so the runner does not snap back to paper
-# CPU while that pin is in place. Restore paper CPU and the HPA after the hold.
+# CPU while that pin is in place. Leave the Paper-C1 pin after the hold.
 
 scenario_id: 1
 scenario_name: normal_operation
 condition: baseline
-run_number: 4
+run_number: 10
 description: >
-  Both controllers off. Unused run4 slot. run3 used the run 89 CPU
-  table, frontend pinned at 4, catalog pinned at 1, counts 150/25/150/75/75.
+  Both controllers off. Unused run10 slot. run9 used Paper-C1, frontend
+  pinned at 4, catalog pinned at 1, counts 175/25/70/90/5.
 
 duration_seconds: 300
 
 locust:
   user_counts:
-    getproduct:   150
+    getproduct:   175
     postcheckout: 25
-    getcart:      150
-    postcart:     75
-    emptycart:    75
+    getcart:      70
+    postcart:     90
+    emptycart:    5
   spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
@@ -70,7 +76,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_no_topfull_normal_op_run4
+log_folder: baseline_no_topfull_normal_op_run10
 
 infra:
   master_ssh_host: topfull-master
