@@ -16,13 +16,14 @@ description: >
 
 duration_seconds: 300
 
+# Locked 2026-10-08 from both-off run8. Same counts on every S1 variant.
 locust:
   user_counts:
-    getproduct:   50
-    postcheckout: 15
-    getcart:      50
-    postcart:     50
-    emptycart:    50
+    getproduct:   175
+    postcheckout: 30
+    getcart:      70
+    postcart:     90
+    emptycart:    5
   spawn_rate: 50               # Ron's divisor: Locust -r = count / RATE
   scripts:
     - online_boutique_create_v2.sh
