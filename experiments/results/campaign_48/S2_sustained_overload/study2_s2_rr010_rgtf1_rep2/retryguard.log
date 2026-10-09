@@ -1,0 +1,5 @@
+2026-10-09T05:17:48Z  WAITING  for /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs/service_inbound.csv (timeout=60s)
+2026-10-09T05:17:48Z  READY  found service_inbound.csv (869 rows)
+2026-10-09T05:17:48Z  START  metric=edge_rpr rpr_threshold=0.50 rejection_threshold=0.20 reenable_rejection=0.10 sample_interval=1s interval_samples=30s edges=14 attempts_on=3
+2026-10-09T05:28:25Z  SHUTDOWN  signal=15
+2026-10-09T05:28:26Z  EXIT
