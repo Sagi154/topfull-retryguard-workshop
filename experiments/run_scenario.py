@@ -769,6 +769,8 @@ def start_retryguard(cfg: dict):
             "climb_rpr_2_to_3", round(rpr_threshold * 2 / attempts_on, 2)
         )),
     }
+    if "climb_interval_seconds" in rg_cfg:
+        params["climb_interval_seconds"] = int(rg_cfg["climb_interval_seconds"])
     write_remote_json(master, "/tmp/retryguard_params.json", params)
     step(f"Uploaded RetryGuard params: interval_samples={params['interval_samples']} "
          f"({params['interval_samples'] * params['sample_interval_seconds']}s)")

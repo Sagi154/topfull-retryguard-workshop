@@ -313,6 +313,11 @@ class TestStartRetryGuardWiring(unittest.TestCase):
                 "venv_activate": "/home/idozacharia/TopFull/venv/bin/activate",
                 "retryguard_script": "/home/idozacharia/experiments/retryguard.py",
             },
+            "retries": {
+                "attempts_on": 3,
+                "attempts_off": 0,
+                "per_try_timeout_ms": 500,
+            },
             "retryguard": {
                 "enabled": enabled,
                 "rejection_threshold": 0.20,
@@ -340,6 +345,32 @@ class TestStartRetryGuardWiring(unittest.TestCase):
     def test_start_noop_when_disabled(self, mock_deploy):
         run_scenario.start_retryguard(self._cfg(enabled=False))
         mock_deploy.assert_not_called()
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_climb_interval_seconds_is_forwarded_when_present(
+        self, mock_deploy, mock_ssh, mock_json, mock_script, mock_wait,
+    ):
+        cfg = self._cfg(enabled=True)
+        cfg["retryguard"]["climb_interval_seconds"] = 10
+        run_scenario.start_retryguard(cfg)
+        params = mock_json.call_args[0][2]
+        self.assertEqual(params["climb_interval_seconds"], 10)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_climb_interval_seconds_absent_when_not_set(
+        self, mock_deploy, mock_ssh, mock_json, mock_script, mock_wait,
+    ):
+        run_scenario.start_retryguard(self._cfg(enabled=True))
+        params = mock_json.call_args[0][2]
+        self.assertNotIn("climb_interval_seconds", params)
 
 
 class TestEnvoyRetryCollectorWiring(unittest.TestCase):
