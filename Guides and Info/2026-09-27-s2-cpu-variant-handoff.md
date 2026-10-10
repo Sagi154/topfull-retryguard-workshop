@@ -1,5 +1,7 @@
 # Handoff: next S2 both-off CPU / replica / user-count variant
 
+Analyses of holds from the edge-mode change onward use [ANALYSIS-TEMPLATE.md](ANALYSIS-TEMPLATE.md) and `experiments/analysis_score.py`. This file is the procedure for the 2026-09-27 CPU-table series.
+
 Continue the both-off S2 series on the Checkout-4 CPU table in [2026-09-26-s2-cpu-limits-for-spread.md](2026-09-26-s2-cpu-limits-for-spread.md). A variant is three knobs: per-pod CPU limits, replica counts, and Locust user counts. Limits and replica counts are chosen. User counts for the holds are still open.
 
 ## Where things stand

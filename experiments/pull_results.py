@@ -1,5 +1,7 @@
-"""pull_results.py — scp a finished run's results down from topfull-master,
-then generate its rho/mu.hat + RetryGuard-toggle report.
+"""pull_results.py — scp a finished run's results down from topfull-master.
+
+The rho report is retired. This command only pulls. Score the folder with
+experiments/analysis_score.py.
 
 This is the automated version of the manual step `run_scenario.py` prints at
 the end of every run ("To pull results to your PC: scp -r ..."). It reuses
@@ -8,15 +10,12 @@ scenario_id -> campaign_48/<subfolder> mapping lives in exactly one place.
 
 Read-only w.r.t. the remote VMs: this only runs `scp -r` FROM topfull-master.
 It never SSHes in to touch the live collector/runner processes, and it never
-modifies existing result files (it only pulls new ones and then writes
-rho_estimate_report.{md,json} into the freshly-pulled local folder).
+modifies existing result files. It does not write rho_estimate_report.
 
 Usage (mirrors `run_scenario.py`'s own argument):
     python experiments/pull_results.py experiments/configs/scenario_2_baseline.yaml
 
-Optional: skip the post-pull rho report (e.g. for baseline runs you don't
-care to analyze immediately):
-    python experiments/pull_results.py <config.yaml> --no-report
+`--no-report` is accepted and does nothing. The rho report stays off.
 
 This does NOT change the existing printed-scp-command behavior of
 `run_scenario.py` — it is an additive, opt-in convenience for whoever wants
@@ -34,7 +33,6 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import run_scenario  # noqa: E402 — reuse scenario_dir_name(), not duplicate it
-import rho_estimate_report  # noqa: E402
 
 
 def resolve_pull_paths(cfg: dict) -> tuple[str, str, str]:
@@ -53,7 +51,7 @@ def resolve_pull_paths(cfg: dict) -> tuple[str, str, str]:
     return master, remote_dest, local_dest_dir
 
 
-def pull_results(config_path: str, run_report: bool = True, dry_run: bool = False) -> Path:
+def pull_results(config_path: str, run_report: bool = False, dry_run: bool = False) -> Path:
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
@@ -81,32 +79,33 @@ def pull_results(config_path: str, run_report: bool = True, dry_run: bool = Fals
         return local_run_dir
 
     print(f"[pull_results] Pulled to {local_run_dir}")
-
     if run_report:
-        md_path = rho_estimate_report.generate_report(local_run_dir)
-        print(f"[pull_results] Wrote {md_path}")
+        print(
+            "[pull_results] rho_estimate_report is retired; "
+            "score with experiments/analysis_score.py",
+            file=sys.stderr,
+        )
 
     return local_run_dir
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Pull a finished run's results from topfull-master and "
-        "generate its rho/mu.hat + RetryGuard-toggle report."
+        description="Pull a finished run's results from topfull-master."
     )
     parser.add_argument("config", help="Path to the scenario YAML config used for the run")
     parser.add_argument(
         "--no-report",
         action="store_true",
-        help="Skip generating rho_estimate_report.md/.json after the pull",
+        help="Accepted for old commands. The rho report is already off.",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print the scp command without running it (and skip the report)",
+        help="Print the scp command without running it",
     )
     args = parser.parse_args()
-    pull_results(args.config, run_report=not args.no_report, dry_run=args.dry_run)
+    pull_results(args.config, run_report=False, dry_run=args.dry_run)
     return 0
 
 

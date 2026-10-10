@@ -1,4 +1,12 @@
-"""rho_estimate_report.py — combine estimate_service_mu.py's offline
+"""Retired. Do not generate this report for a new analysis.
+
+Score holds with experiments/analysis_score.py and write the guide from
+Guides and Info/ANALYSIS-TEMPLATE.md. Arrival rate, sojourn, and RetryGuard
+toggles live there. This module remains so older rho_estimate_report.md
+files can still be regenerated, and so its unit tests keep covering the
+lambda/W/mu_sat notes.
+
+rho_estimate_report.py — combine estimate_service_mu.py's offline
 lambda/W/mu_sat observations with a run folder's RetryGuard toggle log into
 one report.
 
