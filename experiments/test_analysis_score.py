@@ -73,6 +73,27 @@ class TestLog(unittest.TestCase):
         self.assertEqual(score.climb_streak(samples, 2, 0.33), 1)
         steps = [event["step"] for event in parsed["transitions"]]
         self.assertEqual(steps, ["ON→OFF", "OFF→ON", "1→2", "2→3"])
+        self.assertIsNone(parsed["params"]["climb_rpr_1_to_2"])
+        self.assertIsNone(parsed["params"]["climb_rpr_2_to_3"])
+
+    def test_score_uses_start_climb_bars_and_falls_back(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            custom = root / "custom"
+            custom.mkdir()
+            (custom / "retryguard.log").write_text(
+                "2026-10-08T00:00:00Z  START  metric=edge_rpr rpr_threshold=0.50 "
+                "attempts_on=3 climb_rpr_1_to_2=0.10 climb_rpr_2_to_3=0.25\n",
+                encoding="utf-8",
+            )
+            old = root / "old"
+            old.mkdir()
+            (old / "retryguard.log").write_text(
+                "2026-10-08T00:00:00Z  START  metric=edge_rpr rpr_threshold=0.50 attempts_on=3\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(score.score_run(custom)["climb_limits"], (0.10, 0.25))
+            self.assertEqual(score.score_run(old)["climb_limits"], (0.17, 0.33))
 
     def test_climb_is_absent_when_the_edge_never_leaves_three(self):
         samples = [{"attempts": 3, "rpr": 0.0, "high": 4}]

@@ -721,16 +721,24 @@ def start_retryguard(cfg: dict):
 
     # Upload RetryGuard runtime parameters as JSON
     retries_cfg = cfg.get("retries", {})
+    attempts_on = int(retries_cfg["attempts_on"])
+    rpr_threshold = float(rg_cfg.get("retries_threshold", 0.5))
     params = {
         "rejection_threshold":     rg_cfg["rejection_threshold"],
         "sample_interval_seconds": rg_cfg["sample_interval_seconds"],
         "interval_samples":        rg_cfg["interval_samples"],
-        "retry_attempts_on":       retries_cfg["attempts_on"],
+        "retry_attempts_on":       attempts_on,
         "retry_attempts_off":      retries_cfg["attempts_off"],
         "per_try_timeout_ms":      retries_cfg["per_try_timeout_ms"],
         "retry_metric":            rg_cfg.get("retry_metric", "rejection"),
-        "retries_threshold":       rg_cfg.get("retries_threshold", 0.5),
+        "retries_threshold":       rpr_threshold,
         "reenable_rejection":      rg_cfg.get("reenable_rejection", 0.10),
+        "climb_rpr_1_to_2":        float(rg_cfg.get(
+            "climb_rpr_1_to_2", round(rpr_threshold * 1 / attempts_on, 2)
+        )),
+        "climb_rpr_2_to_3":        float(rg_cfg.get(
+            "climb_rpr_2_to_3", round(rpr_threshold * 2 / attempts_on, 2)
+        )),
     }
     write_remote_json(master, "/tmp/retryguard_params.json", params)
     step(f"Uploaded RetryGuard params: interval_samples={params['interval_samples']} "

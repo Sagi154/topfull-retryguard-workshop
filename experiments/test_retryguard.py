@@ -801,6 +801,42 @@ class TestAttemptRamp(unittest.TestCase):
         self.assertEqual(retryguard.climb_rpr_limit(1, 3, 0.5), 0.17)
         self.assertEqual(retryguard.climb_rpr_limit(2, 3, 0.5), 0.33)
 
+    def test_missing_climb_keys_use_the_formula(self):
+        self.assertEqual(
+            retryguard.climb_limits_from_params({
+                "retry_attempts_on": 3, "retries_threshold": 0.5,
+            }),
+            (0.17, 0.33),
+        )
+        self.assertEqual(
+            retryguard.climb_limits_from_params({
+                "retry_attempts_on": 3,
+                "retries_threshold": 0.5,
+                "climb_rpr_1_to_2": 0.10,
+                "climb_rpr_2_to_3": 0.25,
+            }),
+            (0.10, 0.25),
+        )
+
+    def test_configured_climb_bars_replace_the_formula(self):
+        ctrl = retryguard.EdgeController(
+            (self.EDGE,), 0.5, 0.2, 3,
+            climb_rpr_1_to_2=0.10, climb_rpr_2_to_3=0.25,
+        )
+        self.to_attempts(ctrl, 1)
+        # 0.17 used to climb from 1. It is above 0.10 and at or under 0.5, so it holds.
+        self.assertEqual(self.feed(ctrl, 16, 0.17), [])
+        self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 1)
+        self.assertEqual(ctrl.edge_state[self.EDGE].consecutive_low, 0)
+        climb = self.feed(ctrl, 16, 0.10)
+        self.assertEqual(climb[0].desired_attempts, {"frontend": 2})
+        ctrl.commit(climb[0])
+        # 0.33 used to climb from 2. It is above 0.25, so it holds.
+        self.assertEqual(self.feed(ctrl, 16, 0.33), [])
+        self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 2)
+        climb3 = self.feed(ctrl, 16, 0.25)
+        self.assertEqual(climb3[0].desired_attempts, {"frontend": 3})
+
     def test_climb_interval_per_step(self):
         self.assertEqual(retryguard.CLIMB_INTERVAL_SECONDS, 15)
         self.assertEqual(retryguard.climb_interval_s(0, 30), 30)

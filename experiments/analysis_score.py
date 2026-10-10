@@ -18,9 +18,10 @@ the first consecutive scored tick with rpr above the shed bar to the last.
 One tick is 0 seconds. The shed bar is rpr_threshold on the START line,
 or 0.5 when the log has no START line.
 
-Climb limits follow retryguard.climb_rpr_limit for the START line's
-rpr_threshold and attempts_on (0.17 and 0.33 at the defaults). A climb
-streak is a count of OBSERVE samples, not seconds.
+Climb limits are climb_rpr_1_to_2 and climb_rpr_2_to_3 on the START
+line. A log from before those fields existed uses retryguard.climb_rpr_limit
+for the START line's rpr_threshold and attempts_on (0.17 and 0.33 at the
+defaults). A climb streak is a count of OBSERVE samples, not seconds.
 
 Rejection streaks use (delta 5xx + delta resets) / delta total. grpc_4
 and grpc_14 are a separate pair of sums. A non-positive total delta
@@ -203,6 +204,8 @@ def parse_log(text: str) -> dict:
         "attempts_on": ATTEMPTS_ON,
         "rejection_threshold": REJECTION_HIGH,
         "reenable_rejection": REENABLE_REJECTION,
+        "climb_rpr_1_to_2": None,
+        "climb_rpr_2_to_3": None,
         "start": None,
     }
     for line in text.splitlines():
@@ -220,6 +223,10 @@ def parse_log(text: str) -> dict:
                 params["rejection_threshold"] = float(fields["rejection_threshold"])
             if "reenable_rejection" in fields:
                 params["reenable_rejection"] = float(fields["reenable_rejection"])
+            if "climb_rpr_1_to_2" in fields:
+                params["climb_rpr_1_to_2"] = float(fields["climb_rpr_1_to_2"])
+            if "climb_rpr_2_to_3" in fields:
+                params["climb_rpr_2_to_3"] = float(fields["climb_rpr_2_to_3"])
             continue
         if len(parts) >= 4 and parts[1] == "OBSERVE":
             fields = _kv(parts[3:])
@@ -480,7 +487,13 @@ def score_run(run_dir: Path) -> dict:
     log_path = run_dir / "retryguard.log"
     log = parse_log(log_path.read_text(encoding="utf-8", errors="replace")) if log_path.is_file() else parse_log("")
     shed = log["params"]["rpr_threshold"]
-    limit_1, limit_2 = climb_limits(shed, log["params"]["attempts_on"])
+    formula_1, formula_2 = climb_limits(shed, log["params"]["attempts_on"])
+    limit_1 = log["params"]["climb_rpr_1_to_2"]
+    limit_2 = log["params"]["climb_rpr_2_to_3"]
+    if limit_1 is None:
+        limit_1 = formula_1
+    if limit_2 is None:
+        limit_2 = formula_2
     high_bar = log["params"]["rejection_threshold"]
     low_bar = log["params"]["reenable_rejection"]
 

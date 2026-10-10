@@ -47,6 +47,8 @@ retryguard:
   interval_samples: 30         # paper default (Sec. 6.2), symmetric ON/OFF
   retry_metric: edge_rpr
   retries_threshold: 0.5
+  climb_rpr_1_to_2: 0.17
+  climb_rpr_2_to_3: 0.33
 
 # ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
 # Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).

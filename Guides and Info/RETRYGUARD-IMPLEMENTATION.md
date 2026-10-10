@@ -169,21 +169,21 @@ Disable is per edge. `rpr` above 0.5 for `interval_samples` seconds of row times
 
 Restore is a ramp, so a recovered edge does not jump straight back to 3. While any edge of a callee is at 0, that callee's inbound rejection rate (`Δ(5xx + resets) / Δtotal`) is the fallback, because rpr is ~0 while retries are off. The 0-attempt route's timeout is what produces those resets when the callee is slow. The 0→1 step uses its own bar, `reenable_rejection` **0.10**, not `rejection_threshold` 0.20: rejection strictly under 0.10 for the quiet time below moves every 0-attempt edge of that callee to **1** attempt (full `retryOn` + `perTryTimeout`), not to 3. A sample at or above 0.10 resets that streak. `rejection_threshold` 0.20 stays the Algorithm 1 bar for rejection mode. An edge that never left 3 keeps its rpr streak. Climbs from 1 and 2 stay on rpr.
 
-From 1 or 2, the edge is watched on rpr again. The climb bar is the rpr that still projects to 0.5 at 3 attempts, assuming retries scale with the cap (`rpr_now × 3 / attempts_now`). Rounded to two decimals that is **0.17 at 1 attempt** and **0.33 at 2**. Quiet time at or under the bar adds one attempt. Quiet time above 0.5 sheds to 0. In between, the attempt count holds and both streaks reset. Reaching 3 puts the caller back on the default route. Each edge ramps on its own.
+From 1 or 2, the edge is watched on rpr again. The climb bars are YAML keys on the scenario, `climb_rpr_1_to_2` and `climb_rpr_2_to_3`. The live scenario files set them to **0.17** and **0.33**, which is the old projection (`rpr_now × 3 / attempts_now`, rounded) at `retries_threshold` 0.5. A YAML that omits the keys still uses that formula. Quiet time at or under the bar for that step adds one attempt. Quiet time above 0.5 sheds to 0. In between, the attempt count holds and both streaks reset. Reaching 3 puts the caller back on the default route. Each edge ramps on its own.
 
 | Step | Condition | Quiet time |
 |---|---|---|
 | 0 → 1 | inbound rejection under 0.10 | 30 s (`interval_samples`) |
-| 1 → 2 | rpr ≤ 0.17 | 15 s (`CLIMB_INTERVAL_SECONDS`) |
-| 2 → 3 | rpr ≤ 0.33 | 15 s (`CLIMB_INTERVAL_SECONDS`) |
+| 1 → 2 | rpr ≤ `climb_rpr_1_to_2` (0.17) | 15 s (`CLIMB_INTERVAL_SECONDS`) |
+| 2 → 3 | rpr ≤ `climb_rpr_2_to_3` (0.33) | 15 s (`CLIMB_INTERVAL_SECONDS`) |
 | any → 0 (shed) | rpr > 0.5 | 30 s (`interval_samples`) |
 
-The whole ramp from 0 to 3 now takes at least 60 s (was 90 s). The 15 s value is a constant in `retryguard.py`, not a YAML key.
+The whole ramp from 0 to 3 now takes at least 60 s (was 90 s). The 15 s value is a constant in `retryguard.py`, not a YAML key. The two rpr bars are YAML keys.
 
 `ON→OFF` and `OFF→ON` stay the shed and the 0→1 step, so the toggle parser still matches. `OFF→ON` logs `attempts=1`. Climbs log `1→2` and `2→3` and are not toggle events. The name field is `caller->target` on an edge line and the service name on a rejection line:
 
 ```
-2026-10-06T20:00:00Z  START  metric=edge_rpr rpr_threshold=0.50 rejection_threshold=0.20 reenable_rejection=0.10 sample_interval=1s interval_samples=30 edges=14 attempts_on=3
+2026-10-06T20:00:00Z  START  metric=edge_rpr rpr_threshold=0.50 rejection_threshold=0.20 reenable_rejection=0.10 climb_rpr_1_to_2=0.17 climb_rpr_2_to_3=0.33 sample_interval=1s interval_samples=30 edges=14 attempts_on=3
 2026-10-06T20:00:01Z  OBSERVE  frontend->recommendationservice  rpr=0.6200  low=0 high=1  attempts=3  state=ON  metric=rpr
 2026-10-06T20:00:30Z  frontend->recommendationservice  ON→OFF   rpr=0.62  consecutive_high=30  attempts=0  from_attempts=3  metric=rpr
 2026-10-06T20:01:00Z  OBSERVE  recommendationservice  rejection=0.0800  low=1 high=0  state=OFF  metric=rejection
