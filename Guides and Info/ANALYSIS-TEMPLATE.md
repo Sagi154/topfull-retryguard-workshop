@@ -34,7 +34,15 @@ Put the guide in `Guides and Info/` with a date and the mix or the arm in the na
 6. **Rejection, beside (a).** Not the shed signal. Longest streak / count above 0.20, then longest streak / count strictly under the re-enable bar (0.10 unless the START line says otherwise). **Bold** in the 0.20 table is a streak of at least 30 on a controlled service. Frontend and redis-cart stay plain. Then `grpc_4 / grpc_14` for recommendationservice, productcatalogservice, currencyservice, and adservice.
 7. **(b) Detector overloaded fraction.** `overloaded=1` ticks over `topfull_detect.csv` rows, as `ticks/rows (share%)`. **Bold** is a share of at least 0.5.
 8. **(c) Retry volume.** Outbound retry delta by target. Inbound resets for all 11 services. The same `grpc_4 / grpc_14` pair is what the retry policy counts on the four read callees.
-9. **RetryGuard toggles.** Count table (`ON→OFF`, `0→1`, `1→2`, `2→3`) and the timestamp log (time, name, step, attempts before the step, rpr or rejection). Omit the timestamp log when RetryGuard is off; say there is no `retryguard.log`.
+9. **RetryGuard toggles.** One table per callee whose attempt count changes. Columns follow the index, with the same bold bars. Rows, in this order. An em dash means that edge never went to 0, so the re-enable bar was not in force. When an edge sheds more than once, list each cycle in the cell in time order.
+   - `ON→OFF / OFF→ON` counts.
+   - Shed rpr, from the `ON→OFF` line.
+   - Attempts after re-enable: the attempt count once the climb that follows `0→1` stops. The cell is 3 when it climbs back to the full policy. An em dash when the edge stays at 0.
+   - Time OFF, in seconds, from the shed timestamp to the re-enable timestamp, or to the controller exit when the edge stays at 0.
+   - OFF rejection min / median. The samples are the `state=OFF` `OBSERVE` lines for that callee (`rejection=`).
+   - Streak under the bar: the longest run of those OFF-window samples with rejection strictly below that hold's `reenable_rejection`. A streak that reaches the interval is the `0→1` step.
+
+   One sentence under the table names which holds re-enabled and which stayed at 0. The timestamp log (time, name, step, attempts before the step, rpr or rejection) follows when a cell holds more than one cycle. When RetryGuard is off, say there is no `retryguard.log` and skip the tables. The scorer's toggle list is the transition lines; the OFF-window min, median, streak, and time OFF are read from `retryguard.log` as above.
 10. **Locust goodput.** Mean `Goodput` while `RPS > 0`, per API.
 11. **Locust fail rate.** Mean `Fail / RPS` while `RPS > 0`, per API.
 12. **Locust P95.** Mean `Latency95` (ms) while `RPS > 0`, per API.
@@ -50,4 +58,4 @@ Put the guide in `Guides and Info/` with a date and the mix or the arm in the na
 
 ## Done when
 
-Every section above is present or has its one-sentence omission. Bold marks match the rules in (a), the 0.20 rejection table, and (b). Group bars match the index. The file streak unit is seconds, and any column taken from an older row-count guide says so. No number in the prose disagrees with the scorer output.
+Every section above is present or has its one-sentence omission. Bold marks match the rules in (a), the 0.20 rejection table, and (b). Group bars match the index. Each callee that changed attempt count has the six-row toggle table, and an edge that never went to 0 is an em dash on the OFF rows. The file streak unit is seconds, and any column taken from an older row-count guide says so. No number in the prose disagrees with the scorer output or with `retryguard.log`.
