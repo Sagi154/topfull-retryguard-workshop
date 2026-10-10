@@ -90,7 +90,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-09-21)
+## 4. Current status (as of 2026-10-11)
 
 ### ✅ Done
 
@@ -236,6 +236,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 - **Analysis template (2026-10-10)** — new guides follow [ANALYSIS-TEMPLATE.md](Guides%20and%20Info/ANALYSIS-TEMPLATE.md). (a) is edge rpr (file streak in seconds); the 0.20 rejection streak sits beside it and is not the shed bar. Score with `python experiments/analysis_score.py`. [2026-09-24-s2-both-off-abc-reading.md](Guides%20and%20Info/2026-09-24-s2-both-off-abc-reading.md) matches that reading. `rho_estimate_report.py` is retired; `pull_results.py` only pulls.
 - **Climb bars are YAML keys (2026-10-10)** — edge mode reads `climb_rpr_1_to_2` and `climb_rpr_2_to_3` from the scenario (`0.17` and `0.33` on the 11 live RetryGuard YAMLs). A config that omits them still uses the old formula. The START line records both. Detail: [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md).
 - **S2 re-enable 0.25 and tighter climb, six holds (2026-10-10)** — Paper-C1, locked run 89 mix, 600 s. Three settings, one RetryGuard-only and one both-on each: reenable **0.25** at climb **0.17/0.33** (`study3_s2_rr025_rgtf0`, `study3_s2_rr025_rgtf1`); reenable **0.25** at climb **0.10/0.25** (`study3_s2_rr025_c1025_rgtf0`, `study3_s2_rr025_c1025_rgtf1`); reenable **0.20** at climb **0.10/0.25** (`study3_s2_rr020_c1025_rgtf0`, `study3_s2_rr020_c1025_rgtf1`). All six PASS. Locked YAML slots were not bumped. Run log: [2026-10-10-s2-rr025-climb-run-log.md](docs/superpowers/plans/2026-10-10-s2-rr025-climb-run-log.md). Score: [2026-10-10-s2-rr025-climb-analysis.md](Guides%20and%20Info/2026-10-10-s2-rr025-climb-analysis.md). Cluster restored to frontend HPA 1–4, catalog HPA max 2, sidecar request 100m, `proxyCPULimit` unset. VMs left **RUNNING**.
+- **Cool-off is 120 s (2026-10-11)** — between holds, wait **120 s** after `run_scenario.py` exits, then do the leftover-writer check in §6 and launch. Pulling the folder is fine during the wait. Holds in one comparison use this same gap. Earlier holds used 300 s or 360 s; those records stay as they are. S2 still rolls checkout and recommendations inside the run (`restart_before_hold`, 60 s settle).
 
 ### ❌ Not done yet — remaining work
 
@@ -292,6 +293,8 @@ pip install pyyaml   # once
 # files block SCP uploads. sudo rm is a no-op when files don't exist.
 ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp/rg_retryguard.sh /tmp/rg_envoy_retry.sh /tmp/rg_resource_usage.sh /tmp/rg_topfull_throttle.sh /tmp/rg_locust_launch.sh /tmp/envoy_retry_params.json"
 ```
+
+**Cool-off between holds is 120 s.** The clock starts when `run_scenario.py` exits. Pulling the folder is fine during the wait. After 120 s, do the leftover-writer check below, then launch. Holds in one comparison use this same gap. Earlier holds used 300 s or 360 s; those records stay as they are. On S2, `restart_before_hold` still rolls checkout and recommendations and waits 60 s inside the run.
 
 **After the cool-off, before `run_scenario.py`:** stop leftover writers, then confirm the live log directory stays empty. The previous run's cleanup already stops Locust and the master processes and copies that run's folder. The runner does not repeat that stop. `clear_logs` only deletes files in the live `src/logs` directory, and a collector that is still running creates them again on its next poll. Locust is on the load VM and keeps sending until it is stopped. Do not delete `experiments/results/` or a finished `results/<log_folder>/`.
 
