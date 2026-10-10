@@ -88,6 +88,8 @@ retryguard:
   interval_samples: 30
   retry_metric: edge_rpr
   retries_threshold: 0.5
+  climb_rpr_1_to_2: 0.17
+  climb_rpr_2_to_3: 0.33
   reenable_rejection: 0.1
 envoy_retry_collector:
   enabled: true
