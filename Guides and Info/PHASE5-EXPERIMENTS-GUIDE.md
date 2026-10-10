@@ -204,7 +204,7 @@ scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_
 
 ### Repeating runs
 
-Cool-off between holds is **120 s**. The clock starts when `run_scenario.py` exits. Pulling the folder is fine during the wait. After 120 s, do the leftover-writer check below, then launch. Holds in one comparison use this same gap. Earlier holds used 300 s or 360 s; those records stay as they are. On S2, `restart_before_hold` still rolls checkout and recommendations and waits 60 s inside the run.
+Cool-off between holds is **120 s**. The clock starts when `run_scenario.py` exits. Pulling the folder is fine during the wait. After 120 s, do the leftover-writer check below, then launch. Holds in one comparison use this same gap. Earlier holds used 300 s or 360 s; those records stay as they are. Checkout and recommendations stay up across the cool-off on every scenario. `restart_before_hold` remains an opt-in YAML key.
 
 Before each repeat:
 1. Increment `run_number` and update `log_folder` in the config:

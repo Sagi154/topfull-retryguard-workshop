@@ -149,7 +149,7 @@ pip install pyyaml   # once
 ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp/rg_retryguard.sh /tmp/rg_envoy_retry.sh /tmp/rg_resource_usage.sh /tmp/rg_topfull_throttle.sh /tmp/rg_locust_launch.sh /tmp/envoy_retry_params.json"
 ```
 
-**Cool-off between holds is 120 s.** The clock starts when `run_scenario.py` exits. Pulling the folder is fine during the wait. After 120 s, do the leftover-writer check below, then launch. Holds in one comparison use this same gap. Earlier holds used 300 s or 360 s; those records stay as they are. On S2, `restart_before_hold` still rolls checkout and recommendations and waits 60 s inside the run.
+**Cool-off between holds is 120 s.** The clock starts when `run_scenario.py` exits. Pulling the folder is fine during the wait. After 120 s, do the leftover-writer check below, then launch. Holds in one comparison use this same gap. Earlier holds used 300 s or 360 s; those records stay as they are. Checkout and recommendations stay up across the cool-off on every scenario. `restart_before_hold` remains an opt-in YAML key.
 
 **After the cool-off, before `run_scenario.py`:** open [STATUS.md](STATUS.md) "Next free slots" and bump `run_number` and `log_folder`. Then stop leftover writers, and confirm the live log directory stays empty. The previous run's cleanup already stops Locust and the master processes and copies that run's folder. The runner does not repeat that stop. `clear_logs` only deletes files in the live `src/logs` directory, and a collector that is still running creates them again on its next poll. Locust is on the load VM and keeps sending until it is stopped. Do not delete `experiments/results/` or a finished `results/<log_folder>/`.
 

@@ -17,11 +17,6 @@ locust:
   scripts:
   - online_boutique_create_v2.sh
 paper_cpu_reconcile: false
-restart_before_hold:
-  deployments:
-  - checkoutservice
-  - recommendationservice
-  settle_seconds: 60
 scale_constraints:
 - deployment: checkoutservice
   namespace: default

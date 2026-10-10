@@ -28,8 +28,10 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import yaml
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from datetime import datetime
 
@@ -629,15 +631,14 @@ def restore_constraints(cfg: dict, restore_records: list):
 #  Master stack
 # --------------------------------------------------------------------------- #
 
-def start_master_stack(cfg: dict):
-    banner("Starting master stack")
-    master = cfg["infra"]["master_ssh_host"]
-    src = cfg["infra"]["topfull_src_path"]
-    venv = cfg["infra"]["venv_activate"]
-    # Default True: omitted key preserves current behavior for all existing YAMLs.
-    rl_enabled = cfg.get("topfull_rl", {}).get("enabled", True)
+def kill_stale_master_processes(cfg: dict) -> None:
+    """Stop leftover master writers before any new tmux session starts.
 
-    # Kill any stale processes first.
+    Must finish before the overlapped startup. A kill running beside those
+    sessions would remove the processes just launched.
+    """
+    banner("Killing stale master processes")
+    master = cfg["infra"]["master_ssh_host"]
     # Bracket trick in -f patterns avoids pkill matching this ssh/bash -c line itself.
     step("Killing stale processes...")
     ssh(master,
@@ -647,11 +648,37 @@ def start_master_stack(cfg: dict):
         "pkill -9 -f '[e]nvoy_retry_collector.py' 2>/dev/null; "
         "pkill -9 -f '[r]esource_usage_collector.py' 2>/dev/null; "
         "pkill -9 -f '[t]opfull_throttle_collector.py' 2>/dev/null; "
+        "pkill -9 -f '[r]etryguard.py' 2>/dev/null; "
         "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
         "tmux kill-server 2>/dev/null; "
         "sleep 2; true",
         check=False)
 
+
+def start_master_stack(cfg: dict, proxy_ready: threading.Event | None = None):
+    """Start the proxy, TopFull RL when enabled, and metric_collector.
+
+    ``proxy_ready`` is set after the proxy's 5 s init so the throttle
+    collector can start while Ray is still loading. It is also set if this
+    function fails before that wait, so a waiter is not left blocked.
+    The stale-process kill is ``kill_stale_master_processes`` and is not
+    repeated here.
+    """
+    banner("Starting master stack")
+    master = cfg["infra"]["master_ssh_host"]
+    src = cfg["infra"]["topfull_src_path"]
+    venv = cfg["infra"]["venv_activate"]
+    # Default True: omitted key preserves current behavior for all existing YAMLs.
+    rl_enabled = cfg.get("topfull_rl", {}).get("enabled", True)
+
+    try:
+        _start_master_stack_after_kill(master, src, venv, rl_enabled, proxy_ready)
+    finally:
+        if proxy_ready is not None and not proxy_ready.is_set():
+            proxy_ready.set()
+
+
+def _start_master_stack_after_kill(master, src, venv, rl_enabled, proxy_ready):
     # Write start scripts (LF guaranteed by write_remote_script)
     proxy_script = (
         f"#!/bin/bash\n"
@@ -672,6 +699,8 @@ def start_master_stack(cfg: dict):
     ssh(master, "tmux new-session -d -s proxy /tmp/rg_proxy.sh")
     step("Started: Go proxy (tmux session: proxy)")
     wait_with_progress(5, "proxy init")
+    if proxy_ready is not None:
+        proxy_ready.set()
 
     if rl_enabled:
         rl_script = (
@@ -992,6 +1021,75 @@ def start_topfull_throttle_collector(cfg: dict):
     step("Started: TopFull throttle collector "
          f"(tmux session: throttle, script: {script})")
     wait_with_progress(3, "TopFull throttle collector init")
+
+
+# One pgrep. Bracketed names avoid matching this ssh command itself.
+MASTER_PROCESS_GATE = (
+    "pgrep -af '[p]roxy_online_boutique|[m]etric_collector.py|"
+    "[e]nvoy_retry_collector.py|[r]esource_usage_collector.py|"
+    "[t]opfull_throttle_collector.py|[d]eploy_rl.py|[r]etryguard.py' || true"
+)
+
+
+def require_master_processes(cfg: dict) -> None:
+    """Abort before Locust if a process the overlapped startup should have left running is gone."""
+    master = cfg["infra"]["master_ssh_host"]
+    needed = ["proxy_online_boutique", "metric_collector.py"]
+    if cfg.get("envoy_retry_collector", {}).get("enabled", False):
+        needed.append("envoy_retry_collector.py")
+    if cfg.get("resource_usage_collector", {}).get("enabled", False):
+        needed.append("resource_usage_collector.py")
+    if cfg.get("topfull_throttle_collector", {}).get("enabled", False):
+        needed.append("topfull_throttle_collector.py")
+    if cfg.get("topfull_rl", {}).get("enabled", True):
+        needed.append("deploy_rl.py")
+    if cfg.get("retryguard", {}).get("enabled", False):
+        needed.append("retryguard.py")
+    found = ssh(master, MASTER_PROCESS_GATE, check=False).stdout or ""
+    missing = [name for name in needed if name not in found]
+    if missing:
+        print(f"[ERROR] Master processes not running: {', '.join(missing)}")
+        sys.exit(1)
+    step("Master processes running [OK]")
+
+
+def start_overlapped_services(cfg: dict) -> None:
+    """Start TopFull, the mesh collector, and the other collectors together.
+
+    The stale-process kill has already finished. Locust is not started here.
+    A branch that fails still unblocks the proxy wait, then the error is
+    re-raised after the other branches return. There is no synchronous retry.
+    """
+    proxy_ready = threading.Event()
+    rg_enabled = cfg.get("retryguard", {}).get("enabled", False)
+
+    def topfull():
+        start_master_stack(cfg, proxy_ready=proxy_ready)
+
+    def mesh_then_retryguard():
+        start_envoy_retry_collector(cfg)
+        if rg_enabled:
+            start_retryguard(cfg)
+
+    def cpu_then_throttle():
+        start_resource_usage_collector(cfg)
+        proxy_ready.wait()
+        start_topfull_throttle_collector(cfg)
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = [
+            pool.submit(topfull),
+            pool.submit(mesh_then_retryguard),
+            pool.submit(cpu_then_throttle),
+        ]
+        errors: list[BaseException] = []
+        for fut in futures:
+            try:
+                fut.result()
+            except BaseException as exc:
+                errors.append(exc)
+    if errors:
+        raise errors[0]
 
 
 # --------------------------------------------------------------------------- #
@@ -1417,19 +1515,9 @@ def run(config_path: str):
 
         apply_per_try_timeout(cfg)
         restart_before_hold(cfg)
-
-        start_master_stack(cfg)
-
-        # Envoy retry collector is independent of RetryGuard — run in both arms.
-        start_envoy_retry_collector(cfg)
-
-        # CPU/memory collector — run in both arms (Layer 2).
-        start_resource_usage_collector(cfg)
-
-        start_topfull_throttle_collector(cfg)
-
-        if rg_enabled:
-            start_retryguard(cfg)
+        kill_stale_master_processes(cfg)
+        start_overlapped_services(cfg)
+        require_master_processes(cfg)
 
         start_locust(cfg, phases)
         fired_phases = {0}

@@ -6,8 +6,7 @@ condition: retryguard
 run_number: 22
 description: 'Study 2026-10-09 study2_s4a_tf1rg1_rep1: topology_position_A 175/30/70/90/5,
   reenable_rejection=0.15, topfull_rl=True, retryguard=True. productcatalogservice
-  cpu_limit_millicores=300. Paper-C1, paper_cpu_reconcile false, restart_before_hold
-  checkoutservice and recommendationservice.'
+  cpu_limit_millicores=300. Paper-C1, paper_cpu_reconcile false,'
 duration_seconds: 600
 locust:
   user_counts:
@@ -20,11 +19,6 @@ locust:
   scripts:
   - online_boutique_create_v2.sh
 paper_cpu_reconcile: false
-restart_before_hold:
-  deployments:
-  - checkoutservice
-  - recommendationservice
-  settle_seconds: 60
 scale_constraints:
 - deployment: checkoutservice
   namespace: default

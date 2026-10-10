@@ -92,7 +92,7 @@ Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used payments
 
 ## Repeating runs
 
-Cool-off between holds is **120 s**. The clock starts when `run_scenario.py` exits. Pulling the folder is fine during the wait. After 120 s, run the leftover stop in [Running an experiment](#running-an-experiment), then launch. Holds in one comparison use this same gap. Earlier holds used 300 s or 360 s; those records stay as they are. On S2, `restart_before_hold` still rolls checkout and recommendations and waits 60 s inside the run.
+Cool-off between holds is **120 s**. The clock starts when `run_scenario.py` exits. Pulling the folder is fine during the wait. After 120 s, run the leftover stop in [Running an experiment](#running-an-experiment), then launch. Holds in one comparison use this same gap. Earlier holds used 300 s or 360 s; those records stay as they are. Checkout and recommendations stay up across the cool-off on every scenario. `restart_before_hold` remains an opt-in YAML key.
 
 Then increment `run_number` and update `log_folder`:
 

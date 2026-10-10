@@ -76,11 +76,7 @@ def test_scenario_identity_preserved_rows_and_paths():
     assert "checkoutservice cpu_limit_millicores=300" in s3["description"]
     assert "Unused slot" not in s3["description"]
     assert s3["paper_cpu_reconcile"] is False
-    assert s3["restart_before_hold"]["deployments"] == [
-        "checkoutservice",
-        "recommendationservice",
-    ]
-    assert s3["restart_before_hold"]["settle_seconds"] == 60
+    assert "restart_before_hold" not in s3
     limits = {x["deployment"]: x["cpu_limit_millicores"] for x in s3["scale_constraints"]}
     assert limits["checkoutservice"] == 300
     assert limits["recommendationservice"] == 1150
