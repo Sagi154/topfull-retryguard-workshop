@@ -40,10 +40,11 @@ class TestEdgeRpr(unittest.TestCase):
         streak_s, high = score.file_streak(ticks, 0.5)
         self.assertEqual(streak_s, 20)
         self.assertEqual(high, 3)
-        mean, maximum, volume = score.rpr_summary(ticks)
+        mean, median, maximum, volume = score.rpr_summary(ticks)
         self.assertAlmostEqual(maximum, 4)
         self.assertAlmostEqual(volume, (20 + 20 + 0 + 8) / (10 + 20 + 10 + 2))
         self.assertAlmostEqual(mean, (2 + 1 + 0 + 4) / 4)
+        self.assertAlmostEqual(median, 1.5)
 
     def test_one_high_tick_is_zero_seconds(self):
         ticks = [{"timestamp": "2026-10-08T00:00:00Z", "rpr": 1.0, "delta_retry": 1, "first": 1}]

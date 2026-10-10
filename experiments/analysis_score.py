@@ -169,14 +169,22 @@ def file_streak(ticks: list[dict], shed: float) -> tuple[float, int]:
     return longest, high
 
 
-def rpr_summary(ticks: list[dict]) -> tuple[float | None, float | None, float | None]:
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2
+
+
+def rpr_summary(ticks: list[dict]) -> tuple[float | None, float | None, float | None, float | None]:
     if not ticks:
-        return None, None, None
+        return None, None, None, None
     values = [tick["rpr"] for tick in ticks]
     first = sum(tick["first"] for tick in ticks)
     retry = sum(tick["delta_retry"] for tick in ticks)
     volume = (retry / first) if first else None
-    return sum(values) / len(values), max(values), volume
+    return sum(values) / len(values), _median(values), max(values), volume
 
 
 def positive_retry_delta(rows: list[dict]) -> dict[tuple[str, str], int]:
@@ -506,7 +514,7 @@ def score_run(run_dir: Path) -> dict:
             continue
         series = ticks.get((caller, target), [])
         streak_s, high_ticks = file_streak(series, shed)
-        mean_rpr, max_rpr, volume = rpr_summary(series)
+        mean_rpr, median_rpr, max_rpr, volume = rpr_summary(series)
         log_name = f"{caller}->{target}"
         samples = log["observes"].get(log_name, [])
         edges[log_name] = {
@@ -514,6 +522,7 @@ def score_run(run_dir: Path) -> dict:
             "high_ticks": high_ticks,
             "controller_high": controller_high(samples),
             "mean_rpr": mean_rpr,
+            "median_rpr": median_rpr,
             "max_rpr": max_rpr,
             "volume_rpr": volume,
             "climb_1": climb_streak(samples, 1, limit_1),
@@ -759,7 +768,7 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
                     cell = _bold(cell, True)
                 streak_cells.append(cell)
                 summary_cells.append(
-                    f"{_fmt(edge['mean_rpr'], '.3f')} / {_fmt(edge['max_rpr'], '.2f')} / {_fmt(edge['volume_rpr'], '.3f')}"
+                    f"{_fmt(edge['mean_rpr'], '.3f')} / {_fmt(edge['median_rpr'], '.3f')} / {_fmt(edge['max_rpr'], '.2f')} / {_fmt(edge['volume_rpr'], '.3f')}"
                 )
                 climb_cells.append(f"{_fmt(edge['climb_1'], 'd')} / {_fmt(edge['climb_2'], 'd')}")
             streak_rows.append((_edge_label(name), streak_cells))
@@ -769,9 +778,9 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
             "(a) Edge rpr, file streak seconds / ticks above the shed bar (controller high)",
             "Edge", labels, streak_rows, sep,
         ))
-        lines.append("Mean rpr / max rpr / volume rpr. Volume is the hold's delta retry / first attempts.")
+        lines.append("Mean rpr / median rpr / max rpr / volume rpr. Median is the median of the scored per-tick rpr values. Volume is the hold's delta retry / first attempts.")
         lines.append("")
-        lines.append(_table("(a) Mean / max / volume rpr", "Edge", labels, summary_rows, sep))
+        lines.append(_table("(a) Mean / median / max / volume rpr", "Edge", labels, summary_rows, sep))
         lines.append(
             "Climb streaks are OBSERVE samples while that attempt cap is in force. "
             "An em dash means the edge never ran at that cap."
