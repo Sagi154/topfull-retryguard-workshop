@@ -843,6 +843,29 @@ class TestAttemptRamp(unittest.TestCase):
         self.assertEqual(retryguard.climb_interval_s(1, 30), 15)
         self.assertEqual(retryguard.climb_interval_s(2, 30), 15)
 
+    def test_climb_interval_seconds_defaults_to_the_constant(self):
+        ctrl = retryguard.EdgeController((self.EDGE,), 0.5, 0.2, 3)
+        self.assertEqual(ctrl.climb_interval_seconds, retryguard.CLIMB_INTERVAL_SECONDS)
+
+    def test_climb_interval_seconds_override_shortens_the_climb(self):
+        ctrl = retryguard.EdgeController(
+            (self.EDGE,), 0.5, 0.2, 3, climb_interval_seconds=2,
+        )
+        self.assertEqual(ctrl.climb_interval_seconds, 2)
+        self.to_attempts(ctrl, 1)
+        # 2 quiet rows is not yet 2 s elapsed from the opening row: holds at 1.
+        self.assertEqual(self.feed(ctrl, 2, 0.10), [])
+        self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 1)
+        # A third quiet row reaches 2 s elapsed and climbs.
+        climb = self.feed(ctrl, 1, 0.10)
+        self.assertEqual(climb[0].desired_attempts, {"frontend": 2})
+
+    def test_climb_interval_from_params(self):
+        self.assertIsNone(retryguard.climb_interval_from_params({}))
+        self.assertEqual(
+            retryguard.climb_interval_from_params({"climb_interval_seconds": 10}), 10,
+        )
+
     def test_reenable_needs_rejection_under_0_10(self):
         # 0.15 is under the 0.20 rejection bar and must still not restore.
         ctrl = self.make()

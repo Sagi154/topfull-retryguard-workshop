@@ -696,6 +696,16 @@ def climb_interval_s(attempts: int, reenable_interval: int) -> int:
     return CLIMB_INTERVAL_SECONDS
 
 
+def climb_interval_from_params(params: dict) -> Optional[int]:
+    """
+    YAML override for the 1->2 and 2->3 climb quiet time, in seconds. None
+    means the caller should keep CLIMB_INTERVAL_SECONDS (15 s), the
+    long-standing default — a YAML that omits the key is unaffected.
+    """
+    value = params.get("climb_interval_seconds")
+    return int(value) if value is not None else None
+
+
 def climb_rpr_limit(attempts: int, attempts_on: int, rpr_threshold: float) -> float:
     """
     Highest rpr at which adding attempts is still predicted to land on
@@ -748,8 +758,9 @@ class EdgeController:
     0.20 rejection_threshold. Further attempts climb one at a time while rpr
     stays at or under the configured climb bar (climb_rpr_1_to_2 at 1 attempt,
     climb_rpr_2_to_3 at 2). Climbs 1→2 and 2→3 each need
-    CLIMB_INTERVAL_SECONDS (15 s) of quiet; 0→1 and shed use the full
-    interval (30 s). rpr above rpr_threshold for a full interval of row
+    climb_interval_seconds of quiet (default CLIMB_INTERVAL_SECONDS, 15 s);
+    0→1 and shed use the full interval (30 s). rpr above rpr_threshold for a
+    full interval of row
     timestamps sheds straight to 0 from any attempt count.
     """
 
@@ -758,6 +769,7 @@ class EdgeController:
         reenable_rejection_threshold=REENABLE_REJECTION_THRESHOLD,
         climb_rpr_1_to_2=None,
         climb_rpr_2_to_3=None,
+        climb_interval_seconds=None,
     ):
         self.rpr_threshold = rpr_threshold
         self.rejection_threshold = rejection_threshold
@@ -771,6 +783,10 @@ class EdgeController:
         self.climb_rpr_2_to_3 = (
             climb_rpr_limit(2, self.attempts_on, rpr_threshold)
             if climb_rpr_2_to_3 is None else float(climb_rpr_2_to_3)
+        )
+        self.climb_interval_seconds = (
+            CLIMB_INTERVAL_SECONDS
+            if climb_interval_seconds is None else int(climb_interval_seconds)
         )
         self.edge_state = {
             e: ServiceState(attempts=self.attempts_on) for e in edges
@@ -822,7 +838,7 @@ class EdgeController:
             _clear_streaks(state)
         if streak_met(state.high_since, timestamp, self.interval):
             return "shed"
-        climb_s = climb_interval_s(state.attempts, self.interval)
+        climb_s = self.climb_interval_seconds
         if streak_met(state.low_since, timestamp, climb_s):
             return "climb"
         return None
@@ -977,11 +993,13 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
     wait_for_inbound_csv(record_path)
 
     climb_1, climb_2 = climb_limits_from_params(params)
+    climb_interval = climb_interval_from_params(params)
     ctrl = EdgeController(
         CONTROLLED_EDGES, rpr_threshold, rejection_threshold, interval, attempts_on,
         reenable_rejection_threshold=reenable_threshold_from_params(params),
         climb_rpr_1_to_2=climb_1,
         climb_rpr_2_to_3=climb_2,
+        climb_interval_seconds=climb_interval,
     )
     inbound = InboundCsvTailer(record_path / INBOUND_CSV_NAME)
     edges = EdgesCsvTailer(record_path / EDGES_CSV_NAME)
@@ -990,10 +1008,12 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
     log.info(
         "%s  START  metric=edge_rpr rpr_threshold=%.2f rejection_threshold=%.2f "
         "reenable_rejection=%.2f climb_rpr_1_to_2=%.2f climb_rpr_2_to_3=%.2f "
-        "sample_interval=%ss interval_samples=%ds edges=%d attempts_on=%d",
+        "climb_interval_seconds=%ds sample_interval=%ss interval_samples=%ds "
+        "edges=%d attempts_on=%d",
         utc_now(), rpr_threshold, rejection_threshold,
         ctrl.reenable_rejection_threshold,
         ctrl.climb_rpr_1_to_2, ctrl.climb_rpr_2_to_3,
+        ctrl.climb_interval_seconds,
         sample_interval, interval, len(CONTROLLED_EDGES), attempts_on,
     )
 
