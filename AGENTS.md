@@ -223,3 +223,15 @@ Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used payments
 ## 9. Keeping this file useful
 
 When you complete meaningful work (a scenario actually run, a bug fixed, a new phase closed), append one bullet to [STATUS.md](STATUS.md) Done, update Next free slots if a YAML moved, and replace the three Latest lines in §4. Keep this file's own content lean — link to the detailed guide instead of duplicating it.
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues in `Sagi154/topfull-retryguard-workshop`. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` at the repo root and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
