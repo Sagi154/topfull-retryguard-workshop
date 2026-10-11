@@ -77,8 +77,8 @@ The runner will:
 | `scenario_3_retryguard.yaml` | Targeted Bottleneck (checkout) | RetryGuard on | 10 min |
 | `scenario_4a_baseline.yaml` | Topology Position A (productcatalog) | baseline | 10 min |
 | `scenario_4a_retryguard.yaml` | Topology Position A (productcatalog) | RetryGuard on | 10 min |
-| `scenario_4b_baseline.yaml` | Topology Position B (payment) | baseline | 10 min |
-| `scenario_4b_retryguard.yaml` | Topology Position B (payment) | RetryGuard on | 10 min |
+| `scenario_4b_baseline.yaml` | Topology Position B (`emailservice`, 40m, Checkout-mediated) | baseline | 10 min |
+| `scenario_4b_retryguard.yaml` | Topology Position B (`emailservice`, 40m, Checkout-mediated) | RetryGuard on | 10 min |
 | `scenario_5_interval_10s.yaml` | Interval Tuning — 10s label (30s wait); **S6 load** | RetryGuard on | 15 min |
 | `scenario_5_interval_20s.yaml` | Interval Tuning — 20s label (60s wait); **S6 load** | RetryGuard on | 15 min |
 | `scenario_5_interval_30s.yaml` | Interval Tuning — 30s label (90s wait); **S6 load** | RetryGuard on | 15 min |
@@ -86,11 +86,15 @@ The runner will:
 | `scenario_6_recovery_baseline.yaml` | Forced Recovery | baseline | 15 min |
 | `scenario_6_recovery_retryguard.yaml` | Forced Recovery | RetryGuard on | 15 min |
 
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
+
 ---
 
 ## Repeating runs
 
-After the cool-off, run the leftover stop in [Running an experiment](#running-an-experiment) before the next launch. Then increment `run_number` and update `log_folder`:
+Cool-off between holds is **120 s**. The clock starts when `run_scenario.py` exits. Pulling the folder is fine during the wait. After 120 s, run the leftover stop in [Running an experiment](#running-an-experiment), then launch. Holds in one comparison use this same gap. Earlier holds used 300 s or 360 s; those records stay as they are. Checkout and recommendations stay up across the cool-off on every scenario. `restart_before_hold` remains an opt-in YAML key.
+
+Then increment `run_number` and update `log_folder`:
 
 ```yaml
 run_number: 2
@@ -111,8 +115,7 @@ The runner prints the exact `scp` command after each run, already pointed at the
 scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_retryguard_sustained_overload_run1 experiments/results/campaign_48/S2_sustained_overload/
 ```
 
-To automate that pull **and** get a per-service rho/mu.hat + RetryGuard-toggle
-report in the same step, use `pull_results.py` with the same YAML config you
+To automate that pull, use `pull_results.py` with the same YAML config you
 used to launch the run (it reuses `run_scenario.scenario_dir_name()` so the
 destination mapping is computed in exactly one place, not duplicated):
 
@@ -121,11 +124,12 @@ python experiments/pull_results.py experiments/configs/scenario_2_baseline.yaml
 ```
 
 This is purely local/read-only w.r.t. the VMs (`scp -r` pull only — it never
-touches `topfull-master`'s live collector/runner processes) and, after the
-pull, writes `rho_estimate_report.md` / `.json` into the freshly-pulled run
-folder. Pass `--no-report` to skip the report, or `--dry-run` to only print
-the scp command. The existing printed-`scp`-command behavior of
-`run_scenario.py` itself is unchanged — this is an additive convenience.
+touches `topfull-master`'s live collector/runner processes). Score the pulled
+folder with `python experiments/analysis_score.py <run_dir>` and write the
+guide from `Guides and Info/ANALYSIS-TEMPLATE.md`. `rho_estimate_report.py`
+is retired and this pull does not write it. `--dry-run` only prints the scp
+command. The existing printed-`scp`-command behavior of `run_scenario.py`
+itself is unchanged — this is an additive convenience.
 
 ---
 
@@ -174,7 +178,9 @@ scale_constraints:
 
 ### scale_constraints — method: cpu_limit
 
-Bottlenecks use a **fraction of the TopFull paper CPU quota** (not a hard-coded millicore string). Paper baselines live in `topfull_cpu_quotas.py` (e.g. checkout/payment **1000m**, productcatalog **500m**, default **1000m**). Absolute `cpu_limit: "…"` in YAML is rejected at run start.
+Bottlenecks use `method: cpu_limit`. A `cpu_limit_fraction` is a fraction of the TopFull paper CPU quota (not a hard-coded millicore string). Paper baselines live in `topfull_cpu_quotas.py` (e.g. checkout/payment **1000m**, productcatalog **500m**, default **1000m**). Absolute `cpu_limit: "…"` in YAML is rejected at run start.
+
+S4B sets absolute `cpu_limit_millicores: 40` on `emailservice`.
 
 ```yaml
 scale_constraints:
@@ -185,12 +191,14 @@ scale_constraints:
     container: server         # container name inside the pod
 ```
 
-With fraction `0.1`: S3 checkout → **100m**, S4A productcatalog → **50m** (not comparable to `campaign_48/`’s absolute 100m), S4B payment → **100m**. Before load, the runner reconciles every Boutique service to paper limits, applies the fraction on the bottleneck, writes `topfull_run_quotas.json`, and patches Detector to load it. Teardown deletes the JSON and reconciles K8s back to paper (not “remove the limit”).
+With fraction `0.1`: S3 checkout → **100m**, S4A productcatalog → **50m** (not comparable to `campaign_48/`’s absolute 100m). S4B sets absolute `cpu_limit_millicores: 40` on `emailservice` (Checkout-mediated: Frontend → Checkout → Email). Before load, the runner reconciles every Boutique service to paper limits, applies the configured bottleneck cap, writes `topfull_run_quotas.json`, and patches Detector to load it. Teardown deletes the JSON and reconciles K8s back to paper (not “remove the limit”).
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ---
 
 ## Known limitations / TODOs
 
 - **Offline per-service μ̂** — `python experiments/estimate_service_mu.py <run_dir>` prints λ / μ̂ / ρ from `service_inbound.csv` alone (stdlib only; no Locust / throttle inputs, and — since the 2026-09-16 correction — no `topfull_detect.csv` either). Corrected 2026-09-16 (see `docs/superpowers/specs/2026-09-16-rho-estimator-correction.md`): `mu_hat_w = lambda + 1/W`, the M/M/1 steady-state relation, using this service's own inbound mean sojourn time `W` from Envoy's `downstream_rq_time` histogram (`rq_time_sum_ms`/`rq_time_count` columns on `service_inbound.csv`/`service_edges.csv`, added to `envoy_retry_collector.py` the same day — runs pulled before 2026-09-16 lack these columns and report `mu_hat_w`/`rho_w` as `n/a` with an explicit note). The old `mu_cpu = lambda / utilization` estimator (TopFull's CPU-quota bookkeeping, not the paper's ρ) was removed entirely, not kept as a fallback. The saturated-goodput cross-check (`mu_sat = Δ2xx/Δt` on high-5xx ticks) is unchanged.
-- **Combined ρ + RetryGuard-toggle report** — `python experiments/rho_estimate_report.py <run_dir>` (or the `rho-estimate-report` Cursor skill under `.cursor/skills/`) writes `rho_estimate_report.md`/`.json` into the run folder itself: the same λ/μ̂/ρ table plus a summary of `retryguard.log`'s `ON→OFF`/`OFF→ON` events. Degrades gracefully (no exception) when `service_inbound.csv`, its latency columns, or `retryguard.log` are missing. `pull_results.py` calls this automatically after every pull. **Caveat carried in every report:** `mu_hat_w` assumes M/M/1 steady state (ρ<1); if a service's mean λ reaches/exceeds its own `mu_hat_w`, the report flags that assumption as likely violated rather than trusting the number. Treat `rho_w` as directional, not a precise absolute ρ — real traffic isn't exactly Poisson/exponential.
+- **Run analysis** — `python experiments/analysis_score.py <run_dir> [...]` prints the tables in `Guides and Info/ANALYSIS-TEMPLATE.md` (edge rpr, rejection context, detector share, retry volume, toggles, Locust, inbound arrival and sojourn, CPU, live TopFull caps). `--sep N` inserts a column bar every N runs. `rho_estimate_report.py` is retired; do not generate it for a new guide.
 - **Retries-per-request in the existing matrix** — the finished 38 folders predate the Envoy collector; only new runs produce `envoy_retries_*.csv`. Close this with the 48-run campaign, not by mixing datasets. See PHASE7-DATA-GAPS.md Gap 3 and PHASE7-RESOLVE-GAPS-1-3.md.

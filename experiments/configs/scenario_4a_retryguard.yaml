@@ -2,8 +2,8 @@
 # Scenario 4A — Topology Position: Gateway-Adjacent  |  RETRYGUARD ON
 #
 # Constraint: absolute cpu_limit_millicores: 50 (ADR-0006), same value used
-# for S3 (checkoutservice) and S4B (paymentservice) — "limit different
-# services in a similar way." Not comparable to campaign_48's absolute 100m.
+# for S3 (checkoutservice). S4B constrains emailservice at 40m, not this 50m cap.
+# Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable. Not comparable to campaign_48's absolute 100m.
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 4
@@ -31,7 +31,7 @@ scale_constraints:
   - deployment: productcatalogservice
     namespace: default
     method: cpu_limit
-    cpu_limit_millicores: 50   # absolute cap (ADR-0006), same value as S3/S4B
+    cpu_limit_millicores: 50   # absolute cap (ADR-0006), same value as S3
     container: server
 
 # ── Retry policy (Istio VirtualService — applies both arms) ──────────────────
@@ -47,6 +47,8 @@ retryguard:
   interval_samples: 30         # paper default (Sec. 6.2), symmetric ON/OFF
   retry_metric: edge_rpr
   retries_threshold: 0.5
+  climb_rpr_1_to_2: 0.17
+  climb_rpr_2_to_3: 0.33
 
 # ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
 # Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).

@@ -9,6 +9,7 @@ Run:
 import json
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -312,6 +313,11 @@ class TestStartRetryGuardWiring(unittest.TestCase):
                 "venv_activate": "/home/idozacharia/TopFull/venv/bin/activate",
                 "retryguard_script": "/home/idozacharia/experiments/retryguard.py",
             },
+            "retries": {
+                "attempts_on": 3,
+                "attempts_off": 0,
+                "per_try_timeout_ms": 500,
+            },
             "retryguard": {
                 "enabled": enabled,
                 "rejection_threshold": 0.20,
@@ -339,6 +345,32 @@ class TestStartRetryGuardWiring(unittest.TestCase):
     def test_start_noop_when_disabled(self, mock_deploy):
         run_scenario.start_retryguard(self._cfg(enabled=False))
         mock_deploy.assert_not_called()
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_climb_interval_seconds_is_forwarded_when_present(
+        self, mock_deploy, mock_ssh, mock_json, mock_script, mock_wait,
+    ):
+        cfg = self._cfg(enabled=True)
+        cfg["retryguard"]["climb_interval_seconds"] = 10
+        run_scenario.start_retryguard(cfg)
+        params = mock_json.call_args[0][2]
+        self.assertEqual(params["climb_interval_seconds"], 10)
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_climb_interval_seconds_absent_when_not_set(
+        self, mock_deploy, mock_ssh, mock_json, mock_script, mock_wait,
+    ):
+        run_scenario.start_retryguard(self._cfg(enabled=True))
+        params = mock_json.call_args[0][2]
+        self.assertNotIn("climb_interval_seconds", params)
 
 
 class TestEnvoyRetryCollectorWiring(unittest.TestCase):
@@ -1366,6 +1398,147 @@ class TestRestartBeforeHold(unittest.TestCase):
         mock_ssh.return_value = SimpleNamespace(stdout="", returncode=0)
         run_scenario.restart_before_hold(self._cfg({"deployments": ["checkoutservice"]}))
         self.assertEqual(mock_wait.call_args.args[0], 60)
+
+
+class TestOverlappedStartup(unittest.TestCase):
+    def _cfg(self, restart=False):
+        cfg = {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "loadgen_ssh_host": "topfull-load",
+                "topfull_src_path": "/src",
+                "topfull_loadgen_path": "/load",
+                "venv_activate": "/venv/bin/activate",
+                "retryguard_script": "/rg.py",
+                "envoy_retry_collector_script": "/envoy.py",
+                "resource_usage_collector_script": "/resource.py",
+                "topfull_throttle_collector_script": "/throttle.py",
+            },
+            "topfull_rl": {"enabled": True},
+            "retryguard": {
+                "enabled": True,
+                "rejection_threshold": 0.2,
+                "sample_interval_seconds": 1,
+                "interval_samples": 30,
+                "retries_threshold": 0.5,
+            },
+            "retries": {
+                "attempts_on": 3,
+                "attempts_off": 0,
+                "per_try_timeout_ms": 500,
+            },
+            "envoy_retry_collector": {"enabled": True, "poll_interval_seconds": 1},
+            "resource_usage_collector": {"enabled": True, "poll_interval_seconds": 5},
+            "topfull_throttle_collector": {"enabled": True, "poll_interval_seconds": 1},
+            "locust": {
+                "user_counts": {
+                    "getproduct": 1,
+                    "postcheckout": 1,
+                    "getcart": 1,
+                    "postcart": 1,
+                    "emptycart": 1,
+                },
+                "spawn_rate": 1,
+                "scripts": ["online_boutique_create_v2.sh"],
+            },
+            "scale_constraints": [],
+        }
+        if restart:
+            cfg["restart_before_hold"] = {
+                "deployments": ["checkoutservice", "recommendationservice"],
+                "settle_seconds": 60,
+            }
+        return cfg
+
+    def _run_startup(self, cfg, *, fail_envoy=False, fail_gate=False):
+        events = []
+        lock = threading.Lock()
+
+        def note(item):
+            with lock:
+                events.append(item)
+
+        def fake_ssh(host, cmd, check=True):
+            note(cmd)
+            if fail_envoy and "tmux new-session -d -s envoyretry" in cmd:
+                sys.exit(1)
+            if "pgrep -c locust" in cmd:
+                return SimpleNamespace(stdout="2\n", returncode=0)
+            if cmd == run_scenario.MASTER_PROCESS_GATE:
+                if fail_gate:
+                    stdout = "proxy_online_boutique\n"
+                else:
+                    stdout = "\n".join([
+                        "proxy_online_boutique",
+                        "metric_collector.py",
+                        "envoy_retry_collector.py",
+                        "resource_usage_collector.py",
+                        "topfull_throttle_collector.py",
+                        "deploy_rl.py",
+                        "retryguard.py",
+                    ])
+                return SimpleNamespace(stdout=stdout, returncode=0)
+            if "pgrep -fa deploy_rl.py" in cmd:
+                return SimpleNamespace(stdout="1 python3 deploy_rl.py\n", returncode=0)
+            if "kubectl get pods" in cmd:
+                return SimpleNamespace(stdout="10.1.0.8\n", returncode=0)
+            return SimpleNamespace(stdout="", returncode=0)
+
+        def fake_wait(seconds, label=""):
+            note(f"wait:{label}")
+
+        exited = False
+        with mock.patch.object(run_scenario, "ssh", fake_ssh), \
+             mock.patch.object(run_scenario, "wait_with_progress", fake_wait), \
+             mock.patch.object(run_scenario, "banner", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "deploy_repo_script", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "write_remote_script", lambda *a, **k: None), \
+             mock.patch.object(run_scenario, "write_remote_json", lambda *a, **k: None):
+            try:
+                run_scenario.restart_before_hold(cfg)
+                run_scenario.kill_stale_master_processes(cfg)
+                run_scenario.start_overlapped_services(cfg)
+                run_scenario.require_master_processes(cfg)
+                run_scenario.start_locust(cfg, [{
+                    "user_counts": cfg["locust"]["user_counts"],
+                    "spawn_rate": 1,
+                }])
+            except SystemExit:
+                exited = True
+        return events, exited
+
+    def test_kill_precedes_sessions_and_dependencies_hold(self):
+        events, exited = self._run_startup(self._cfg())
+        self.assertFalse(exited)
+        kill_at = next(i for i, e in enumerate(events) if "pkill -9" in e)
+        first_tmux = next(i for i, e in enumerate(events) if "tmux new-session" in e)
+        self.assertLess(kill_at, first_tmux)
+        proxy_wait = next(i for i, e in enumerate(events) if e == "wait:proxy init")
+        throttle = next(i for i, e in enumerate(events) if "tmux new-session -d -s throttle" in e)
+        envoy = next(i for i, e in enumerate(events) if "tmux new-session -d -s envoyretry" in e)
+        retryguard = next(i for i, e in enumerate(events) if "tmux new-session -d -s retryguard" in e)
+        locust = next(i for i, e in enumerate(events) if "tmux new-session -d -s loadgen" in e)
+        self.assertLess(proxy_wait, throttle)
+        self.assertLess(envoy, retryguard)
+        self.assertLess(max(throttle, retryguard), locust)
+
+    def test_rollout_finishes_before_mesh_pod_ips(self):
+        events, exited = self._run_startup(self._cfg(restart=True))
+        self.assertFalse(exited)
+        restart_at = next(i for i, e in enumerate(events) if "rollout restart" in e)
+        ips_at = next(i for i, e in enumerate(events) if "kubectl get pods" in e)
+        self.assertLess(restart_at, ips_at)
+
+    def test_envoy_start_failure_does_not_launch_locust(self):
+        events, exited = self._run_startup(self._cfg(), fail_envoy=True)
+        self.assertTrue(exited)
+        self.assertFalse(any("tmux new-session -d -s loadgen" in e for e in events))
+
+    def test_missing_process_does_not_launch_locust(self):
+        events, exited = self._run_startup(self._cfg(), fail_gate=True)
+        self.assertTrue(exited)
+        self.assertFalse(any("tmux new-session -d -s loadgen" in e for e in events))
 
 
 if __name__ == "__main__":

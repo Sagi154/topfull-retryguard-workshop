@@ -75,7 +75,9 @@ Retries are recorded on the **caller’s outbound** Envoy cluster, not the calle
 | File | Sidecar scraped | Targets in the rows |
 |---|---|---|
 | `envoy_retries_frontend.csv` | `frontend` | cart, productcatalog, checkout |
-| `envoy_retries_checkoutservice.csv` | `checkoutservice` | cart, productcatalog, **payment** (needed for S4B) |
+| `envoy_retries_checkoutservice.csv` | `checkoutservice` | cart, productcatalog, **email** (needed for S4B) |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 ### Columns (cumulative for the pod’s lifetime — Envoy never resets mid-run)
 

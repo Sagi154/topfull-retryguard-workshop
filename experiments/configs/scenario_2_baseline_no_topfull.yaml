@@ -10,7 +10,7 @@ condition: baseline
 run_number: 162
 description: >
   Locked S2 mix from both-off run 89: 275/90/100/90/5, spawn_rate 50, Paper-C1.
-  Unused slot run162. Checkout and recommendations rolled before the hold.
+  Unused slot run162.
 
 duration_seconds: 600
 
@@ -28,11 +28,6 @@ locust:
 # Paper-C1 millicores. Frontend 1150m is the HPA pin, not a scale_constraint.
 paper_cpu_reconcile: false
 
-restart_before_hold:
-  deployments:
-  - checkoutservice
-  - recommendationservice
-  settle_seconds: 60
 
 scale_constraints:
   - deployment: checkoutservice

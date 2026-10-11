@@ -801,11 +801,70 @@ class TestAttemptRamp(unittest.TestCase):
         self.assertEqual(retryguard.climb_rpr_limit(1, 3, 0.5), 0.17)
         self.assertEqual(retryguard.climb_rpr_limit(2, 3, 0.5), 0.33)
 
+    def test_missing_climb_keys_use_the_formula(self):
+        self.assertEqual(
+            retryguard.climb_limits_from_params({
+                "retry_attempts_on": 3, "retries_threshold": 0.5,
+            }),
+            (0.17, 0.33),
+        )
+        self.assertEqual(
+            retryguard.climb_limits_from_params({
+                "retry_attempts_on": 3,
+                "retries_threshold": 0.5,
+                "climb_rpr_1_to_2": 0.10,
+                "climb_rpr_2_to_3": 0.25,
+            }),
+            (0.10, 0.25),
+        )
+
+    def test_configured_climb_bars_replace_the_formula(self):
+        ctrl = retryguard.EdgeController(
+            (self.EDGE,), 0.5, 0.2, 3,
+            climb_rpr_1_to_2=0.10, climb_rpr_2_to_3=0.25,
+        )
+        self.to_attempts(ctrl, 1)
+        # 0.17 used to climb from 1. It is above 0.10 and at or under 0.5, so it holds.
+        self.assertEqual(self.feed(ctrl, 16, 0.17), [])
+        self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 1)
+        self.assertEqual(ctrl.edge_state[self.EDGE].consecutive_low, 0)
+        climb = self.feed(ctrl, 16, 0.10)
+        self.assertEqual(climb[0].desired_attempts, {"frontend": 2})
+        ctrl.commit(climb[0])
+        # 0.33 used to climb from 2. It is above 0.25, so it holds.
+        self.assertEqual(self.feed(ctrl, 16, 0.33), [])
+        self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 2)
+        climb3 = self.feed(ctrl, 16, 0.25)
+        self.assertEqual(climb3[0].desired_attempts, {"frontend": 3})
+
     def test_climb_interval_per_step(self):
         self.assertEqual(retryguard.CLIMB_INTERVAL_SECONDS, 15)
         self.assertEqual(retryguard.climb_interval_s(0, 30), 30)
         self.assertEqual(retryguard.climb_interval_s(1, 30), 15)
         self.assertEqual(retryguard.climb_interval_s(2, 30), 15)
+
+    def test_climb_interval_seconds_defaults_to_the_constant(self):
+        ctrl = retryguard.EdgeController((self.EDGE,), 0.5, 0.2, 3)
+        self.assertEqual(ctrl.climb_interval_seconds, retryguard.CLIMB_INTERVAL_SECONDS)
+
+    def test_climb_interval_seconds_override_shortens_the_climb(self):
+        ctrl = retryguard.EdgeController(
+            (self.EDGE,), 0.5, 0.2, 3, climb_interval_seconds=2,
+        )
+        self.assertEqual(ctrl.climb_interval_seconds, 2)
+        self.to_attempts(ctrl, 1)
+        # 2 quiet rows is not yet 2 s elapsed from the opening row: holds at 1.
+        self.assertEqual(self.feed(ctrl, 2, 0.10), [])
+        self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 1)
+        # A third quiet row reaches 2 s elapsed and climbs.
+        climb = self.feed(ctrl, 1, 0.10)
+        self.assertEqual(climb[0].desired_attempts, {"frontend": 2})
+
+    def test_climb_interval_from_params(self):
+        self.assertIsNone(retryguard.climb_interval_from_params({}))
+        self.assertEqual(
+            retryguard.climb_interval_from_params({"climb_interval_seconds": 10}), 10,
+        )
 
     def test_reenable_needs_rejection_under_0_10(self):
         # 0.15 is under the 0.20 rejection bar and must still not restore.
@@ -942,6 +1001,12 @@ class TestRunScenarioRetryOnMatches(unittest.TestCase):
             "recommendationservice", "shippingservice",
         ):
             self.assertEqual(run_scenario.retry_on_for(svc), retryguard.retry_on_for(svc))
+
+
+def test_reenable_rejection_param_overrides_default():
+    import retryguard as rg
+    assert rg.reenable_threshold_from_params({}) == rg.REENABLE_REJECTION_THRESHOLD
+    assert rg.reenable_threshold_from_params({"reenable_rejection": 0.15}) == 0.15
 
 
 if __name__ == "__main__":

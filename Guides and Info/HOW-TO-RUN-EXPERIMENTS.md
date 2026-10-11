@@ -58,14 +58,16 @@ All 16 config files live in `experiments/configs/`. Each one is a single scenari
 | `scenario_3_retryguard.yaml` | Checkout CPU-capped + RetryGuard | 10 min |
 | `scenario_4a_baseline.yaml` | ProductCatalog CPU-capped, no RetryGuard | 10 min |
 | `scenario_4a_retryguard.yaml` | ProductCatalog CPU-capped + RetryGuard | 10 min |
-| `scenario_4b_baseline.yaml` | Payment CPU-capped, no RetryGuard | 10 min |
-| `scenario_4b_retryguard.yaml` | Payment CPU-capped + RetryGuard | 10 min |
+| `scenario_4b_baseline.yaml` | Email CPU-capped at 40m, no RetryGuard | 10 min |
+| `scenario_4b_retryguard.yaml` | Email CPU-capped at 40m + RetryGuard | 10 min |
 | `scenario_5_interval_10s.yaml` | S6 load + RetryGuard, re-enable=30s | 15 min |
 | `scenario_5_interval_20s.yaml` | S6 load + RetryGuard, re-enable=60s | 15 min |
 | `scenario_5_interval_30s.yaml` | S6 load + RetryGuard, re-enable=90s | 15 min |
 | `scenario_5_interval_60s.yaml` | S6 load + RetryGuard, re-enable=180s | 15 min |
 | `scenario_6_recovery_baseline.yaml` | Peak then load-drop, no RetryGuard | 15 min |
 | `scenario_6_recovery_retryguard.yaml` | Peak then load-drop + RetryGuard (paper default interval) | 15 min |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 **Start with Scenario 1 baseline** if you're not sure — it's only 5 minutes and the safest first run.
 

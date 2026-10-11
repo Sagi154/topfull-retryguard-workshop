@@ -1,23 +1,27 @@
-# Reading S2 criteria (a)/(b)/(c) when TopFull and RetryGuard are both off
+# Reading (a) / (b) / (c)
 
-Applies to `baseline_no_topfull_sustained_overload` runs 3–7. Source of the three criteria: [2026-09-21-s1-s6-methodology-and-calibration-design.md](../docs/superpowers/specs/2026-09-21-s1-s6-methodology-and-calibration-design.md) §3b (S2 target, lines 105–109).
+Current reading for a hold scored with `experiments/analysis_score.py`. The layout that uses it is [ANALYSIS-TEMPLATE.md](ANALYSIS-TEMPLATE.md).
 
-Both controllers being off is the right place to score the load itself. The three S2 criteria are about whether the traffic would have given RetryGuard and TopFull something to act on, and whether the mesh would have produced a real retry storm. On these runs the controllers do not act, so (a) and (b) are read from the signals they would have used, and (c) is the storm that actually happened.
+This file used to define (a) as an inbound rejection streak above 0.20 for 30 samples, for both-off runs 3–7 (2026-09-24). Edge mode replaced that. The shed signal is retries per request on a caller→callee edge. `experiments/s2_both_off_abc.py` still computes the old streak. New guides use the definitions below.
 
-## (a) RetryGuard-kind overload
+`experiments/rho_estimate_report.py` is retired. It is not part of this reading.
 
-RetryGuard disables retries on a controlled service only after that service’s inbound failure fraction, `Δ(5xx + resets) / Δtotal` from `service_inbound.csv`, stays above **0.20 for 30 consecutive 1-second samples**. With RetryGuard off there is no `ON→OFF` line to read. Rebuild that test from the inbound series: for each of the 9 controlled services (`paymentservice` included; `frontend` and `redis-cart` excluded), the longest streak above 0.20, and whether that streak reaches 30. A streak of 30 or more means RetryGuard would have disabled that service during the hold. “Several” of those 9 is the qualitative target, so the comparison across runs is how many services clear 30, and how far the near-misses get.
+## (a) Edge shed
 
-## (b) TopFull Layer A
+RetryGuard sheds an edge to 0 attempts when `rpr > 0.5` (`retries_threshold`) holds for the interval. `rpr = Δretry / (Δtotal − Δretry)` on one caller→callee edge in `service_edges.csv`. A tick with no first attempts is skipped and does not break the streak.
 
-Two different signals live in this criterion, and only one of them can move while the RL loop is off. `topfull_detect.csv`’s `overloaded=1` flag is the detector’s own CPU-versus-quota call, and that column is still written on these runs. Count, per service, what fraction of the ~600 one-second ticks are `overloaded=1`, and how many services stay hot for a large share of the hold. That is “would the detector have told Layer A this service is overloaded.”
+The file streak is seconds from the first consecutive scored tick above 0.5 to the last. One tick is 0 seconds. **Bold** is a file streak of at least 30 seconds. The parenthetical is the controller's max `high` on that edge's `OBSERVE` lines in `retryguard.log`. On holds before the timestamp interval, that counter had to reach 30 samples. On later holds the shed fires when `elapsed_s` reaches 30.
 
-The other half — admitted rate sitting well below offered rate in `topfull_throttle.csv` — does not appear here: with RL off the Layer A threshold stays at the 10000 passthrough sentinel, so admission does not cut traffic. Confirm that sentinel, then treat the detect-side overloaded fraction as the engagement proxy.
+Climb is part of (a). From 0 attempts, 0→1 needs the callee's inbound rejection strictly under 0.10 for the interval. 1→2 needs `rpr ≤ 0.17`. 2→3 needs `rpr ≤ 0.33`. Those two limits are `retries_threshold × attempts / 3`. Between the climb bar and 0.5 the attempt count holds. An em dash means the edge never sat at that attempt count.
+
+The 0.20 rejection streak is printed next to (a). It is not the shed bar. **Bold** there is a streak of at least 30 on a controlled service. Frontend and redis-cart stay plain. `grpc_4` and `grpc_14` are a separate sum for the four read callees (recommendationservice, productcatalogservice, currencyservice, adservice). They are not in the 0.20 streak numerator.
+
+## (b) Detector overloaded fraction
+
+`topfull_detect.csv` `overloaded=1` ticks over the rows for that service. **Bold** is a share of at least 0.5. That is the detector's CPU-versus-quota call.
+
+Layer A is separate. A live threshold of 10000 is no cap. A live 0 is an empty read. Both stay out of the cap series. With the RL loop off, the threshold stays at 10000, so (b) is the engagement signal that still moves.
 
 ## (c) Retry volume
 
-This one is measured directly. `service_edges.csv` outbound `retry` deltas on the stressed caller→service edges are the actual retry traffic, with neither TopFull shedding load at the proxy nor RetryGuard turning retries off. The bar is a storm on the edges that (a) and (b) say are hot, rather than a handful of retries.
-
-## How to compare runs 3–7
-
-Line the five Locust user counts up against those three pictures and judge which mix looks most overloaded: more services with a ≥30 high-rejection streak, more services overloaded for a large fraction of the 600 seconds, and a larger retry delta on those same edges. Replays of the same counts stay in the comparison, because the note says to judge the candidates against each other.
+Outbound retry delta is the sum of positive `retry` increments on `service_edges.csv`, reported by target. Inbound resets (`downstream_rq_rx_reset`) are the failures the 5xx+resets rejection rate counts. `grpc_4 / grpc_14` on the four read callees is what their retry policy also counts (`deadline-exceeded` and `unavailable`). Checkout, payment, email, cart, and shipping stay on `5xx,reset,connect-failure`.

@@ -70,7 +70,9 @@ Two Targeted Bottleneck runs with different services constrained. Same load, sam
 | Run | Constrained service | Position | TopFull's signal |
 |-----|--------------------|-----------|--------------------|
 | **4A** | `productcatalogservice` | Gateway-adjacent (Frontend → ProductCatalog directly) | Direct — TopFull maps it cleanly to the `getproduct` entry API |
-| **4B** | `paymentservice` | Checkout-mediated (Frontend → Checkout → Payment) | Attenuated — TopFull must infer payment via postcheckout |
+| **4B** | `emailservice` | Checkout-mediated (Frontend → Checkout → Email) | Attenuated — TopFull must infer email via postcheckout |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 - **Key question:** Does RetryGuard provide greater relative benefit in Run B, where TopFull's signal is weaker?
 
@@ -202,6 +204,8 @@ scp -r topfull-master:/home/idozacharia/experiments/results/baseline_topfull_no_
 
 ### Repeating runs
 
+Cool-off between holds is **120 s**. The clock starts when `run_scenario.py` exits. Pulling the folder is fine during the wait. After 120 s, do the leftover-writer check below, then launch. Holds in one comparison use this same gap. Earlier holds used 300 s or 360 s; those records stay as they are. Checkout and recommendations stay up across the cool-off on every scenario. `restart_before_hold` remains an opt-in YAML key.
+
 Before each repeat:
 1. Increment `run_number` and update `log_folder` in the config:
    ```yaml
@@ -317,7 +321,9 @@ infra:
 
 ### Constraint methods for Scenarios 3/4
 
-Our setup has all Online Boutique services at **1 replica** (set by `instance_scaling.py`). This means `kubectl scale --replicas=1` would be a no-op. For Scenarios 3 and 4, the configs use `method: cpu_limit` with **`cpu_limit_fraction: 0.1`** — a tenth of that service’s TopFull paper quota creates genuine local overload without touching replica counts. Absolute millicore strings (`cpu_limit: "100m"`) are rejected. Effective limits: S3/S4B **100m**, S4A **50m** (paper productcatalog is 500m). New S4A runs are **not** comparable to `campaign_48/` S4A (which used absolute 100m). The runner reconciles the cluster to paper quotas before/after each run and feeds the same effective map into Detector via `topfull_run_quotas.json`.
+Our setup has all Online Boutique services at **1 replica** (set by `instance_scaling.py`). This means `kubectl scale --replicas=1` would be a no-op. For Scenarios 3 and 4, the configs use `method: cpu_limit`. S3 and S4A use **`cpu_limit_fraction: 0.1`** — a tenth of that service’s TopFull paper quota creates genuine local overload without touching replica counts. Absolute millicore strings (`cpu_limit: "100m"`) are rejected. Effective limits from that fraction: S3 **100m**, S4A **50m** (paper productcatalog is 500m). S4B sets absolute `cpu_limit_millicores: 40` on `emailservice`. New S4A runs are **not** comparable to `campaign_48/` S4A (which used absolute 100m). The runner reconciles the cluster to paper quotas before/after each run and feeds the same effective map into Detector via `topfull_run_quotas.json`.
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 If you later increase replica counts (e.g. on a bigger worker node), switch to `method: replicas` and set `replicas: 1`.
 

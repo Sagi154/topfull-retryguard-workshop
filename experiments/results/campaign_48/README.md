@@ -27,9 +27,13 @@ campaign_48/
 | `S2_sustained_overload/` | S2 | Peak load from t=0, held flat | `baseline_topfull_no_retryguard_sustained_overload_run{4,5,6}`, `run_topfull_retryguard_sustained_overload_run{4,5,6}` |
 | `S3_targeted_bottleneck/` | S3 | `checkoutservice` CPU-limited to `100m` | `baseline_topfull_no_retryguard_targeted_bottleneck_run{4,5,6}`, `run_topfull_retryguard_targeted_bottleneck_run{4,5,6}` |
 | `S4A_topology_position_A/` | S4A | `productcatalogservice` CPU-limited | `baseline_topfull_no_retryguard_topology_position_A_run{4,5,6}`, `run_topfull_retryguard_topology_position_A_run{4,5,6}` |
-| `S4B_topology_position_B/` | S4B | `paymentservice` CPU-limited | `baseline_topfull_no_retryguard_topology_position_B_run{4,5,6}`, `run_topfull_retryguard_topology_position_B_run{4,5,6}` |
+| `S4B_topology_position_B/` | S4B | `paymentservice` CPU-limited on these runs | `baseline_topfull_no_retryguard_topology_position_B_run{4,5,6}`, `run_topfull_retryguard_topology_position_B_run{4,5,6}` |
 | `S5_interval_tuning/` | S5 | RetryGuard-only; runs on **S6's load shape** (peak → drop), sweeping the re-enable check window (`re_enable_windows` × 30s). Compared against **S6 baseline**, not S2. | `run_topfull_retryguard_interval_{10,20,30,60}s_run{3,4,5}` — 12 folders, no baseline counterpart |
 | `S6_forced_recovery/` | S6 | Peak 5 min, then ~25% load for 10 min (this is what "recovery" means — the load *drops*, giving RetryGuard a chance to re-enable retries) | `baseline_topfull_no_retryguard_forced_recovery_run{1,2,3}`, `run_topfull_retryguard_forced_recovery_run{1,2,3}` |
+
+Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
+
+Current S4B constrains `emailservice` at 40m (Checkout-mediated: Frontend → Checkout → Email).
 
 Within each scenario folder, the individual run-folder names still encode **condition_scenario_runNumber**:
 
