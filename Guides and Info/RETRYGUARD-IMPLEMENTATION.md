@@ -197,3 +197,15 @@ The whole ramp from 0 to 3 now takes at least 60 s (was 90 s). The 15 s value is
 ## Prerequisite for live runs
 
 VirtualServices for **all nine** `CONTROLLED_SERVICES` must exist (`experiments/virtual-services.yaml`), not only catalog/checkout/cart (PHASE5 guide §6c) or patches return 404.
+
+## Burst mode (opt-in, edge mode)
+
+Set in the scenario YAML `retryguard` block with `retry_metric: edge_rpr`. Off unless `burst_rpr` is present.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `burst_rpr` | none (off) | Bar at full attempts, for example 1.0, 1.5 or 2.0. The bar at an edge's current cap is `burst_rpr × attempts / attempts_on`. |
+| `burst_window_seconds` | 5 | Sliding window over row timestamps. |
+| `burst_min_first_attempts` | 20 | Window volume floor. |
+
+The test is `ΣΔretry / ΣΔfirst ≥ bar` over the window. It runs on every edge with attempts above 0, beside the normal handler. A shed goes straight to 0 and recovers the normal way. Log lines: the shed has `metric=rpr_burst`, `START` carries the three keys, and `OBSERVE` carries `burst_rpr5=`. Replay a finished hold with `python experiments/burst_replay.py RUN_DIR ...`. Decision record: [ADR 0007](../docs/adr/0007-burst-mode-sliding-aggregate.md).

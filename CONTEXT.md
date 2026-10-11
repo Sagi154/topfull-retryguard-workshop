@@ -136,3 +136,15 @@ _Avoid_: service (an edge is a pair, a service is one node)
 **Retries per request (rpr)**:
 On one edge, retries divided by first attempts in a 1 s tick: `Δretry / (Δtotal − Δretry)`, the paper's normalized retry rate. Above the 0.5 threshold for 30 ticks sets that edge OFF. A tick with no first attempts is skipped, it counts as neither high nor low. Meaningless once the edge is OFF, so re-enabling falls back to the callee's rejection rate.
 _Avoid_: rejection rate (that is per service, from inbound counts)
+
+**Burst mode**:
+An opt-in RetryGuard edge-mode handler, on only in runs that set `retryguard.burst_rpr`. It sheds an edge straight to 0 attempts when its burst window crosses the burst bar, beside the normal streak handler. Recovery is the normal recovery. It exists because with TopFull on, retries arrive as short bursts (checkout rpr median 0, max 3.7–6.6) that never hold a 20 s streak.
+_Avoid_: burst recovery (there is none), second RetryGuard
+
+**Burst window**:
+The sliding sums of retries and first attempts on one edge over the last `burst_window_seconds` (5) of row timestamps. Its rpr is `ΣΔretry / ΣΔfirst`. It is a single aggregate, not a streak, and it does not count below `burst_min_first_attempts` (20) first attempts.
+_Avoid_: burst streak, 5-tick streak
+
+**Burst bar**:
+`burst_rpr × attempts / attempts_on`. The window rpr must be at or above it (`≥`) to shed. Scaling by cap keeps the bar reachable at 1 and 2 attempts, where rpr cannot exceed the cap.
+_Avoid_: threshold (that is the normal `retries_threshold`, 0.4)
