@@ -96,9 +96,9 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S4A catalog staircase (2026-10-11).** Mix **50 / 20 / 50 / 600 / 5**, RetryGuard on, TopFull off. Catalog **300 / 200 / 100 m**: sojourn **15.3 / 41.5 / 169 ms**. Share over 250 ms **0 / 0.21% / 23.8%**. Share over 500 ms **0 / 0 / 8.7%**. `frontend → productcatalogservice` retries **0 / 0 / 18,445**. `ON→OFF` only at 100 m (catalog once, recommendations twice).
-- **Replicas.** Catalog `replica_count` 1 on every row that exists (149 / 150 / 76). Frontend 4 on every sample. At 100 m, 73 frontend timestamps have no catalog row in three gaps. Catalog never reached 2. Locust rows **547 / 546 / 557**.
-- **Cluster restored.** Catalog **800 m**, checkout **800 m**, email **120 m**. Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`. VMs left **RUNNING**.
+- **S2 both-on replicates 3 and 4 (2026-10-11).** RetryGuard on, TopFull on, tuned parameters, mix **275 / 90 / 100 / 90 / 5**. Both gates **PASS**. Locust rows **550 / 550**. Zero toggles. Folders `study4_s2_tune_rgtf1_rep3` and `study4_s2_tune_rgtf1_rep4`. Detail is the STATUS Done bullet and [2026-10-11-s2-rgtf1-rep3-rep4-abc.md](Guides%20and%20Info/2026-10-11-s2-rgtf1-rep3-rep4-abc.md).
+- **Checkout stays detector-hot.** Overloaded share **54.7% / 53.6% / 51.2% / 50.9%** across rep1–rep4 on. Checkout retry delta on the new holds is **15,511 / 15,629**. `grpc_4` is 0.
+- **Cluster restored.** Catalog **800 m**, checkout **800 m**, email **120 m**. Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs left **RUNNING**.
 
 ### Still open
 
