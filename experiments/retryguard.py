@@ -1112,7 +1112,22 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
         climb_rpr_1_to_2=climb_1,
         climb_rpr_2_to_3=climb_2,
         climb_interval_seconds=climb_interval,
+        burst_rpr=params.get("burst_rpr"),
+        burst_window_seconds=int(
+            params.get("burst_window_seconds", BURST_WINDOW_SECONDS_DEFAULT)
+        ),
+        burst_min_first_attempts=int(
+            params.get("burst_min_first_attempts", BURST_MIN_FIRST_ATTEMPTS_DEFAULT)
+        ),
     )
+    burst_start = ""
+    if ctrl.burst_rpr is not None:
+        first_window = next(iter(ctrl.burst_windows.values()))
+        burst_start = (
+            f" burst_rpr={ctrl.burst_rpr:.2f}"
+            f" burst_window_seconds={first_window.seconds}"
+            f" burst_min_first_attempts={first_window.min_first_attempts}"
+        )
     inbound = InboundCsvTailer(record_path / INBOUND_CSV_NAME)
     edges = EdgesCsvTailer(record_path / EDGES_CSV_NAME)
     prev_in: Dict[str, Optional[InboundSnapshot]] = {s: None for s in CONTROLLED_SERVICES}
@@ -1121,12 +1136,13 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
         "%s  START  metric=edge_rpr rpr_threshold=%.2f rejection_threshold=%.2f "
         "reenable_rejection=%.2f climb_rpr_1_to_2=%.2f climb_rpr_2_to_3=%.2f "
         "climb_interval_seconds=%ds sample_interval=%ss interval_samples=%ds "
-        "edges=%d attempts_on=%d",
+        "edges=%d attempts_on=%d%s",
         utc_now(), rpr_threshold, rejection_threshold,
         ctrl.reenable_rejection_threshold,
         ctrl.climb_rpr_1_to_2, ctrl.climb_rpr_2_to_3,
         ctrl.climb_interval_seconds,
         sample_interval, interval, len(CONTROLLED_EDGES), attempts_on,
+        burst_start,
     )
 
     while not _shutdown:
@@ -1138,7 +1154,11 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
 
         rpr = {}
         rpr_ts = {}
+        edge_deltas = {}
         for edge in CONTROLLED_EDGES:
+            delta = edge_tick_deltas(prev_edge[edge], edges.latest.get(edge))
+            if delta is not None:
+                edge_deltas[edge] = delta
             rpr[edge], prev_edge[edge] = measure_edge_rpr(
                 prev_edge[edge], edges.latest.get(edge)
             )
@@ -1157,17 +1177,24 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
             if rejection[service] is not None and snap is not None:
                 rejection_ts[service] = snap.timestamp
 
-        changes = ctrl.step(rpr, rejection, rpr_ts, rejection_ts)
+        changes = ctrl.step(
+            rpr, rejection, rpr_ts, rejection_ts, edge_deltas=edge_deltas,
+        )
 
         for edge, st in ctrl.edge_state.items():
             if st.attempts > 0 and rpr.get(edge) is not None:
                 since = st.high_since if st.consecutive_high else st.low_since
                 elapsed = int(round(streak_elapsed_s(since, rpr_ts.get(edge))))
+                burst_value = ctrl.burst_last.get(edge)
+                burst_obs = (
+                    "" if burst_value is None else f"  burst_rpr5={burst_value:.4f}"
+                )
                 log.info(
                     "%s  OBSERVE  %s->%s  rpr=%.4f  low=%d high=%d  elapsed_s=%d  "
-                    "attempts=%d  state=ON  metric=rpr",
+                    "attempts=%d  state=ON  metric=rpr%s",
                     utc_now(), edge[0], edge[1], rpr[edge],
                     st.consecutive_low, st.consecutive_high, elapsed, st.attempts,
+                    burst_obs,
                 )
         for service, st in ctrl.svc_state.items():
             if rejection.get(service) is not None:
@@ -1197,11 +1224,16 @@ def run_edge_rpr(params: dict, record_path: Path, api: client.CustomObjectsApi) 
                 name, old, new, value, count, attempts, from_attempts, elapsed_s
             ) in change.lines:
                 counter = "consecutive_high" if new == "OFF" else "consecutive_low"
+                line_metric = (
+                    "rpr_burst"
+                    if name.split("->")[0] in change.burst_callers
+                    else change.metric
+                )
                 log.info(
                     "%s  %s  %s→%s   %s=%.2f  %s=%d  attempts=%d  "
                     "from_attempts=%d  metric=%s  elapsed_s=%d",
                     utc_now(), name, old, new, label, value,
-                    counter, count, attempts, from_attempts, change.metric,
+                    counter, count, attempts, from_attempts, line_metric,
                     elapsed_s,
                 )
             ctrl.commit(change)
