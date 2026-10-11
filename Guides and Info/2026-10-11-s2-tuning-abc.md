@@ -38,7 +38,7 @@ Columns in the tables below. Bold bars separate the two replicate pairs from the
 | rep2 on | `study4_s2_tune_rgtf1_rep2` | TopFull on | 2 |
 | rep1 replay | `study4_s2_tune_rgtf0_rep1_r2` | TopFull off | 1, replay |
 
-The replay repeats the rep1 off configuration as a separate run. Its numbers are shown beside rep1 off, not averaged into it.
+All five folders have `run_number` 1 in `run_manifest.json`; the `log_folder` name is the slot. The replay repeats the rep1 off configuration as a separate run. Its numbers are shown beside rep1 off, not averaged into it.
 
 ## 3. Gate
 
@@ -54,7 +54,7 @@ Scorer gate numbers:
 | rep2 on | 566 | 665 | 0 of 7315 | present |
 | rep1 replay | 571 | 664 | 0 of 7304 | present |
 
-The scorer printed no replica-change or zero-replica line for any S2 hold. The CPU table's replica mode is 4 for frontend and 1 for every other service, which matches the pin. I did not re-read `service_capacity.json` in this pass.
+`service_capacity.json` matches the pin in §1 on all five holds (checked for every service). `resource_usage.csv` shows frontend at 4 replicas on every sample (148 to 150 samples per hold), and no service has a zero-replica sample. The scorer printed no replica-change line for any S2 hold.
 
 ## 4. Edge-mode bars
 
@@ -192,11 +192,96 @@ Inbound resets, all 11 services.
 
 ## 9. RetryGuard toggles
 
+Two parts. Part 1 is the scorer's log for each hold that toggled. Part 2 summarizes it per callee.
+
+### Part 1: per hold
+
+`ON→OFF` is the shed to 0 attempts. The `0→1` column is the log's `OFF→ON` onto the callee name (`attempts=1`, `from_attempts=0`). `1→2` and `2→3` are the climb lines. `From` is the attempt count before the step, and `Value` is the rpr on a shed or climb line and the rejection on a re-enable line. The tables in this part are the scorer's output, unchanged.
+
+#### rep1 off
+
+| Name | ON→OFF | 0→1 | 1→2 | 2→3 |
+| --- | ---: | ---: | ---: | ---: |
+| frontend → checkoutservice | 11 | 0 | 0 | 0 |
+| checkoutservice | 0 | 10 | 0 | 0 |
+
+| Time (UTC) | Name | Step | From | Value |
+| --- | --- | --- | ---: | --- |
+| 2026-10-10T23:49:43Z | frontend → checkoutservice | ON→OFF | 3 | rpr 2.56 |
+| 2026-10-10T23:50:07Z | checkoutservice | OFF→ON | 0 | rejection 0.04 |
+| 2026-10-10T23:50:30Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.77 |
+| 2026-10-10T23:51:03Z | checkoutservice | OFF→ON | 0 | rejection 0.02 |
+| 2026-10-10T23:51:26Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.91 |
+| 2026-10-10T23:52:04Z | checkoutservice | OFF→ON | 0 | rejection 0.08 |
+| 2026-10-10T23:52:28Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.94 |
+| 2026-10-10T23:52:53Z | checkoutservice | OFF→ON | 0 | rejection 0.09 |
+| 2026-10-10T23:53:18Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.89 |
+| 2026-10-10T23:53:41Z | checkoutservice | OFF→ON | 0 | rejection 0.11 |
+| 2026-10-10T23:54:05Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.90 |
+| 2026-10-10T23:54:28Z | checkoutservice | OFF→ON | 0 | rejection 0.01 |
+| 2026-10-10T23:54:52Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.82 |
+| 2026-10-10T23:55:16Z | checkoutservice | OFF→ON | 0 | rejection 0.04 |
+| 2026-10-10T23:55:42Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.91 |
+| 2026-10-10T23:56:06Z | checkoutservice | OFF→ON | 0 | rejection 0.03 |
+| 2026-10-10T23:56:33Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.76 |
+| 2026-10-10T23:57:28Z | checkoutservice | OFF→ON | 0 | rejection 0.12 |
+| 2026-10-10T23:57:52Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.95 |
+| 2026-10-10T23:58:15Z | checkoutservice | OFF→ON | 0 | rejection 0.01 |
+| 2026-10-10T23:58:38Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.93 |
+
+#### rep2 off
+
+| Name | ON→OFF | 0→1 | 1→2 | 2→3 |
+| --- | ---: | ---: | ---: | ---: |
+| frontend → checkoutservice | 3 | 0 | 0 | 0 |
+| checkoutservice | 0 | 3 | 0 | 0 |
+
+| Time (UTC) | Name | Step | From | Value |
+| --- | --- | --- | ---: | --- |
+| 2026-10-11T00:41:53Z | frontend → checkoutservice | ON→OFF | 3 | rpr 3.00 |
+| 2026-10-11T00:42:44Z | checkoutservice | OFF→ON | 0 | rejection 0.12 |
+| 2026-10-11T00:43:08Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.90 |
+| 2026-10-11T00:49:49Z | checkoutservice | OFF→ON | 0 | rejection 0.04 |
+| 2026-10-11T00:50:13Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.81 |
+| 2026-10-11T00:50:54Z | checkoutservice | OFF→ON | 0 | rejection 0.06 |
+
+#### rep1 replay
+
+| Name | ON→OFF | 0→1 | 1→2 | 2→3 |
+| --- | ---: | ---: | ---: | ---: |
+| frontend → checkoutservice | 9 | 0 | 0 | 0 |
+| checkoutservice | 0 | 9 | 0 | 0 |
+
+| Time (UTC) | Name | Step | From | Value |
+| --- | --- | --- | ---: | --- |
+| 2026-10-11T00:06:59Z | frontend → checkoutservice | ON→OFF | 3 | rpr 2.67 |
+| 2026-10-11T00:07:23Z | checkoutservice | OFF→ON | 0 | rejection 0.10 |
+| 2026-10-11T00:07:47Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.95 |
+| 2026-10-11T00:08:11Z | checkoutservice | OFF→ON | 0 | rejection 0.08 |
+| 2026-10-11T00:08:34Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.79 |
+| 2026-10-11T00:08:58Z | checkoutservice | OFF→ON | 0 | rejection 0.02 |
+| 2026-10-11T00:09:21Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.84 |
+| 2026-10-11T00:10:24Z | checkoutservice | OFF→ON | 0 | rejection 0.07 |
+| 2026-10-11T00:10:47Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.84 |
+| 2026-10-11T00:11:11Z | checkoutservice | OFF→ON | 0 | rejection 0.14 |
+| 2026-10-11T00:11:36Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.90 |
+| 2026-10-11T00:12:00Z | checkoutservice | OFF→ON | 0 | rejection 0.10 |
+| 2026-10-11T00:12:23Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.94 |
+| 2026-10-11T00:13:49Z | checkoutservice | OFF→ON | 0 | rejection 0.01 |
+| 2026-10-11T00:14:12Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.94 |
+| 2026-10-11T00:14:35Z | checkoutservice | OFF→ON | 0 | rejection 0.01 |
+| 2026-10-11T00:14:59Z | frontend → checkoutservice | ON→OFF | 1 | rpr 0.76 |
+| 2026-10-11T00:15:44Z | checkoutservice | OFF→ON | 0 | rejection 0.10 |
+
+No transition lines on: rep1 on, rep2 on.
+
+### Part 2: per callee
+
 Only `checkoutservice` toggles in S2. Recommendation, email, and the rest show no transitions on any S2 hold, so they get one sentence here.
 
 The table below comes from `retryguard.log` transitions (`from_attempts` → `attempts`). Time OFF runs from the shed timestamp to the matching `OFF→ON`, or to `EXIT` when the edge is still at 0. OFF rejection is minimum / median over the `OBSERVE state=OFF` rejection samples for that window. The under-bar streak is the longest run of consecutive OFF samples below 0.25. An em dash means that edge never went to 0 on that hold.
 
-### checkoutservice
+#### checkoutservice
 
 | | rep1 off | rep1 on | **┃** | rep2 off | rep2 on | **┃** | rep1 replay |
 | --- | ---: | ---: | :---: | ---: | ---: | :---: | ---: |
@@ -211,7 +296,7 @@ Each 0→1 re-enable fired after a streak of 20 under-bar samples, which matches
 
 Rep1 off and the replay both cycled 9–11 times. rep2 off cycled 3 times, and its middle OFF window ran 401 s, the longest in the S2 set. Every re-enable reached 1 attempt, and none climbed to 2 or 3, so the 10 s climb never fired. The TopFull-on holds never shed at all, because checkout's rpr streak topped out at 8–9 s and never reached the 20 s `interval_samples`.
 
-### recommendationservice, emailservice
+#### recommendationservice, emailservice
 
 No ON→OFF or OFF→ON transition on any S2 hold. One sentence, no table.
 
@@ -353,12 +438,61 @@ Max `utilization` in `topfull_detect.csv` (cAdvisor CPU / per-pod quota).
 
 ## 19. TopFull live caps
 
-A live read has `threshold_fresh=1` and threshold above 0. 10000 is no cap. A live 0 is left out. The scorer collapsed the long series, so I list spans only.
+A live read has `threshold_fresh=1` and threshold above 0. 10000 is no cap. A live 0 is an empty read and is left out. `postcart` and `emptycart` are no cap on every live read of every S2 hold.
 
-- **rep2 off:** no live cap on any API for the whole window (00:39:05–00:50:55).
-- **rep1 off and rep1 replay:** the scorer reports live reads on getproduct (166.757) and getcart (61.4746). They alternate with "no cap" every 5 s, from 23:46:52 to 23:58:44 on rep1, and 00:04:06 to 00:15:59 on the replay. postcheckout, postcart, and emptycart are no cap throughout. **These reads are unexplained.** The manifest says TopFull is off on these holds. I have not checked the source of those reads.
-- **rep1 on:** postcart and emptycart are no cap. getproduct is 166.757 until 00:23:28, then 166.8 to 00:33:15. getcart is 61.5 from 00:23:30. postcheckout has live caps from 00:23:30 onward, between 10 and 99, too long to list here.
-- **rep2 on:** getproduct, getcart, postcart, and emptycart are no cap. postcheckout has live caps from 00:58:35 onward, between 10 and 99, too long to list here.
+rep2 off is no cap on every API for the whole window. rep1 off and the rep1 replay both carry a live 166.757 on getproduct and a live 61.4746 on getcart that alternate with no cap about every 5 s; postcheckout is no cap on both. The manifest says the RL loop is off on these holds, and I have not established where those reads come from. The cells keep the scorer's spans, except that a pure two-value alternation is written as one line (value and no cap, span count, first and last span) so the full set of live values is still shown.
+
+rep1 on carries the same alternating 166.757 / 61.4746 pair on getproduct and getcart (see its table). rep2 on has no cap on getproduct and getcart. Both TopFull-on holds carry a moving postcheckout cap, between 10 and 99 across the two.
+
+### rep1 off
+
+| API | Live caps |
+| --- | --- |
+| getproduct | 166.757 and no cap alternate across 285 spans, from 166.757 23:46:52–23:46:54 through 166.757 23:58:41–23:58:44 |
+| postcheckout | no cap 23:46:55–23:58:40 |
+| getcart | 61.4746 and no cap alternate across 285 spans, from 61.4746 23:46:52–23:46:54 through 61.4746 23:58:41–23:58:44 |
+| postcart | no cap 23:46:55–23:58:40 |
+| emptycart | no cap 23:46:55–23:58:40 |
+
+### rep1 on
+
+| API | Live caps |
+| --- | --- |
+| getproduct | 166.757 00:21:23–00:21:24; no cap at 00:21:25; 166.757 00:21:26–00:21:29; no cap at 00:21:30; 166.757 00:21:31–00:21:34; no cap at 00:21:35; 166.757 00:21:36–00:21:39; no cap at 00:21:40; 166.757 00:21:41–00:21:44; no cap at 00:21:45; 166.757 00:21:46–00:21:49; no cap at 00:21:50; 166.757 00:21:51–00:21:54; no cap at 00:21:55; 166.757 00:21:56–00:21:59; no cap at 00:22:00; 166.757 00:22:01–00:22:04; no cap at 00:22:05; 166.757 00:22:06–00:22:09; no cap at 00:22:10; 166.757 00:22:11–00:22:14; no cap at 00:22:15; 166.757 00:22:16–00:22:19; no cap at 00:22:20; 166.757 00:22:21–00:22:24; no cap at 00:22:25; 166.757 00:22:26–00:22:29; no cap at 00:22:30; 166.757 00:22:31–00:22:34; no cap at 00:22:35; 166.757 00:22:36–00:22:39; no cap at 00:22:40; 166.757 00:22:41–00:22:44; no cap at 00:22:45; 166.757 00:22:46–00:22:49; no cap at 00:22:50; 166.757 00:22:51–00:22:54; no cap at 00:22:55; 166.757 00:22:56–00:22:59; no cap at 00:23:00; 166.757 00:23:01–00:23:04; no cap at 00:23:05; 166.757 00:23:06–00:23:09; no cap at 00:23:10; 166.757 00:23:11–00:23:14; no cap at 00:23:15; 166.757 00:23:16–00:23:19; no cap at 00:23:20; 166.757 00:23:21–00:23:24; no cap at 00:23:25; 166.757 00:23:26–00:23:28; 166.8 00:23:30–00:33:15 |
+| postcheckout | no cap 00:21:25–00:23:25; 38 at 00:23:30; 52.8 at 00:23:35; no cap 00:23:40–00:23:45; 74 at 00:23:50; 86.9 at 00:23:51; 84 at 00:23:55; 21.8147 at 00:23:59; 21.8 at 00:24:00; 14.1 at 00:24:05; 54.2 at 00:24:10; no cap at 00:24:15; 37.1 at 00:24:20; 14.2 at 00:24:25; 53.8 at 00:24:30; 99 at 00:24:33; no cap at 00:24:35; 34.8 at 00:24:40; 14.2 at 00:24:45; 53.5 at 00:24:50; 89.9298 at 00:24:53; 70.9 at 00:24:55; 10.5 at 00:25:00; 27.7 at 00:25:05; 38.2282 at 00:25:06; 73.4 at 00:25:10; no cap at 00:25:15; 34.1 at 00:25:20; 10 at 00:25:25; 27.4 at 00:25:30; 99 at 00:25:34; 99 at 00:25:35; 51.9 at 00:25:40; 10 at 00:25:45; 27.8424 at 00:25:48; 38.9 at 00:25:50; 99 at 00:25:55; 52 at 00:26:00; 12.2166 at 00:26:03; 10 at 00:26:05; 14.6611 at 00:26:07; 28.7 at 00:26:10; 76.3 at 00:26:15; 39.8 at 00:26:20; 10 at 00:26:25; 38.2 at 00:26:30; 96.7025 at 00:26:33; 99 at 00:26:35; 21.7 at 00:26:40; 10 at 00:26:42; 18.3 at 00:26:45; 67.8 at 00:26:50; 90 at 00:26:55; 32.4469 at 00:26:59; 32.4 at 00:27:00; 14.2 at 00:27:05; 38.7305 at 00:27:08; 53.8 at 00:27:10; no cap at 00:27:15; 49.0215 at 00:27:18; 30.3 at 00:27:20; 10 at 00:27:23; 14.1 at 00:27:25; 53.6 at 00:27:30; 99 at 00:27:35; 33.5 at 00:27:40; 20.8276 at 00:27:41; 10 at 00:27:45; 38.7 at 00:27:50; 99 at 00:27:55; 52.1 at 00:28:00; 10 at 00:28:05; 27.7866 at 00:28:08; 38.9 at 00:28:10; 99 at 00:28:15; 52.9 at 00:28:20; 12.2375 at 00:28:23; 10 at 00:28:25; 27.7 at 00:28:30; 99 at 00:28:35; 26.1 at 00:28:40; 10 at 00:28:45; 38.5 at 00:28:50; 92.9128 at 00:28:54; 92.9 at 00:28:55; 35.1 at 00:29:00; 14.2 at 00:29:05; 54 at 00:29:10; 99 at 00:29:13; no cap at 00:29:15; 35.1637 at 00:29:19; 35.2 at 00:29:20; 14.2 at 00:29:25; 54 at 00:29:30; no cap 00:29:35–00:29:36; 33 at 00:29:40; 10 at 00:29:45; 14.1236 at 00:29:46; 27.5 at 00:29:50; 95.3 at 00:29:55; 31.4859 at 00:29:59; 31.5 at 00:30:00; 14.2 at 00:30:05; 38.5598 at 00:30:08; 53.7 at 00:30:10; 99 at 00:30:15; 49.2 at 00:30:20; 10 at 00:30:25; 38.8739 at 00:30:29; 38.9 at 00:30:30; 99 at 00:30:35; 50.7 at 00:30:40; 10 at 00:30:45; 14.1085 at 00:30:47; 19.7 at 00:30:50; 73.8 at 00:30:55; 43.5 at 00:31:00; 10 at 00:31:05; 27.6993 at 00:31:08; 38.6 at 00:31:10; 96.2 at 00:31:15; 42.7 at 00:31:20; 10 at 00:31:25; 38.8 at 00:31:30; 89.8 at 00:31:35; 35.2 at 00:31:40; 10 at 00:31:43; 14.1 at 00:31:45; 27.546 at 00:31:47; 53.5 at 00:31:50; no cap at 00:31:55; 31.5 at 00:32:00; 12.0653 at 00:32:02; 14.2 at 00:32:05; 38.9 at 00:32:10; 73.4014 at 00:32:11; 99 at 00:32:15; 52.1 at 00:32:20; 19.7751 at 00:32:21; 10 at 00:32:25; 27.4 at 00:32:30; 96.5 at 00:32:35; 54.5 at 00:32:40; 10 at 00:32:45; 38.4 at 00:32:50; 99 at 00:32:53; 99 at 00:32:55; 51.0079 at 00:32:59; 51 at 00:33:00; 10 at 00:33:05; 23.4184 at 00:33:08; 32.7 at 00:33:10; 99 at 00:33:15 |
+| getcart | 61.4746 00:21:23–00:21:24; no cap at 00:21:25; 61.4746 00:21:26–00:21:29; no cap at 00:21:30; 61.4746 00:21:31–00:21:34; no cap at 00:21:35; 61.4746 00:21:36–00:21:39; no cap at 00:21:40; 61.4746 00:21:41–00:21:44; no cap at 00:21:45; 61.4746 00:21:46–00:21:49; no cap at 00:21:50; 61.4746 00:21:51–00:21:54; no cap at 00:21:55; 61.4746 00:21:56–00:21:59; no cap at 00:22:00; 61.4746 00:22:01–00:22:04; no cap at 00:22:05; 61.4746 00:22:06–00:22:09; no cap at 00:22:10; 61.4746 00:22:11–00:22:14; no cap at 00:22:15; 61.4746 00:22:16–00:22:19; no cap at 00:22:20; 61.4746 00:22:21–00:22:24; no cap at 00:22:25; 61.4746 00:22:26–00:22:29; no cap at 00:22:30; 61.4746 00:22:31–00:22:34; no cap at 00:22:35; 61.4746 00:22:36–00:22:39; no cap at 00:22:40; 61.4746 00:22:41–00:22:44; no cap at 00:22:45; 61.4746 00:22:46–00:22:49; no cap at 00:22:50; 61.4746 00:22:51–00:22:54; no cap at 00:22:55; 61.4746 00:22:56–00:22:59; no cap at 00:23:00; 61.4746 00:23:01–00:23:04; no cap at 00:23:05; 61.4746 00:23:06–00:23:09; no cap at 00:23:10; 61.4746 00:23:11–00:23:14; no cap at 00:23:15; 61.4746 00:23:16–00:23:19; no cap at 00:23:20; 61.4746 00:23:21–00:23:24; no cap at 00:23:25; 61.4746 00:23:26–00:23:28; 61.5 00:23:30–00:33:15 |
+| postcart | no cap 00:21:25–00:33:15 |
+| emptycart | no cap 00:21:25–00:33:15 |
+
+### rep2 off
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 00:39:05–00:50:55 |
+| postcheckout | no cap 00:39:05–00:50:55 |
+| getcart | no cap 00:39:05–00:50:55 |
+| postcart | no cap 00:39:05–00:50:55 |
+| emptycart | no cap 00:39:05–00:50:55 |
+
+### rep2 on
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 00:56:20–01:08:15 |
+| postcheckout | no cap 00:56:20–00:58:30; 54 at 00:58:35; 61 at 00:58:40; 79.2 at 00:58:45; no cap at 00:58:50; 91 at 00:58:55; 46.0991 at 00:58:59; 46.1 at 00:59:00; 10 at 00:59:05; 27.3074 at 00:59:08; 37.4 at 00:59:10; 83.2546 at 00:59:13; 87.4 at 00:59:15; no cap at 00:59:17; 70 at 00:59:18; 42.9 at 00:59:20; 10 00:59:23–00:59:25; 37 at 00:59:30; 84 at 00:59:35; no cap at 00:59:36; 51.6 at 00:59:40; 19.8218 at 00:59:42; 10 at 00:59:45; 19.7 at 00:59:50; 67.4 at 00:59:55; 99 at 01:00:00; 54.1281 at 01:00:04; 54.1 at 01:00:05; 10 at 01:00:10; 27.4 at 01:00:15; 84 at 01:00:20; no cap at 01:00:25; 53 at 01:00:30; 10 at 01:00:35; 37.6 at 01:00:40; 93.6 at 01:00:45; 44.3 at 01:00:50; 16.8884 at 01:00:51; 10 at 01:00:55; 35.7 at 01:01:00; 89.8 at 01:01:05; 41.2268 at 01:01:08; 25.8 at 01:01:10; 14.1 at 01:01:15; 26.657 at 01:01:17; 48 at 01:01:20; 56.9923 at 01:01:21; 91.7 at 01:01:25; 48.8 at 01:01:30; 18.7923 at 01:01:32; 10 at 01:01:35; 19.8 at 01:01:40; 36.6646 at 01:01:41; 65.4 at 01:01:45; 71.3 at 01:01:50; 17.0068 at 01:01:53; 10.5 at 01:01:55; 27.1 at 01:02:00; 49.5649 at 01:02:02; 84.3 at 01:02:05; 86 at 01:02:10; 32.5184 at 01:02:11; 12.5 at 01:02:15; 26.4 at 01:02:20; 78.2 at 01:02:25; no cap at 01:02:30; 53.2097 at 01:02:32; 20.2 at 01:02:35; 14.2 at 01:02:40; 49.6 at 01:02:45; 93.3 at 01:02:50; 90 at 01:02:51; 46.8 at 01:02:55; 10 at 01:03:00; 19.3 at 01:03:05; 63.9 at 01:03:10; no cap 01:03:14–01:03:15; 33.9204 at 01:03:18; 20.9 at 01:03:20; 10 at 01:03:22; 19.3 at 01:03:25; 48.7 at 01:03:30; 70.3681 at 01:03:31; 93.3 at 01:03:35; 53.1 at 01:03:40; 10 at 01:03:45; 16.088 at 01:03:47; 30.5 at 01:03:50; 80.5 at 01:03:55; 83.6766 at 01:03:56; 91.7 at 01:04:00; 33.2 at 01:04:05; 10 at 01:04:10; 14.0951 at 01:04:11; 26.7 at 01:04:15; 76.035 at 01:04:19; 76 at 01:04:20; 74.2138 at 01:04:23; 46.4 at 01:04:25; 10 at 01:04:30; 26.4 at 01:04:35; 77.7 at 01:04:40; 86 at 01:04:45; 12.3 at 01:04:50; 14.9 at 01:04:55; 28.2835 at 01:04:56; 50.9 at 01:05:00; 83.5 at 01:05:05; 17 at 01:05:10; 19.8 at 01:05:15; 64.6 at 01:05:20; 96.4 at 01:05:25; 55.7447 at 01:05:28; 34.7 at 01:05:30; 13.173 at 01:05:32; 10 at 01:05:35; 14.1527 at 01:05:36; 27.1 at 01:05:40; 84.562 at 01:05:44; 84.6 at 01:05:45; 90 at 01:05:50; 33.7 at 01:05:55; 14.2 at 01:06:00; 36.4484 at 01:06:03; 49.2 at 01:06:05; 86.4 at 01:06:10; 96.7703 at 01:06:11; 90 at 01:06:15; 21.3 at 01:06:20; 13.173 at 01:06:21; 10 at 01:06:25; 36.2 at 01:06:30; 95.3838 at 01:06:34; 95.4 at 01:06:35; 51.2 at 01:06:40; 19.6894 at 01:06:42; 10 at 01:06:45; 26.9 at 01:06:50; 80.4 at 01:06:55; no cap at 01:07:00; 18.7 at 01:07:05; 19.2 at 01:07:10; 47.9 at 01:07:15; 90.2 at 01:07:20; 43.3 at 01:07:25; 10 01:07:29–01:07:30; 36.1 at 01:07:35; 92.1 at 01:07:40; no cap 01:07:42–01:07:45; 32.9999 at 01:07:48; 20 at 01:07:50; 19.7 at 01:07:55; 49.2 at 01:08:00; 99 at 01:08:05; 47.9 at 01:08:10; 11.3148 at 01:08:13; 11.3 at 01:08:15 |
+| getcart | no cap 00:56:20–01:08:15 |
+| postcart | no cap 00:56:20–01:08:15 |
+| emptycart | no cap 00:56:20–01:08:15 |
+
+### rep1 replay
+
+| API | Live caps |
+| --- | --- |
+| getproduct | 166.757 and no cap alternate across 285 spans, from 166.757 00:04:06–00:04:09 through 166.757 00:15:56–00:15:59 |
+| postcheckout | no cap 00:04:10–00:15:55 |
+| getcart | 61.4746 and no cap alternate across 285 spans, from 61.4746 00:04:06–00:04:09 through 61.4746 00:15:56–00:15:59 |
+| postcart | no cap 00:04:10–00:15:55 |
+| emptycart | no cap 00:04:10–00:15:55 |
 
 ## 20. Per arm, per hold
 
@@ -372,7 +506,7 @@ A live read has `threshold_fresh=1` and threshold above 0. 10000 is no cap. A li
 
 **rep1 replay.** Repeats rep1 off. Checkout shed 9 times and re-enabled 9 times, against 11 and 10 in the original. Retry delta is 16,574, and checkout is detector-hot at 82.5%. Goodput is close to rep1 off on getproduct and getcart. Postcheckout fail is 0.477, against 0.500 in the original.
 
-Across the five holds, RetryGuard acted only on TopFull-off holds, and only on checkout. The TopFull-on holds never shed because checkout's sustained rpr never reached the 20 s interval. That is what keeps rep1 on and rep2 on from producing any toggles.
+Across the five holds, RetryGuard acted only on TopFull-off holds, and only on checkout. The TopFull-on holds never shed because checkout's sustained rpr never reached the 20 s interval. That is what keeps rep1 on and rep2 on from producing any toggles. `grpc_4 / grpc_14` is 0 / 0 on every controlled gRPC callee on every hold, so no gRPC rejection fed the controller.
 
 ## 21. Related
 

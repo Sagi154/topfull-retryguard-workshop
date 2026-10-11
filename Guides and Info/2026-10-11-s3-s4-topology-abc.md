@@ -23,7 +23,7 @@ Analysis of ten holds, one TopFull-off and one TopFull-on per variant, scored wi
 
 ## 2. Index
 
-Short column labels used in every table. Bold bars separate the five variant pairs.
+Short column labels used in every table. Bold bars separate the five variant pairs. All ten folders have `run_number` 1 in `run_manifest.json`; the `log_folder` name is the slot.
 
 | Column | Folder | Variant | Arm |
 | --- | --- | --- | --- |
@@ -40,25 +40,25 @@ Short column labels used in every table. Bold bars separate the five variant pai
 
 ## 3. Gate
 
-Scorer gate numbers. The template counts a zero replica count and inbound gaps of 1.5 s or longer as gate items, so these are the numbers that matter. The run log's PASS does not cover them.
+**Flagged, not passed.** The run log records PASS on all ten, but the template counts a zero-replica service and inbound gaps of 1.5 s or longer as gate items, and S4B and two S4A holds have them.
 
-| Column | Locust `total.csv` rows | Mesh span (s) | Inbound gaps ≥ 1.5 s | Email replicas | `retryguard.log` |
-| --- | ---: | ---: | ---: | --- | --- |
-| S3 off | 573 | 665 | 0 of 7315 | — | present |
-| S3 on | 568 | 665 | 0 of 7315 | — | present |
-| A140 off | 573 | 664 | 0 of 7304 | — | present |
-| A140 on | 567 | 665 | **77 of 7238** | — | present |
-| A190 off | 574 | 664 | 0 of 7304 | — | present |
-| A190 on | 568 | 665 | **297 of 7018** | — | present |
-| B50 off | 573 | 664 | 0 of 7304 | **replicas 0–1 on 77 samples** | present |
-| B50 on | 568 | 666 | 0 of 7326 | **replicas 0–1 on 138 samples** | present |
-| B60 off | 573 | 664 | 0 of 7304 | **replicas 0–1 on 149 samples** | present |
-| B60 on | 568 | 666 | 0 of 7326 | **replicas 0–1 on 149 samples** | present |
+| Column | Locust `total.csv` rows | Mesh span (s) | Inbound gaps ≥ 1.5 s | Frontend replicas (samples) | Email rows with replica 0 / email rows | `retryguard.log` |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| S3 off | 573 | 665 | 0 of 7315 | 4 on every sample (149) | 0 | present |
+| S3 on | 568 | 665 | 0 of 7315 | 4 on every sample (150) | 0 | present |
+| A140 off | 573 | 664 | 0 of 7304 | 4 on every sample (148) | 0 | present |
+| A140 on | 567 | 665 | **77 of 7238** | 4 on every sample (150) | 0 | present |
+| A190 off | 574 | 664 | 0 of 7304 | 4 on every sample (149) | 0 | present |
+| A190 on | 568 | 665 | **297 of 7018** | 4 on every sample (149) | 0 | present |
+| B50 off | 573 | 664 | 0 of 7304 | 4 on every sample (149) | **25 of 77** | present |
+| B50 on | 568 | 666 | 0 of 7326 | 4 on every sample (149) | **6 of 138** | present |
+| B60 off | 573 | 664 | 0 of 7304 | 4 on every sample (149) | **12 of 149** | present |
+| B60 on | 568 | 666 | 0 of 7326 | 4 on every sample (149) | **6 of 149** | present |
 
-Bold marks a flagged item. Two problems:
+`service_capacity.json` matches the pin in §1 on all ten holds: checkout 300m on S3, catalog 400m on S4A, email 50m or 60m on S4B, and the §1 values elsewhere, with frontend at 4 replicas. Bold marks a flagged item.
 
-1. **Email replicas.** All four S4B holds show emailservice at replica count 0 on 77–149 samples. The S4B email quota is pinned at one replica, so that is a pod-level gap in the resource data. The S4B numbers below need a decision before they are cited. The emailservice CPU mean at 50m (17 mean, 31 mean TopFull on) is lower than at 60m (38 and 41), and the detector's email share at 50m off (26.5%) is lower than at 60m off (63.6%). Both would fit a run of zero-CPU samples dragging the mean down. I have not confirmed that.
-2. **Inbound gaps.** A140 on has 77 gaps and A190 on has 297. Those two holds have mesh sample gaps and should be read with that caveat.
+1. **Email zero-replica rows (S4B only).** `resource_usage.csv` has 149 polls per hold. Email has a row with `replica_count` 0 on 25, 6, 12, and 6 of them (B50 off, B50 on, B60 off, B60 on). B50 off has an email row on only 77 of 149 polls, and B50 on on 138. No other service has a zero-replica row on any hold. Some of B50 off's zero-replica rows carry 48 to 50 m of CPU, which does not fit a pod that is down. The email CPU mean at 50m off (17) is below 60m off (38), and the detector's email share at 50m off (26.5%) is below 60m off (63.6%). Zero-replica rows with CPU 0 would pull both down. I have not confirmed that. The S4B numbers need a decision before they are cited.
+2. **Inbound gaps.** A140 on has 77 gaps and A190 on has 297. Read those two holds with that caveat.
 
 ## 4. Edge-mode bars
 
@@ -94,7 +94,14 @@ No cell reaches 30 s, so nothing is bold.
 
 S3 on is the only hold with a positive median rpr (0.273). On most of its ticks the frontend → checkout edge carried retries, which is not true of any other hold.
 
-**Climb streaks, 1-attempt / 2-attempt.** Em dash on all ten: no hold reached a climb cap. The 1→2 and 2→3 steps never ran here.
+**Climb streaks, 1-attempt / 2-attempt** (samples while that cap is in force; em dash means that cap never applied)
+
+| Edge | S3 off | S3 on | **┃** | A140 off | A140 on | **┃** | A190 off | A190 on | **┃** | B50 off | B50 on | **┃** | B60 off | B60 on |
+| --- | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: |
+| frontend → checkoutservice | — / — | — / — | **┃** | — / — | — / — | **┃** | — / — | — / — | **┃** | — / — | — / — | **┃** | — / — | — / — |
+| checkoutservice → emailservice | — / — | — / — | **┃** | — / — | — / — | **┃** | — / — | — / — | **┃** | — / — | — / — | **┃** | — / — | — / — |
+
+No hold reached a climb cap, so the 1→2 and 2→3 steps never ran in this set.
 
 ## 6. Rejection, beside (a)
 
@@ -185,11 +192,31 @@ Email's inbound resets are high on the S4B holds (2,348 and 6,719 on B50, 1,599 
 
 ## 9. RetryGuard toggles
 
+Two parts. Part 1 is the scorer's log for each hold that toggled. Part 2 summarizes it per callee.
+
+### Part 1: per hold
+
+`ON→OFF` is the shed to 0 attempts. The `0→1` column is the log's `OFF→ON` onto the callee name (`attempts=1`, `from_attempts=0`). `1→2` and `2→3` are the climb lines. `From` is the attempt count before the step, and `Value` is the rpr on a shed or climb line and the rejection on a re-enable line. The tables in this part are the scorer's output, unchanged.
+
+#### S3 off
+
+| Name | ON→OFF | 0→1 | 1→2 | 2→3 |
+| --- | ---: | ---: | ---: | ---: |
+| frontend → checkoutservice | 1 | 0 | 0 | 0 |
+
+| Time (UTC) | Name | Step | From | Value |
+| --- | --- | --- | ---: | --- |
+| 2026-10-11T01:16:31Z | frontend → checkoutservice | ON→OFF | 3 | rpr 2.22 |
+
+No transition lines on: S3 on, A140 off, A140 on, A190 off, A190 on, B50 off, B50 on, B60 off, B60 on.
+
+### Part 2: per callee
+
 Only `checkoutservice` toggles, and only on S3 off. Email never shed on any S4B hold, and catalog never shed on S4A, so those callees get one sentence each below.
 
 The table comes from `retryguard.log` transitions (`from_attempts` → `attempts`). Time OFF runs from the shed timestamp to `EXIT` because the edge never re-enabled. OFF rejection is minimum / median over the `OBSERVE state=OFF` rejection samples in that window. The under-bar streak is the longest run of consecutive OFF samples below 0.25. An em dash means that edge never went to 0 on that hold.
 
-### checkoutservice
+#### checkoutservice
 
 | | S3 off | S3 on | **┃** | A140 off | A140 on | **┃** | A190 off | A190 on | **┃** | B50 off | B50 on | **┃** | B60 off | B60 on |
 | --- | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: |
@@ -204,7 +231,7 @@ S3 off shed checkout once, at 01:16:31 with rpr 2.22 and controller `high` 21, a
 
 No other hold shed.
 
-### emailservice, productcatalogservice, recommendationservice
+#### emailservice, productcatalogservice, recommendationservice
 
 No ON→OFF or OFF→ON transition on any of their edges on any S3/S4 hold. One sentence, no table. Email is detector-hot on B60 (63.6% and 65.2%), but its `checkoutservice → emailservice` edge never shed. Catalog is detector-hot on A140 (79.8%) with no shed for the same reason.
 
@@ -316,7 +343,7 @@ Per-pod quota / replica mode / mean millicores / max millicores. Mean and max su
 | adservice | 1150 / 1 / 95 / 124 | 1150 / 1 / 94 / 127 | **┃** | 1150 / 1 / 88 / 114 | 1150 / 1 / 89 / 115 | **┃** | 1150 / 1 / 88 / 112 | 1150 / 1 / 87 / 112 | **┃** | 1150 / 1 / 89 / 155 | 1150 / 1 / 89 / 115 | **┃** | 1150 / 1 / 89 / 114 | 1150 / 1 / 98 / 126 |
 | redis-cart | 540 / 1 / 34 / 51 | 540 / 1 / 31 / 47 | **┃** | 540 / 1 / 34 / 50 | 540 / 1 / 34 / 53 | **┃** | 540 / 1 / 35 / 53 | 540 / 1 / 36 / 53 | **┃** | 540 / 1 / 32 / 49 | 540 / 1 / 32 / 48 | **┃** | 540 / 1 / 33 / 50 | 540 / 1 / 34 / 53 |
 
-Replica mode is 1 for every service except frontend, and the email rows show the dips the gate section raised. Email's mean CPU at B50 off (17) is less than half the value at B60 off (38), which fits zero-replica samples pulling the mean down. That is not confirmed.
+Replica mode is 1 for every service except frontend, and the email rows show the dips the gate section raised. Email's mean CPU at B50 off (17) is less than half the value at B60 off (38), B50 off has 25 zero-replica rows among its 77 email rows, which would pull its mean CPU (17) below B60 off's (38). That is not confirmed.
 
 ## 17. CPU as a fraction of per-pod quota × replicas
 
@@ -358,16 +385,109 @@ Productcatalog max utilization is 1.030 on A140 off and 0.973 on A190 off, both 
 
 ## 19. TopFull live caps
 
-A live read has `threshold_fresh=1` and threshold above 0. 10000 is no cap. A live 0 is left out. The scorer collapsed the long series, so I list spans only.
+A live read has `threshold_fresh=1` and threshold above 0. 10000 is no cap. A live 0 is an empty read and is left out. `emptycart` is no cap on every live read of every hold. `postcart` is no cap on every hold except A140 on and A190 on.
 
-- **TopFull-off holds (S3 off, A140 off, A190 off, B50 off, B60 off):** no live cap on any API for the whole window.
-- **S3 on:** getproduct, getcart, postcart, and emptycart are no cap. postcheckout has live caps between 10 and 33 from 01:31:00 to 01:42:55, too long to list.
-- **A140 on:** getproduct has live caps 170–193.6, getcart 70–77, postcart 140 and 154, and postcheckout 29–33. emptycart is no cap.
-- **A190 on:** getproduct 175, getcart 70, postcart 190 and 191, postcheckout 29–33. emptycart is no cap.
-- **B50 on:** postcheckout has live caps between 10 and 33 from 03:17:28 to 03:26:20. getproduct, getcart, postcart, and emptycart are no cap.
-- **B60 on:** postcheckout has live caps between 10 and 33 from 03:52:30 to 04:01:55. The rest are no cap.
+The five TopFull-off holds (S3 off, A140 off, A190 off, B50 off, B60 off) are no cap on every API for the whole window. S3 on, B50 on, and B60 on keep a moving postcheckout cap (10 to 33) with getproduct, getcart, and postcart no cap. A140 on and A190 on carry live caps on getproduct, postcheckout, getcart, and postcart that alternate with no cap; postcheckout is 29 to 33 on A140 on and 30 on A190 on. The cells keep the scorer's spans, one table per hold.
 
-Postcart's live caps on A140 and A190 sit at or just above the postcart rate (140, 154 and 190, 191). Those caps bind little. This pass does not establish that TopFull throttled postcart.
+### S3 off
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 01:13:45–01:25:35 |
+| postcheckout | no cap 01:13:45–01:25:35 |
+| getcart | no cap 01:13:45–01:25:35 |
+| postcart | no cap 01:13:45–01:25:35 |
+| emptycart | no cap 01:13:45–01:25:35 |
+
+### S3 on
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 01:31:00–01:42:55 |
+| postcheckout | no cap 01:31:00–01:33:10; 19 at 01:33:15; 21 at 01:33:20; 14.4 at 01:33:25; 10 at 01:33:30; 19.5 at 01:33:35; 28.9231 at 01:33:36; 18.5 at 01:33:40; 10 at 01:33:45; 14.1 at 01:33:50; 27.9147 at 01:33:53; 29.8 at 01:33:55; 10 01:34:00–01:34:05; 25.8 at 01:34:10; 10 01:34:14–01:34:20; 27.9 at 01:34:25; 16.6 at 01:34:30; 10 at 01:34:35; 19.7 at 01:34:40; 32.3 at 01:34:45; 10 01:34:50–01:34:52; 14.1 at 01:34:55; 28.1 at 01:35:00; 10 01:35:05–01:35:10; 24.8907 at 01:35:14; 24.9 at 01:35:15; 10 01:35:18–01:35:20; 14.2 at 01:35:25; 32.8 at 01:35:30; 10 01:35:35–01:35:40; 33 at 01:35:45; 15 at 01:35:50; 10 01:35:52–01:35:55; 19.5 at 01:36:00; 22.8 at 01:36:05; 10 01:36:09–01:36:10; 19.6 at 01:36:15; 12.3 at 01:36:20; 10 01:36:22–01:36:25; 25.1 at 01:36:30; 29.9 at 01:36:35; 18.5551 at 01:36:38; 11.4 at 01:36:40; 10 at 01:36:45; 32.8 at 01:36:50; 12.5 at 01:36:55; 10 at 01:37:00; 26.3 at 01:37:05; 23 at 01:37:10; 10 at 01:37:15; 14.1 at 01:37:20; 26.1891 at 01:37:22; 28.7 at 01:37:25; 12.1 at 01:37:30; 10 at 01:37:35; 30.3657 at 01:37:39; 30.4 at 01:37:40; 10 at 01:37:45; 18.7 at 01:37:50; 32.7697 at 01:37:53; 26.9 at 01:37:55; 10 01:38:00–01:38:02; 19.8 at 01:38:05; 20 at 01:38:10; 12.2951 at 01:38:11; 10 01:38:15–01:38:16; 14.1 at 01:38:20; 31.2 at 01:38:25; 10 01:38:29–01:38:30; 14.1159 at 01:38:34; 14.1 at 01:38:35; 30 at 01:38:40; 18.856 at 01:38:41; 10 at 01:38:45; 19.6 at 01:38:50; no cap at 01:38:55; 10.5 at 01:39:00; 10 at 01:39:05; 29.3 at 01:39:10; 10 01:39:15–01:39:20; 19.7388 at 01:39:22; 29.4 at 01:39:25; 15 at 01:39:30; 10 at 01:39:35; 26 at 01:39:40; 10 01:39:45–01:39:50; 32.9 at 01:39:55; 25 at 01:40:00; 10 01:40:04–01:40:05; 19.6 at 01:40:10; 25.3 at 01:40:15; 10.744 at 01:40:17; 10 01:40:20–01:40:25; 28.3 at 01:40:30; 10 01:40:34–01:40:35; 14.2 at 01:40:40; 33 at 01:40:45; 10 01:40:50–01:40:51; 14.1 at 01:40:55; 33 at 01:41:00; 10 at 01:41:05; 14.081 at 01:41:09; 14.1 at 01:41:10; 30.4 at 01:41:15; 10 01:41:20–01:41:22; 19.7 at 01:41:25; 26.3235 at 01:41:26; 32.5 at 01:41:30; 10 01:41:34–01:41:40; 29.4 at 01:41:45; 18.8 at 01:41:50; 10 at 01:41:55; 26.3342 at 01:41:58; 29.7 at 01:42:00; 19.7867 at 01:42:02; 10 01:42:05–01:42:10; 31.8 at 01:42:15; 10 01:42:19–01:42:20; 14.1 at 01:42:25; 31.8 at 01:42:30; 13.1161 at 01:42:32; 10 01:42:35–01:42:40; 19.4447 at 01:42:41; 25.6 at 01:42:45; 18.7 at 01:42:50; 10 at 01:42:55 |
+| getcart | no cap 01:31:00–01:42:55 |
+| postcart | no cap 01:31:00–01:42:55 |
+| emptycart | no cap 01:31:00–01:42:55 |
+
+### A140 off
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 01:48:45–02:00:30 |
+| postcheckout | no cap 01:48:45–02:00:30 |
+| getcart | no cap 01:48:45–02:00:30 |
+| postcart | no cap 01:48:45–02:00:30 |
+| emptycart | no cap 01:48:45–02:00:30 |
+
+### A140 on
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 02:06:00–02:08:30; 170 at 02:08:35; no cap at 02:08:40; 175 at 02:08:45; no cap 02:08:47–02:08:55; 175 02:08:57–02:09:06; no cap 02:09:10–02:09:15; 175 02:09:20–02:09:33; no cap 02:09:35–02:09:40; 175 02:09:42–02:09:51; no cap 02:09:55–02:10:00; 175 at 02:10:05; 192.5 02:10:10–02:10:15; no cap 02:10:19–02:10:20; 175 at 02:10:25; no cap at 02:10:28; 174 at 02:10:30; no cap 02:10:35–02:10:40; 175 at 02:10:45; no cap at 02:10:46; 175 02:10:50–02:10:56; no cap at 02:11:00; 175 at 02:11:05; no cap 02:11:10–02:11:20; 193.6 at 02:11:25; 175 02:11:30–02:11:38; no cap 02:11:40–02:11:45; 175 at 02:11:50; no cap at 02:11:55; 175 02:12:00–02:12:10; no cap 02:12:15–02:12:20; 175 at 02:12:25; no cap at 02:12:26; 175 at 02:12:30; no cap 02:12:35–02:12:40; 175 02:12:45–02:12:56; no cap 02:13:00–02:13:05; 175 02:13:10–02:13:15; no cap 02:13:20–02:13:25; 175 at 02:13:30; no cap at 02:13:31; 175 02:13:35–02:13:40; no cap 02:13:45–02:13:50; 175 at 02:13:55; no cap at 02:13:58; 175 02:14:00–02:14:05; no cap 02:14:10–02:14:16; 175 02:14:17–02:14:20; no cap at 02:14:25; 175 at 02:14:28; no cap 02:14:30–02:14:35; 175 02:14:37–02:14:50; no cap at 02:14:55; 175 02:15:00–02:15:01; no cap 02:15:03–02:15:05; 176 at 02:15:10; no cap 02:15:15–02:15:20; 175 at 02:15:25; no cap at 02:15:26; 175 02:15:27–02:15:30; no cap at 02:15:35; 175 at 02:15:38; no cap 02:15:40–02:15:45; 175 at 02:15:50; no cap at 02:15:53; 175 02:15:55–02:16:00; no cap 02:16:02–02:16:10; 175 02:16:12–02:16:15; no cap at 02:16:18; 175 at 02:16:20; no cap 02:16:25–02:16:30; 175 02:16:35–02:16:46; no cap at 02:16:50; 175 at 02:16:53; no cap 02:16:55–02:17:00; 175 02:17:02–02:17:11; no cap 02:17:15–02:17:20; 175 at 02:17:25; no cap at 02:17:26; 175 02:17:30–02:17:39; no cap 02:17:40–02:17:43; 175 02:17:45–02:17:50 |
+| postcheckout | no cap 02:06:00–02:08:30; 29 at 02:08:35; no cap at 02:08:40; 30 at 02:08:45; no cap 02:08:47–02:08:55; 30 02:08:57–02:09:06; no cap 02:09:10–02:09:15; 30 02:09:20–02:09:33; no cap 02:09:35–02:09:41; 30 02:09:42–02:09:51; no cap 02:09:55–02:10:00; 30 at 02:10:05; 33 02:10:10–02:10:15; no cap 02:10:19–02:10:20; 30 at 02:10:25; no cap at 02:10:28; 29 at 02:10:30; no cap 02:10:35–02:10:40; 30 at 02:10:45; no cap at 02:10:46; 30 02:10:50–02:10:56; no cap at 02:11:00; 30 at 02:11:05; no cap 02:11:10–02:11:20; 33 at 02:11:25; 30 02:11:30–02:11:35; no cap at 02:11:37; 30 at 02:11:38; no cap 02:11:40–02:11:45; 30 at 02:11:50; no cap at 02:11:55; 30 02:12:00–02:12:10; no cap 02:12:15–02:12:20; 30 at 02:12:25; no cap at 02:12:26; 30 at 02:12:30; no cap 02:12:35–02:12:40; 30 at 02:12:45; no cap at 02:12:46; 30 02:12:50–02:12:56; no cap 02:13:00–02:13:05; 30 02:13:10–02:13:15; no cap 02:13:20–02:13:25; 30 at 02:13:30; no cap at 02:13:31; 30 02:13:35–02:13:43; no cap 02:13:45–02:13:50; 30 02:13:52–02:13:55; no cap at 02:13:58; 30 02:14:00–02:14:05; no cap 02:14:07–02:14:16; 30 02:14:17–02:14:20; no cap 02:14:25–02:14:27; 30 at 02:14:28; no cap 02:14:30–02:14:35; 30 02:14:37–02:14:50; no cap at 02:14:55; 30 at 02:15:00; no cap at 02:15:05; 30 at 02:15:10; no cap 02:15:15–02:15:20; 30 at 02:15:25; no cap at 02:15:26; 30 02:15:27–02:15:30; no cap at 02:15:35; 30 at 02:15:38; no cap 02:15:40–02:15:45; 30 at 02:15:50; no cap at 02:15:53; 30 02:15:55–02:16:00; no cap 02:16:02–02:16:10; 30 02:16:12–02:16:15; no cap at 02:16:18; 30 at 02:16:20; no cap 02:16:25–02:16:30; 30 02:16:35–02:16:46; no cap 02:16:50–02:16:52; 30 at 02:16:53; no cap 02:16:55–02:17:00; 30 02:17:02–02:17:11; no cap 02:17:15–02:17:20; 30 at 02:17:25; no cap at 02:17:26; 30 02:17:30–02:17:35; no cap 02:17:40–02:17:43; 30 02:17:45–02:17:50 |
+| getcart | no cap 02:06:00–02:08:30; 77 at 02:08:35; no cap 02:08:37–02:08:40; 70 at 02:08:45; no cap 02:08:47–02:08:55; 70 02:08:57–02:09:06; no cap 02:09:10–02:09:15; 70 02:09:20–02:09:33; no cap 02:09:35–02:09:41; 70 02:09:42–02:09:51; no cap 02:09:55–02:10:00; 70 at 02:10:05; 77 02:10:10–02:10:15; no cap 02:10:19–02:10:20; 70 at 02:10:25; no cap at 02:10:28; 70 at 02:10:30; no cap 02:10:35–02:10:40; 70 at 02:10:45; no cap at 02:10:46; 70 02:10:50–02:10:56; no cap at 02:11:00; 70 at 02:11:05; no cap 02:11:10–02:11:20; 77 at 02:11:25; 70 02:11:30–02:11:35; no cap at 02:11:37; 70 at 02:11:38; no cap 02:11:40–02:11:45; 70 at 02:11:50; no cap at 02:11:55; 70 at 02:12:00; no cap at 02:12:01; 70 02:12:05–02:12:10; no cap 02:12:15–02:12:20; 70 at 02:12:25; no cap at 02:12:26; 70 at 02:12:30; no cap 02:12:35–02:12:40; 70 at 02:12:45; no cap at 02:12:46; 70 02:12:50–02:12:56; no cap 02:13:00–02:13:05; 70 02:13:10–02:13:15; no cap 02:13:20–02:13:25; 70 at 02:13:30; no cap at 02:13:31; 70 02:13:35–02:13:43; no cap 02:13:45–02:13:50; 70 02:13:52–02:13:55; no cap at 02:13:58; 70 02:14:00–02:14:05; no cap 02:14:07–02:14:16; 70 02:14:17–02:14:20; no cap 02:14:25–02:14:27; 70 at 02:14:28; no cap 02:14:30–02:14:36; 70 02:14:37–02:14:50; no cap at 02:14:55; 70 02:15:00–02:15:02; no cap at 02:15:05; 70 at 02:15:10; no cap 02:15:15–02:15:20; 70 at 02:15:25; no cap at 02:15:26; 70 02:15:27–02:15:30; no cap at 02:15:35; 70 at 02:15:38; no cap 02:15:40–02:15:45; 70 at 02:15:50; no cap at 02:15:53; 70 02:15:55–02:16:00; no cap 02:16:02–02:16:10; 70 02:16:12–02:16:15; no cap at 02:16:18; 70 02:16:20–02:16:21; no cap 02:16:25–02:16:30; 70 02:16:35–02:16:46; no cap 02:16:50–02:16:52; 70 at 02:16:53; no cap 02:16:55–02:17:00; 70 02:17:02–02:17:11; no cap 02:17:15–02:17:20; 70 at 02:17:25; no cap at 02:17:26; 70 02:17:29–02:17:35; no cap 02:17:40–02:17:43; 70 02:17:45–02:17:50 |
+| postcart | no cap 02:06:00–02:08:30; 154 at 02:08:35; no cap 02:08:37–02:08:40; 140 at 02:08:45; no cap 02:08:47–02:08:55; 140 02:08:57–02:09:06; no cap 02:09:10–02:09:15; 140 02:09:20–02:09:33; no cap 02:09:35–02:09:41; 140 02:09:42–02:09:51; no cap 02:09:55–02:10:05; 154 at 02:10:10; no cap 02:10:14–02:10:20; 140 at 02:10:25; no cap at 02:10:28; 140 at 02:10:30; no cap 02:10:35–02:10:40; 140 at 02:10:45; no cap at 02:10:46; 140 02:10:50–02:10:56; no cap at 02:11:00; 140 at 02:11:05; no cap 02:11:10–02:11:20; 154 at 02:11:25; 140 02:11:30–02:11:35; no cap at 02:11:37; 140 at 02:11:38; no cap 02:11:40–02:11:55; 140 at 02:12:00; no cap at 02:12:01; 140 02:12:05–02:12:10; no cap 02:12:15–02:12:20; 140 at 02:12:25; no cap at 02:12:26; 140 at 02:12:30; no cap 02:12:35–02:12:40; 140 at 02:12:45; no cap at 02:12:46; 140 02:12:50–02:12:56; no cap 02:13:00–02:13:05; 140 02:13:10–02:13:15; no cap 02:13:20–02:13:25; 140 at 02:13:30; no cap at 02:13:31; 140 02:13:35–02:13:43; no cap 02:13:45–02:13:50; 140 02:13:52–02:13:55; no cap at 02:13:58; 140 02:14:00–02:14:05; no cap 02:14:07–02:14:16; 140 02:14:17–02:14:20; no cap 02:14:25–02:14:27; 140 at 02:14:28; no cap 02:14:30–02:14:36; 140 02:14:37–02:14:50; no cap at 02:14:55; 140 at 02:15:00; no cap at 02:15:05; 140 at 02:15:10; no cap 02:15:15–02:15:20; 140 at 02:15:25; no cap at 02:15:26; 140 02:15:27–02:15:30; no cap at 02:15:35; 140 at 02:15:38; no cap 02:15:40–02:15:45; 140 at 02:15:50; no cap at 02:15:53; 140 02:15:55–02:16:00; no cap 02:16:02–02:16:10; 140 02:16:12–02:16:15; no cap at 02:16:18; 140 02:16:20–02:16:21; no cap 02:16:25–02:16:30; 140 02:16:35–02:16:46; no cap 02:16:50–02:16:52; 140 at 02:16:53; no cap 02:16:55–02:17:00; 140 02:17:02–02:17:11; no cap 02:17:15–02:17:20; 140 at 02:17:25; no cap at 02:17:26; 140 02:17:29–02:17:35; no cap 02:17:40–02:17:43; 140 02:17:45–02:17:50 |
+| emptycart | no cap 02:06:00–02:17:50 |
+
+### A190 off
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 02:23:15–02:35:05 |
+| postcheckout | no cap 02:23:15–02:35:05 |
+| getcart | no cap 02:23:15–02:35:05 |
+| postcart | no cap 02:23:15–02:35:05 |
+| emptycart | no cap 02:23:15–02:35:05 |
+
+### A190 on
+
+| API | Live caps |
+| --- | --- |
+| getproduct | 175 and no cap alternate across 53 spans, from 175 at 02:43:20 through 175 at 02:52:10 |
+| postcheckout | 30 and no cap alternate across 51 spans, from 30 at 02:43:20 through 30 at 02:52:10 |
+| getcart | 70 and no cap alternate across 55 spans, from 70 02:43:20–02:43:30 through 70 02:52:10–02:52:12 |
+| postcart | no cap 02:40:30–02:43:15; 190 02:43:20–02:43:30; no cap at 02:43:35; 190 at 02:43:40; no cap at 02:43:45; 190 at 02:43:50; no cap at 02:43:55; 190 02:43:58–02:44:00; no cap 02:44:05–02:44:15; 190 at 02:44:20; no cap 02:44:24–02:44:25; 190 02:44:30–02:44:31; no cap 02:44:33–02:44:35; 190 at 02:44:40; no cap 02:44:45–02:44:50; 190 02:44:55–02:45:00; no cap at 02:45:05; 190 02:45:10–02:45:15; no cap 02:45:20–02:45:30; 190 at 02:45:35; no cap 02:45:40–02:45:55; 190 at 02:46:00; no cap at 02:46:05; 190 02:46:10–02:46:12; no cap 02:46:14–02:46:15; 190 at 02:46:20; no cap at 02:46:25; 190 at 02:46:30; no cap at 02:46:35; 191 at 02:46:40; no cap at 02:46:45; 190 at 02:46:50; no cap 02:46:55–02:47:10; 190 at 02:47:15; no cap at 02:47:16; 190 at 02:47:20; no cap 02:47:25–02:48:15; 190 02:48:16–02:48:20; no cap at 02:48:25; 190 at 02:48:30; no cap 02:48:35–02:48:40; 190 02:48:45–02:48:50; no cap at 02:48:55; 190 at 02:49:00; no cap 02:49:05–02:49:40; 190 at 02:49:45; no cap 02:49:46–02:49:55; 190 at 02:50:00; no cap 02:50:01–02:50:15; 190 at 02:50:20; no cap 02:50:25–02:51:10; 190 at 02:51:15; no cap 02:51:20–02:51:35; 190 at 02:51:40; no cap at 02:51:45; 190 at 02:51:50; no cap 02:51:55–02:52:05; 190 at 02:52:10; no cap 02:52:15–02:52:20 |
+| emptycart | no cap 02:40:30–02:52:20 |
+
+### B50 off
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 02:58:10–03:10:00 |
+| postcheckout | no cap 02:58:10–03:10:00 |
+| getcart | no cap 02:58:10–03:10:00 |
+| postcart | no cap 02:58:10–03:10:00 |
+| emptycart | no cap 02:58:10–03:10:00 |
+
+### B50 on
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 03:15:25–03:27:15 |
+| postcheckout | no cap 03:15:25–03:17:25; 13 at 03:17:28; 15.4 at 03:17:30; 17 at 03:17:35; 19 at 03:17:40; no cap at 03:17:45; 25 at 03:17:50; 18.5208 at 03:17:54; 18.5 at 03:17:55; 14.1 at 03:18:00; no cap at 03:18:05; 30 03:18:10–03:18:15; 20.8 at 03:18:20; 10 03:18:23–03:18:25; 33 at 03:18:30; 29 at 03:18:35; 10 at 03:18:40; 21.5 at 03:18:45; 33 at 03:18:46; 19.4 at 03:18:50; 10 at 03:18:55; 27.6 at 03:19:00; 28 at 03:19:05; 10 at 03:19:10; 26.1 at 03:19:15; 30 at 03:19:20; 10 03:19:24–03:19:25; 24.015 at 03:19:28; 33 at 03:19:30; 30 at 03:19:33; 18.9 at 03:19:35; 10 at 03:19:37; 15.1 at 03:19:40; 33 at 03:19:45; 19.4 at 03:19:50; 10 at 03:19:55; 31.9758 at 03:19:59; 32 at 03:20:00; no cap at 03:20:05; 10 at 03:20:10; 19.4 at 03:20:15; 33 at 03:20:16; 19.3 at 03:20:20; 10 at 03:20:25; 31.3 at 03:20:30; 30 at 03:20:35; 10 03:20:39–03:20:40; 25.7566 at 03:20:43; 33 at 03:20:45; 30 at 03:20:48; 19.6 at 03:20:50; 10 03:20:52–03:20:55; 14.1298 at 03:20:56; 26.8 at 03:21:00; 28 at 03:21:05; 10 at 03:21:10; 13.8149 at 03:21:12; 26.8 at 03:21:15; 16.1 at 03:21:20; 15.5 at 03:21:25; 33 at 03:21:30; no cap at 03:21:35; 10 at 03:21:40; 26.5 at 03:21:45; 30 03:21:49–03:21:50; 10 at 03:21:55; 27.6 at 03:22:00; 18.2 at 03:22:05; 10 at 03:22:10; 14.0674 at 03:22:11; 19.8 at 03:22:15; 22.4 at 03:22:20; 13.9 at 03:22:25; 33 at 03:22:30; 29 at 03:22:35; 10 03:22:39–03:22:40; 29.9 at 03:22:45; 15 at 03:22:50; 10.2656 at 03:22:52; 17.9 at 03:22:55; 33 at 03:23:00; 18.4 at 03:23:05; 10.6 at 03:23:10; 33 03:23:14–03:23:15; 30 at 03:23:20; 10 at 03:23:25; 32.9489 at 03:23:29; 32.9 at 03:23:30; 18.8321 at 03:23:34; 18.8 at 03:23:35; 14.1 at 03:23:40; 21.9291 at 03:23:43; 31 at 03:23:45; 27 at 03:23:50; 10.3 at 03:23:55; 21.6879 at 03:23:58; 30.4 at 03:24:00; 14.1 at 03:24:05; 10 at 03:24:10; 32.2 at 03:24:15; 30 at 03:24:20; 14.6467 at 03:24:22; 10 at 03:24:25; 30 at 03:24:30; 33 at 03:24:31; 30 at 03:24:35; 10 at 03:24:40; 33 03:24:44–03:24:45; 18.8 at 03:24:50; 13.2 at 03:24:55; 19.7004 at 03:24:57; 23.8 at 03:25:00; 33 at 03:25:01; 28 at 03:25:05; 10 at 03:25:10; 31.2 at 03:25:15; 30 at 03:25:20; no cap at 03:25:22; 18.1 at 03:25:25; 12.6 at 03:25:30; 33 at 03:25:35; 30 03:25:40–03:25:45; no cap at 03:25:50; 19.5 at 03:25:55; 13.6 at 03:26:00; 33 at 03:26:05; no cap at 03:26:07; 30 at 03:26:10; 10 at 03:26:15; 21.3343 at 03:26:18; 29.9 at 03:26:20; no cap 03:26:25–03:27:15 |
+| getcart | no cap 03:15:25–03:27:15 |
+| postcart | no cap 03:15:25–03:27:15 |
+| emptycart | no cap 03:15:25–03:27:15 |
+
+### B60 off
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 03:32:55–03:44:45 |
+| postcheckout | no cap 03:32:55–03:44:45 |
+| getcart | no cap 03:32:55–03:44:45 |
+| postcart | no cap 03:32:55–03:44:45 |
+| emptycart | no cap 03:32:55–03:44:45 |
+
+### B60 on
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 03:50:10–04:02:00 |
+| postcheckout | no cap 03:50:10–03:52:25; 25.3 at 03:52:30; no cap at 03:52:35; 27 at 03:52:40; 27.9487 at 03:52:41; 22.1 at 03:52:45; no cap 03:52:50–03:52:55; 30 03:53:00–03:53:05; no cap 03:53:06–03:53:10; 30 03:53:14–03:53:15; no cap 03:53:20–03:53:25; 30 at 03:53:30; 17.2 at 03:53:35; 10.9 at 03:53:40; 15.3515 at 03:53:41; 29.2 at 03:53:45; 19.7 at 03:53:50; 14.1383 at 03:53:54; 14.1 at 03:53:55; 27.0242 at 03:53:58; 33 at 03:54:00; 30 at 03:54:05; 18.7 at 03:54:10; 10 at 03:54:15; 15.1835 at 03:54:16; 25.6 at 03:54:20; 30 03:54:25–03:54:30; no cap at 03:54:35; 20.0064 at 03:54:36; 10 at 03:54:40; 27.3 at 03:54:45; 30 at 03:54:50; 10 at 03:54:55; 31.1 at 03:55:00; no cap 03:55:05–03:55:10; 30 03:55:12–03:55:20; no cap at 03:55:25; 30 03:55:30–03:55:38; no cap at 03:55:40; 30 03:55:45–03:55:50; no cap at 03:55:55; 30 03:56:00–03:56:10; no cap 03:56:14–03:56:15; 30 03:56:20–03:56:25; no cap at 03:56:30; 30 at 03:56:35; no cap at 03:56:38; 30 at 03:56:40; no cap 03:56:45–03:56:50; 30 03:56:55–03:57:03; no cap at 03:57:05; 30 03:57:10–03:57:15; no cap at 03:57:20; 30 03:57:25–03:57:30; no cap at 03:57:35; 30 at 03:57:40; no cap at 03:57:41; 30 03:57:45–03:57:50; no cap 03:57:55–03:57:56; 30 at 03:57:57; no cap 03:58:00–03:58:05; 30.8284 at 03:58:09; 30.8 at 03:58:10; 30 03:58:15–03:58:20; no cap 03:58:24–03:58:25; 30 03:58:30–03:58:35; no cap at 03:58:40; 30 at 03:58:45; no cap at 03:58:48; 30 at 03:58:50; no cap 03:58:55–03:59:00; 30 03:59:02–03:59:10; no cap 03:59:12–03:59:15; 30 03:59:20–03:59:26; no cap at 03:59:30; 30 at 03:59:35; no cap 03:59:40–04:00:00; 30 at 04:00:05; no cap at 04:00:08; 30 at 04:00:10; 19.2 at 04:00:15; 10 at 04:00:20; 19.735 at 04:00:21; 28.3 at 04:00:25; no cap 04:00:30–04:00:33; 30 at 04:00:35; no cap 04:00:40–04:00:45; 30 04:00:50–04:00:55; no cap 04:01:00–04:01:06; 30 04:01:10–04:01:15; 10 at 04:01:20; 33 at 04:01:25; 25.2 at 04:01:30; 13.9421 at 04:01:33; 10 at 04:01:35; 14.2398 at 04:01:37; 27.6 at 04:01:40; 29 at 04:01:45; no cap at 04:01:50; 30 04:01:55–04:02:00 |
+| getcart | no cap 03:50:10–04:02:00 |
+| postcart | no cap 03:50:10–04:02:00 |
+| emptycart | no cap 03:50:10–04:02:00 |
 
 ## 20. Per variant, per hold
 
@@ -383,20 +503,20 @@ Postcart's live caps on A140 and A190 sit at or just above the postcart rate (14
 
 **A190 on.** No shed. Productcatalog is detector-hot at 11.7%. TopFull caps postcart at 190 and getproduct at 175. Postcart goodput is 182.3 and postcheckout 28.8 with fail 0.
 
-**B50 off.** No shed. Checkout's frontend edge reaches the 0.40 shed bar for 10 s, with 58 ticks above it, but never for 20 s. Email is detector-hot at 26.5%. Email replica dips appear on 77 samples. Retry delta into checkout is 1,235. Email inbound resets are 2,348. Postcheckout goodput 26.8 with fail 0.064.
+**B50 off.** No shed. Checkout's frontend edge reaches the 0.40 shed bar for 10 s, with 58 ticks above it, but never for 20 s. Email is detector-hot at 26.5%. Email has 25 zero-replica rows among its 77 email rows. Retry delta into checkout is 1,235. Email inbound resets are 2,348. Postcheckout goodput 26.8 with fail 0.064.
 
-**B50 on.** No shed. Frontend → checkout streak is 7 s and checkout → email has one tick above zero. Checkout retry delta is 3,307, and email retry delta is 90, the only email retry in the set. Email is detector-hot at 46.3%. Email replica dips appear on 138 samples. Postcheckout goodput falls to 17.0 with fail 0.362 and P95 769 ms.
+**B50 on.** No shed. Frontend → checkout streak is 7 s and checkout → email has one tick above zero. Checkout retry delta is 3,307, and email retry delta is 90, the only email retry in the set. Email is detector-hot at 46.3%. Email has 6 zero-replica rows among its 138 email rows. Postcheckout goodput falls to 17.0 with fail 0.362 and P95 769 ms.
 
-**B60 off.** No shed. Email is detector-hot at 63.6% (bold). Email replica dips appear on 149 samples. Retry delta into checkout is 923. Postcheckout fail 0.036, P95 437 ms.
+**B60 off.** No shed. Email is detector-hot at 63.6% (bold). Email has 12 zero-replica rows among its 149 email rows. Retry delta into checkout is 923. Postcheckout fail 0.036, P95 437 ms.
 
-**B60 on.** No shed. Email is detector-hot at 65.2% (bold). Email replica dips appear on 149 samples. Retry delta into checkout is 1,086. Postcheckout fail 0.091, P95 478 ms.
+**B60 on.** No shed. Email is detector-hot at 65.2% (bold). Email has 6 zero-replica rows among its 149 email rows. Retry delta into checkout is 1,086. Postcheckout fail 0.091, P95 478 ms.
 
-Across the set, RetryGuard acted once. S3 off shed checkout and never re-enabled. Every other hold had a frontend → checkout streak of at most 11 s, short of the 20 s `interval_samples` needed to shed.
+Across the set, RetryGuard acted once. S3 off shed checkout and never re-enabled. Every other hold had a frontend → checkout streak of at most 11 s, short of the 20 s `interval_samples` needed to shed. `grpc_4 / grpc_14` is 0 / 0 on every controlled gRPC callee on every hold, so no gRPC rejection fed the controller.
 
 ## 21. Related
 
 - [ANALYSIS-TEMPLATE.md](ANALYSIS-TEMPLATE.md)
 - [2026-09-24-s2-both-off-abc-reading.md](2026-09-24-s2-both-off-abc-reading.md)
-- [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md)
+- [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md), edge-mode section
 - Earlier set-B reads of the same variants, under the previous controller: [2026-10-10-set-b-s3-checkout-analysis.md](2026-10-10-set-b-s3-checkout-analysis.md), [2026-10-10-set-b-s4a-catalog-analysis.md](2026-10-10-set-b-s4a-catalog-analysis.md), [2026-10-10-set-b-s4b-email-analysis.md](2026-10-10-set-b-s4b-email-analysis.md)
 - Plan and run log: [2026-10-11-s2-tuning-and-s3-s4-topology-run-log.md](../docs/superpowers/plans/2026-10-11-s2-tuning-and-s3-s4-topology-run-log.md)
