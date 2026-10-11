@@ -734,6 +734,25 @@ def _start_master_stack_after_kill(master, src, venv, rl_enabled, proxy_ready):
 #  RetryGuard
 # --------------------------------------------------------------------------- #
 
+def burst_params_from_cfg(rg_cfg: dict) -> dict:
+    """Burst-mode params for retryguard_params.json. {} when `burst_rpr` is absent."""
+    if "burst_rpr" not in rg_cfg:
+        return {}
+    metric = rg_cfg.get("retry_metric", "rejection")
+    if metric != "edge_rpr":
+        raise SystemExit(
+            f"retryguard.burst_rpr needs retry_metric=edge_rpr, got {metric!r}"
+        )
+    burst_rpr = float(rg_cfg["burst_rpr"])
+    if burst_rpr <= 0:
+        raise SystemExit(f"retryguard.burst_rpr must be > 0, got {burst_rpr}")
+    return {
+        "burst_rpr": burst_rpr,
+        "burst_window_seconds": int(rg_cfg.get("burst_window_seconds", 5)),
+        "burst_min_first_attempts": int(rg_cfg.get("burst_min_first_attempts", 20)),
+    }
+
+
 def start_retryguard(cfg: dict):
     rg_cfg = cfg["retryguard"]
     if not rg_cfg.get("enabled", False):
@@ -771,6 +790,7 @@ def start_retryguard(cfg: dict):
     }
     if "climb_interval_seconds" in rg_cfg:
         params["climb_interval_seconds"] = int(rg_cfg["climb_interval_seconds"])
+    params.update(burst_params_from_cfg(rg_cfg))
     write_remote_json(master, "/tmp/retryguard_params.json", params)
     step(f"Uploaded RetryGuard params: interval_samples={params['interval_samples']} "
          f"({params['interval_samples'] * params['sample_interval_seconds']}s)")
@@ -1435,6 +1455,8 @@ def run(config_path: str):
 
     topfull_cpu_quotas.validate_scale_constraints(cfg.get("scale_constraints") or [])
     cpu_request_fraction_from_cfg(cfg)
+    if cfg["retryguard"].get("enabled", False):
+        burst_params_from_cfg(cfg["retryguard"])
 
     scenario    = cfg["scenario_name"]
     condition   = cfg["condition"]

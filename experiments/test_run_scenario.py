@@ -372,6 +372,30 @@ class TestStartRetryGuardWiring(unittest.TestCase):
         params = mock_json.call_args[0][2]
         self.assertNotIn("climb_interval_seconds", params)
 
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_burst_keys_forwarded_with_defaults(
+        self, mock_deploy, mock_ssh, mock_json, mock_script, mock_wait,
+    ):
+        cfg = self._cfg(enabled=True)
+        cfg["retryguard"]["retry_metric"] = "edge_rpr"
+        cfg["retryguard"]["burst_rpr"] = 1.5
+        run_scenario.start_retryguard(cfg)
+        params = mock_json.call_args[0][2]
+        self.assertEqual(params["burst_rpr"], 1.5)
+        self.assertEqual(params["burst_window_seconds"], 5)
+        self.assertEqual(params["burst_min_first_attempts"], 20)
+
+    def test_burst_rpr_with_non_edge_metric_fails_loudly(self):
+        cfg = self._cfg(enabled=True)
+        cfg["retryguard"]["burst_rpr"] = 1.5  # retry_metric defaults to rejection
+        with self.assertRaises(SystemExit):
+            run_scenario.burst_params_from_cfg(cfg["retryguard"])
+        self.assertEqual(run_scenario.burst_params_from_cfg({"retry_metric": "edge_rpr"}), {})
+
 
 class TestEnvoyRetryCollectorWiring(unittest.TestCase):
     def _cfg(self, enabled=True):
