@@ -90,15 +90,15 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-10-11)
+## 4. Current status (as of 2026-10-12)
 
 ### Latest
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S2 both-on replicates 3 and 4 (2026-10-11).** RetryGuard on, TopFull on, tuned parameters, mix **275 / 90 / 100 / 90 / 5**. Both gates **PASS**. Locust rows **550 / 550**. Zero toggles. Folders `study4_s2_tune_rgtf1_rep3` and `study4_s2_tune_rgtf1_rep4`. Detail is the STATUS Done bullet and [2026-10-11-s2-rgtf1-rep3-rep4-abc.md](Guides%20and%20Info/2026-10-11-s2-rgtf1-rep3-rep4-abc.md).
-- **Checkout stays detector-hot.** Overloaded share **54.7% / 53.6% / 51.2% / 50.9%** across rep1–rep4 on. Checkout retry delta on the new holds is **15,511 / 15,629**. `grpc_4` is 0.
-- **Cluster restored.** Catalog **800 m**, checkout **800 m**, email **120 m**. Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs left **RUNNING**.
+- **Burst mode is in the controller (2026-10-12).** Opt-in, edge mode only. Off unless the YAML sets `burst_rpr` with `retry_metric: edge_rpr`. Branch `retryguard-burst-mode`. No live hold yet. Detail: [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md) and [ADR 0007](docs/adr/0007-burst-mode-sliding-aggregate.md).
+- **Replay of the four S2 both-on holds.** Only `frontend → checkoutservice` crosses. First fire is **104–113 s** at bars **1.0 / 1.5 / 2.0**. Later fire counts assume instant recovery, which the live path does not do. Script: `python experiments/burst_replay.py`.
+- **Cluster last restored after the 2026-10-11 S2 reps.** Catalog **800 m**, checkout **800 m**, email **120 m**. Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs were left **RUNNING**. This session did not re-check them.
 
 ### Still open
 
@@ -106,6 +106,7 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 - Share [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md), then write the Phase 7 eval on `experiments/results/campaign_48/` once mentors say the data is enough.
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
+- Burst-mode live bars and repeats are not chosen. The replay above is the input for that choice.
 
 Read [STATUS.md](STATUS.md) before a new hold, a `run_number` bump, scoring an old folder, or deciding what is left. After a hold, append one bullet under Done there, update Next free slots, and replace Latest here.
 
