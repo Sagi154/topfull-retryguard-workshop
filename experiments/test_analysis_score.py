@@ -102,6 +102,15 @@ class TestLog(unittest.TestCase):
         self.assertIsNone(score.climb_streak(samples, 2, 0.33))
         self.assertEqual(score.controller_high(samples), 4)
 
+    def test_burst_shed_is_flagged(self):
+        text = "\n".join([
+            "2026-10-11T16:00:05Z  frontend->checkoutservice  ON→OFF   rpr=1.62  consecutive_high=3  attempts=0  from_attempts=3  metric=rpr_burst  elapsed_s=4",
+            "2026-10-11T16:01:00Z  frontend->checkoutservice  ON→OFF   rpr=1.77  consecutive_high=30  attempts=0  from_attempts=3  metric=rpr  elapsed_s=30",
+        ])
+        events = score.parse_log(text)["transitions"]
+        self.assertEqual([e["burst"] for e in events], [True, False])
+        self.assertEqual(events[0]["metric"], "rpr")
+
 
 class TestRejectionAndInbound(unittest.TestCase):
     def test_non_positive_total_breaks_both_streaks(self):

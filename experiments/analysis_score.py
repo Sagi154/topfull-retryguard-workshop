@@ -264,6 +264,7 @@ def parse_log(text: str) -> dict:
                     "step": f"{old}→{new}",
                     "value": float(value) if value is not None else None,
                     "metric": "rpr" if "rpr" in fields else "rejection",
+                    "burst": fields.get("metric") == "rpr_burst",
                     "from_attempts": int(fields["from_attempts"]) if "from_attempts" in fields else None,
                     "attempts": int(fields["attempts"]) if "attempts" in fields else None,
                     "elapsed_s": int(fields["elapsed_s"]) if "elapsed_s" in fields else None,
@@ -873,19 +874,30 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
             lines.append(f"{label}: no transition lines.")
             continue
         any_toggle = True
-        counts: dict[str, dict[str, int]] = defaultdict(lambda: {"ON→OFF": 0, "OFF→ON": 0, "1→2": 0, "2→3": 0})
+        counts: dict[str, dict[str, int]] = defaultdict(
+            lambda: {"ON→OFF": 0, "OFF→ON": 0, "1→2": 0, "2→3": 0, "burst": 0}
+        )
         for event in item["transitions"]:
             step = event["step"]
             if step in counts[event["name"]]:
                 counts[event["name"]][step] += 1
+            if event.get("burst") and step == "ON→OFF":
+                counts[event["name"]]["burst"] += 1
+        has_burst = any(count["burst"] for count in counts.values())
         lines.append(f"### {label}")
         lines.append("")
-        lines.append("| Name | ON→OFF | 0→1 | 1→2 | 2→3 |")
-        lines.append("| --- | ---: | ---: | ---: | ---: |")
+        lines.append(
+            "| Name | ON→OFF | 0→1 | 1→2 | 2→3 |" + (" ON→OFF burst |" if has_burst else "")
+        )
+        lines.append("| --- | ---: | ---: | ---: | ---: |" + (" ---: |" if has_burst else ""))
         for name, count in counts.items():
-            lines.append(
-                f"| {_edge_label(name)} | {count['ON→OFF']} | {count['OFF→ON']} | {count['1→2']} | {count['2→3']} |"
+            row = (
+                f"| {_edge_label(name)} | {count['ON→OFF']} | {count['OFF→ON']} | "
+                f"{count['1→2']} | {count['2→3']} |"
             )
+            if has_burst:
+                row += f" {count['burst']} |"
+            lines.append(row)
         lines.append("")
         lines.append("| Time (UTC) | Name | Step | From | Value |")
         lines.append("| --- | --- | --- | ---: | --- |")
@@ -898,7 +910,8 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
             if origin is None and event["old"].isdigit():
                 origin = int(event["old"])
             lines.append(
-                f"| {event['timestamp']} | {_edge_label(event['name'])} | {event['step']} | "
+                f"| {event['timestamp']} | {_edge_label(event['name'])} | "
+                f"{event['step']}{' (burst)' if event.get('burst') else ''} | "
                 f"{'—' if origin is None else origin} | {value} |"
             )
         lines.append("")
