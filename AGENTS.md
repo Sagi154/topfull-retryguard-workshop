@@ -96,9 +96,9 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S2 tuning and S3/S4 topology holds, 14 PASS (2026-10-11).** Tuned `reenable_rejection=0.25`, `interval_samples=20`, `retries_threshold=0.4`, climb `0.16/0.32` at `climb_interval_seconds=10`. Run log and STATUS bullet: [2026-10-11-s2-tuning-and-s3-s4-topology-run-log.md](docs/superpowers/plans/2026-10-11-s2-tuning-and-s3-s4-topology-run-log.md), [STATUS.md](STATUS.md). Analysis guides pending.
-- **Cool-off is 120 s (2026-10-11).** Between holds, wait 120 s after `run_scenario.py` exits. The procedure is §6.
-- **Climb bars are YAML keys (2026-10-10).** Edge mode reads `climb_rpr_1_to_2` and `climb_rpr_2_to_3`. Detail: [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md).
+- **S4A catalog staircase (2026-10-11).** Mix **50 / 20 / 50 / 600 / 5**, RetryGuard on, TopFull off. Catalog **300 / 200 / 100 m**: sojourn **15.3 / 41.5 / 169 ms**. Share over 250 ms **0 / 0.21% / 23.8%**. Share over 500 ms **0 / 0 / 8.7%**. `frontend → productcatalogservice` retries **0 / 0 / 18,445**. `ON→OFF` only at 100 m (catalog once, recommendations twice).
+- **Replicas.** Catalog `replica_count` 1 on every row that exists (149 / 150 / 76). Frontend 4 on every sample. At 100 m, 73 frontend timestamps have no catalog row in three gaps. Catalog never reached 2. Locust rows **547 / 546 / 557**.
+- **Cluster restored.** Catalog **800 m**, checkout **800 m**, email **120 m**. Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`. VMs left **RUNNING**.
 
 ### Still open
 
