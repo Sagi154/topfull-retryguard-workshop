@@ -1001,6 +1001,9 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
 
 
 def main(argv: list[str]) -> int:
+    # Windows consoles default to cp1252, which cannot encode the ≤ used in the report.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     sep = None
     paths: list[str] = []
     args = argv[1:]
