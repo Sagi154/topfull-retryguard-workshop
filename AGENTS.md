@@ -97,7 +97,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
 - **Burst mode is in the controller (2026-10-12).** Opt-in, edge mode only. Off unless the YAML sets `burst_rpr` with `retry_metric: edge_rpr`. Branch `retryguard-burst-mode`. No live hold yet. Detail: [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md) and [ADR 0007](docs/adr/0007-burst-mode-sliding-aggregate.md).
-- **Replay of the four S2 both-on holds.** Only `frontend → checkoutservice` crosses. First fire is **104–113 s** at bars **1.0 / 1.5 / 2.0**. Later fire counts assume instant recovery, which the live path does not do. Script: `python experiments/burst_replay.py`.
+- **Replay of the four S2 both-on holds.** Only `frontend → checkoutservice` crosses. First fire is **104–113 s** at bars **1.0 / 1.5 / 2.0**. Later fire counts assume instant recovery, which the live path does not do. Table: [2026-10-12-s2-burst-replay.md](Guides%20and%20Info/2026-10-12-s2-burst-replay.md).
 - **Cluster last restored after the 2026-10-11 S2 reps.** Catalog **800 m**, checkout **800 m**, email **120 m**. Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs were left **RUNNING**. This session did not re-check them.
 
 ### Still open
