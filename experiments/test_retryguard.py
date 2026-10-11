@@ -1067,6 +1067,22 @@ class TestBurstMode(unittest.TestCase):
         self.assertIsNone(retryguard.edge_tick_deltas(cur, cur))
         self.assertIsNone(retryguard.edge_tick_deltas(None, cur))
 
+    def test_replay_edge_counts_fires_and_clears_after_each(self):
+        import burst_replay
+        snaps = []
+        total = retry = 0.0
+        for t in range(12):
+            first = 10.0
+            extra = 20.0 if t in (4, 5, 6, 7, 8, 9) else 0.0
+            total += first + extra
+            retry += extra
+            snaps.append(retryguard.EdgeSnapshot(
+                retryguard.format_row_timestamp(t), total, retry))
+        fires = burst_replay.replay_edge(snaps, 1.5, 5, 20)
+        self.assertGreaterEqual(len(fires), 1)
+        self.assertEqual(fires[0], retryguard.format_row_timestamp(7))
+        self.assertEqual(burst_replay.replay_edge(snaps, 50.0, 5, 20), [])
+
 
 def test_reenable_rejection_param_overrides_default():
     import retryguard as rg
