@@ -30,10 +30,10 @@ Checkoutservice rejection above 0.20: 26 / 280 (rgtf0 rep1), 9 / 204 (rgtf1 rep1
 
 ## (c) Toggles
 
-Per the run log: rgtf0 rep1 logged 11 OFF (replay 9); rgtf0 rep2 logged 3 OFF; rgtf1 rep1 and rgtf1 rep2 logged 0. No ON on any hold.
+Counted from `retryguard.log` transitions (`from_attempts` → `attempts`): rgtf0 rep1 11 disable / 10 re-enable (replay `_r2`: 9 / 9); rgtf0 rep2 3 disable / 3 re-enable; rgtf1 rep1 and rgtf1 rep2 0 / 0. No climb transitions on any hold.
 
 ## Reading
 
-- TopFull on (rgtf1) holds gave higher checkout rpr and fewer disables than TopFull off, with no re-enable on either arm. Under TopFull admission the checkout edge stays above the shed bar longer than it does without TopFull.
+- TopFull on (rgtf1) holds gave higher checkout rpr and no toggles at all, while TopFull off toggled 3 to 11 times. With TopFull on, the checkout edge stays above the shed bar longer and RetryGuard never disables retries, so the retry relief that TopFull off gets is absent.
 - The climb bars were never exercised beyond one 1-attempt climb on rgtf0 rep1 and one on rgtf0 rep2, so the 10 s climb has little evidence yet.
 - The hold-1 replay was started before the 5 s live scrape was separated from the 1 s `rate_config` rows. Both folders pass the live-cap gate. The table uses rep1.

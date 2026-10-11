@@ -30,7 +30,7 @@ checkoutservice → emailservice never crossed the shed bar on any hold (0 strea
 
 ## (c) Toggles
 
-Per the run log: S3 TF off logged 1 OFF; every other hold logged 0. No ON anywhere.
+Counted from `retryguard.log` transitions: S3 TF off logged 1 disable and 0 re-enable; the other nine holds logged 0 transitions.
 
 ## Reading
 
@@ -38,3 +38,4 @@ Per the run log: S3 TF off logged 1 OFF; every other hold logged 0. No ON anywhe
 - S4A never crossed the shed bar on either arm at either postcart count. Productcatalog at 400m did not produce an rpr signal at the frontend → checkout edge.
 - S4B crossed the shed bar at a modest level on both arms, a bit more with TopFull on. The email replica dips make S4B less clean than the CPU change alone would suggest.
 - RetryGuard toggled once, in S3 TF off. Most holds did not exercise the disable path, so the topology comparison is weak on controller behavior. The rpr differences are the stronger signal here.
+- Controller-side gap: the S3 TF on hold had a 297-tick shed streak with zero RetryGuard transitions, so RetryGuard did not act on sustained high rpr there. That needs a look before this is cited as evidence.
