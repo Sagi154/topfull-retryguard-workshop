@@ -23,6 +23,7 @@ import logging
 import signal
 import sys
 import time
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -735,6 +736,68 @@ def climb_limits_from_params(params: dict) -> tuple:
     )
 
 
+# --------------------------------------------------------------------------- #
+#  Burst mode (opt-in): sliding retries-per-request aggregate
+# --------------------------------------------------------------------------- #
+
+BURST_WINDOW_SECONDS_DEFAULT = 5
+BURST_MIN_FIRST_ATTEMPTS_DEFAULT = 20
+
+
+def burst_bar(burst_rpr: float, attempts: int, attempts_on: int) -> float:
+    """Burst bar at an edge's current cap: burst_rpr scales with attempts / attempts_on."""
+    return float(burst_rpr) * int(attempts) / int(attempts_on)
+
+
+class BurstWindow:
+    """
+    Sliding sums of (delta retry, delta first attempts) over the last
+    `seconds` of row timestamps. A window of 5 holds ticks t-4 .. t at 1 s
+    sampling. A skipped tick adds nothing, so the span never exceeds `seconds`.
+    """
+
+    def __init__(self, seconds: int, min_first_attempts: int):
+        self.seconds = int(seconds)
+        self.min_first_attempts = int(min_first_attempts)
+        self._ticks: deque = deque()  # (epoch_s, d_retry, d_first)
+
+    def add(self, timestamp: str, d_retry: float, d_first: float) -> None:
+        epoch = parse_row_timestamp(timestamp).timestamp()
+        self._ticks.append((epoch, d_retry, d_first))
+        while self._ticks and self._ticks[0][0] <= epoch - self.seconds:
+            self._ticks.popleft()
+
+    def clear(self) -> None:
+        self._ticks.clear()
+
+    def span_s(self) -> int:
+        if not self._ticks:
+            return 0
+        return int(round(self._ticks[-1][0] - self._ticks[0][0]))
+
+    def rpr(self) -> Optional[float]:
+        """Window retries per first attempt, or None below the volume floor."""
+        first = sum(t[2] for t in self._ticks)
+        if first <= 0 or first < self.min_first_attempts:
+            return None
+        return sum(t[1] for t in self._ticks) / first
+
+
+def edge_tick_deltas(
+    previous: Optional[EdgeSnapshot], current: Optional[EdgeSnapshot],
+) -> Optional[tuple]:
+    """(delta retry, delta first attempts) for one tick; None where measure_edge_rpr skips."""
+    if previous is None or current is None:
+        return None
+    if current.timestamp <= previous.timestamp:
+        return None
+    d_retry = current.retry - previous.retry
+    d_first = (current.total - previous.total) - d_retry
+    if d_first <= 0:
+        return None
+    return d_retry, d_first
+
+
 @dataclass
 class Change:
     service: str          # callee whose VirtualService must be patched
@@ -745,6 +808,8 @@ class Change:
     lines: list
     desired_attempts: dict  # caller → attempts this change sets
     caller_attempts: dict   # caller → attempts for every caller not at attempts_on
+    # Callers in this change shed by the burst test (log metric=rpr_burst).
+    burst_callers: frozenset = frozenset()
 
 
 class EdgeController:
@@ -770,6 +835,9 @@ class EdgeController:
         climb_rpr_1_to_2=None,
         climb_rpr_2_to_3=None,
         climb_interval_seconds=None,
+        burst_rpr=None,
+        burst_window_seconds=BURST_WINDOW_SECONDS_DEFAULT,
+        burst_min_first_attempts=BURST_MIN_FIRST_ATTEMPTS_DEFAULT,
     ):
         self.rpr_threshold = rpr_threshold
         self.rejection_threshold = rejection_threshold
@@ -794,6 +862,18 @@ class EdgeController:
         # Per-callee rejection counters; a key exists only while the callee
         # has at least one edge at 0 attempts.
         self.svc_state: Dict[str, ServiceState] = {}
+        # Burst mode. burst_rpr None means off: no windows, no checks.
+        self.burst_rpr = None if burst_rpr is None else float(burst_rpr)
+        self.burst_windows: Dict[tuple, BurstWindow] = (
+            {}
+            if self.burst_rpr is None
+            else {
+                e: BurstWindow(burst_window_seconds, burst_min_first_attempts)
+                for e in edges
+            }
+        )
+        # Window rpr per edge on the latest step, for the OBSERVE log field.
+        self.burst_last: Dict[tuple, Optional[float]] = {}
 
     def off_callers(self, service: str) -> frozenset:
         return frozenset(
@@ -823,6 +903,20 @@ class EdgeController:
             desired,
             {c: a for c, a in resulting.items() if a != self.attempts_on},
         )
+
+    def _burst_check(self, edge, st: ServiceState, timestamp: str, delta):
+        """Feed one tick to the edge's window. (window rpr, span_s) when it should shed."""
+        if self.burst_rpr is None or delta is None:
+            return None
+        window = self.burst_windows[edge]
+        window.add(timestamp, delta[0], delta[1])
+        value = window.rpr()
+        self.burst_last[edge] = value
+        if value is None:
+            return None
+        if value >= burst_bar(self.burst_rpr, st.attempts, self.attempts_on):
+            return value, window.span_s()
+        return None
 
     def _ramp_tick(
         self, state: ServiceState, value: float, timestamp: str
@@ -854,9 +948,13 @@ class EdgeController:
         rejection: dict,
         rpr_ts: Optional[dict] = None,
         rejection_ts: Optional[dict] = None,
+        edge_deltas: Optional[dict] = None,
     ) -> list:
         changes = []
         handled = set()
+        edge_deltas = edge_deltas or {}
+        self.burst_last = {}
+        burst_callers: Dict[str, set] = {}
         rpr_ts = rpr_ts or {}
         rejection_ts = rejection_ts or {}
 
@@ -909,6 +1007,18 @@ class EdgeController:
             if value is None or not timestamp:
                 continue
             name = f"{caller}->{service}"
+            burst = self._burst_check(edge, st, timestamp, edge_deltas.get(edge))
+            if burst is not None:
+                window_rpr, span = burst
+                pending.setdefault(service, {})[caller] = 0
+                burst_callers.setdefault(service, set()).add(caller)
+                pending_lines.setdefault(service, []).append(
+                    (
+                        name, "ON", "OFF", window_rpr, st.consecutive_high, 0,
+                        st.attempts, span,
+                    )
+                )
+                continue
             if st.attempts >= self.attempts_on:
                 if (
                     apply_algorithm1(
@@ -949,16 +1059,18 @@ class EdgeController:
         for service, desired in pending.items():
             climbs = any(attempts > 0 for attempts in desired.values())
             transition = "RAMP" if climbs and 0 not in desired.values() else "OFF"
-            changes.append(
-                self._make_change(
-                    service, transition, "rpr", pending_lines[service], desired
-                )
+            change = self._make_change(
+                service, transition, "rpr", pending_lines[service], desired
             )
+            change.burst_callers = frozenset(burst_callers.get(service, ()))
+            changes.append(change)
         return changes
 
     def commit(self, change: Change) -> None:
         for caller, attempts in change.desired_attempts.items():
             edge = (caller, change.service)
+            if edge in self.burst_windows:
+                self.burst_windows[edge].clear()
             prev = self.edge_state[edge]
             if attempts == 0:
                 prev.retries_state = "OFF"

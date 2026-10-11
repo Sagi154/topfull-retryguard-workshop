@@ -1003,6 +1003,71 @@ class TestRunScenarioRetryOnMatches(unittest.TestCase):
             self.assertEqual(run_scenario.retry_on_for(svc), retryguard.retry_on_for(svc))
 
 
+class TestBurstMode(unittest.TestCase):
+    EDGE = ("frontend", "checkoutservice")
+
+    def make(self, burst_rpr=1.5, min_first=20):
+        return retryguard.EdgeController(
+            (self.EDGE,), 0.5, 0.2, 30,
+            burst_rpr=burst_rpr,
+            burst_window_seconds=5,
+            burst_min_first_attempts=min_first,
+        )
+
+    def tick(self, ctrl, t, d_retry, d_first):
+        ts = retryguard.format_row_timestamp(t)
+        return ctrl.step(
+            {self.EDGE: d_retry / d_first}, {}, {self.EDGE: ts}, {},
+            edge_deltas={self.EDGE: (d_retry, d_first)},
+        )
+
+    def test_window_aggregate_sheds_before_any_streak(self):
+        ctrl = self.make()
+        for t in range(3):
+            self.assertEqual(self.tick(ctrl, t, 0, 10), [])
+        changes = self.tick(ctrl, 3, 60, 10)  # 60 / 40 = 1.5, on the bar
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0].transition, "OFF")
+        self.assertEqual(changes[0].burst_callers, frozenset({"frontend"}))
+        self.assertEqual(changes[0].new_off, frozenset({"frontend"}))
+        self.assertAlmostEqual(changes[0].lines[0][3], 1.5)
+
+    def test_volume_floor_blocks_thin_windows(self):
+        ctrl = self.make(min_first=20)
+        for t in range(5):  # rpr 3.0 per tick but only 5 first attempts total
+            self.assertEqual(self.tick(ctrl, t, 3, 1), [])
+
+    def test_bar_scales_with_attempt_cap(self):
+        for attempts, fires in ((2, True), (3, False)):
+            ctrl = self.make()
+            ctrl.edge_state[self.EDGE].attempts = attempts
+            self.assertEqual(self.tick(ctrl, 0, 10, 10), [])  # floor not met yet
+            changes = self.tick(ctrl, 1, 10, 10)  # rpr 1.0; bar 1.0 at 2, 1.5 at 3
+            self.assertEqual(bool(changes), fires)
+
+    def test_commit_clears_the_window(self):
+        ctrl = self.make()
+        for t in range(3):
+            self.tick(ctrl, t, 0, 10)
+        change = self.tick(ctrl, 3, 60, 10)[0]
+        ctrl.commit(change)
+        self.assertIsNone(ctrl.burst_windows[self.EDGE].rpr())
+
+    def test_off_without_burst_rpr(self):
+        ctrl = self.make(burst_rpr=None)
+        self.assertEqual(ctrl.burst_windows, {})
+        for t in range(3):
+            self.tick(ctrl, t, 0, 10)
+        self.assertEqual(self.tick(ctrl, 3, 60, 10), [])
+
+    def test_edge_tick_deltas_matches_measure_edge_rpr(self):
+        prev = retryguard.EdgeSnapshot("2026-10-11T00:00:00Z", 100.0, 10.0)
+        cur = retryguard.EdgeSnapshot("2026-10-11T00:00:01Z", 160.0, 30.0)
+        self.assertEqual(retryguard.edge_tick_deltas(prev, cur), (20.0, 40.0))
+        self.assertIsNone(retryguard.edge_tick_deltas(cur, cur))
+        self.assertIsNone(retryguard.edge_tick_deltas(None, cur))
+
+
 def test_reenable_rejection_param_overrides_default():
     import retryguard as rg
     assert rg.reenable_threshold_from_params({}) == rg.REENABLE_REJECTION_THRESHOLD
