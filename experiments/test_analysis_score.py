@@ -111,6 +111,29 @@ class TestLog(unittest.TestCase):
         self.assertEqual([e["burst"] for e in events], [True, False])
         self.assertEqual(events[0]["metric"], "rpr")
 
+    def test_burst_summary_uses_bar_in_force_and_counts_sheds(self):
+        text = "\n".join([
+            "2026-10-11T16:00:00Z  START  metric=edge_rpr rpr_threshold=0.40 attempts_on=3 burst_rpr=1.50 burst_window_seconds=5 burst_min_first_attempts=20",
+            "2026-10-11T16:00:01Z  OBSERVE  frontend->checkoutservice  rpr=0.10  low=1 high=0  elapsed_s=0  attempts=3  state=ON  metric=rpr  burst_rpr5=0.2000",
+            "2026-10-11T16:00:02Z  OBSERVE  frontend->checkoutservice  rpr=0.10  low=2 high=0  elapsed_s=0  attempts=3  state=ON  metric=rpr  burst_rpr5=1.6000",
+            "2026-10-11T16:00:03Z  OBSERVE  frontend->checkoutservice  rpr=0.10  low=3 high=0  elapsed_s=0  attempts=2  state=ON  metric=rpr  burst_rpr5=1.0000",
+            "2026-10-11T16:00:04Z  OBSERVE  frontend->checkoutservice  rpr=0.10  low=4 high=0  elapsed_s=0  attempts=3  state=ON  metric=rpr",
+            "2026-10-11T16:00:05Z  frontend->checkoutservice  ON→OFF   rpr=1.60  consecutive_high=0  attempts=0  from_attempts=3  metric=rpr_burst  elapsed_s=4",
+        ])
+        parsed = score.parse_log(text)
+        self.assertEqual(parsed["params"]["burst_rpr"], 1.5)
+        name = "frontend->checkoutservice"
+        summary = score.burst_summary(
+            parsed["observes"][name], parsed["transitions"], name, 1.5, 3,
+        )
+        self.assertEqual(summary["samples"], 3)
+        self.assertAlmostEqual(summary["peak"], 1.6)
+        self.assertAlmostEqual(summary["median"], 1.0)
+        # 1.6 >= 1.5 at 3 attempts, 1.0 >= 1.0 at 2 attempts, 0.2 < 1.5
+        self.assertEqual(summary["at_bar"], 2)
+        self.assertEqual(summary["sheds"], 1)
+        self.assertIsNone(score.burst_summary([], [], name, 1.5, 3))
+
 
 class TestRejectionAndInbound(unittest.TestCase):
     def test_non_positive_total_breaks_both_streaks(self):
