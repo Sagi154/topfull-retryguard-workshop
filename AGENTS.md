@@ -96,8 +96,8 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
+- **S2 tuning and S3/S4 topology holds, 14 PASS (2026-10-11).** Tuned `reenable_rejection=0.25`, `interval_samples=20`, `retries_threshold=0.4`, climb `0.16/0.32` at `climb_interval_seconds=10`. Run log and STATUS bullet: [2026-10-11-s2-tuning-and-s3-s4-topology-run-log.md](docs/superpowers/plans/2026-10-11-s2-tuning-and-s3-s4-topology-run-log.md), [STATUS.md](STATUS.md). Analysis guides pending.
 - **Cool-off is 120 s (2026-10-11).** Between holds, wait 120 s after `run_scenario.py` exits. The procedure is §6.
-- **S2 re-enable 0.25 and tighter climb, six holds (2026-10-10).** All six PASS. Score: [2026-10-10-s2-rr025-climb-analysis.md](Guides%20and%20Info/2026-10-10-s2-rr025-climb-analysis.md).
 - **Climb bars are YAML keys (2026-10-10).** Edge mode reads `climb_rpr_1_to_2` and `climb_rpr_2_to_3`. Detail: [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md).
 
 ### Still open
