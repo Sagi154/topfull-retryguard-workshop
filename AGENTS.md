@@ -96,9 +96,9 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S2 burst matrix, twelve holds (2026-10-12).** `study6_s2_normal_rgtf0_rep1`, `study6_s2_normal_rgtf0_rep2`, `study6_s2_normal_rgtf1_rep1`, `study6_s2_normal_rgtf1_rep2`, `study6_s2_burst15_rgtf0_rep1`, `study6_s2_burst15_rgtf0_rep2`, `study6_s2_burst20_rgtf0_rep1`, `study6_s2_burst20_rgtf0_rep2`, `study6_s2_burst15_rgtf1_rep1`, `study6_s2_burst15_rgtf1_rep2`, `study6_s2_burst20_rgtf1_rep1`, `study6_s2_burst20_rgtf1_rep2`. All twelve PASS. Detail is the STATUS Done bullet for these holds. Guide: [2026-10-12-s2-burst-matrix-abc.md](Guides%20and%20Info/2026-10-12-s2-burst-matrix-abc.md).
+- **S2 normal mode, three both-on holds (2026-10-12).** `study7_s2_normal_rgtf1_rep1`, `study7_s2_normal_rgtf1_rep2`, `study7_s2_normal_rgtf1_rep3`. All three PASS. Detail is the STATUS Done bullet for these holds. Guide: [2026-10-12-s2-normal-rgtf1-x3-abc.md](Guides%20and%20Info/2026-10-12-s2-normal-rgtf1-x3-abc.md).
 - **Replay of the four S2 both-on holds.** Only `frontend → checkoutservice` crosses. First fire is **104–113 s** at bars **1.0 / 1.5 / 2.0**. Later fire counts assume instant recovery, which the live path does not do. Table: [2026-10-12-s2-burst-replay.md](Guides%20and%20Info/2026-10-12-s2-burst-replay.md).
-- **Cluster is back on the unpinned pair.** Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs are **TERMINATED**.
+- **Cluster is back on the unpinned pair.** Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs are **RUNNING**.
 
 ### Still open
 
