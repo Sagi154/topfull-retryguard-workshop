@@ -192,7 +192,7 @@ The older `experiments/configs/scenario_*.yaml` files are still valid runner inp
 
 The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, `resource_usage_collector.py`, and `topfull_throttle_collector.py` from this repo onto master before those processes start. It clears `src/logs` again at startup. That second clear is safe only when step 5 above showed an empty directory. On master, results stay flat at `results_base_path/<log_folder>/`.
 
-**Pull every new hold into `final results/`.** The runner still prints an `scp` into `campaign_48/`. Use this local path instead, and leave `campaign_48/` as the closed Phase 7 dataset:
+**Pull every new hold into `final results/`.** The runner's printed `scp` and `python experiments/pull_results.py <config>` already point at the path below for every config, whatever its `log_folder`. `campaign_48/` is the closed Phase 7 dataset and is never a target. TopFull-only holds go in the `normal` mode folder:
 
 ```
 experiments/results/final results/<scenario>_<normal|burst>/<variant>/<log_folder>/

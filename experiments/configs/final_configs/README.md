@@ -23,12 +23,18 @@ Each folder has five files. The name is `<prefix>_<variant>.yaml` (`s1_`, `s2_`,
 |---|---|---|---|---|
 | `rg_only_burst` | on, three burst keys present | off | `rg_only` | `burst` |
 | `rg_only_normal` | on, three burst keys omitted | off | `rg_only` | `normal` |
-| `tf_only` | off | on | `tf_only` | `burst` |
+| `tf_only` | off | on | `tf_only` | `normal` |
 | `both_burst` | on, three burst keys present | on | `both` | `burst` |
 | `both_normal` | on, three burst keys omitted | on | `both` | `normal` |
 
-Burst mode is `burst_rpr` 2.0, `burst_window_seconds` 5, and `burst_min_first_attempts` 20. Normal mode omits those three keys. `tf_only` keeps them because it is a copy of the baseline YAML; RetryGuard is off, so they are not used. The mode folder still follows the rule in AGENTS.md §6: the keys are present, so the folder is `burst`.
+Burst mode is `burst_rpr` 2.0, `burst_window_seconds` 5, and `burst_min_first_attempts` 20. Normal mode omits those three keys. `tf_only` keeps them because it is a copy of the baseline YAML, but RetryGuard is off, so they are unused. Its mode folder is `normal`, as in the existing `tf_only` holds.
 
 Every file is `run_number: 1` and `log_folder: final_<prefix>_<variant>_run1`. Bump both on that file before a repeat. These slots are separate from the historical `scenario_*.yaml` counters.
+
+## Where results go
+
+`run_scenario.py` and `pull_results.py` read the config and send every run to `experiments/results/final results/<scenario>_<normal|burst>/<variant>/<log_folder>/`. The `scp` line the runner prints at the end already has that path. `python experiments/pull_results.py <config>` pulls there. The `log_folder` name does not affect the destination. `campaign_48/` is never a target.
+
+Scenario folder names: `S1_normal_operation`, `S2_sustained_overload`, `S3_targeted_bottleneck`, `S4A_topology_position`, `S4B_topology_position`.
 
 S1 source YAMLs have `scale_constraints: []`. The copies in `1/` write the Paper-C1 table so the hold states the limits. The source files are unchanged.

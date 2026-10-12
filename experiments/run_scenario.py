@@ -1395,6 +1395,47 @@ def scenario_dir_name(cfg: dict) -> str:
     return ""  # unknown scenario_id — fall back to no subfolder
 
 
+FINAL_RESULTS_SCENARIO_DIRS = {
+    1: "S1_normal_operation",
+    2: "S2_sustained_overload",
+    3: "S3_targeted_bottleneck",
+    5: "S5_interval_tuning",
+    6: "S6_forced_recovery",
+}
+
+
+def final_results_local_dir(cfg: dict) -> str:
+    """experiments/results/final results/<scenario>_<normal|burst>/<variant>/
+
+    Mode is 'burst' when RetryGuard is on and burst_rpr is set. Everything
+    else is 'normal', including TopFull-only (RetryGuard off). Variant is
+    rg_only, tf_only, both, or both_off."""
+    sid = cfg.get("scenario_id")
+    if sid == 4:
+        scen = ("S4A_topology_position"
+                if str(cfg.get("scenario_name", "")).endswith("_A")
+                else "S4B_topology_position")
+    else:
+        scen = FINAL_RESULTS_SCENARIO_DIRS.get(sid, f"S{sid}")
+    rg = cfg.get("retryguard", {})
+    rg_on = bool(rg.get("enabled", False))
+    tf_on = bool(cfg.get("topfull_rl", {}).get("enabled", True))
+    mode = "burst" if rg_on and "burst_rpr" in rg else "normal"
+    variant = {
+        (True, True): "both",
+        (True, False): "rg_only",
+        (False, True): "tf_only",
+        (False, False): "both_off",
+    }[(rg_on, tf_on)]
+    return f"experiments/results/final results/{scen}_{mode}/{variant}/"
+
+
+def local_results_dir(cfg: dict) -> str:
+    """Local destination directory for a pulled run (trailing slash).
+    Every config goes to 'final results'. campaign_48 is a closed dataset."""
+    return final_results_local_dir(cfg)
+
+
 def collect_results(
     cfg: dict,
     capacity: dict | None = None,
@@ -1443,9 +1484,8 @@ def collect_results(
 
     step(f"Results saved to (on master): {dest}")
     step("To pull results to your PC:")
-    scen_dir = scenario_dir_name(cfg)
-    local_dest = f"experiments/results/campaign_48/{scen_dir}/" if scen_dir else "experiments/results/campaign_48/"
-    print(f"    scp -r topfull-master:{dest} {local_dest}")
+    local_dest = local_results_dir(cfg)
+    print(f'    scp -r topfull-master:{dest} "{local_dest}"')
     return dest
 
 

@@ -5,8 +5,8 @@ experiments/analysis_score.py.
 
 This is the automated version of the manual step `run_scenario.py` prints at
 the end of every run ("To pull results to your PC: scp -r ..."). It reuses
-`run_scenario.scenario_dir_name()` for the local destination mapping, so the
-scenario_id -> campaign_48/<subfolder> mapping lives in exactly one place.
+`run_scenario.local_results_dir()` for the local destination, so the
+config -> `final results/...` mapping lives in exactly one place.
 
 Read-only w.r.t. the remote VMs: this only runs `scp -r` FROM topfull-master.
 It never SSHes in to touch the live collector/runner processes, and it never
@@ -42,12 +42,7 @@ def resolve_pull_paths(cfg: dict) -> tuple[str, str, str]:
     results_base = cfg["infra"]["results_base_path"]
     log_folder = cfg["log_folder"]
     remote_dest = f"{results_base}/{log_folder}"
-    scen_dir = run_scenario.scenario_dir_name(cfg)
-    local_dest_dir = (
-        f"experiments/results/campaign_48/{scen_dir}/"
-        if scen_dir
-        else "experiments/results/campaign_48/"
-    )
+    local_dest_dir = run_scenario.local_results_dir(cfg)
     return master, remote_dest, local_dest_dir
 
 

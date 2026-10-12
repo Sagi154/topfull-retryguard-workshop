@@ -1208,6 +1208,91 @@ class TestFinalConfigs(unittest.TestCase):
         self.assertEqual(len(folders), 30)
 
 
+class TestFinalResultsDestination(unittest.TestCase):
+    """Every hold pulls into 'final results'. campaign_48 is never a target."""
+
+    EXPECTED = {
+        "1/s1_rg_only_burst.yaml": "S1_normal_operation_burst/rg_only",
+        "1/s1_rg_only_normal.yaml": "S1_normal_operation_normal/rg_only",
+        "1/s1_tf_only.yaml": "S1_normal_operation_normal/tf_only",
+        "2/s2_both_burst.yaml": "S2_sustained_overload_burst/both",
+        "2/s2_both_normal.yaml": "S2_sustained_overload_normal/both",
+        "3/s3_tf_only.yaml": "S3_targeted_bottleneck_normal/tf_only",
+        "4/4a_constrained/4a_constrained_both_burst.yaml":
+            "S4A_topology_position_burst/both",
+        "4/4a_unconstrained/4a_unconstrained_rg_only_normal.yaml":
+            "S4A_topology_position_normal/rg_only",
+        "4/4b/4b_both_normal.yaml": "S4B_topology_position_normal/both",
+        "4/4b/4b_tf_only.yaml": "S4B_topology_position_normal/tf_only",
+    }
+
+    def test_final_configs_map_to_final_results(self):
+        import yaml
+        root = Path(__file__).resolve().parent / "configs" / "final_configs"
+        for rel, tail in self.EXPECTED.items():
+            cfg = yaml.safe_load((root / rel).read_text(encoding="utf-8"))
+            self.assertEqual(
+                run_scenario.local_results_dir(cfg),
+                f"experiments/results/final results/{tail}/",
+                msg=rel,
+            )
+
+    def test_every_final_config_has_a_destination(self):
+        import yaml
+        root = Path(__file__).resolve().parent / "configs" / "final_configs"
+        for path in root.rglob("*.yaml"):
+            cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+            dest = run_scenario.local_results_dir(cfg)
+            self.assertTrue(
+                dest.startswith("experiments/results/final results/"),
+                msg=path.name,
+            )
+
+    def test_every_config_goes_to_final_results_not_campaign_48(self):
+        import yaml
+        root = Path(__file__).resolve().parent / "configs"
+        cfg = yaml.safe_load(
+            (root / "scenario_2_baseline.yaml").read_text(encoding="utf-8"))
+        self.assertEqual(
+            run_scenario.local_results_dir(cfg),
+            "experiments/results/final results/S2_sustained_overload_burst/tf_only/"
+            if "burst_rpr" in cfg["retryguard"] and cfg["retryguard"]["enabled"]
+            else "experiments/results/final results/S2_sustained_overload_normal/tf_only/",
+        )
+        # A bumped log_folder without the final_ prefix changes nothing.
+        cfg = yaml.safe_load(
+            (root / "final_configs" / "2" / "s2_both_burst.yaml")
+            .read_text(encoding="utf-8"))
+        cfg["log_folder"] = "my_custom_run7"
+        self.assertEqual(
+            run_scenario.local_results_dir(cfg),
+            "experiments/results/final results/S2_sustained_overload_burst/both/",
+        )
+        for name, tail in (
+            ("scenario_5_interval_30s.yaml", "S5_interval_tuning"),
+            ("scenario_6_recovery_retryguard.yaml", "S6_forced_recovery"),
+        ):
+            cfg = yaml.safe_load((root / name).read_text(encoding="utf-8"))
+            dest = run_scenario.local_results_dir(cfg)
+            self.assertTrue(
+                dest.startswith(f"experiments/results/final results/{tail}_"),
+                msg=dest,
+            )
+            self.assertNotIn("campaign_48", dest)
+
+    def test_pull_results_uses_same_destination(self):
+        import yaml
+        import pull_results
+        path = (Path(__file__).resolve().parent / "configs" / "final_configs"
+                / "2" / "s2_both_burst.yaml")
+        cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+        _master, _remote, local = pull_results.resolve_pull_paths(cfg)
+        self.assertEqual(
+            local,
+            "experiments/results/final results/S2_sustained_overload_burst/both/",
+        )
+
+
 class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
     def test_skips_when_marker_present(self):
         cfg = {
