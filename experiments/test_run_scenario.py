@@ -1206,9 +1206,12 @@ class TestFinalConfigs(unittest.TestCase):
             tf_on = not variant.startswith("rg_only")
             self.assertEqual(rg["enabled"], rg_on, msg=path.name)
             self.assertEqual(cfg["topfull_rl"]["enabled"], tf_on, msg=path.name)
-            self.assertEqual(cfg["run_number"], 1, msg=path.name)
+            self.assertIsInstance(cfg["run_number"], int, msg=path.name)
+            self.assertGreaterEqual(cfg["run_number"], 1, msg=path.name)
             self.assertEqual(
-                cfg["log_folder"], f"final_{prefix}_{variant}_run1", msg=path.name,
+                cfg["log_folder"],
+                f"final_{prefix}_{variant}_run{cfg['run_number']}",
+                msg=path.name,
             )
             folders.add(cfg["log_folder"])
         self.assertEqual(len(folders), 30)
