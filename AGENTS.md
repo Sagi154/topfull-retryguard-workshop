@@ -96,9 +96,9 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S2 burst bar 1.5, two holds (2026-10-12).** `study5_s2_burst15_rgtf0` (TopFull off) and `study5_s2_burst15_rgtf1` (TopFull on), both PASS, burst sheds 3 and 9. Guide: [2026-10-12-s2-burst15-abc.md](Guides%20and%20Info/2026-10-12-s2-burst15-abc.md). Detail is the STATUS Done bullet for these holds.
+- **S2 burst matrix, twelve holds (2026-10-12).** `study6_s2_normal_rgtf0_rep1`, `study6_s2_normal_rgtf0_rep2`, `study6_s2_normal_rgtf1_rep1`, `study6_s2_normal_rgtf1_rep2`, `study6_s2_burst15_rgtf0_rep1`, `study6_s2_burst15_rgtf0_rep2`, `study6_s2_burst20_rgtf0_rep1`, `study6_s2_burst20_rgtf0_rep2`, `study6_s2_burst15_rgtf1_rep1`, `study6_s2_burst15_rgtf1_rep2`, `study6_s2_burst20_rgtf1_rep1`, `study6_s2_burst20_rgtf1_rep2`. All twelve PASS. Detail is the STATUS Done bullet for these holds. Guide: [2026-10-12-s2-burst-matrix-abc.md](Guides%20and%20Info/2026-10-12-s2-burst-matrix-abc.md).
 - **Replay of the four S2 both-on holds.** Only `frontend → checkoutservice` crosses. First fire is **104–113 s** at bars **1.0 / 1.5 / 2.0**. Later fire counts assume instant recovery, which the live path does not do. Table: [2026-10-12-s2-burst-replay.md](Guides%20and%20Info/2026-10-12-s2-burst-replay.md).
-- **Cluster is back on the unpinned pair.** Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs are **RUNNING**.
+- **Cluster is back on the unpinned pair.** Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs are **TERMINATED**.
 
 ### Still open
 
@@ -106,7 +106,7 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 - Share [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md), then write the Phase 7 eval on `experiments/results/campaign_48/` once mentors say the data is enough.
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
-- Burst-mode live bars and repeats are not chosen. The replay above is the input for that choice.
+- Bars 1.5 and 2.0 each have two live reps on both arms, plus two normal-mode reps on both arms, in this matrix. A single bar is not chosen yet. The guide is [2026-10-12-s2-burst-matrix-abc.md](Guides%20and%20Info/2026-10-12-s2-burst-matrix-abc.md).
 
 Read [STATUS.md](STATUS.md) before a new hold, a `run_number` bump, scoring an old folder, or deciding what is left. After a hold, append one bullet under Done there, update Next free slots, and replace Latest here.
 
