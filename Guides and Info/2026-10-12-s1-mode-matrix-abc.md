@@ -25,7 +25,7 @@ Four scored holds. Each is 300 s, RetryGuard on, TopFull off. Two are normal mod
 - **Controllers.** RetryGuard is on for every scored hold. TopFull is off on every scored hold. The TopFull-on cells are the failed gate in §3.
 - **RetryGuard knobs.** `retry_metric=edge_rpr`, `interval_samples=20`, `retries_threshold=0.4`, climb `0.16/0.32` with `climb_interval_seconds=10`, `reenable_rejection=0.25`. Normal-mode holds omit `burst_rpr`. Burst holds add `burst_window_seconds=5` and `burst_min_first_attempts=20`, with `burst_rpr` 2.0.
 - **Cool-off** 120 s between holds, from `run_scenario.py` exit.
-- **Folders:** `experiments/results/final results/`, the four names in §2. Configs: `experiments/configs/study_2026_10_12/18_s1_normal_rgtf0_rep1.yaml`, `19_s1_normal_rgtf0_rep2.yaml`, `24_s1_burst20_rgtf0_rep1.yaml`, `25_s1_burst20_rgtf0_rep2.yaml`. Each manifest has `run_number` 1; the `log_folder` name is the slot.
+- **Folders:** `experiments/results/final results/S1_normal_operation_<normal|burst>/<rg_only|both>/`, the four names in §2. Configs: `experiments/configs/study_2026_10_12/18_s1_normal_rgtf0_rep1.yaml`, `19_s1_normal_rgtf0_rep2.yaml`, `24_s1_burst20_rgtf0_rep1.yaml`, `25_s1_burst20_rgtf0_rep2.yaml`. Each manifest has `run_number` 1; the `log_folder` name is the slot.
 
 ## 2. Index
 

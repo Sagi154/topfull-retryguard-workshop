@@ -38,7 +38,8 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
   results/           ← local results only (master still uses a flat `/home/idozacharia/experiments/results/`)
-    campaign_48/     ← **primary Phase 7 dataset** — 48-run campaign (2026-09-05 → 2026-09-06), in git, organized into 7 scenario subfolders (`S1_normal_op/` … `S6_forced_recovery/`) — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md)
+    final results/   ← **where every new hold is pulled.** Scenario, RetryGuard mode, then controller variant — the rule is in §6
+    campaign_48/     ← closed Phase 7 dataset (2026-09-05 → 2026-09-06), in git, organized into 7 scenario subfolders (`S1_normal_op/` … `S6_forced_recovery/`) — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md)
     august_38/       ← historical August 38-run matrix (git-tracked; do not delete; still a flat list of run folders, not reorganized)
 TopFull/             ← git submodule, upstream https://github.com/kaist-ina/TopFull (read locally; also cloned separately on the VMs)
 context/             ← papers/decks: RetryGuard.pdf, TopFull.pdf, Evaluating_RetryGuard_on_TopFull.{pdf,md} (current eval deck + transcription)
@@ -96,7 +97,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S1 and S2 mode matrix (2026-10-12).** Nine gates PASS. Six S1 TopFull-on cells failed `live5s_caps=0` on the original and on one replay. All twenty-one folders are under `experiments/results/final results/`. Guide: [2026-10-12-s1-s2-mode-matrix-abc.md](Guides%20and%20Info/2026-10-12-s1-s2-mode-matrix-abc.md).
+- **S1 and S2 mode matrix (2026-10-12).** Nine gates PASS. Six S1 TopFull-on cells failed `live5s_caps=0` on the original and on one replay. The twenty-one matrix folders, and the fourteen earlier S2 study folders that were already in that directory, sit under `experiments/results/final results/<scenario>_<name>_<normal|burst>/<rg_only|tf_only|both>/`. Guide: [2026-10-12-s1-s2-mode-matrix-abc.md](Guides%20and%20Info/2026-10-12-s1-s2-mode-matrix-abc.md).
 - **S1 is 300 s at 175 / 30 / 70 / 90 / 5, twice per cell. S2 is 600 s at 275 / 90 / 100 / 90 / 5, once per cell.** Normal and burst 2.0, RetryGuard on or off, TopFull on or off. Detail is the STATUS Done bullet for this matrix.
 - **Cluster is back on the unpinned pair.** Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs are **RUNNING**.
 
@@ -174,7 +175,34 @@ ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp
 python experiments/run_scenario.py experiments/configs/scenario_1_baseline.yaml
 ```
 
-The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, `resource_usage_collector.py`, and `topfull_throttle_collector.py` from this repo onto master before those processes start. It clears `src/logs` again at startup. That second clear is safe only when step 5 above showed an empty directory. Results go to `results_base_path/<log_folder>/` **on master**. The runner's printed `scp` command already routes to the correct `campaign_48/<scenario_subfolder>/` (e.g. `S2_sustained_overload/`) based on the scenario — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md).
+The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, `resource_usage_collector.py`, and `topfull_throttle_collector.py` from this repo onto master before those processes start. It clears `src/logs` again at startup. That second clear is safe only when step 5 above showed an empty directory. On master, results stay flat at `results_base_path/<log_folder>/`.
+
+**Pull every new hold into `final results/`.** The runner still prints an `scp` into `campaign_48/`. Use this local path instead, and leave `campaign_48/` as the closed Phase 7 dataset:
+
+```
+experiments/results/final results/<scenario>_<normal|burst>/<variant>/<log_folder>/
+```
+
+| Scenario | `<scenario>` |
+|---|---|
+| 1 Normal Operation | `S1_normal_operation` |
+| 2 Sustained Overload | `S2_sustained_overload` |
+| 3 Targeted Bottleneck | `S3_targeted_bottleneck` |
+| 4A Topology Position | `S4A_topology_position` |
+| 4B Topology Position | `S4B_topology_position` |
+| 5 Interval Tuning | `S5_interval_tuning` |
+| 6 Forced Recovery | `S6_forced_recovery` |
+
+The last segment of `<scenario>_<normal|burst>` is the RetryGuard mode. Use `normal` when the YAML omits `burst_rpr`. Use `burst` when the YAML sets `burst_rpr`; bars 1.5 and 2.0 share that folder, and the `log_folder` name keeps the bar. `<variant>` is the controller pair:
+
+| RetryGuard | TopFull | `<variant>` |
+|---|---|---|
+| on | off | `rg_only` |
+| off | on | `tf_only` |
+| on | on | `both` |
+| off | off | `both_off` |
+
+Create the scenario and variant directories when they are missing. The run directory name stays equal to `log_folder`. Example: `experiments/results/final results/S2_sustained_overload_burst/both/s2_burst20_rgtf1/`.
 
 **Before repeating a scenario:** open [STATUS.md](STATUS.md) "Next free slots", bump `run_number` and change `log_folder` in the YAML, or the new run will overwrite the folder **on master**. Never reuse August `run1–3` (S1–S4) or S5 `run1–2`.
 

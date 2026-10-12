@@ -25,7 +25,7 @@ Five locked-S2 holds. Each is 600 s, one hold per cell. Three are normal mode: R
 - **Controllers.** RetryGuard is on for four holds and off on `s2_normal_tf1rg0`. TopFull is off on `s2_normal_rgtf0` and `s2_burst20_rgtf0`, and on on the other three.
 - **RetryGuard knobs.** On the four RetryGuard holds: `retry_metric=edge_rpr`, `interval_samples=20`, `retries_threshold=0.4`, climb `0.16/0.32` with `climb_interval_seconds=10`, `reenable_rejection=0.25`. Normal-mode holds omit `burst_rpr`. Burst holds add `burst_window_seconds=5` and `burst_min_first_attempts=20`, with `burst_rpr` 2.0. `s2_normal_tf1rg0` is `condition: baseline` and has no `retryguard.log`.
 - **Cool-off** 120 s between holds, from `run_scenario.py` exit.
-- **Folders:** `experiments/results/final results/`, the five names in §2. Configs: `experiments/configs/study_2026_10_12/28_s2_normal_rgtf0.yaml` through `32_s2_burst20_rgtf1.yaml`. Each manifest has `run_number` 1; the `log_folder` name is the slot.
+- **Folders:** `experiments/results/final results/S2_sustained_overload_<normal|burst>/<rg_only|tf_only|both>/`, the five names in §2. Configs: `experiments/configs/study_2026_10_12/28_s2_normal_rgtf0.yaml` through `32_s2_burst20_rgtf1.yaml`. Each manifest has `run_number` 1; the `log_folder` name is the slot.
 
 ## 2. Index
 

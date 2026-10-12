@@ -25,7 +25,7 @@ Nine scored holds. S1 is 300 s and S2 is 600 s. Scored with `experiments/analysi
   That is the Paper-C1 pin: sidecar `proxyCPU=90m` with `proxyCPULimit` unset while frontend is held at 4, and catalog HPA max 1.
 - **Cells.** Normal mode omits `burst_rpr`. Burst mode is `burst_rpr` 2.0, window 5 s, volume floor 20. RetryGuard on uses `retry_metric=edge_rpr`, `rejection_threshold=0.20`, `interval_samples=20`, `retries_threshold=0.4`, climb `0.16/0.32` at 10 s, `reenable_rejection=0.25`. RetryGuard off is `condition: baseline` and has no `retryguard.log`.
 - **Cool-off** 120 s between holds, from `run_scenario.py` exit, including between the last S1 hold and the first S2 hold.
-- **Folders** are under `experiments/results/final results/`. Configs are `experiments/configs/study_2026_10_12/18`–`32`, plus a `_r2` YAML for each failed cell. Each manifest has `run_number` 1; the `log_folder` name is the slot.
+- **Folders** are under `experiments/results/final results/<scenario>_<name>_<normal|burst>/<rg_only|tf_only|both>/`. Configs are `experiments/configs/study_2026_10_12/18`–`32`, plus a `_r2` YAML for each failed cell. Each manifest has `run_number` 1; the `log_folder` name is the slot.
 
 ## 2. Index
 
