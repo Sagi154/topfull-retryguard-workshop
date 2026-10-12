@@ -75,7 +75,7 @@ def test_scenario_identity_preserved_rows_and_paths():
     assert "175/30/70/90/5" in s3["description"]
     assert "checkoutservice cpu_limit_millicores=300" in s3["description"]
     assert "Unused slot" not in s3["description"]
-    assert s3["paper_cpu_reconcile"] is False
+    assert "paper_cpu_reconcile" not in s3
     assert "restart_before_hold" not in s3
     limits = {x["deployment"]: x["cpu_limit_millicores"] for x in s3["scale_constraints"]}
     assert limits["checkoutservice"] == 300
@@ -202,5 +202,5 @@ def test_configs_have_runner_keys_and_reenable_threshold():
         assert set(cfg["infra"]) == set(template["infra"])
         for key, value in cfg["infra"].items():
             assert value, key
-        assert cfg["paper_cpu_reconcile"] is False
+        assert "paper_cpu_reconcile" not in cfg
         assert retryguard.reenable_threshold_from_params(rg) == rg["reenable_rejection"]

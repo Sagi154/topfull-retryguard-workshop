@@ -23,7 +23,6 @@ locust:
   scripts:
   - online_boutique_create_v2.sh
 # Paper-C1 millicores. Frontend 1150m is the HPA pin, not a scale_constraint.
-paper_cpu_reconcile: false
 scale_constraints:
 - deployment: checkoutservice
   namespace: default

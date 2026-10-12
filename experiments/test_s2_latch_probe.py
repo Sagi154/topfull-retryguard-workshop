@@ -16,7 +16,6 @@ def base_cfg():
         "locust": {"user_counts": {"getproduct": 275, "postcheckout": 85, "getcart": 100,
                                    "postcart": 90, "emptycart": 5},
                    "spawn_rate": 50, "scripts": ["online_boutique_create_v2.sh"]},
-        "paper_cpu_reconcile": False,
         "scale_constraints": [
             {"deployment": "checkoutservice", "namespace": "default", "container": "server",
              "method": "cpu_limit", "cpu_limit_millicores": 800},

@@ -9,9 +9,7 @@
 # Next unused slot is run10. Counts below are the locked run8 mix
 # (175/30/70/90/5), the same mix on every S1 variant. Not yet launched
 # as run10.
-# paper_cpu_reconcile is false so the runner does not snap back to paper
-# CPU while that pin is in place. Leave the Paper-C1 pin after the hold.
-
+# The runner resets CPU to Paper-C1 (ADR 0009) before the hold; the rows below\r\n# are the full table and the frontend pin is applied separately.\r\n
 scenario_id: 1
 scenario_name: normal_operation
 condition: baseline
@@ -46,8 +44,6 @@ scale_constraints:
   - deployment: emailservice
     method: cpu_limit
     cpu_limit_millicores: 120
-
-paper_cpu_reconcile: false
 
 retries:
   attempts_on: 3

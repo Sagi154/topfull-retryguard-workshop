@@ -531,17 +531,21 @@ def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
         wait_with_progress(20, "pods stabilising after paper CPU reconcile")
 
 
-def paper_cpu_reconcile_enabled(cfg: dict) -> bool:
-    """Default true. The CPU-spread series sets false so a 5-replica
-    frontend is not combined with the paper backend table mid-run."""
-    return bool(cfg.get("paper_cpu_reconcile", True))
-
-
-def reconcile_paper_cpu_limits_if_enabled(cfg: dict, wait: bool = True) -> None:
-    if not paper_cpu_reconcile_enabled(cfg):
-        step("paper_cpu_reconcile is false; leaving live CPU limits unchanged")
-        return
-    reconcile_paper_cpu_limits(cfg, wait=wait)
+def verify_live_cpu_limits(cfg: dict, capacity: dict) -> None:
+    """
+    Abort before Locust starts if live Deployment CPU differs from the
+    Paper-C1 table plus this config's constraints (ADR 0009).
+    """
+    expected = topfull_cpu_quotas.effective_cpu_quotas(
+        cfg.get("scale_constraints") or []
+    )
+    problems = topfull_cpu_quotas.cpu_limit_mismatches(capacity, expected)
+    if problems:
+        raise RuntimeError(
+            "Live CPU limits differ from Paper-C1 + constraints:\n  "
+            + "\n  ".join(problems)
+        )
+    step(f"Live CPU limits verified against Paper-C1 ({len(expected)} services)")
 
 
 def write_run_quotas_json(cfg: dict) -> dict:
@@ -1531,9 +1535,10 @@ def run(config_path: str):
         # Reconcile first (heals leftover S3 100m). Wait only when there are
         # no fraction constraints — apply_constraints already waits 20s.
         has_constraints = bool(cfg.get("scale_constraints"))
-        reconcile_paper_cpu_limits_if_enabled(cfg, wait=not has_constraints)
+        reconcile_paper_cpu_limits(cfg, wait=not has_constraints)
         restore_records = apply_constraints(cfg)
         capacity = capture_service_capacity(cfg, ALL_BOUTIQUE_SERVICES)
+        verify_live_cpu_limits(cfg, capacity)
         effective_quotas = write_run_quotas_json(cfg)
         ensure_detector_quota_overlay(cfg)
 
@@ -1582,7 +1587,7 @@ def run(config_path: str):
         if restore_records:
             restore_constraints(cfg, restore_records)
         # Always return to paper CPU limits (not pre-run dirty blobs).
-        reconcile_paper_cpu_limits_if_enabled(cfg, wait=False)
+        reconcile_paper_cpu_limits(cfg, wait=False)
 
         restore_virtualservice_retries(cfg)
 

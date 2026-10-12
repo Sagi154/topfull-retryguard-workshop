@@ -963,7 +963,7 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
             run_scenario.apply_constraints(cfg)
         return "\n".join(patches)
 
-    def test_patches_catalog_to_153m(self):
+    def test_patches_catalog_to_80m(self):
         joined = self._apply({
             "deployment": "productcatalogservice",
             "namespace": "default",
@@ -971,7 +971,7 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
             "cpu_limit_fraction": 0.1,
             "container": "server",
         })
-        self.assertIn("153m", joined)  # int(1535 * 0.1)
+        self.assertIn("80m", joined)  # int(800 * 0.1)
         self.assertNotIn("100m", joined)
 
     def test_patches_checkout_to_50m_from_millicores(self):
@@ -984,7 +984,7 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
             "container": "server",
         }, steps=steps)
         self.assertIn("50m", joined)
-        self.assertNotIn("61m", joined)  # would be int(615 * 0.1) if fraction leaked
+        self.assertNotIn("80m", joined)  # would be int(800 * 0.1) if fraction leaked
         self.assertTrue(
             any("millicores=50" in s for s in steps),
             msg=steps,
@@ -1006,10 +1006,10 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
             run_scenario.reconcile_paper_cpu_limits(cfg)
         return cmds
 
-    def test_patches_checkout_to_615m(self):
+    def test_patches_checkout_to_800m(self):
         cmds = self._reconcile({"infra": {"master_ssh_host": "topfull-master"}})
         checkout_cmds = [c for c in cmds if "checkoutservice" in c]
-        self.assertTrue(any("615m" in c for c in checkout_cmds))
+        self.assertTrue(any("800m" in c for c in checkout_cmds))
 
     def test_request_fraction_halves_request_keeps_limit(self):
         cmds = self._reconcile({
@@ -1017,8 +1017,8 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
             "cpu_request_fraction": 0.5,
         })
         checkout_cmds = [c for c in cmds if "checkoutservice" in c]
-        self.assertTrue(any("615m" in c for c in checkout_cmds))
-        self.assertTrue(any("307m" in c for c in checkout_cmds))
+        self.assertTrue(any("800m" in c for c in checkout_cmds))
+        self.assertTrue(any("400m" in c for c in checkout_cmds))
 
     def test_cpu_request_fraction_from_cfg_defaults_to_one(self):
         self.assertEqual(run_scenario.cpu_request_fraction_from_cfg({}), 1.0)
@@ -1081,7 +1081,7 @@ class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
             "cpu_limit_fraction": 0.1,
         }]
         got = topfull_cpu_quotas.effective_cpu_quotas(constraints)
-        self.assertEqual(got["checkoutservice"], 61)  # int(615 * 0.1)
+        self.assertEqual(got["checkoutservice"], 80)  # int(800 * 0.1)
 
 
 class TestMeshCollectorNetworkWiring(unittest.TestCase):
@@ -1299,34 +1299,42 @@ class TestStartMasterStackTopfullRl(unittest.TestCase):
         self.assertIn("/tmp/rg_rl.sh", self._script_paths(mock_write_script))
 
 
-class TestPaperCpuReconcileFlag(unittest.TestCase):
-    def test_missing_key_stays_on(self):
-        self.assertTrue(run_scenario.paper_cpu_reconcile_enabled({}))
+class TestVerifyLiveCpuLimits(unittest.TestCase):
+    def _live(self, **over):
+        import topfull_cpu_quotas as q
+        live = {
+            s: {"cpu_limit_millicores": v, "cpu_request_millicores": v}
+            for s, v in q.PAPER_CPU_LIMIT_MILLICORES.items()
+        }
+        live.update(over)
+        return live
 
-    def test_false_skips_the_live_patch(self):
-        calls = []
+    def test_matching_table_passes(self):
+        with mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.verify_live_cpu_limits({}, self._live())
 
-        def fake_reconcile(cfg, wait=True):
-            calls.append(wait)
+    def test_leftover_constraint_aborts(self):
+        live = self._live(
+            checkoutservice={"cpu_limit_millicores": 50, "cpu_request_millicores": 50}
+        )
+        with mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            with self.assertRaises(RuntimeError) as ctx:
+                run_scenario.verify_live_cpu_limits({}, live)
+        self.assertIn("checkoutservice", str(ctx.exception))
 
-        with mock.patch.object(run_scenario, "reconcile_paper_cpu_limits", fake_reconcile), \
-             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
-            run_scenario.reconcile_paper_cpu_limits_if_enabled(
-                {"paper_cpu_reconcile": False}, wait=True
-            )
-        self.assertEqual(calls, [])
+    def test_config_constraint_is_expected(self):
+        cfg = {"scale_constraints": [{
+            "deployment": "checkoutservice", "method": "cpu_limit",
+            "cpu_limit_millicores": 50,
+        }]}
+        live = self._live(
+            checkoutservice={"cpu_limit_millicores": 50, "cpu_request_millicores": 50}
+        )
+        with mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.verify_live_cpu_limits(cfg, live)
 
-    def test_true_calls_through(self):
-        calls = []
-
-        def fake_reconcile(cfg, wait=True):
-            calls.append(wait)
-
-        with mock.patch.object(run_scenario, "reconcile_paper_cpu_limits", fake_reconcile), \
-             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
-            run_scenario.reconcile_paper_cpu_limits_if_enabled({}, wait=False)
-        self.assertEqual(calls, [False])
-
+    def test_reconcile_flag_is_gone(self):
+        self.assertFalse(hasattr(run_scenario, "paper_cpu_reconcile_enabled"))
 
 class TestCpuPatchSkip(unittest.TestCase):
     def _cfg(self):
@@ -1344,7 +1352,7 @@ class TestCpuPatchSkip(unittest.TestCase):
     def test_parser_accepts_kubectl_json(self):
         raw = '{"limits":{"cpu":"1500m","memory":"128Mi"},"requests":{"cpu":"1500m"}}'
         self.assertTrue(run_scenario.cpu_resources_already_set(raw, "1500m"))
-        self.assertFalse(run_scenario.cpu_resources_already_set(raw, "615m"))
+        self.assertFalse(run_scenario.cpu_resources_already_set(raw, "800m"))
 
     def test_whole_core_quantities_match_millicore_targets(self):
         cart = '{"limits":{"cpu":"1"},"requests":{"cpu":"1"}}'
@@ -1370,7 +1378,7 @@ class TestCpuPatchSkip(unittest.TestCase):
         self.assertFalse(any("kubectl patch" in c for c in cmds))
 
     def test_patch_sent_when_limit_differs(self):
-        raw = '{"limits":{"cpu":"615m"},"requests":{"cpu":"615m"}}'
+        raw = '{"limits":{"cpu":"800m"},"requests":{"cpu":"800m"}}'
         cmds = []
 
         def fake_ssh(host, cmd, check=True):

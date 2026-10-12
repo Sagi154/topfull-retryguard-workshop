@@ -10,24 +10,21 @@ from typing import Dict, List
 
 DEFAULT_PAPER_LIMIT_MILLICORES = 1000
 
-# Ron-Nezer base migration (2026-09-20 design spec §4d). All 11 Boutique
-# services, request == limit (Ron's own January YAML has request ==
-# limit for every service; these are his per-replica values trimmed by
-# ~77% — spec §4b/§4c/§4d — to fit topfull-worker1's 16 vCPU allocatable
-# after cAdvisor/istiod/calico-node/metrics-server + istio-proxy sidecar
-# overhead). These are PROVISIONAL pending Ron's reply (spec §3/§9) — if
-# he confirms different real numbers, redo this table with the same
-# budget-then-trim method, nothing else in this module changes.
+# Paper-C1 CPU table (locked 2026-10-13, both-off run 89). The single source
+# of truth is docs/adr/0009-paper-c1-default-cpu-table.md; this dict must
+# match it (test_topfull_cpu_quotas.py parses the ADR and fails on any
+# difference). Edit the ADR first, then this table. All 11 services,
+# request == limit.
 PAPER_CPU_LIMIT_MILLICORES: Dict[str, int] = {
-    "frontend": 1150,               # x1-4 replicas under its HPA (Task 5)
-    "checkoutservice": 615,
+    "frontend": 1150,               # x4 replicas pinned (HPA), see ADR 0009
+    "checkoutservice": 800,
     "recommendationservice": 1150,
-    "productcatalogservice": 1535,
-    "cartservice": 1920,
+    "productcatalogservice": 800,
+    "cartservice": 800,
     "currencyservice": 770,
     "shippingservice": 770,
     "redis-cart": 540,
-    "emailservice": 155,
+    "emailservice": 120,
     "paymentservice": 155,
     "adservice": 1150,
 }
@@ -177,6 +174,29 @@ def validate_scale_constraints(constraints: List[dict]) -> None:
         if dep not in known:
             raise ValueError(f"no paper quota for deployment {dep}")
         cpu_limit_millicores_for(c)
+
+
+def cpu_limit_mismatches(
+    live: Dict[str, dict], expected: Dict[str, int]
+) -> List[str]:
+    """
+    Compare live Deployment CPU (capture_service_capacity shape) with the
+    expected per-service millicores. Request must equal limit as well.
+    Returns one message per problem; an empty list means the VMs match.
+    """
+    problems: List[str] = []
+    for svc, want in sorted(expected.items()):
+        got = live.get(svc)
+        if got is None:
+            problems.append(f"{svc}: no live Deployment found")
+            continue
+        lim = got.get("cpu_limit_millicores")
+        req = got.get("cpu_request_millicores")
+        if lim != want:
+            problems.append(f"{svc}: live limit {lim}m, expected {want}m")
+        if req != want:
+            problems.append(f"{svc}: live request {req}m, expected {want}m")
+    return problems
 
 
 def effective_cpu_quotas(constraints: List[dict]) -> Dict[str, int]:

@@ -159,7 +159,7 @@ def _materialize(template: dict, cell: dict) -> dict:
         f"Study 2026-10-09 {log_folder}: {cell['scenario_name']} {mix}, "
         f"reenable_rejection={cell['reenable']:.2f}, "
         f"topfull_rl={cell['topfull']}, retryguard={cell['retryguard']}."
-        f"{limit_note} Paper-C1, paper_cpu_reconcile false."
+        f"{limit_note} Paper-C1."
     )
     _apply_common(
         cfg,
