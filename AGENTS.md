@@ -97,9 +97,9 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S1 and S2 mode matrix (2026-10-12).** Nine gates PASS. Six S1 TopFull-on cells failed `live5s_caps=0` on the original and on one replay. The twenty-one matrix folders, and the fourteen earlier S2 study folders that were already in that directory, sit under `experiments/results/final results/<scenario>_<name>_<normal|burst>/<rg_only|tf_only|both>/`. Guide: [2026-10-12-s1-s2-mode-matrix-abc.md](Guides%20and%20Info/2026-10-12-s1-s2-mode-matrix-abc.md).
-- **S1 is 300 s at 175 / 30 / 70 / 90 / 5, twice per cell. S2 is 600 s at 275 / 90 / 100 / 90 / 5, once per cell.** Normal and burst 2.0, RetryGuard on or off, TopFull on or off. Detail is the STATUS Done bullet for this matrix.
-- **Cluster is back on the unpinned pair.** Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs are **RUNNING**.
+- **S3 checkout 200 m then 100 m (2026-10-12).** Both holds **PASS**: `s3_ck200_rgtf1` and `s3_ck100_rgtf1`. Detail is the STATUS Done bullet. Guide: [2026-10-12-s3-checkout-200-100-abc.md](Guides%20and%20Info/2026-10-12-s3-checkout-200-100-abc.md).
+- **600 s, mix 175 / 30 / 70 / 90 / 5, Set B CPU table, checkout 200 m then 100 m, RetryGuard on and TopFull on.** The 300 m parent is [2026-10-10-set-b-s3-checkout-analysis.md](Guides%20and%20Info/2026-10-10-set-b-s3-checkout-analysis.md).
+- **Cluster is back on the unpinned pair.** Checkout is 800 m. Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs are **RUNNING**.
 
 ### Still open
 
