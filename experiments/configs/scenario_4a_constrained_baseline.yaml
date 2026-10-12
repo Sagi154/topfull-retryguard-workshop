@@ -1,49 +1,85 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Scenario 4A — Topology Position: Gateway-Adjacent  |  BASELINE
+# Scenario 4A — Topology Position: Gateway-Adjacent (CONSTRAINED)  |  BASELINE
 #
-# Constrained service: productcatalogservice
-# Position: Gateway-adjacent. Frontend calls ProductCatalog directly
-# on many product-browse paths (getproduct). TopFull maps this bottleneck
-# most directly to an entry API — it's the easiest signal for TopFull to see.
-#
-# Comparison point (vs 4B): does RetryGuard add meaningful value on top of
-# TopFull when TopFull already has a clean, direct signal to act on?
-#
-# Constraint: absolute cpu_limit_millicores: 50 (ADR-0006), same value used
-# for S3 (checkoutservice). S4B constrains emailservice at 40m, not this 50m cap.
-# Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable. Not comparable to campaign_48's absolute 100m.
-#
-# Call path: Frontend → ProductCatalog  (also via Checkout → ProductCatalog)
-# Primary affected API: getproduct
+# Locked 2026-10-13. productcatalogservice constrained to 50m (Paper-C1 elsewhere).
+# Locked mix 10/10/10/600/5 (postcart-heavy), spawn_rate 50.
+# CPU: full Paper-C1 table in scale_constraints (ADR 0009); only the row named
+# above differs from the table. Constraints are absolute millicores (ADR 0006).
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 4
 scenario_name: topology_position_A
 condition: baseline
-run_number: 7
+run_number: 1
 description: >
-  productcatalogservice constrained (gateway-adjacent position).
-  TopFull active, RetryGuard OFF. TopFull has a direct entry-API signal.
+  productcatalogservice constrained to 50m (Paper-C1 elsewhere). Locked mix 10/10/10/600/5 (postcart-heavy), spawn_rate 50. TopFull active, RetryGuard OFF.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   100
-    postcheckout: 20
-    getcart:      100
-    postcart:     100
-    emptycart:    300
-  spawn_rate: 90
+    getproduct:   10
+    postcheckout: 10
+    getcart:      10
+    postcart:     600
+    emptycart:    5
+  spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
+# Paper-C1 millicores (ADR 0009). Frontend 1150m is the HPA pin, not a scale_constraint.
+# productcatalogservice is the constrained row: 50m instead of the table value.
 scale_constraints:
-  - deployment: productcatalogservice
-    namespace: default
-    method: cpu_limit
-    cpu_limit_millicores: 50   # absolute cap (ADR-0006), same value as S3
-    container: server
+- deployment: checkoutservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: recommendationservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 1150
+- deployment: productcatalogservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 50
+- deployment: cartservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: currencyservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 770
+- deployment: shippingservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 770
+- deployment: adservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 1150
+- deployment: paymentservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 155
+- deployment: emailservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 120
+- deployment: redis-cart
+  namespace: default
+  container: redis
+  method: cpu_limit
+  cpu_limit_millicores: 540
 
 # ── Retry policy (Istio VirtualService — applies both arms) ──────────────────
 retries:
@@ -52,10 +88,21 @@ retries:
   per_try_timeout_ms: 500   # perTryTimeout — makes slow responses retriable via reset
 
 retryguard:
-  enabled: false
-  rejection_threshold: 0.20
+  enabled: false               # OFF for the baseline condition
+  # Locked parameter set (ADR 0008). Stored for parity with the RetryGuard arm;
+  # not used while enabled=false.
+  retry_metric: edge_rpr
   sample_interval_seconds: 1
-  interval_samples: 30         # paper default (Sec. 6.2), symmetric ON/OFF
+  interval_samples: 20
+  rejection_threshold: 0.2
+  retries_threshold: 0.4
+  climb_rpr_1_to_2: 0.16
+  climb_rpr_2_to_3: 0.32
+  climb_interval_seconds: 10
+  reenable_rejection: 0.25
+  burst_rpr: 2.0
+  burst_window_seconds: 5
+  burst_min_first_attempts: 20
 
 # ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
 # Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).
@@ -77,7 +124,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: baseline_topfull_no_retryguard_topology_position_A_run7
+log_folder: baseline_topfull_no_retryguard_topology_position_A_constrained_run1
 
 infra:
   master_ssh_host: topfull-master

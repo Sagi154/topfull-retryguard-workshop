@@ -103,7 +103,7 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 
 ### Still open
 
-- S1 and S2 loads are locked (counts are in §5). The [2026-09-21 methodology plan](docs/superpowers/plans/2026-09-21-s1-s6-methodology-and-calibration-implementation.md) stopped at Task 9 step 2a. S3 and S4 calibration is later. S6 stays on its current YAML.
+- S1, S2, S3, S4A, and S4B loads and CPU tables are locked (counts and constrained rows are in §5). The [2026-09-21 methodology plan](docs/superpowers/plans/2026-09-21-s1-s6-methodology-and-calibration-implementation.md) stopped at Task 9 step 2a. S6 stays on its current YAML.
 - Share [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md), then write the Phase 7 eval on `experiments/results/campaign_48/` once mentors say the data is enough.
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
@@ -128,14 +128,15 @@ If it doesn't recover within a few minutes, follow the troubleshooting table in 
 |---|---|---|---|---|
 | 1 | Normal Operation | Flat load, well within capacity. Locked mix **175 / 30 / 70 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run8) | 5 min | `scenario_1_{baseline,retryguard,baseline_no_topfull}.yaml` |
 | 2 | Sustained Overload (core) | Peak from t=0, **hold flat**. Locked mix **275 / 90 / 100 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run 89) | 10 min | `scenario_2_{baseline,retryguard,baseline_no_topfull,retryguard_no_topfull}.yaml` |
-| 3 | Targeted Bottleneck | `checkoutservice` at `cpu_limit_fraction: 0.1` (paper 1000m → **100m**) | 10 min | `scenario_3_{baseline,retryguard}.yaml` |
-| 4A/4B | Topology Position | productcatalog (A → **50m**) vs `emailservice` (B → **40m**, Checkout-mediated: Frontend → Checkout → Email) | 10 min | `scenario_4{a,b}_{baseline,retryguard}.yaml` |
+| 3 | Targeted Bottleneck | Locked mix **175 / 30 / 70 / 90 / 5** (same as S1), `spawn_rate` 50. Paper-C1 with `checkoutservice` constrained to **200m** | 10 min | `scenario_3_{baseline,retryguard}.yaml` |
+| 4A | Topology Position (gateway-adjacent) | Locked mix **10 / 10 / 10 / 600 / 5**, `spawn_rate` 50. Two configs: **unconstrained** (plain Paper-C1) and **constrained** (`productcatalogservice` → **50m**) | 10 min | `scenario_4a_{unconstrained,constrained}_{baseline,retryguard}.yaml` |
+| 4B | Topology Position (Checkout-mediated: Frontend → Checkout → Email) | Locked mix **175 / 30 / 70 / 90 / 5** (same as S1), `spawn_rate` 50. Paper-C1 with `emailservice` constrained to **50m** | 10 min | `scenario_4b_{baseline,retryguard}.yaml` |
 | 5 | Interval Tuning | Same load as S6; `interval_samples` = 10/20/30/60 | 15 min | `scenario_5_interval_{10,20,30,60}s.yaml` |
 | 6 | Forced Recovery | Peak 5 min, then ~25% load for 10 min | 15 min | `scenario_6_recovery_{baseline,retryguard}.yaml` |
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
-Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit`. S3 and S4A use **`cpu_limit_fraction: 0.1`** (not absolute `"100m"`). S4B sets absolute `cpu_limit_millicores: 40` on `emailservice`. The runner reconciles K8s + Detector to paper quotas before/after each run — a leftover checkout `100m` from an older S3/S4 is healed and must not be treated as the S2 baseline. New S4A (**50m**) is not comparable to `campaign_48/` S4A (absolute 100m). Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
+Note: Scenarios 3/4 constrain via `method: cpu_limit` with absolute `cpu_limit_millicores` ([ADR 0006](docs/adr/0006-absolute-bottleneck-cap-not-fraction.md)); no `cpu_limit_fraction`. Each S3/S4 YAML carries the full Paper-C1 table with one row constrained (S3 checkout 200m, S4A-constrained catalog 50m, S4B email 50m; S4A-unconstrained none). S3, S4A, and S4B were locked on 2026-10-13; earlier S3/S4 holds (50m checkout, 40m email, other mixes) are not comparable. The two S4A variants share `scenario_name: topology_position_A` and are told apart by `log_folder` (`..._topology_position_A_constrained_run<N>` / `..._unconstrained_run<N>`). The runner reconciles K8s + Detector to paper quotas before/after each run — a leftover constrained value is healed and must not be treated as the S2 baseline. New S4A is not comparable to `campaign_48/` S4A (absolute 100m). Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
 
 ### Locked CPU table (Paper-C1)
 

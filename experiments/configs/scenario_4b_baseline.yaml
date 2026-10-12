@@ -1,19 +1,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 4B — Topology Position: Checkout-Mediated  |  BASELINE
 #
-# Constrained service: emailservice
-# Position: Indirect / Checkout-mediated.
-# Path: Frontend → Checkout → Email  (email is only reachable via checkout)
-# TopFull's overload signal at the entry proxy is attenuated — it sees stress
-# on the postcheckout entry API but must infer email is the root cause.
-# Istio retries stack specifically at the Checkout → Email link.
-#
-# Comparison point (vs 4A): RetryGuard is expected to provide GREATER relative
-# benefit here because TopFull's indirect signal is weaker, leaving more room
-# for per-service retry suppression to matter.
-#
-# Constraint: absolute cpu_limit_millicores: 40 on emailservice.
-# Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
+# Locked 2026-10-13. emailservice constrained to 50m (Paper-C1 elsewhere). Path: Frontend → Checkout → Email.
+# Locked S1 mix 175/30/70/90/5, spawn_rate 50.
+# CPU: full Paper-C1 table in scale_constraints (ADR 0009); only the row named
+# above differs from the table. Constraints are absolute millicores (ADR 0006).
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 4
@@ -21,28 +12,74 @@ scenario_name: topology_position_B
 condition: baseline
 run_number: 7
 description: >
-  emailservice constrained to 40m (Checkout-mediated, indirect position).
-  TopFull active, RetryGuard OFF. TopFull signal is attenuated through Checkout.
+  emailservice constrained to 50m (Paper-C1 elsewhere). Path: Frontend → Checkout → Email. Locked S1 mix 175/30/70/90/5, spawn_rate 50. TopFull active, RetryGuard OFF.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   100
-    postcheckout: 20
-    getcart:      100
-    postcart:     100
-    emptycart:    300
-  spawn_rate: 90
+    getproduct:   175
+    postcheckout: 30
+    getcart:      70
+    postcart:     90
+    emptycart:    5
+  spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
+# Paper-C1 millicores (ADR 0009). Frontend 1150m is the HPA pin, not a scale_constraint.
+# emailservice is the constrained row: 50m instead of the table value.
 scale_constraints:
-  - deployment: emailservice
-    namespace: default
-    method: cpu_limit
-    cpu_limit_millicores: 40   # absolute cap; Checkout-mediated email
-    container: server
+- deployment: checkoutservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: recommendationservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 1150
+- deployment: productcatalogservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: cartservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: currencyservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 770
+- deployment: shippingservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 770
+- deployment: adservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 1150
+- deployment: paymentservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 155
+- deployment: emailservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 50
+- deployment: redis-cart
+  namespace: default
+  container: redis
+  method: cpu_limit
+  cpu_limit_millicores: 540
 
 # ── Retry policy (Istio VirtualService — applies both arms) ──────────────────
 retries:
@@ -51,10 +88,21 @@ retries:
   per_try_timeout_ms: 500   # perTryTimeout — makes slow responses retriable via reset
 
 retryguard:
-  enabled: false
-  rejection_threshold: 0.20
+  enabled: false               # OFF for the baseline condition
+  # Locked parameter set (ADR 0008). Stored for parity with the RetryGuard arm;
+  # not used while enabled=false.
+  retry_metric: edge_rpr
   sample_interval_seconds: 1
-  interval_samples: 30         # paper default (Sec. 6.2), symmetric ON/OFF
+  interval_samples: 20
+  rejection_threshold: 0.2
+  retries_threshold: 0.4
+  climb_rpr_1_to_2: 0.16
+  climb_rpr_2_to_3: 0.32
+  climb_interval_seconds: 10
+  reenable_rejection: 0.25
+  burst_rpr: 2.0
+  burst_window_seconds: 5
+  burst_min_first_attempts: 20
 
 # ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
 # Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).

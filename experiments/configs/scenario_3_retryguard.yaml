@@ -1,20 +1,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Scenario 3 — Targeted Bottleneck  |  Condition: RETRYGUARD ON
+# Scenario 3 — Targeted Bottleneck  |  RETRYGUARD
 #
-# Same constraint and load as baseline. RetryGuard watches checkoutservice's
-# rejection rate directly and suppresses retries at that exact node —
-# unlike TopFull which can only throttle the full entry API path.
-#
-# Constraint method: cpu_limit with cpu_limit_millicores: 50 (ADR-0006).
-#   Absolute 50m K8s limit AND TopFull Detector quota for this run — the
-#   one CPU point checkoutservice has trustworthy mu_sat saturation data
-#   for. Runner reconciles both back to paper after the run.
-#
-# What to look for:
-#   - RetryGuard patches checkoutservice VirtualService specifically
-#   - Load at checkoutservice drops after patch (retries gone)
-#   - Does relief propagate upward? Frontend latency should also improve
-#   - Compare vs TopFull-only: which recovers checkoutservice goodput faster?
+# Locked 2026-10-13. checkoutservice constrained to 200m (Paper-C1 elsewhere).
+# Locked S1 mix 175/30/70/90/5, spawn_rate 50.
+# CPU: full Paper-C1 table in scale_constraints (ADR 0009); only the row named
+# above differs from the table. Constraints are absolute millicores (ADR 0006).
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 3
@@ -22,30 +12,74 @@ scenario_name: targeted_bottleneck
 condition: retryguard
 run_number: 9
 description: >
-  Moderate load, checkoutservice CPU-constrained. TopFull + RetryGuard active.
-  RetryGuard suppresses retries directly at the bottleneck service.
+  checkoutservice constrained to 200m (Paper-C1 elsewhere). Locked S1 mix 175/30/70/90/5, spawn_rate 50. TopFull + RetryGuard ON.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   100
-    postcheckout: 20
-    getcart:      100
-    postcart:     100
-    emptycart:    300
-  spawn_rate: 90
+    getproduct:   175
+    postcheckout: 30
+    getcart:      70
+    postcart:     90
+    emptycart:    5
+  spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
+# Paper-C1 millicores (ADR 0009). Frontend 1150m is the HPA pin, not a scale_constraint.
+# checkoutservice is the constrained row: 200m instead of the table value.
 scale_constraints:
-  - deployment: checkoutservice
-    namespace: default
-    method: cpu_limit
-    cpu_limit_millicores: 50   # absolute cap (ADR-0006) — the one CPU point
-                                # checkoutservice has trustworthy mu_sat data
-                                # for (experiments/capacity/capacity_frozen.json)
-    container: server          # container name inside the checkoutservice pod
+- deployment: checkoutservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 200
+- deployment: recommendationservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 1150
+- deployment: productcatalogservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: cartservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: currencyservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 770
+- deployment: shippingservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 770
+- deployment: adservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 1150
+- deployment: paymentservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 155
+- deployment: emailservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 120
+- deployment: redis-cart
+  namespace: default
+  container: redis
+  method: cpu_limit
+  cpu_limit_millicores: 540
 
 # ── Retry policy (Istio VirtualService — applies both arms) ──────────────────
 retries:

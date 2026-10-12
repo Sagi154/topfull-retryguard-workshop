@@ -33,5 +33,5 @@ The frontend sidecar request is 100m and `proxyCPULimit` stays unset (see AGENTS
 - Each config can be read alone to know a hold's exact CPU state, and a diff between two configs shows only the constrained service.
 - Holds that used a different table are not comparable: `campaign_48/`, `august_38/`, and any hold before 2026-10-08.
 - Re-running an old `study_*` YAML now resets CPU to Paper-C1 too, because the flag no longer exists. Those holds' records are unchanged.
-- S1, S3, S4A, S4B, and S6 YAMLs that do not yet carry the full table must be updated to match before their next hold.
+- S3, S4A (both variants), and S4B YAMLs carry the full table as of 2026-10-13 (S3 checkout 200m, S4A-constrained catalog 50m, S4B email 50m). `test_run_scenario.py` `TestLockedS3S4Yamls` checks them against `PAPER_CPU_LIMIT_MILLICORES`. S1 and S6 YAMLs that do not yet carry the full table must be updated to match before their next hold.
 - Related: [ADR 0002](0002-k8s-limits-are-detector-cpu-source-of-truth.md) (K8s limits are the detector's CPU source), [ADR 0005](0005-productcatalog-hpa-max-replicas-2.md) (catalog replicas).

@@ -169,6 +169,7 @@ After a hold: append one bullet under Done, update Next free slots if a YAML mov
 - **S3 checkout 200 m then 100 m, both on (2026-10-12)** — 600 s, mix **175 / 30 / 70 / 90 / 5**, Set B CPU table. `s3_ck200_rgtf1` then `s3_ck100_rgtf1`. RetryGuard on, TopFull on. Both gates **PASS**. Locust `total.csv` **562** and **563** rows. Each hold has one `ON→OFF` on `frontend → checkoutservice` and no re-enable. The ASCII gate script counted 0 and `retryguard.log` has one shed. The run log records toggles **1 (off 1, up 0)**. Folders are under `experiments/results/results-trial/`, not `final results`. Run log: [2026-10-12-s3-checkout-200-100-rgtf1-run-log.md](docs/superpowers/plans/2026-10-12-s3-checkout-200-100-rgtf1-run-log.md). Guide: [2026-10-12-s3-checkout-200-100-abc.md](Guides%20and%20Info/2026-10-12-s3-checkout-200-100-abc.md). The 300 m parent is [2026-10-10-set-b-s3-checkout-analysis.md](Guides%20and%20Info/2026-10-10-set-b-s3-checkout-analysis.md). `scenario_3_retryguard.yaml` stays at 9 and `scenario_3_baseline.yaml` stays at 10. Cluster restored to frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset, checkout **800 m**. The three VMs were left **RUNNING**.
 
 - **RetryGuard parameters locked (2026-10-13)** — every RetryGuard-on run uses `retry_metric` `edge_rpr`, `sample_interval_seconds` 1, `interval_samples` 20, `rejection_threshold` 0.2, `retries_threshold` 0.4, `climb_rpr_1_to_2` 0.16, `climb_rpr_2_to_3` 0.32, `climb_interval_seconds` 10, `reenable_rejection` 0.25, `burst_rpr` 2.0, `burst_window_seconds` 5, `burst_min_first_attempts` 20. Burst mode is those last three keys. Normal mode omits exactly those three and keeps the other nine. Bar 1.5 is dropped. Scenario 5 is the only exception (sweeps `interval_samples`). Holds before 2026-10-12, `campaign_48/`, and `august_38/` used older values and are not comparable. Scenario RetryGuard YAMLs updated. Canonical table: [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md). Decision: [ADR 0008](docs/adr/0008-locked-retryguard-parameters.md).
+- **S3, S4A, S4B locked (2026-10-13)** — no hold run; YAML-only. All carry the full Paper-C1 table ([ADR 0009](docs/adr/0009-paper-c1-default-cpu-table.md)) with `spawn_rate` 50. **S3:** mix **175 / 30 / 70 / 90 / 5** (S1's), `checkoutservice` **200m**. **S4B:** S1 mix, `emailservice` **50m**. **S4A** split into two configs, both mix **10 / 10 / 10 / 600 / 5**: `scenario_4a_unconstrained_{baseline,retryguard}.yaml` (plain Paper-C1) and `scenario_4a_constrained_{baseline,retryguard}.yaml` (`productcatalogservice` **50m**; renamed from `scenario_4a_{baseline,retryguard}.yaml`). Both S4A variants keep `scenario_name: topology_position_A` and differ by `log_folder`; the four new S4A slots start at run 1. S3 and S4B slots unchanged (S3 base 10 / RG 9, S4B 7 / 7). `run_all_scenarios.py` and `TestLockedS3S4Yamls` updated. Earlier S3/S4 holds are not comparable.
 
 ## Next free slots
 
@@ -184,8 +185,10 @@ The number is the next `run_number` already written in that YAML.
 - `experiments/configs/scenario_2_replica_probe.yaml` — 3
 - `experiments/configs/scenario_3_baseline.yaml` — 10
 - `experiments/configs/scenario_3_retryguard.yaml` — 9
-- `experiments/configs/scenario_4a_baseline.yaml` — 7
-- `experiments/configs/scenario_4a_retryguard.yaml` — 7
+- `experiments/configs/scenario_4a_constrained_baseline.yaml` — 1
+- `experiments/configs/scenario_4a_constrained_retryguard.yaml` — 1
+- `experiments/configs/scenario_4a_unconstrained_baseline.yaml` — 1
+- `experiments/configs/scenario_4a_unconstrained_retryguard.yaml` — 1
 - `experiments/configs/scenario_4b_baseline.yaml` — 7
 - `experiments/configs/scenario_4b_retryguard.yaml` — 7
 - `experiments/configs/scenario_5_interval_10s.yaml` — 6

@@ -1,38 +1,84 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Scenario 4A — Topology Position: Gateway-Adjacent  |  RETRYGUARD ON
+# Scenario 4A — Topology Position: Gateway-Adjacent (UNCONSTRAINED reference)  |  RETRYGUARD
 #
-# Constraint: absolute cpu_limit_millicores: 50 (ADR-0006), same value used
-# for S3 (checkoutservice). S4B constrains emailservice at 40m, not this 50m cap.
-# Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable. Not comparable to campaign_48's absolute 100m.
+# Locked 2026-10-13. No service constrained: the plain Paper-C1 table. Reference for 4A constrained.
+# Locked mix 10/10/10/600/5 (postcart-heavy), spawn_rate 50.
+# CPU: full Paper-C1 table in scale_constraints (ADR 0009); only the row named
+# above differs from the table. Constraints are absolute millicores (ADR 0006).
 # ─────────────────────────────────────────────────────────────────────────────
 
 scenario_id: 4
 scenario_name: topology_position_A
 condition: retryguard
-run_number: 7
+run_number: 1
 description: >
-  productcatalogservice constrained (gateway-adjacent). TopFull + RetryGuard.
-  Question: does RetryGuard add value when TopFull already has a direct signal?
+  No service constrained: the plain Paper-C1 table. Reference for 4A constrained. Locked mix 10/10/10/600/5 (postcart-heavy), spawn_rate 50. TopFull + RetryGuard ON.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   100
-    postcheckout: 20
-    getcart:      100
-    postcart:     100
-    emptycart:    300
-  spawn_rate: 90
+    getproduct:   10
+    postcheckout: 10
+    getcart:      10
+    postcart:     600
+    emptycart:    5
+  spawn_rate: 50
   scripts:
     - online_boutique_create_v2.sh
 
+# Paper-C1 millicores (ADR 0009). Frontend 1150m is the HPA pin, not a scale_constraint.
 scale_constraints:
-  - deployment: productcatalogservice
-    namespace: default
-    method: cpu_limit
-    cpu_limit_millicores: 50   # absolute cap (ADR-0006), same value as S3
-    container: server
+- deployment: checkoutservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: recommendationservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 1150
+- deployment: productcatalogservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: cartservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 800
+- deployment: currencyservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 770
+- deployment: shippingservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 770
+- deployment: adservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 1150
+- deployment: paymentservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 155
+- deployment: emailservice
+  namespace: default
+  container: server
+  method: cpu_limit
+  cpu_limit_millicores: 120
+- deployment: redis-cart
+  namespace: default
+  container: redis
+  method: cpu_limit
+  cpu_limit_millicores: 540
 
 # ── Retry policy (Istio VirtualService — applies both arms) ──────────────────
 retries:
@@ -75,7 +121,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: run_topfull_retryguard_topology_position_A_run7
+log_folder: run_topfull_retryguard_topology_position_A_unconstrained_run1
 
 infra:
   master_ssh_host: topfull-master

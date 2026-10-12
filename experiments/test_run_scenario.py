@@ -1028,22 +1028,90 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
             run_scenario.cpu_request_fraction_from_cfg({"cpu_request_fraction": 0})
 
 
-class TestScenarioYamlsUseFraction(unittest.TestCase):
-    def test_s3_s4_have_no_absolute_cpu_limit(self):
-        import re
+class TestLockedRetryGuardParamsInYamls(unittest.TestCase):
+    """ADR 0008: every scenario 1-6 YAML carries the same RetryGuard set,
+    baseline (enabled false) and RetryGuard arm alike. S5 sweeps
+    interval_samples only."""
+
+    # The nine keys every run shares (normal and burst mode).
+    LOCKED = {
+        "retry_metric": "edge_rpr",
+        "sample_interval_seconds": 1,
+        "interval_samples": 20,
+        "rejection_threshold": 0.2,
+        "retries_threshold": 0.4,
+        "climb_rpr_1_to_2": 0.16,
+        "climb_rpr_2_to_3": 0.32,
+        "climb_interval_seconds": 10,
+        "reenable_rejection": 0.25,
+    }
+    # Burst mode = all three present at these values. Normal mode = all absent.
+    BURST = {
+        "burst_rpr": 2.0,
+        "burst_window_seconds": 5,
+        "burst_min_first_attempts": 20,
+    }
+
+    def test_all_scenario_yamls_match_adr_0008(self):
+        import yaml
         root = Path(__file__).resolve().parent / "configs"
-        names = [
-            "scenario_3_baseline.yaml", "scenario_3_retryguard.yaml",
-            "scenario_4a_baseline.yaml", "scenario_4a_retryguard.yaml",
-            "scenario_4b_baseline.yaml", "scenario_4b_retryguard.yaml",
-        ]
-        for name in names:
-            text = (root / name).read_text(encoding="utf-8")
-            self.assertIsNone(
-                re.search(r"(?m)^\s*cpu_limit:\s", text),
-                msg=f"{name} still has absolute cpu_limit:",
-            )
-            self.assertIn("cpu_limit_fraction: 0.1", text, msg=name)
+        files = sorted(root.glob("scenario_[1-6]_*.yaml")) + sorted(root.glob("scenario_4[ab]_*.yaml"))
+        files = [f for f in files if "probe" not in f.name]
+        self.assertGreater(len(files), 15)
+        for f in files:
+            rg = yaml.safe_load(f.read_text(encoding="utf-8"))["retryguard"]
+            expected = dict(self.LOCKED)
+            if f.name.startswith("scenario_5_"):
+                expected.pop("interval_samples")
+            for key, value in expected.items():
+                self.assertEqual(rg.get(key), value, msg=f"{f.name} {key}")
+            present = [k for k in self.BURST if k in rg]
+            if present:  # burst mode: all three, at the locked values
+                for key, value in self.BURST.items():
+                    self.assertEqual(rg.get(key), value, msg=f"{f.name} {key}")
+            # else normal mode: none of the three keys is set
+            is_baseline = "baseline" in f.name
+            self.assertEqual(rg["enabled"], not is_baseline, msg=f.name)
+
+
+class TestLockedS3S4Yamls(unittest.TestCase):
+    """S3 / S4A / S4B are locked (2026-10-13): full Paper-C1 table in
+    scale_constraints, with at most one constrained row."""
+
+    S1_MIX = {"getproduct": 175, "postcheckout": 30, "getcart": 70,
+              "postcart": 90, "emptycart": 5}
+    A_MIX = {"getproduct": 10, "postcheckout": 10, "getcart": 10,
+             "postcart": 600, "emptycart": 5}
+    # stem -> (user_counts, {service: constrained millicores})
+    LOCKED = {
+        "scenario_3": (S1_MIX, {"checkoutservice": 200}),
+        "scenario_4b": (S1_MIX, {"emailservice": 50}),
+        "scenario_4a_constrained": (A_MIX, {"productcatalogservice": 50}),
+        "scenario_4a_unconstrained": (A_MIX, {}),
+    }
+
+    def test_locked_mix_and_cpu_table(self):
+        import yaml
+        import topfull_cpu_quotas
+        root = Path(__file__).resolve().parent / "configs"
+        for stem, (mix, constrained) in self.LOCKED.items():
+            for arm in ("baseline", "retryguard"):
+                name = f"{stem}_{arm}.yaml"
+                cfg = yaml.safe_load((root / name).read_text(encoding="utf-8"))
+                self.assertEqual(cfg["locust"]["user_counts"], mix, msg=name)
+                self.assertEqual(cfg["locust"]["spawn_rate"], 50, msg=name)
+                rows = {c["deployment"]: c for c in cfg["scale_constraints"]}
+                expected = dict(topfull_cpu_quotas.PAPER_CPU_LIMIT_MILLICORES)
+                expected.pop("frontend", None)
+                expected.update(constrained)
+                self.assertEqual(set(rows), set(expected), msg=name)
+                for svc, millicores in expected.items():
+                    self.assertEqual(rows[svc]["method"], "cpu_limit", msg=name)
+                    self.assertEqual(
+                        rows[svc]["cpu_limit_millicores"], millicores,
+                        msg=f"{name} {svc}",
+                    )
+                    self.assertNotIn("cpu_limit_fraction", rows[svc], msg=name)
 
 
 class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
