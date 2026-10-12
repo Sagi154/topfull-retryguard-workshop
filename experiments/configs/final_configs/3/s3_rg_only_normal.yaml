@@ -18,7 +18,7 @@ scenario_name: targeted_bottleneck
 condition: retryguard
 run_number: 1
 description: >
-  checkoutservice constrained to 200m (Paper-C1 elsewhere). Locked S1 mix 175/30/70/90/5, spawn_rate 50. TopFull + RetryGuard ON.
+  checkoutservice constrained to 200m (Paper-C1 elsewhere). Locked S1 mix 175/30/70/90/5, spawn_rate 50. RetryGuard ON, TopFull OFF.
 
 duration_seconds: 600
 

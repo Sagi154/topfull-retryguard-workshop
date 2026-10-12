@@ -18,7 +18,7 @@ scenario_name: topology_position_A
 condition: retryguard
 run_number: 1
 description: >
-  No service constrained: the plain Paper-C1 table. Reference for 4A constrained. Locked mix 10/10/10/600/5 (postcart-heavy), spawn_rate 50. TopFull + RetryGuard ON.
+  No service constrained: the plain Paper-C1 table. Reference for 4A constrained. Locked mix 10/10/10/600/5 (postcart-heavy), spawn_rate 50. RetryGuard ON, TopFull OFF.
 
 duration_seconds: 600
 

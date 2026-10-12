@@ -742,7 +742,7 @@ def burst_params_from_cfg(rg_cfg: dict) -> dict:
     """Burst-mode params for retryguard_params.json. {} when `burst_rpr` is absent."""
     if "burst_rpr" not in rg_cfg:
         return {}
-    metric = rg_cfg.get("retry_metric", "rejection")
+    metric = rg_cfg.get("retry_metric", "edge_rpr")
     if metric != "edge_rpr":
         raise SystemExit(
             f"retryguard.burst_rpr needs retry_metric=edge_rpr, got {metric!r}"
@@ -774,7 +774,9 @@ def start_retryguard(cfg: dict):
     # Upload RetryGuard runtime parameters as JSON
     retries_cfg = cfg.get("retries", {})
     attempts_on = int(retries_cfg["attempts_on"])
-    rpr_threshold = float(rg_cfg.get("retries_threshold", 0.5))
+    # Omitted keys fall back to the locked values (ADR 0008), never to the
+    # pre-lock defaults.
+    rpr_threshold = float(rg_cfg.get("retries_threshold", 0.4))
     params = {
         "rejection_threshold":     rg_cfg["rejection_threshold"],
         "sample_interval_seconds": rg_cfg["sample_interval_seconds"],
@@ -782,18 +784,13 @@ def start_retryguard(cfg: dict):
         "retry_attempts_on":       attempts_on,
         "retry_attempts_off":      retries_cfg["attempts_off"],
         "per_try_timeout_ms":      retries_cfg["per_try_timeout_ms"],
-        "retry_metric":            rg_cfg.get("retry_metric", "rejection"),
+        "retry_metric":            rg_cfg.get("retry_metric", "edge_rpr"),
         "retries_threshold":       rpr_threshold,
-        "reenable_rejection":      rg_cfg.get("reenable_rejection", 0.10),
-        "climb_rpr_1_to_2":        float(rg_cfg.get(
-            "climb_rpr_1_to_2", round(rpr_threshold * 1 / attempts_on, 2)
-        )),
-        "climb_rpr_2_to_3":        float(rg_cfg.get(
-            "climb_rpr_2_to_3", round(rpr_threshold * 2 / attempts_on, 2)
-        )),
+        "reenable_rejection":      rg_cfg.get("reenable_rejection", 0.25),
+        "climb_rpr_1_to_2":        float(rg_cfg.get("climb_rpr_1_to_2", 0.16)),
+        "climb_rpr_2_to_3":        float(rg_cfg.get("climb_rpr_2_to_3", 0.32)),
+        "climb_interval_seconds":  int(rg_cfg.get("climb_interval_seconds", 10)),
     }
-    if "climb_interval_seconds" in rg_cfg:
-        params["climb_interval_seconds"] = int(rg_cfg["climb_interval_seconds"])
     params.update(burst_params_from_cfg(rg_cfg))
     write_remote_json(master, "/tmp/retryguard_params.json", params)
     step(f"Uploaded RetryGuard params: interval_samples={params['interval_samples']} "
@@ -1523,7 +1520,7 @@ def run(config_path: str):
         sample_interval = rg["sample_interval_seconds"]
         interval = rg["interval_samples"]
         print(f"    threshold      : {rg['rejection_threshold']*100:.0f}%")
-        print(f"    reenable_rejection: {rg.get('reenable_rejection', 0.10)}")
+        print(f"    reenable_rejection: {rg.get('reenable_rejection', 0.25)}")
         print(f"    sample_interval_seconds: {sample_interval}s")
         print(f"    interval_samples: {interval}  ({interval*sample_interval}s, symmetric ON/OFF)")
     erc_enabled = cfg.get("envoy_retry_collector", {}).get("enabled", False)

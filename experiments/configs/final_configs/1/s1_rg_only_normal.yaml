@@ -17,7 +17,7 @@ scenario_name: normal_operation
 condition: retryguard
 run_number: 1
 description: >
-  Flat RPS well within cluster capacity. TopFull + RetryGuard both active.
+  Flat RPS well within cluster capacity. RetryGuard active, TopFull OFF.
   RetryGuard must remain completely silent (zero VirtualService patches).
 
 duration_seconds: 300
