@@ -96,8 +96,8 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S2 normal mode, three both-on holds (2026-10-12).** `study7_s2_normal_rgtf1_rep1`, `study7_s2_normal_rgtf1_rep2`, `study7_s2_normal_rgtf1_rep3`. All three PASS. Detail is the STATUS Done bullet for these holds. Guide: [2026-10-12-s2-normal-rgtf1-x3-abc.md](Guides%20and%20Info/2026-10-12-s2-normal-rgtf1-x3-abc.md).
-- **Replay of the four S2 both-on holds.** Only `frontend → checkoutservice` crosses. First fire is **104–113 s** at bars **1.0 / 1.5 / 2.0**. Later fire counts assume instant recovery, which the live path does not do. Table: [2026-10-12-s2-burst-replay.md](Guides%20and%20Info/2026-10-12-s2-burst-replay.md).
+- **S1 and S2 mode matrix (2026-10-12).** Nine gates PASS. Six S1 TopFull-on cells failed `live5s_caps=0` on the original and on one replay. All twenty-one folders are under `experiments/results/final results/`. Guide: [2026-10-12-s1-s2-mode-matrix-abc.md](Guides%20and%20Info/2026-10-12-s1-s2-mode-matrix-abc.md).
+- **S1 is 300 s at 175 / 30 / 70 / 90 / 5, twice per cell. S2 is 600 s at 275 / 90 / 100 / 90 / 5, once per cell.** Normal and burst 2.0, RetryGuard on or off, TopFull on or off. Detail is the STATUS Done bullet for this matrix.
 - **Cluster is back on the unpinned pair.** Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs are **RUNNING**.
 
 ### Still open
