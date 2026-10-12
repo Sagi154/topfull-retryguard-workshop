@@ -27,12 +27,14 @@ Params JSON (Algorithm 1 knobs from YAML `retryguard:`; attempts/timeout from to
 {
   "rejection_threshold": 0.20,
   "sample_interval_seconds": 1,
-  "interval_samples": 30,
+  "interval_samples": 20,
   "retry_attempts_on": 3,
   "retry_attempts_off": 0,
   "per_try_timeout_ms": 500
 }
 ```
+
+That block is the rejection-mode subset (`retries:` attempts and timeout are mapped by the runner). The full RetryGuard-on set is [Locked RetryGuard parameters](#locked-retryguard-parameters).
 
 ---
 
@@ -126,11 +128,11 @@ Excluded: `frontend` (ingress hop; its VS stays `attempts: 3`) and `redis-cart` 
 Stdout (tmux session `retryguard`) and `{record_path}/retryguard.log`:
 
 ```
-2026-08-04T18:30:00Z  START  threshold=0.20 sample_interval=1s interval_samples=30 (30s) services=['adservice', ..., 'shippingservice']
+2026-08-04T18:30:00Z  START  threshold=0.20 sample_interval=1s interval_samples=20 services=['adservice', ..., 'shippingservice']
 2026-08-04T18:30:01Z  OBSERVE  checkoutservice  rejection=0.3100  low=0 high=1  state=ON
 2026-08-04T18:30:02Z  OBSERVE  paymentservice  rejection=0.2200  low=0 high=1  state=ON
-2026-08-04T18:30:30Z  cartservice  ON→OFF   rejection=0.31  consecutive_high=30  attempts=0
-2026-08-04T18:31:15Z  checkoutservice  OFF→ON   rejection=0.08  consecutive_low=30  attempts=3
+2026-08-04T18:30:20Z  cartservice  ON→OFF   rejection=0.31  consecutive_high=20  attempts=0
+2026-08-04T18:30:40Z  checkoutservice  OFF→ON   rejection=0.08  consecutive_low=20  attempts=3
 ```
 
 ---
@@ -149,13 +151,13 @@ Stdout (tmux session `retryguard`) and `{record_path}/retryguard.log`:
 
 As of 2026-09-10, the `Interval` parameter is symmetric (single `interval_samples` value for both ON and OFF transitions, `sample_interval_seconds=1`) — a literal match to Algorithm 1. The previous `disable_windows`/`re_enable_windows` asymmetric split and `window_duration_seconds`-based averaging (a workshop extension) were removed; Scenario 5 now sweeps the single `interval_samples` value (10/20/30/60) symmetrically.
 
-As of 2026-10-08, `interval_samples` is seconds of mesh-row timestamps, not a row count. A streak opens on the first row past the bar and fires when a later row's timestamp is at least that many seconds after the first. One row that misses the bar clears the streak. A skipped row (no new timestamp, or no first attempts) does not count and does not clear it. The log still prints `consecutive_high` / `consecutive_low` as the row count inside the streak, and `elapsed_s` as the timestamp span. Rows already in the file when the process starts are not replayed. At a 1-second scrape this is the paper's 30-second interval; at the current ~2-second scrape a 30-second streak contains about 15 rows.
+As of 2026-10-08, `interval_samples` is seconds of mesh-row timestamps, not a row count. A streak opens on the first row past the bar and fires when a later row's timestamp is at least that many seconds after the first. One row that misses the bar clears the streak. A skipped row (no new timestamp, or no first attempts) does not count and does not clear it. The log still prints `consecutive_high` / `consecutive_low` as the row count inside the streak, and `elapsed_s` as the timestamp span. Rows already in the file when the process starts are not replayed. At a 1-second scrape the streak is `interval_samples` seconds (locked at 20; Scenario 5 sweeps 10/20/30/60). At a ~2-second scrape a 20-second streak contains about 10 rows.
 
 ---
 
 ## Edge mode (`retry_metric: edge_rpr`)
 
-Workshop extension of Algorithm 1. The code default stays `retry_metric: rejection` (the loop above). Every YAML that starts RetryGuard sets `retry_metric: edge_rpr` and `retries_threshold: 0.5`. `run_scenario.py` passes both keys; `retries_threshold` is required only when the metric is `edge_rpr`.
+Workshop extension of Algorithm 1. The code default stays `retry_metric: rejection` (the loop above). Every YAML that starts RetryGuard sets `retry_metric: edge_rpr` and `retries_threshold: 0.4` (locked; see [Locked RetryGuard parameters](#locked-retryguard-parameters)). `run_scenario.py` passes both keys; `retries_threshold` is required only when the metric is `edge_rpr`.
 
 What it measures, per controlled caller→callee edge, per 1 s tick:
 
@@ -163,33 +165,33 @@ What it measures, per controlled caller→callee edge, per 1 s tick:
 rpr = Δretry / (Δtotal − Δretry)
 ```
 
-from `service_edges.csv`. That is the paper's normalized retry rate (Λ − λ)/λ: `total` counts every attempt, `retry` counts the retried ones, so the denominator is first attempts. A tick with zero first attempts is skipped and changes no counter. `retries_threshold: 0.5` is our choice, derived from Fig. 7 (knee near ρ≈1.03–1.05) and scaled for `attempts: 3`. The paper does not state a per-edge value.
+from `service_edges.csv`. That is the paper's normalized retry rate (Λ − λ)/λ: `total` counts every attempt, `retry` counts the retried ones, so the denominator is first attempts. A tick with zero first attempts is skipped and changes no counter. The locked `retries_threshold` is 0.4. The earlier 0.5 was derived from Fig. 7 (knee near ρ≈1.03–1.05) and scaled for `attempts: 3`. The paper does not state a per-edge value.
 
-Disable is per edge. `rpr` above 0.5 for `interval_samples` seconds of row timestamps (Scenario 5's 10/20/30/60 are those seconds) sheds that edge to 0 attempts from whatever count it was on: the callee VirtualService gets a `sourceLabels: {app: <caller>}` route with `retries: {attempts: 0}` and `timeout: {per_try_timeout_ms}ms` ahead of the default route. Other callers keep their own counts. The shed is immediate (3→0, 2→0, or 1→0). There is no step down. The route timeout is only on the 0-attempt rule. Routes at 1, 2, or 3 attempts keep `perTryTimeout` and have no route timeout.
+Disable is per edge. `rpr` above 0.4 for `interval_samples` seconds of row timestamps (locked 20; Scenario 5's 10/20/30/60 are those seconds) sheds that edge to 0 attempts from whatever count it was on: the callee VirtualService gets a `sourceLabels: {app: <caller>}` route with `retries: {attempts: 0}` and `timeout: {per_try_timeout_ms}ms` ahead of the default route. Other callers keep their own counts. The shed is immediate (3→0, 2→0, or 1→0). There is no step down. The route timeout is only on the 0-attempt rule. Routes at 1, 2, or 3 attempts keep `perTryTimeout` and have no route timeout.
 
-Restore is a ramp, so a recovered edge does not jump straight back to 3. While any edge of a callee is at 0, that callee's inbound rejection rate (`Δ(5xx + resets) / Δtotal`) is the fallback, because rpr is ~0 while retries are off. The 0-attempt route's timeout is what produces those resets when the callee is slow. The 0→1 step uses its own bar, `reenable_rejection` **0.10**, not `rejection_threshold` 0.20: rejection strictly under 0.10 for the quiet time below moves every 0-attempt edge of that callee to **1** attempt (full `retryOn` + `perTryTimeout`), not to 3. A sample at or above 0.10 resets that streak. `rejection_threshold` 0.20 stays the Algorithm 1 bar for rejection mode. An edge that never left 3 keeps its rpr streak. Climbs from 1 and 2 stay on rpr.
+Restore is a ramp, so a recovered edge does not jump straight back to 3. While any edge of a callee is at 0, that callee's inbound rejection rate (`Δ(5xx + resets) / Δtotal`) is the fallback, because rpr is ~0 while retries are off. The 0-attempt route's timeout is what produces those resets when the callee is slow. The 0→1 step uses its own bar, `reenable_rejection` **0.25**, not `rejection_threshold` 0.20: rejection strictly under 0.25 for the quiet time below moves every 0-attempt edge of that callee to **1** attempt (full `retryOn` + `perTryTimeout`), not to 3. A sample at or above 0.25 resets that streak. The code fallback when the key is omitted is 0.10; locked runs set 0.25. `rejection_threshold` 0.20 stays the Algorithm 1 bar for rejection mode. An edge that never left 3 keeps its rpr streak. Climbs from 1 and 2 stay on rpr.
 
-From 1 or 2, the edge is watched on rpr again. The climb bars are YAML keys on the scenario, `climb_rpr_1_to_2` and `climb_rpr_2_to_3`. The live scenario files set them to **0.17** and **0.33**, which is the old projection (`rpr_now × 3 / attempts_now`, rounded) at `retries_threshold` 0.5. A YAML that omits the keys still uses that formula. Quiet time at or under the bar for that step adds one attempt. Quiet time above 0.5 sheds to 0. In between, the attempt count holds and both streaks reset. Reaching 3 puts the caller back on the default route. Each edge ramps on its own.
+From 1 or 2, the edge is watched on rpr again. The climb bars are YAML keys on the scenario, `climb_rpr_1_to_2` and `climb_rpr_2_to_3`. Locked runs set them to **0.16** and **0.32**. A YAML that omits the keys still uses `round(retries_threshold × attempts / attempts_on, 2)`, which is 0.17 and 0.33 at the old `retries_threshold` 0.5. Quiet time at or under the bar for that step adds one attempt. Quiet time above 0.4 sheds to 0. In between, the attempt count holds and both streaks reset. Reaching 3 puts the caller back on the default route. Each edge ramps on its own.
 
 | Step | Condition | Quiet time |
 |---|---|---|
-| 0 → 1 | inbound rejection under 0.10 | 30 s (`interval_samples`) |
-| 1 → 2 | rpr ≤ `climb_rpr_1_to_2` (0.17) | 15 s (`CLIMB_INTERVAL_SECONDS`) |
-| 2 → 3 | rpr ≤ `climb_rpr_2_to_3` (0.33) | 15 s (`CLIMB_INTERVAL_SECONDS`) |
-| any → 0 (shed) | rpr > 0.5 | 30 s (`interval_samples`) |
+| 0 → 1 | inbound rejection under `reenable_rejection` (0.25) | `interval_samples` (20 s; Scenario 5 sweeps 10/20/30/60) |
+| 1 → 2 | rpr ≤ `climb_rpr_1_to_2` (0.16) | `climb_interval_seconds` (10 s) |
+| 2 → 3 | rpr ≤ `climb_rpr_2_to_3` (0.32) | `climb_interval_seconds` (10 s) |
+| any → 0 (shed) | rpr > `retries_threshold` (0.4) | `interval_samples` (20 s; Scenario 5 sweeps 10/20/30/60) |
 
-The whole ramp from 0 to 3 now takes at least 60 s (was 90 s). The 15 s value is `CLIMB_INTERVAL_SECONDS` in `retryguard.py`. As of 2026-10-11 it has an optional YAML override, `climb_interval_seconds` under `retryguard:`. A scenario that omits the key still climbs at 15 s. The two rpr bars are YAML keys, same as before.
+With the locked quiet times the ramp from 0 to 3 takes at least 40 s. `CLIMB_INTERVAL_SECONDS` in `retryguard.py` is 15 s when a YAML omits `climb_interval_seconds`. Locked runs set 10 s. The two rpr bars are YAML keys.
 
 `ON→OFF` and `OFF→ON` stay the shed and the 0→1 step, so the toggle parser still matches. `OFF→ON` logs `attempts=1`. Climbs log `1→2` and `2→3` and are not toggle events. The name field is `caller->target` on an edge line and the service name on a rejection line:
 
 ```
-2026-10-06T20:00:00Z  START  metric=edge_rpr rpr_threshold=0.50 rejection_threshold=0.20 reenable_rejection=0.10 climb_rpr_1_to_2=0.17 climb_rpr_2_to_3=0.33 sample_interval=1s interval_samples=30 edges=14 attempts_on=3
-2026-10-06T20:00:01Z  OBSERVE  frontend->recommendationservice  rpr=0.6200  low=0 high=1  attempts=3  state=ON  metric=rpr
-2026-10-06T20:00:30Z  frontend->recommendationservice  ON→OFF   rpr=0.62  consecutive_high=30  attempts=0  from_attempts=3  metric=rpr
-2026-10-06T20:01:00Z  OBSERVE  recommendationservice  rejection=0.0800  low=1 high=0  state=OFF  metric=rejection
-2026-10-06T20:01:30Z  recommendationservice  OFF→ON   rejection=0.08  consecutive_low=30  attempts=1  from_attempts=0  metric=rejection
-2026-10-06T20:01:45Z  frontend->recommendationservice  1→2   rpr=0.10  consecutive_low=15  attempts=2  from_attempts=1  metric=rpr
-2026-10-06T20:02:00Z  frontend->recommendationservice  2→3   rpr=0.10  consecutive_low=15  attempts=3  from_attempts=2  metric=rpr
+2026-10-12T20:00:00Z  START  metric=edge_rpr rpr_threshold=0.40 rejection_threshold=0.20 reenable_rejection=0.25 climb_rpr_1_to_2=0.16 climb_rpr_2_to_3=0.32 climb_interval_seconds=10s sample_interval=1s interval_samples=20 edges=14 attempts_on=3
+2026-10-12T20:00:01Z  OBSERVE  frontend->recommendationservice  rpr=0.6200  low=0 high=1  attempts=3  state=ON  metric=rpr
+2026-10-12T20:00:20Z  frontend->recommendationservice  ON→OFF   rpr=0.62  consecutive_high=20  attempts=0  from_attempts=3  metric=rpr
+2026-10-12T20:00:21Z  OBSERVE  recommendationservice  rejection=0.0800  low=1 high=0  state=OFF  metric=rejection
+2026-10-12T20:00:41Z  recommendationservice  OFF→ON   rejection=0.08  consecutive_low=20  attempts=1  from_attempts=0  metric=rejection
+2026-10-12T20:00:51Z  frontend->recommendationservice  1→2   rpr=0.10  consecutive_low=10  attempts=2  from_attempts=1  metric=rpr
+2026-10-12T20:01:01Z  frontend->recommendationservice  2→3   rpr=0.10  consecutive_low=10  attempts=3  from_attempts=2  metric=rpr
 ```
 
 ---
@@ -204,8 +206,33 @@ Set in the scenario YAML `retryguard` block with `retry_metric: edge_rpr`. Off u
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `burst_rpr` | none (off) | Bar at full attempts, for example 1.0, 1.5 or 2.0. The bar at an edge's current cap is `burst_rpr × attempts / attempts_on`. |
+| `burst_rpr` | none (off) | Locked at 2.0 on burst runs. Normal mode omits the key. Trip bar at the current cap is `burst_rpr × attempts / attempts_on`. |
 | `burst_window_seconds` | 5 | Sliding window over row timestamps. |
 | `burst_min_first_attempts` | 20 | Window volume floor. |
 
-The test is `ΣΔretry / ΣΔfirst ≥ bar` over the window. It runs on every edge with attempts above 0, beside the normal handler. A shed goes straight to 0 and recovers the normal way. Log lines: the shed has `metric=rpr_burst`, `START` carries the three keys, and `OBSERVE` carries `burst_rpr5=`. Replay a finished hold with `python experiments/burst_replay.py RUN_DIR ...`. Decision record: [ADR 0007](../docs/adr/0007-burst-mode-sliding-aggregate.md).
+The test is `ΣΔretry / ΣΔfirst ≥ bar` over the window. It runs on every edge with attempts above 0, beside the normal handler. A shed goes straight to 0 and recovers the normal way. With `attempts_on` 3 and locked `burst_rpr` 2.0 the trip bar is 2.00 / 1.33 / 0.67 at 3 / 2 / 1 attempts. `burst_rpr` 1.5 was tried in the 2026-10-12 matrix and dropped. Log lines: the shed has `metric=rpr_burst`, `START` carries the three keys, and `OBSERVE` carries `burst_rpr5=`. Replay a finished hold with `python experiments/burst_replay.py RUN_DIR ...`. Decision record: [ADR 0007](../docs/adr/0007-burst-mode-sliding-aggregate.md).
+
+---
+
+## Locked RetryGuard parameters
+
+Every run with RetryGuard on uses these values. Source of truth: [`experiments/configs/study_2026_10_12/13_s2_burst20_rgtf1_rep1.yaml`](../experiments/configs/study_2026_10_12/13_s2_burst20_rgtf1_rep1.yaml).
+
+| Key | Value | Meaning |
+|---|---|---|
+| `retry_metric` | `edge_rpr` | Per-edge retries per first attempt. Burst mode requires this metric. |
+| `sample_interval_seconds` | 1 | Controller loop. One sample per second. |
+| `interval_samples` | 20 | Seconds of row timestamps before a shed or a 0→1 re-enable. Scenario 5 is the only exception: it sweeps 10/20/30/60. |
+| `rejection_threshold` | 0.2 | Algorithm 1 bar for rejection mode. |
+| `retries_threshold` | 0.4 | Shed bar. Edge rpr above this for `interval_samples` seconds goes to 0 attempts. |
+| `climb_rpr_1_to_2` | 0.16 | Quiet rpr bar for the 1→2 climb. |
+| `climb_rpr_2_to_3` | 0.32 | Quiet rpr bar for the 2→3 climb. |
+| `climb_interval_seconds` | 10 | Quiet time for the 1→2 and 2→3 climbs. |
+| `reenable_rejection` | 0.25 | Inbound rejection must stay under this for `interval_samples` seconds before 0→1. |
+| `burst_rpr` | 2.0 | Burst trip bar at full attempts (`attempts_on` is 3). |
+| `burst_window_seconds` | 5 | Sliding window over row timestamps for the burst test. |
+| `burst_min_first_attempts` | 20 | Minimum first attempts in the window before a burst trip counts. |
+
+Burst mode is the last three keys. RetryGuard normal mode omits exactly those three and keeps the other nine. Burst needs `retry_metric: edge_rpr`. The burst trip bar is `burst_rpr × attempts / attempts_on`. With `attempts_on` 3 that is 2.00 / 1.33 / 0.67 at 3 / 2 / 1 attempts. `burst_rpr` 1.5 was tried in the 2026-10-12 matrix and dropped.
+
+Holds before 2026-10-12, and `campaign_48/` / `august_38/`, used older values (`interval_samples` 30, `retries_threshold` 0.5, climb 0.17/0.33, no `climb_interval_seconds`, `reenable_rejection`, or burst keys) and are not comparable.

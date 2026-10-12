@@ -91,15 +91,15 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-10-12)
+## 4. Current status (as of 2026-10-13)
 
 ### Latest
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S3 checkout 200 m then 100 m (2026-10-12).** Both holds **PASS**: `s3_ck200_rgtf1` and `s3_ck100_rgtf1`. Detail is the STATUS Done bullet. Guide: [2026-10-12-s3-checkout-200-100-abc.md](Guides%20and%20Info/2026-10-12-s3-checkout-200-100-abc.md).
-- **600 s, mix 175 / 30 / 70 / 90 / 5, Set B CPU table, checkout 200 m then 100 m, RetryGuard on and TopFull on.** The 300 m parent is [2026-10-10-set-b-s3-checkout-analysis.md](Guides%20and%20Info/2026-10-10-set-b-s3-checkout-analysis.md).
-- **Cluster is back on the unpinned pair.** Checkout is 800 m. Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs are **RUNNING**.
+- **RetryGuard parameters locked (2026-10-13).** Every RetryGuard-on run uses the twelve values in §5. Burst mode is `burst_rpr` **2.0**, `burst_window_seconds` 5, and `burst_min_first_attempts` 20. Normal mode omits those three keys. Bar **1.5** is dropped.
+- **Scenario 5 is the only exception** (it sweeps `interval_samples`). Holds before 2026-10-12, `campaign_48/`, and `august_38/` used older values and are not comparable.
+- **Canonical table:** [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md). Decision: [ADR 0008](docs/adr/0008-locked-retryguard-parameters.md).
 
 ### Still open
 
@@ -107,7 +107,6 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 - Share [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md), then write the Phase 7 eval on `experiments/results/campaign_48/` once mentors say the data is enough.
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
-- Bars 1.5 and 2.0 each have two live reps on both arms, plus two normal-mode reps on both arms, in this matrix. A single bar is not chosen yet. The guide is [2026-10-12-s2-burst-matrix-abc.md](Guides%20and%20Info/2026-10-12-s2-burst-matrix-abc.md).
 
 Read [STATUS.md](STATUS.md) before a new hold, a `run_number` bump, scoring an old folder, or deciding what is left. After a hold, append one bullet under Done there, update Next free slots, and replace Latest here.
 
@@ -137,6 +136,10 @@ If it doesn't recover within a few minutes, follow the troubleshooting table in 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
 Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit`. S3 and S4A use **`cpu_limit_fraction: 0.1`** (not absolute `"100m"`). S4B sets absolute `cpu_limit_millicores: 40` on `emailservice`. The runner reconciles K8s + Detector to paper quotas before/after each run — a leftover checkout `100m` from an older S3/S4 is healed and must not be treated as the S2 baseline. New S4A (**50m**) is not comparable to `campaign_48/` S4A (absolute 100m). Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
+
+### Locked RetryGuard parameters
+
+Every run with RetryGuard on uses these values: `retry_metric` `edge_rpr`; `sample_interval_seconds` 1; `interval_samples` 20; `rejection_threshold` 0.2; `retries_threshold` 0.4; `climb_rpr_1_to_2` 0.16; `climb_rpr_2_to_3` 0.32; `climb_interval_seconds` 10; `reenable_rejection` 0.25; `burst_rpr` 2.0; `burst_window_seconds` 5; `burst_min_first_attempts` 20. Burst mode is the last three keys. RetryGuard normal mode omits exactly those three and keeps the other nine. Scenario 5 is the only exception (it sweeps `interval_samples`). Holds before 2026-10-12, `campaign_48/`, and `august_38/` used older values and are not comparable. Canonical table: [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md). Decision: [ADR 0008](docs/adr/0008-locked-retryguard-parameters.md).
 
 ---
 
@@ -193,7 +196,7 @@ experiments/results/final results/<scenario>_<normal|burst>/<variant>/<log_folde
 | 5 Interval Tuning | `S5_interval_tuning` |
 | 6 Forced Recovery | `S6_forced_recovery` |
 
-The last segment of `<scenario>_<normal|burst>` is the RetryGuard mode. Use `normal` when the YAML omits `burst_rpr`. Use `burst` when the YAML sets `burst_rpr`; bars 1.5 and 2.0 share that folder, and the `log_folder` name keeps the bar. `<variant>` is the controller pair:
+The last segment of `<scenario>_<normal|burst>` is the RetryGuard mode. Use `normal` when the YAML omits the three burst keys in §5. Use `burst` when the YAML sets them (`burst_rpr` **2.0**). The `log_folder` name keeps the bar. Older bar-1.5 holds share the `burst` folder. `<variant>` is the controller pair:
 
 | RetryGuard | TopFull | `<variant>` |
 |---|---|---|
@@ -241,7 +244,7 @@ Full config schema, `scale_constraints` methods, and troubleshooting: [PHASE5-EX
 - Does RetryGuard help at the **system level**, the **per-microservice level**, or both? (Mentors expect system-level gain may be small (~0.2%) while specific services improve a lot (~30%).) — **answerable** (goodput, P95, rejection).
 - **Topology beneficiaries** — which services gain most from suppressed retries? — **answerable** (per-endpoint CSVs).
 - **Chain propagation** — does relief at a bottleneck propagate upstream to callers? — **answerable**, coarse (only 5 Locust endpoints).
-- **Controller interaction** — how do TopFull's RL loop (1s) and RetryGuard (30s windows) interact/oscillate? — **partial** (`RPS` as proxy; `num_agent.csv` is empty). Recover→re-enable is the S6 load-drop (campaign complete), not flat S2.
+- **Controller interaction** — how do TopFull's RL loop (1s) and RetryGuard (locked 20 s window) interact/oscillate? — **partial** (`RPS` as proxy; `num_agent.csv` is empty). Recover→re-enable is the S6 load-drop (campaign complete), not flat S2.
 - **Topology position sensitivity** — does RetryGuard help more where TopFull's entry-level signal is weaker (Checkout-mediated `emailservice` vs direct ProductCatalog)? — **answerable** (S4A vs S4B).
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
