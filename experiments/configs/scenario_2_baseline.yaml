@@ -23,7 +23,6 @@ locust:
   scripts:
   - online_boutique_create_v2.sh
 # Paper-C1 millicores. Frontend 1150m is the HPA pin, not a scale_constraint.
-paper_cpu_reconcile: false
 scale_constraints:
 - deployment: checkoutservice
   namespace: default
@@ -82,10 +81,21 @@ retries:
 topfull_rl:
   enabled: true
 retryguard:
-  enabled: false
-  rejection_threshold: 0.2
+  enabled: false               # OFF for the baseline condition
+  # Locked parameter set (ADR 0008). Stored for parity with the RetryGuard arm;
+  # not used while enabled=false.
+  retry_metric: edge_rpr
   sample_interval_seconds: 1
-  interval_samples: 30
+  interval_samples: 20
+  rejection_threshold: 0.2
+  retries_threshold: 0.4
+  climb_rpr_1_to_2: 0.16
+  climb_rpr_2_to_3: 0.32
+  climb_interval_seconds: 10
+  reenable_rejection: 0.25
+  burst_rpr: 2.0
+  burst_window_seconds: 5
+  burst_min_first_attempts: 20
 envoy_retry_collector:
   enabled: true
   poll_interval_seconds: 1

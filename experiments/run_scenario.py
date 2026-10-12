@@ -531,17 +531,21 @@ def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
         wait_with_progress(20, "pods stabilising after paper CPU reconcile")
 
 
-def paper_cpu_reconcile_enabled(cfg: dict) -> bool:
-    """Default true. The CPU-spread series sets false so a 5-replica
-    frontend is not combined with the paper backend table mid-run."""
-    return bool(cfg.get("paper_cpu_reconcile", True))
-
-
-def reconcile_paper_cpu_limits_if_enabled(cfg: dict, wait: bool = True) -> None:
-    if not paper_cpu_reconcile_enabled(cfg):
-        step("paper_cpu_reconcile is false; leaving live CPU limits unchanged")
-        return
-    reconcile_paper_cpu_limits(cfg, wait=wait)
+def verify_live_cpu_limits(cfg: dict, capacity: dict) -> None:
+    """
+    Abort before Locust starts if live Deployment CPU differs from the
+    Paper-C1 table plus this config's constraints (ADR 0009).
+    """
+    expected = topfull_cpu_quotas.effective_cpu_quotas(
+        cfg.get("scale_constraints") or []
+    )
+    problems = topfull_cpu_quotas.cpu_limit_mismatches(capacity, expected)
+    if problems:
+        raise RuntimeError(
+            "Live CPU limits differ from Paper-C1 + constraints:\n  "
+            + "\n  ".join(problems)
+        )
+    step(f"Live CPU limits verified against Paper-C1 ({len(expected)} services)")
 
 
 def write_run_quotas_json(cfg: dict) -> dict:
@@ -734,6 +738,25 @@ def _start_master_stack_after_kill(master, src, venv, rl_enabled, proxy_ready):
 #  RetryGuard
 # --------------------------------------------------------------------------- #
 
+def burst_params_from_cfg(rg_cfg: dict) -> dict:
+    """Burst-mode params for retryguard_params.json. {} when `burst_rpr` is absent."""
+    if "burst_rpr" not in rg_cfg:
+        return {}
+    metric = rg_cfg.get("retry_metric", "rejection")
+    if metric != "edge_rpr":
+        raise SystemExit(
+            f"retryguard.burst_rpr needs retry_metric=edge_rpr, got {metric!r}"
+        )
+    burst_rpr = float(rg_cfg["burst_rpr"])
+    if burst_rpr <= 0:
+        raise SystemExit(f"retryguard.burst_rpr must be > 0, got {burst_rpr}")
+    return {
+        "burst_rpr": burst_rpr,
+        "burst_window_seconds": int(rg_cfg.get("burst_window_seconds", 5)),
+        "burst_min_first_attempts": int(rg_cfg.get("burst_min_first_attempts", 20)),
+    }
+
+
 def start_retryguard(cfg: dict):
     rg_cfg = cfg["retryguard"]
     if not rg_cfg.get("enabled", False):
@@ -771,6 +794,7 @@ def start_retryguard(cfg: dict):
     }
     if "climb_interval_seconds" in rg_cfg:
         params["climb_interval_seconds"] = int(rg_cfg["climb_interval_seconds"])
+    params.update(burst_params_from_cfg(rg_cfg))
     write_remote_json(master, "/tmp/retryguard_params.json", params)
     step(f"Uploaded RetryGuard params: interval_samples={params['interval_samples']} "
          f"({params['interval_samples'] * params['sample_interval_seconds']}s)")
@@ -1371,6 +1395,47 @@ def scenario_dir_name(cfg: dict) -> str:
     return ""  # unknown scenario_id — fall back to no subfolder
 
 
+FINAL_RESULTS_SCENARIO_DIRS = {
+    1: "S1_normal_operation",
+    2: "S2_sustained_overload",
+    3: "S3_targeted_bottleneck",
+    5: "S5_interval_tuning",
+    6: "S6_forced_recovery",
+}
+
+
+def final_results_local_dir(cfg: dict) -> str:
+    """experiments/results/final results/<scenario>_<normal|burst>/<variant>/
+
+    Mode is 'burst' when RetryGuard is on and burst_rpr is set. Everything
+    else is 'normal', including TopFull-only (RetryGuard off). Variant is
+    rg_only, tf_only, both, or both_off."""
+    sid = cfg.get("scenario_id")
+    if sid == 4:
+        scen = ("S4A_topology_position"
+                if str(cfg.get("scenario_name", "")).endswith("_A")
+                else "S4B_topology_position")
+    else:
+        scen = FINAL_RESULTS_SCENARIO_DIRS.get(sid, f"S{sid}")
+    rg = cfg.get("retryguard", {})
+    rg_on = bool(rg.get("enabled", False))
+    tf_on = bool(cfg.get("topfull_rl", {}).get("enabled", True))
+    mode = "burst" if rg_on and "burst_rpr" in rg else "normal"
+    variant = {
+        (True, True): "both",
+        (True, False): "rg_only",
+        (False, True): "tf_only",
+        (False, False): "both_off",
+    }[(rg_on, tf_on)]
+    return f"experiments/results/final results/{scen}_{mode}/{variant}/"
+
+
+def local_results_dir(cfg: dict) -> str:
+    """Local destination directory for a pulled run (trailing slash).
+    Every config goes to 'final results'. campaign_48 is a closed dataset."""
+    return final_results_local_dir(cfg)
+
+
 def collect_results(
     cfg: dict,
     capacity: dict | None = None,
@@ -1419,9 +1484,8 @@ def collect_results(
 
     step(f"Results saved to (on master): {dest}")
     step("To pull results to your PC:")
-    scen_dir = scenario_dir_name(cfg)
-    local_dest = f"experiments/results/campaign_48/{scen_dir}/" if scen_dir else "experiments/results/campaign_48/"
-    print(f"    scp -r topfull-master:{dest} {local_dest}")
+    local_dest = local_results_dir(cfg)
+    print(f'    scp -r topfull-master:{dest} "{local_dest}"')
     return dest
 
 
@@ -1435,6 +1499,8 @@ def run(config_path: str):
 
     topfull_cpu_quotas.validate_scale_constraints(cfg.get("scale_constraints") or [])
     cpu_request_fraction_from_cfg(cfg)
+    if cfg["retryguard"].get("enabled", False):
+        burst_params_from_cfg(cfg["retryguard"])
 
     scenario    = cfg["scenario_name"]
     condition   = cfg["condition"]
@@ -1509,9 +1575,10 @@ def run(config_path: str):
         # Reconcile first (heals leftover S3 100m). Wait only when there are
         # no fraction constraints — apply_constraints already waits 20s.
         has_constraints = bool(cfg.get("scale_constraints"))
-        reconcile_paper_cpu_limits_if_enabled(cfg, wait=not has_constraints)
+        reconcile_paper_cpu_limits(cfg, wait=not has_constraints)
         restore_records = apply_constraints(cfg)
         capacity = capture_service_capacity(cfg, ALL_BOUTIQUE_SERVICES)
+        verify_live_cpu_limits(cfg, capacity)
         effective_quotas = write_run_quotas_json(cfg)
         ensure_detector_quota_overlay(cfg)
 
@@ -1560,7 +1627,7 @@ def run(config_path: str):
         if restore_records:
             restore_constraints(cfg, restore_records)
         # Always return to paper CPU limits (not pre-run dirty blobs).
-        reconcile_paper_cpu_limits_if_enabled(cfg, wait=False)
+        reconcile_paper_cpu_limits(cfg, wait=False)
 
         restore_virtualservice_retries(cfg)
 

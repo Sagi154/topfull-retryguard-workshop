@@ -214,6 +214,7 @@ def parse_log(text: str) -> dict:
         "reenable_rejection": REENABLE_REJECTION,
         "climb_rpr_1_to_2": None,
         "climb_rpr_2_to_3": None,
+        "burst_rpr": None,
         "start": None,
     }
     for line in text.splitlines():
@@ -235,6 +236,8 @@ def parse_log(text: str) -> dict:
                 params["climb_rpr_1_to_2"] = float(fields["climb_rpr_1_to_2"])
             if "climb_rpr_2_to_3" in fields:
                 params["climb_rpr_2_to_3"] = float(fields["climb_rpr_2_to_3"])
+            if "burst_rpr" in fields:
+                params["burst_rpr"] = float(fields["burst_rpr"])
             continue
         if len(parts) >= 4 and parts[1] == "OBSERVE":
             fields = _kv(parts[3:])
@@ -245,6 +248,7 @@ def parse_log(text: str) -> dict:
                 "rejection": float(fields["rejection"]) if "rejection" in fields else None,
                 "high": int(fields["high"]) if "high" in fields else 0,
                 "attempts": int(fields["attempts"]) if "attempts" in fields else None,
+                "burst": float(fields["burst_rpr5"]) if "burst_rpr5" in fields else None,
             }
             observes[parts[2]].append(sample)
             continue
@@ -264,6 +268,7 @@ def parse_log(text: str) -> dict:
                     "step": f"{old}→{new}",
                     "value": float(value) if value is not None else None,
                     "metric": "rpr" if "rpr" in fields else "rejection",
+                    "burst": fields.get("metric") == "rpr_burst",
                     "from_attempts": int(fields["from_attempts"]) if "from_attempts" in fields else None,
                     "attempts": int(fields["attempts"]) if "attempts" in fields else None,
                     "elapsed_s": int(fields["elapsed_s"]) if "elapsed_s" in fields else None,
@@ -293,6 +298,34 @@ def climb_streak(samples: list[dict], attempts: int, limit: float) -> int | None
     if not seen:
         return None
     return longest
+
+
+def burst_summary(
+    samples: list[dict], transitions: list[dict], name: str,
+    burst_rpr: float, attempts_on: int,
+) -> dict | None:
+    """Peak / median burst_rpr5, samples at or above the bar in force, burst sheds.
+    The bar is burst_rpr * attempts / attempts_on on each sample's own attempts.
+    None when the edge has no burst_rpr5 samples and no burst shed."""
+    values = [s["burst"] for s in samples if s.get("burst") is not None]
+    sheds = sum(
+        1 for t in transitions
+        if t.get("burst") and t["step"] == "ON→OFF" and t["name"] == name
+    )
+    if not values and not sheds:
+        return None
+    at_bar = sum(
+        1 for s in samples
+        if s.get("burst") is not None and s.get("attempts")
+        and s["burst"] >= burst_rpr * s["attempts"] / attempts_on
+    )
+    return {
+        "samples": len(values),
+        "peak": max(values) if values else None,
+        "median": _median(values) if values else None,
+        "at_bar": at_bar,
+        "sheds": sheds,
+    }
 
 
 def controller_high(samples: list[dict]) -> int | None:
@@ -517,7 +550,14 @@ def score_run(run_dir: Path) -> dict:
         mean_rpr, median_rpr, max_rpr, volume = rpr_summary(series)
         log_name = f"{caller}->{target}"
         samples = log["observes"].get(log_name, [])
+        burst = None
+        if log["params"]["burst_rpr"] is not None:
+            burst = burst_summary(
+                samples, log["transitions"], log_name,
+                log["params"]["burst_rpr"], log["params"]["attempts_on"],
+            )
         edges[log_name] = {
+            "burst": burst,
             "streak_s": streak_s,
             "high_ticks": high_ticks,
             "controller_high": controller_high(samples),
@@ -529,6 +569,23 @@ def score_run(run_dir: Path) -> dict:
             "climb_2": climb_streak(samples, 2, limit_2),
             "retry_delta": retry_by_edge.get((caller, target), 0),
         }
+
+    if log["params"]["burst_rpr"] is not None:
+        for log_name, samples in log["observes"].items():
+            if "->" not in log_name or log_name in edges:
+                continue
+            burst = burst_summary(
+                samples, log["transitions"], log_name,
+                log["params"]["burst_rpr"], log["params"]["attempts_on"],
+            )
+            if burst is not None:
+                edges[log_name] = {
+                    "burst": burst, "streak_s": 0.0, "high_ticks": 0,
+                    "controller_high": controller_high(samples),
+                    "mean_rpr": None, "median_rpr": None, "max_rpr": None,
+                    "volume_rpr": None, "climb_1": None, "climb_2": None,
+                    "retry_delta": 0,
+                }
 
     by_service: dict[str, list[dict]] = defaultdict(list)
     for row in inbound_rows:
@@ -788,6 +845,55 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
         lines.append("")
         lines.append(_table("(a) Climb streaks, 1-attempt / 2-attempt", "Edge", labels, climb_rows, sep))
 
+    if any(item["params"].get("burst_rpr") is not None for item in scored):
+        bars = [
+            (label, item["params"]["burst_rpr"])
+            for label, item in zip(labels, scored)
+            if item["params"].get("burst_rpr") is not None
+        ]
+        lines.append(
+            "Burst bars: "
+            + "; ".join(
+                f"{label} burst_rpr {bar:.2f} (bar at 3 / 2 / 1 attempts "
+                f"{bar:.2f} / {bar * 2 / 3:.2f} / {bar / 3:.2f})"
+                for label, bar in bars
+            )
+            + ". Window and volume floor are on the START line."
+        )
+        lines.append("")
+        burst_names = []
+        for item in scored:
+            for name, edge in item["edges"].items():
+                if edge.get("burst") and name not in burst_names:
+                    burst_names.append(name)
+        if not burst_names:
+            lines.append("## (a2) Burst window")
+            lines.append("")
+            lines.append("No edge has a burst_rpr5 sample or a burst shed.")
+            lines.append("")
+        else:
+            burst_rows = []
+            for name in burst_names:
+                cells = []
+                for item in scored:
+                    burst = (item["edges"].get(name) or {}).get("burst")
+                    if not burst:
+                        cells.append("—")
+                        continue
+                    cells.append(
+                        f"{_fmt(burst['peak'], '.2f')} / {_fmt(burst['median'], '.2f')} / "
+                        f"{burst['at_bar']} / {burst['sheds']} ({burst['samples']})"
+                    )
+                burst_rows.append((_edge_label(name), cells))
+            lines.append(
+                "Peak burst_rpr5 / median burst_rpr5 / OBSERVE samples at or above the bar in force "
+                "(burst_rpr × attempts / attempts_on) / burst sheds, with the burst_rpr5 sample count "
+                "in parentheses. Samples exist only while the edge is above 0 attempts and the "
+                "window meets the volume floor."
+            )
+            lines.append("")
+            lines.append(_table("(a2) Burst window", "Edge", labels, burst_rows, sep))
+
     def rejection_rows(key_streak: str, key_count: str, bold_at: int | None) -> list[tuple[str, list[str]]]:
         rows = []
         for service in SERVICES:
@@ -873,19 +979,30 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
             lines.append(f"{label}: no transition lines.")
             continue
         any_toggle = True
-        counts: dict[str, dict[str, int]] = defaultdict(lambda: {"ON→OFF": 0, "OFF→ON": 0, "1→2": 0, "2→3": 0})
+        counts: dict[str, dict[str, int]] = defaultdict(
+            lambda: {"ON→OFF": 0, "OFF→ON": 0, "1→2": 0, "2→3": 0, "burst": 0}
+        )
         for event in item["transitions"]:
             step = event["step"]
             if step in counts[event["name"]]:
                 counts[event["name"]][step] += 1
+            if event.get("burst") and step == "ON→OFF":
+                counts[event["name"]]["burst"] += 1
+        has_burst = any(count["burst"] for count in counts.values())
         lines.append(f"### {label}")
         lines.append("")
-        lines.append("| Name | ON→OFF | 0→1 | 1→2 | 2→3 |")
-        lines.append("| --- | ---: | ---: | ---: | ---: |")
+        lines.append(
+            "| Name | ON→OFF | 0→1 | 1→2 | 2→3 |" + (" ON→OFF burst |" if has_burst else "")
+        )
+        lines.append("| --- | ---: | ---: | ---: | ---: |" + (" ---: |" if has_burst else ""))
         for name, count in counts.items():
-            lines.append(
-                f"| {_edge_label(name)} | {count['ON→OFF']} | {count['OFF→ON']} | {count['1→2']} | {count['2→3']} |"
+            row = (
+                f"| {_edge_label(name)} | {count['ON→OFF']} | {count['OFF→ON']} | "
+                f"{count['1→2']} | {count['2→3']} |"
             )
+            if has_burst:
+                row += f" {count['burst']} |"
+            lines.append(row)
         lines.append("")
         lines.append("| Time (UTC) | Name | Step | From | Value |")
         lines.append("| --- | --- | --- | ---: | --- |")
@@ -898,7 +1015,8 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
             if origin is None and event["old"].isdigit():
                 origin = int(event["old"])
             lines.append(
-                f"| {event['timestamp']} | {_edge_label(event['name'])} | {event['step']} | "
+                f"| {event['timestamp']} | {_edge_label(event['name'])} | "
+                f"{event['step']}{' (burst)' if event.get('burst') else ''} | "
                 f"{'—' if origin is None else origin} | {value} |"
             )
         lines.append("")

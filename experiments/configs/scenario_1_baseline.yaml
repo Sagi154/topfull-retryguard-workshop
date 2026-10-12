@@ -46,11 +46,20 @@ retries:
 # ── RetryGuard controller ─────────────────────────────────────────────────────
 retryguard:
   enabled: false               # OFF for the baseline condition
-
-  # Parameters below are stored for reference; not used when enabled=false.
-  rejection_threshold: 0.20    # >20% rejection rate triggers disable counter
-  sample_interval_seconds: 1   # loop cadence — 1 raw sample/sec (paper Algorithm 1)
-  interval_samples: 30         # paper's Interval — 30 consecutive samples = 30s, symmetric ON/OFF
+  # Locked parameter set (ADR 0008). Stored for parity with the RetryGuard arm;
+  # not used while enabled=false.
+  retry_metric: edge_rpr
+  sample_interval_seconds: 1
+  interval_samples: 20
+  rejection_threshold: 0.2
+  retries_threshold: 0.4
+  climb_rpr_1_to_2: 0.16
+  climb_rpr_2_to_3: 0.32
+  climb_interval_seconds: 10
+  reenable_rejection: 0.25
+  burst_rpr: 2.0
+  burst_window_seconds: 5
+  burst_min_first_attempts: 20
 
 # ── Envoy retry-stats collector (Gap 3 — retries per request) ────────────────
 # Scrapes caller-side Envoy outbound counters (frontend + checkoutservice).

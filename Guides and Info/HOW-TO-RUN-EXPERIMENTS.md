@@ -46,7 +46,7 @@ Then refresh SSH hostnames in `~/.ssh/config` because IPs will have changed.
 
 ## 1. Pick the config file
 
-All 16 config files live in `experiments/configs/`. Each one is a single scenario × condition combination:
+New S1–S4 holds use `experiments/configs/final_configs/` (one folder per scenario, five variants: RetryGuard-only burst, RetryGuard-only normal, TopFull-only, both burst, both normal). Example: `python experiments/run_scenario.py experiments/configs/final_configs/2/s2_both_burst.yaml`. Layout: [experiments/configs/final_configs/README.md](../experiments/configs/final_configs/README.md). The table below is the older set. Those files stay in `experiments/configs/` and are not moved. S5 and S6 are only in that older set.
 
 | File | What it does | Duration |
 |---|---|---|
@@ -56,9 +56,11 @@ All 16 config files live in `experiments/configs/`. Each one is a single scenari
 | `scenario_2_retryguard.yaml` | Flat sustained overload + RetryGuard | 10 min |
 | `scenario_3_baseline.yaml` | Checkout CPU-capped, no RetryGuard | 10 min |
 | `scenario_3_retryguard.yaml` | Checkout CPU-capped + RetryGuard | 10 min |
-| `scenario_4a_baseline.yaml` | ProductCatalog CPU-capped, no RetryGuard | 10 min |
-| `scenario_4a_retryguard.yaml` | ProductCatalog CPU-capped + RetryGuard | 10 min |
-| `scenario_4b_baseline.yaml` | Email CPU-capped at 40m, no RetryGuard | 10 min |
+| `scenario_4a_unconstrained_baseline.yaml` | Plain Paper-C1, no RetryGuard | 10 min |
+| `scenario_4a_unconstrained_retryguard.yaml` | Plain Paper-C1 + RetryGuard | 10 min |
+| `scenario_4a_constrained_baseline.yaml` | ProductCatalog CPU-capped at 50m, no RetryGuard | 10 min |
+| `scenario_4a_constrained_retryguard.yaml` | ProductCatalog CPU-capped at 50m + RetryGuard | 10 min |
+| `scenario_4b_baseline.yaml` | Email CPU-capped at 50m, no RetryGuard | 10 min |
 | `scenario_4b_retryguard.yaml` | Email CPU-capped at 40m + RetryGuard | 10 min |
 | `scenario_5_interval_10s.yaml` | S6 load + RetryGuard, re-enable=30s | 15 min |
 | `scenario_5_interval_20s.yaml` | S6 load + RetryGuard, re-enable=60s | 15 min |

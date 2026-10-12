@@ -75,7 +75,8 @@ Run each scenario **≥3 times per condition** (≥2 for Scenario 5 intervals). 
 | 1 — Normal Op | `scenario_1_baseline.yaml` | `scenario_1_retryguard.yaml` | baseline→run3, RG→run2 (smoke used earlier runs) |
 | 2 — Sustained Overload | `scenario_2_baseline.yaml` | `scenario_2_retryguard.yaml` | both→run1 |
 | 3 — Targeted Bottleneck | `scenario_3_baseline.yaml` | `scenario_3_retryguard.yaml` | both→run2 (smoke used run1) |
-| 4A — Topology (ProductCatalog) | `scenario_4a_baseline.yaml` | `scenario_4a_retryguard.yaml` | both→run1 |
+| 4A — Topology (ProductCatalog), constrained 50m | `scenario_4a_constrained_baseline.yaml` | `scenario_4a_constrained_retryguard.yaml` | both→run1 |
+| 4A — Topology, unconstrained reference | `scenario_4a_unconstrained_baseline.yaml` | `scenario_4a_unconstrained_retryguard.yaml` | both→run1 |
 | 4B — Topology (Email) | `scenario_4b_baseline.yaml` | `scenario_4b_retryguard.yaml` | both→run1 |
 | 5 — Interval tuning | — (use S6 baseline) | `scenario_5_interval_{10,20,30,60}s.yaml` | all→run3 |
 | 6 — Forced Recovery | `scenario_6_recovery_baseline.yaml` | `scenario_6_recovery_retryguard.yaml` | both→run1 |

@@ -372,6 +372,30 @@ class TestStartRetryGuardWiring(unittest.TestCase):
         params = mock_json.call_args[0][2]
         self.assertNotIn("climb_interval_seconds", params)
 
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_burst_keys_forwarded_with_defaults(
+        self, mock_deploy, mock_ssh, mock_json, mock_script, mock_wait,
+    ):
+        cfg = self._cfg(enabled=True)
+        cfg["retryguard"]["retry_metric"] = "edge_rpr"
+        cfg["retryguard"]["burst_rpr"] = 1.5
+        run_scenario.start_retryguard(cfg)
+        params = mock_json.call_args[0][2]
+        self.assertEqual(params["burst_rpr"], 1.5)
+        self.assertEqual(params["burst_window_seconds"], 5)
+        self.assertEqual(params["burst_min_first_attempts"], 20)
+
+    def test_burst_rpr_with_non_edge_metric_fails_loudly(self):
+        cfg = self._cfg(enabled=True)
+        cfg["retryguard"]["burst_rpr"] = 1.5  # retry_metric defaults to rejection
+        with self.assertRaises(SystemExit):
+            run_scenario.burst_params_from_cfg(cfg["retryguard"])
+        self.assertEqual(run_scenario.burst_params_from_cfg({"retry_metric": "edge_rpr"}), {})
+
 
 class TestEnvoyRetryCollectorWiring(unittest.TestCase):
     def _cfg(self, enabled=True):
@@ -939,7 +963,7 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
             run_scenario.apply_constraints(cfg)
         return "\n".join(patches)
 
-    def test_patches_catalog_to_153m(self):
+    def test_patches_catalog_to_80m(self):
         joined = self._apply({
             "deployment": "productcatalogservice",
             "namespace": "default",
@@ -947,7 +971,7 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
             "cpu_limit_fraction": 0.1,
             "container": "server",
         })
-        self.assertIn("153m", joined)  # int(1535 * 0.1)
+        self.assertIn("80m", joined)  # int(800 * 0.1)
         self.assertNotIn("100m", joined)
 
     def test_patches_checkout_to_50m_from_millicores(self):
@@ -960,7 +984,7 @@ class TestApplyCpuLimitFraction(unittest.TestCase):
             "container": "server",
         }, steps=steps)
         self.assertIn("50m", joined)
-        self.assertNotIn("61m", joined)  # would be int(615 * 0.1) if fraction leaked
+        self.assertNotIn("80m", joined)  # would be int(800 * 0.1) if fraction leaked
         self.assertTrue(
             any("millicores=50" in s for s in steps),
             msg=steps,
@@ -982,10 +1006,10 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
             run_scenario.reconcile_paper_cpu_limits(cfg)
         return cmds
 
-    def test_patches_checkout_to_615m(self):
+    def test_patches_checkout_to_800m(self):
         cmds = self._reconcile({"infra": {"master_ssh_host": "topfull-master"}})
         checkout_cmds = [c for c in cmds if "checkoutservice" in c]
-        self.assertTrue(any("615m" in c for c in checkout_cmds))
+        self.assertTrue(any("800m" in c for c in checkout_cmds))
 
     def test_request_fraction_halves_request_keeps_limit(self):
         cmds = self._reconcile({
@@ -993,8 +1017,8 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
             "cpu_request_fraction": 0.5,
         })
         checkout_cmds = [c for c in cmds if "checkoutservice" in c]
-        self.assertTrue(any("615m" in c for c in checkout_cmds))
-        self.assertTrue(any("307m" in c for c in checkout_cmds))
+        self.assertTrue(any("800m" in c for c in checkout_cmds))
+        self.assertTrue(any("400m" in c for c in checkout_cmds))
 
     def test_cpu_request_fraction_from_cfg_defaults_to_one(self):
         self.assertEqual(run_scenario.cpu_request_fraction_from_cfg({}), 1.0)
@@ -1004,22 +1028,269 @@ class TestReconcilePaperCpuLimits(unittest.TestCase):
             run_scenario.cpu_request_fraction_from_cfg({"cpu_request_fraction": 0})
 
 
-class TestScenarioYamlsUseFraction(unittest.TestCase):
-    def test_s3_s4_have_no_absolute_cpu_limit(self):
-        import re
+class TestLockedRetryGuardParamsInYamls(unittest.TestCase):
+    """ADR 0008: every scenario 1-6 YAML carries the same RetryGuard set,
+    baseline (enabled false) and RetryGuard arm alike. S5 sweeps
+    interval_samples only."""
+
+    # The nine keys every run shares (normal and burst mode).
+    LOCKED = {
+        "retry_metric": "edge_rpr",
+        "sample_interval_seconds": 1,
+        "interval_samples": 20,
+        "rejection_threshold": 0.2,
+        "retries_threshold": 0.4,
+        "climb_rpr_1_to_2": 0.16,
+        "climb_rpr_2_to_3": 0.32,
+        "climb_interval_seconds": 10,
+        "reenable_rejection": 0.25,
+    }
+    # Burst mode = all three present at these values. Normal mode = all absent.
+    BURST = {
+        "burst_rpr": 2.0,
+        "burst_window_seconds": 5,
+        "burst_min_first_attempts": 20,
+    }
+
+    def test_all_scenario_yamls_match_adr_0008(self):
+        import yaml
         root = Path(__file__).resolve().parent / "configs"
-        names = [
-            "scenario_3_baseline.yaml", "scenario_3_retryguard.yaml",
-            "scenario_4a_baseline.yaml", "scenario_4a_retryguard.yaml",
-            "scenario_4b_baseline.yaml", "scenario_4b_retryguard.yaml",
-        ]
-        for name in names:
-            text = (root / name).read_text(encoding="utf-8")
-            self.assertIsNone(
-                re.search(r"(?m)^\s*cpu_limit:\s", text),
-                msg=f"{name} still has absolute cpu_limit:",
+        files = sorted(root.glob("scenario_[1-6]_*.yaml")) + sorted(root.glob("scenario_4[ab]_*.yaml"))
+        files = [f for f in files if "probe" not in f.name]
+        self.assertGreater(len(files), 15)
+        for f in files:
+            rg = yaml.safe_load(f.read_text(encoding="utf-8"))["retryguard"]
+            expected = dict(self.LOCKED)
+            if f.name.startswith("scenario_5_"):
+                expected.pop("interval_samples")
+            for key, value in expected.items():
+                self.assertEqual(rg.get(key), value, msg=f"{f.name} {key}")
+            present = [k for k in self.BURST if k in rg]
+            if present:  # burst mode: all three, at the locked values
+                for key, value in self.BURST.items():
+                    self.assertEqual(rg.get(key), value, msg=f"{f.name} {key}")
+            # else normal mode: none of the three keys is set
+            is_baseline = "baseline" in f.name
+            self.assertEqual(rg["enabled"], not is_baseline, msg=f.name)
+
+
+class TestLockedS3S4Yamls(unittest.TestCase):
+    """S3 / S4A / S4B are locked (2026-10-13): full Paper-C1 table in
+    scale_constraints, with at most one constrained row."""
+
+    S1_MIX = {"getproduct": 175, "postcheckout": 30, "getcart": 70,
+              "postcart": 90, "emptycart": 5}
+    A_MIX = {"getproduct": 10, "postcheckout": 10, "getcart": 10,
+             "postcart": 600, "emptycart": 5}
+    # stem -> (user_counts, {service: constrained millicores})
+    LOCKED = {
+        "scenario_3": (S1_MIX, {"checkoutservice": 200}),
+        "scenario_4b": (S1_MIX, {"emailservice": 50}),
+        "scenario_4a_constrained": (A_MIX, {"productcatalogservice": 50}),
+        "scenario_4a_unconstrained": (A_MIX, {}),
+    }
+
+    def test_locked_mix_and_cpu_table(self):
+        import yaml
+        import topfull_cpu_quotas
+        root = Path(__file__).resolve().parent / "configs"
+        for stem, (mix, constrained) in self.LOCKED.items():
+            for arm in ("baseline", "retryguard"):
+                name = f"{stem}_{arm}.yaml"
+                cfg = yaml.safe_load((root / name).read_text(encoding="utf-8"))
+                self.assertEqual(cfg["locust"]["user_counts"], mix, msg=name)
+                self.assertEqual(cfg["locust"]["spawn_rate"], 50, msg=name)
+                rows = {c["deployment"]: c for c in cfg["scale_constraints"]}
+                expected = dict(topfull_cpu_quotas.PAPER_CPU_LIMIT_MILLICORES)
+                expected.pop("frontend", None)
+                expected.update(constrained)
+                self.assertEqual(set(rows), set(expected), msg=name)
+                for svc, millicores in expected.items():
+                    self.assertEqual(rows[svc]["method"], "cpu_limit", msg=name)
+                    self.assertEqual(
+                        rows[svc]["cpu_limit_millicores"], millicores,
+                        msg=f"{name} {svc}",
+                    )
+                    self.assertNotIn("cpu_limit_fraction", rows[svc], msg=name)
+
+
+class TestFinalConfigs(unittest.TestCase):
+    """Locked S1-S4 copies under configs/final_configs/. Five variants each.
+    S4 is three subfolders. S5 and S6 are not in this tree."""
+
+    S1_MIX = TestLockedS3S4Yamls.S1_MIX
+    S2_MIX = {"getproduct": 275, "postcheckout": 90, "getcart": 100,
+              "postcart": 90, "emptycart": 5}
+    A_MIX = TestLockedS3S4Yamls.A_MIX
+    # (folder under final_configs, filename prefix, mix, constrained millicores)
+    GROUPS = (
+        ("1", "s1", S1_MIX, {}),
+        ("2", "s2", S2_MIX, {}),
+        ("3", "s3", S1_MIX, {"checkoutservice": 200}),
+        ("4/4a_unconstrained", "4a_unconstrained", A_MIX, {}),
+        ("4/4a_constrained", "4a_constrained", A_MIX, {"productcatalogservice": 50}),
+        ("4/4b", "4b", S1_MIX, {"emailservice": 50}),
+    )
+    VARIANTS = (
+        "rg_only_burst",
+        "rg_only_normal",
+        "tf_only",
+        "both_burst",
+        "both_normal",
+    )
+
+    def _root(self):
+        return Path(__file__).resolve().parent / "configs" / "final_configs"
+
+    def _expected_paths(self):
+        root = self._root()
+        paths = []
+        for folder, prefix, _mix, _constrained in self.GROUPS:
+            for variant in self.VARIANTS:
+                paths.append(root / folder / f"{prefix}_{variant}.yaml")
+        return paths
+
+    def test_exactly_the_locked_variants(self):
+        root = self._root()
+        found = sorted(root.rglob("*.yaml"))
+        expected = sorted(self._expected_paths())
+        self.assertEqual(found, expected)
+        self.assertEqual(len(found), 30)
+        names = " ".join(p.name for p in found)
+        self.assertNotIn("scenario_5", names)
+        self.assertNotIn("scenario_6", names)
+
+    def test_mix_cpu_and_controllers(self):
+        import yaml
+        import topfull_cpu_quotas
+        locked = TestLockedRetryGuardParamsInYamls.LOCKED
+        burst = TestLockedRetryGuardParamsInYamls.BURST
+        folders = set()
+        for path in self._expected_paths():
+            cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+            folder, prefix, mix, constrained = next(
+                row for row in self.GROUPS if path.parent == self._root() / row[0]
             )
-            self.assertIn("cpu_limit_fraction: 0.1", text, msg=name)
+            variant = path.name[len(prefix) + 1:-len(".yaml")]
+            self.assertIn(variant, self.VARIANTS, msg=path.name)
+            self.assertEqual(cfg["locust"]["user_counts"], mix, msg=path.name)
+            self.assertEqual(cfg["locust"]["spawn_rate"], 50, msg=path.name)
+            rows = {c["deployment"]: c for c in cfg["scale_constraints"]}
+            expected = dict(topfull_cpu_quotas.PAPER_CPU_LIMIT_MILLICORES)
+            expected.pop("frontend", None)
+            expected.update(constrained)
+            self.assertEqual(set(rows), set(expected), msg=path.name)
+            for svc, millicores in expected.items():
+                self.assertEqual(rows[svc]["method"], "cpu_limit", msg=path.name)
+                self.assertEqual(
+                    rows[svc]["cpu_limit_millicores"], millicores,
+                    msg=f"{path.name} {svc}",
+                )
+                self.assertNotIn("cpu_limit_fraction", rows[svc], msg=path.name)
+            rg = cfg["retryguard"]
+            for key, value in locked.items():
+                self.assertEqual(rg.get(key), value, msg=f"{path.name} {key}")
+            if variant.endswith("normal"):
+                for key in burst:
+                    self.assertNotIn(key, rg, msg=path.name)
+            else:
+                for key, value in burst.items():
+                    self.assertEqual(rg.get(key), value, msg=f"{path.name} {key}")
+            rg_on = not variant.startswith("tf_only")
+            tf_on = not variant.startswith("rg_only")
+            self.assertEqual(rg["enabled"], rg_on, msg=path.name)
+            self.assertEqual(cfg["topfull_rl"]["enabled"], tf_on, msg=path.name)
+            self.assertEqual(cfg["run_number"], 1, msg=path.name)
+            self.assertEqual(
+                cfg["log_folder"], f"final_{prefix}_{variant}_run1", msg=path.name,
+            )
+            folders.add(cfg["log_folder"])
+        self.assertEqual(len(folders), 30)
+
+
+class TestFinalResultsDestination(unittest.TestCase):
+    """Every hold pulls into 'final results'. campaign_48 is never a target."""
+
+    EXPECTED = {
+        "1/s1_rg_only_burst.yaml": "S1_normal_operation_burst/rg_only",
+        "1/s1_rg_only_normal.yaml": "S1_normal_operation_normal/rg_only",
+        "1/s1_tf_only.yaml": "S1_normal_operation_normal/tf_only",
+        "2/s2_both_burst.yaml": "S2_sustained_overload_burst/both",
+        "2/s2_both_normal.yaml": "S2_sustained_overload_normal/both",
+        "3/s3_tf_only.yaml": "S3_targeted_bottleneck_normal/tf_only",
+        "4/4a_constrained/4a_constrained_both_burst.yaml":
+            "S4A_topology_position_burst/both",
+        "4/4a_unconstrained/4a_unconstrained_rg_only_normal.yaml":
+            "S4A_topology_position_normal/rg_only",
+        "4/4b/4b_both_normal.yaml": "S4B_topology_position_normal/both",
+        "4/4b/4b_tf_only.yaml": "S4B_topology_position_normal/tf_only",
+    }
+
+    def test_final_configs_map_to_final_results(self):
+        import yaml
+        root = Path(__file__).resolve().parent / "configs" / "final_configs"
+        for rel, tail in self.EXPECTED.items():
+            cfg = yaml.safe_load((root / rel).read_text(encoding="utf-8"))
+            self.assertEqual(
+                run_scenario.local_results_dir(cfg),
+                f"experiments/results/final results/{tail}/",
+                msg=rel,
+            )
+
+    def test_every_final_config_has_a_destination(self):
+        import yaml
+        root = Path(__file__).resolve().parent / "configs" / "final_configs"
+        for path in root.rglob("*.yaml"):
+            cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+            dest = run_scenario.local_results_dir(cfg)
+            self.assertTrue(
+                dest.startswith("experiments/results/final results/"),
+                msg=path.name,
+            )
+
+    def test_every_config_goes_to_final_results_not_campaign_48(self):
+        import yaml
+        root = Path(__file__).resolve().parent / "configs"
+        cfg = yaml.safe_load(
+            (root / "scenario_2_baseline.yaml").read_text(encoding="utf-8"))
+        self.assertEqual(
+            run_scenario.local_results_dir(cfg),
+            "experiments/results/final results/S2_sustained_overload_burst/tf_only/"
+            if "burst_rpr" in cfg["retryguard"] and cfg["retryguard"]["enabled"]
+            else "experiments/results/final results/S2_sustained_overload_normal/tf_only/",
+        )
+        # A bumped log_folder without the final_ prefix changes nothing.
+        cfg = yaml.safe_load(
+            (root / "final_configs" / "2" / "s2_both_burst.yaml")
+            .read_text(encoding="utf-8"))
+        cfg["log_folder"] = "my_custom_run7"
+        self.assertEqual(
+            run_scenario.local_results_dir(cfg),
+            "experiments/results/final results/S2_sustained_overload_burst/both/",
+        )
+        for name, tail in (
+            ("scenario_5_interval_30s.yaml", "S5_interval_tuning"),
+            ("scenario_6_recovery_retryguard.yaml", "S6_forced_recovery"),
+        ):
+            cfg = yaml.safe_load((root / name).read_text(encoding="utf-8"))
+            dest = run_scenario.local_results_dir(cfg)
+            self.assertTrue(
+                dest.startswith(f"experiments/results/final results/{tail}_"),
+                msg=dest,
+            )
+            self.assertNotIn("campaign_48", dest)
+
+    def test_pull_results_uses_same_destination(self):
+        import yaml
+        import pull_results
+        path = (Path(__file__).resolve().parent / "configs" / "final_configs"
+                / "2" / "s2_both_burst.yaml")
+        cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+        _master, _remote, local = pull_results.resolve_pull_paths(cfg)
+        self.assertEqual(
+            local,
+            "experiments/results/final results/S2_sustained_overload_burst/both/",
+        )
 
 
 class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
@@ -1057,7 +1328,7 @@ class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
             "cpu_limit_fraction": 0.1,
         }]
         got = topfull_cpu_quotas.effective_cpu_quotas(constraints)
-        self.assertEqual(got["checkoutservice"], 61)  # int(615 * 0.1)
+        self.assertEqual(got["checkoutservice"], 80)  # int(800 * 0.1)
 
 
 class TestMeshCollectorNetworkWiring(unittest.TestCase):
@@ -1275,34 +1546,42 @@ class TestStartMasterStackTopfullRl(unittest.TestCase):
         self.assertIn("/tmp/rg_rl.sh", self._script_paths(mock_write_script))
 
 
-class TestPaperCpuReconcileFlag(unittest.TestCase):
-    def test_missing_key_stays_on(self):
-        self.assertTrue(run_scenario.paper_cpu_reconcile_enabled({}))
+class TestVerifyLiveCpuLimits(unittest.TestCase):
+    def _live(self, **over):
+        import topfull_cpu_quotas as q
+        live = {
+            s: {"cpu_limit_millicores": v, "cpu_request_millicores": v}
+            for s, v in q.PAPER_CPU_LIMIT_MILLICORES.items()
+        }
+        live.update(over)
+        return live
 
-    def test_false_skips_the_live_patch(self):
-        calls = []
+    def test_matching_table_passes(self):
+        with mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.verify_live_cpu_limits({}, self._live())
 
-        def fake_reconcile(cfg, wait=True):
-            calls.append(wait)
+    def test_leftover_constraint_aborts(self):
+        live = self._live(
+            checkoutservice={"cpu_limit_millicores": 50, "cpu_request_millicores": 50}
+        )
+        with mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            with self.assertRaises(RuntimeError) as ctx:
+                run_scenario.verify_live_cpu_limits({}, live)
+        self.assertIn("checkoutservice", str(ctx.exception))
 
-        with mock.patch.object(run_scenario, "reconcile_paper_cpu_limits", fake_reconcile), \
-             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
-            run_scenario.reconcile_paper_cpu_limits_if_enabled(
-                {"paper_cpu_reconcile": False}, wait=True
-            )
-        self.assertEqual(calls, [])
+    def test_config_constraint_is_expected(self):
+        cfg = {"scale_constraints": [{
+            "deployment": "checkoutservice", "method": "cpu_limit",
+            "cpu_limit_millicores": 50,
+        }]}
+        live = self._live(
+            checkoutservice={"cpu_limit_millicores": 50, "cpu_request_millicores": 50}
+        )
+        with mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.verify_live_cpu_limits(cfg, live)
 
-    def test_true_calls_through(self):
-        calls = []
-
-        def fake_reconcile(cfg, wait=True):
-            calls.append(wait)
-
-        with mock.patch.object(run_scenario, "reconcile_paper_cpu_limits", fake_reconcile), \
-             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
-            run_scenario.reconcile_paper_cpu_limits_if_enabled({}, wait=False)
-        self.assertEqual(calls, [False])
-
+    def test_reconcile_flag_is_gone(self):
+        self.assertFalse(hasattr(run_scenario, "paper_cpu_reconcile_enabled"))
 
 class TestCpuPatchSkip(unittest.TestCase):
     def _cfg(self):
@@ -1320,7 +1599,7 @@ class TestCpuPatchSkip(unittest.TestCase):
     def test_parser_accepts_kubectl_json(self):
         raw = '{"limits":{"cpu":"1500m","memory":"128Mi"},"requests":{"cpu":"1500m"}}'
         self.assertTrue(run_scenario.cpu_resources_already_set(raw, "1500m"))
-        self.assertFalse(run_scenario.cpu_resources_already_set(raw, "615m"))
+        self.assertFalse(run_scenario.cpu_resources_already_set(raw, "800m"))
 
     def test_whole_core_quantities_match_millicore_targets(self):
         cart = '{"limits":{"cpu":"1"},"requests":{"cpu":"1"}}'
@@ -1346,7 +1625,7 @@ class TestCpuPatchSkip(unittest.TestCase):
         self.assertFalse(any("kubectl patch" in c for c in cmds))
 
     def test_patch_sent_when_limit_differs(self):
-        raw = '{"limits":{"cpu":"615m"},"requests":{"cpu":"615m"}}'
+        raw = '{"limits":{"cpu":"800m"},"requests":{"cpu":"800m"}}'
         cmds = []
 
         def fake_ssh(host, cmd, check=True):

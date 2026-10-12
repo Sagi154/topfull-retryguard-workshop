@@ -15,7 +15,6 @@ locust:
   spawn_rate: 50
   scripts:
   - online_boutique_create_v2.sh
-paper_cpu_reconcile: false
 scale_constraints:
 - deployment: checkoutservice
   namespace: default

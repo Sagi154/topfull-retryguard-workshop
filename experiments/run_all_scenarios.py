@@ -83,9 +83,14 @@ def build_matrix() -> list[RunSlot]:
         "S3 Targeted Bottleneck",
     )
     add_pair(
-        "scenario_4a_baseline.yaml",
-        "scenario_4a_retryguard.yaml",
-        "S4A Topology ProductCatalog",
+        "scenario_4a_constrained_baseline.yaml",
+        "scenario_4a_constrained_retryguard.yaml",
+        "S4A Topology ProductCatalog (constrained)",
+    )
+    add_pair(
+        "scenario_4a_unconstrained_baseline.yaml",
+        "scenario_4a_unconstrained_retryguard.yaml",
+        "S4A Topology ProductCatalog (unconstrained)",
     )
     add_pair(
         "scenario_4b_baseline.yaml",

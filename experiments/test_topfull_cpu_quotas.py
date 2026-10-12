@@ -38,14 +38,14 @@ class TestPaperTable(unittest.TestCase):
     # by ~77% to fit topfull-worker1's 16 vCPU — see spec §4).
     def test_all_eleven_services_have_explicit_trimmed_values(self):
         self.assertEqual(q.paper_limit_for("frontend"), 1150)
-        self.assertEqual(q.paper_limit_for("checkoutservice"), 615)
+        self.assertEqual(q.paper_limit_for("checkoutservice"), 800)
         self.assertEqual(q.paper_limit_for("recommendationservice"), 1150)
-        self.assertEqual(q.paper_limit_for("productcatalogservice"), 1535)
-        self.assertEqual(q.paper_limit_for("cartservice"), 1920)
+        self.assertEqual(q.paper_limit_for("productcatalogservice"), 800)
+        self.assertEqual(q.paper_limit_for("cartservice"), 800)
         self.assertEqual(q.paper_limit_for("currencyservice"), 770)
         self.assertEqual(q.paper_limit_for("shippingservice"), 770)
         self.assertEqual(q.paper_limit_for("redis-cart"), 540)
-        self.assertEqual(q.paper_limit_for("emailservice"), 155)
+        self.assertEqual(q.paper_limit_for("emailservice"), 120)
         self.assertEqual(q.paper_limit_for("paymentservice"), 155)
         self.assertEqual(q.paper_limit_for("adservice"), 1150)
 
@@ -57,8 +57,8 @@ class TestPaperTable(unittest.TestCase):
             )
 
     def test_request_fraction_halves_checkout(self):
-        self.assertEqual(q.paper_request_for("checkoutservice", 0.5), 307)
-        self.assertEqual(q.paper_limit_for("checkoutservice"), 615)
+        self.assertEqual(q.paper_request_for("checkoutservice", 0.5), 400)
+        self.assertEqual(q.paper_limit_for("checkoutservice"), 800)
 
     def test_request_fraction_default_is_one(self):
         self.assertEqual(
@@ -88,6 +88,63 @@ class TestPaperTable(unittest.TestCase):
                 "paymentservice", "adservice",
             },
         )
+
+
+class TestAdrParity(unittest.TestCase):
+    """ADR 0009 is the single source; the code table must equal it."""
+
+    def test_code_table_equals_adr_0009(self):
+        import re
+
+        adr = (
+            Path(__file__).resolve().parent.parent
+            / "docs" / "adr" / "0009-paper-c1-default-cpu-table.md"
+        ).read_text(encoding="utf-8")
+        adr_table = {}
+        for m in re.finditer(
+            r"^\|\s*`([a-z-]+)`\s*\|[^|]*\|\s*(\d+)\s*\|", adr, re.MULTILINE
+        ):
+            adr_table[m.group(1)] = int(m.group(2))
+        self.assertEqual(adr_table, q.PAPER_CPU_LIMIT_MILLICORES)
+
+
+class TestCpuLimitMismatches(unittest.TestCase):
+    def _live(self, **over):
+        live = {
+            s: {"cpu_limit_millicores": v, "cpu_request_millicores": v}
+            for s, v in q.PAPER_CPU_LIMIT_MILLICORES.items()
+        }
+        live.update(over)
+        return live
+
+    def test_matching_is_clean(self):
+        self.assertEqual(
+            q.cpu_limit_mismatches(self._live(), q.effective_cpu_quotas([])), []
+        )
+
+    def test_leftover_checkout_100m_is_reported(self):
+        live = self._live(
+            checkoutservice={"cpu_limit_millicores": 100, "cpu_request_millicores": 100}
+        )
+        got = q.cpu_limit_mismatches(live, q.effective_cpu_quotas([]))
+        self.assertEqual(len(got), 2)
+        self.assertIn("checkoutservice: live limit 100m, expected 800m", got)
+
+    def test_constraint_is_the_expected_value(self):
+        cons = [{"deployment": "checkoutservice", "method": "cpu_limit",
+                 "cpu_limit_millicores": 50}]
+        live = self._live(
+            checkoutservice={"cpu_limit_millicores": 50, "cpu_request_millicores": 50}
+        )
+        self.assertEqual(
+            q.cpu_limit_mismatches(live, q.effective_cpu_quotas(cons)), []
+        )
+
+    def test_missing_deployment_is_reported(self):
+        live = self._live()
+        del live["adservice"]
+        got = q.cpu_limit_mismatches(live, q.effective_cpu_quotas([]))
+        self.assertEqual(got, ["adservice: no live Deployment found"])
 
 
 class TestContainerNameFor(unittest.TestCase):
@@ -220,8 +277,8 @@ class TestEffectiveCpuQuotas(unittest.TestCase):
                 }
             ]
         )
-        self.assertEqual(got["checkoutservice"], 61)  # int(615 * 0.1)
-        self.assertEqual(got["productcatalogservice"], 1535)
+        self.assertEqual(got["checkoutservice"], 80)  # int(800 * 0.1)
+        self.assertEqual(got["productcatalogservice"], 800)
         self.assertEqual(got["paymentservice"], 155)
 
     def test_millicores_overwrite(self):
@@ -235,7 +292,7 @@ class TestEffectiveCpuQuotas(unittest.TestCase):
             ]
         )
         self.assertEqual(got["checkoutservice"], 50)
-        self.assertEqual(got["productcatalogservice"], 1535)
+        self.assertEqual(got["productcatalogservice"], 800)
 
 
 class TestCpuLimitMillicoresFor(unittest.TestCase):
@@ -249,7 +306,7 @@ class TestCpuLimitMillicoresFor(unittest.TestCase):
         got = q.cpu_limit_millicores_for(
             {"deployment": "checkoutservice", "cpu_limit_fraction": 0.1}
         )
-        self.assertEqual(got, 61)  # int(615 * 0.1)
+        self.assertEqual(got, 80)  # int(800 * 0.1)
 
     def test_both_keys_is_error(self):
         with self.assertRaises(ValueError):
@@ -273,7 +330,7 @@ class TestS2BothOffYamlLocked(unittest.TestCase):
 
         path = Path(__file__).resolve().parent / "configs" / "scenario_2_baseline_no_topfull.yaml"
         cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
-        self.assertIs(cfg["paper_cpu_reconcile"], False)
+        self.assertNotIn("paper_cpu_reconcile", cfg)
         self.assertEqual(cfg["run_number"], 162)
         self.assertEqual(
             cfg["log_folder"], "baseline_no_topfull_sustained_overload_run162"

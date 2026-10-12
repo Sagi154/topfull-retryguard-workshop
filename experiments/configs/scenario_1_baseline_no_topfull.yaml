@@ -9,9 +9,7 @@
 # Next unused slot is run10. Counts below are the locked run8 mix
 # (175/30/70/90/5), the same mix on every S1 variant. Not yet launched
 # as run10.
-# paper_cpu_reconcile is false so the runner does not snap back to paper
-# CPU while that pin is in place. Leave the Paper-C1 pin after the hold.
-
+# The runner resets CPU to Paper-C1 (ADR 0009) before the hold; the rows below\r\n# are the full table and the frontend pin is applied separately.\r\n
 scenario_id: 1
 scenario_name: normal_operation
 condition: baseline
@@ -47,8 +45,6 @@ scale_constraints:
     method: cpu_limit
     cpu_limit_millicores: 120
 
-paper_cpu_reconcile: false
-
 retries:
   attempts_on: 3
   attempts_off: 0
@@ -58,10 +54,21 @@ topfull_rl:
   enabled: false
 
 retryguard:
-  enabled: false
-  rejection_threshold: 0.20
+  enabled: false               # OFF for the baseline condition
+  # Locked parameter set (ADR 0008). Stored for parity with the RetryGuard arm;
+  # not used while enabled=false.
+  retry_metric: edge_rpr
   sample_interval_seconds: 1
-  interval_samples: 30
+  interval_samples: 20
+  rejection_threshold: 0.2
+  retries_threshold: 0.4
+  climb_rpr_1_to_2: 0.16
+  climb_rpr_2_to_3: 0.32
+  climb_interval_seconds: 10
+  reenable_rejection: 0.25
+  burst_rpr: 2.0
+  burst_window_seconds: 5
+  burst_min_first_attempts: 20
 
 envoy_retry_collector:
   enabled: true

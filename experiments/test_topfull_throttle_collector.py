@@ -295,8 +295,8 @@ SAMPLE_POD_LIST = {
 
 class TestDetectMetrics(unittest.TestCase):
     def test_quota_overrides_and_default(self):
-        self.assertEqual(ttc.quota_for("productcatalogservice"), 1535)
-        self.assertEqual(ttc.quota_for("checkoutservice"), 615)
+        self.assertEqual(ttc.quota_for("productcatalogservice"), 800)
+        self.assertEqual(ttc.quota_for("checkoutservice"), 800)
         self.assertEqual(ttc.quota_for("paymentservice"), 155)
 
     def test_alpha_special_cases(self):
@@ -305,24 +305,24 @@ class TestDetectMetrics(unittest.TestCase):
         self.assertEqual(ttc.alpha_for("checkoutservice"), 0.8)
 
     def test_overloaded_when_util_exceeds_alpha(self):
-        # checkout quota 615, alpha 0.8 → boundary 492; 493 is strictly above.
-        row = ttc.detect_metrics("checkoutservice", 493.0)
-        self.assertEqual(row["quota"], 615)
+        # checkout quota 800, alpha 0.8 → boundary 640; 641 is strictly above.
+        row = ttc.detect_metrics("checkoutservice", 641.0)
+        self.assertEqual(row["quota"], 800)
         self.assertEqual(row["alpha"], 0.8)
         self.assertGreater(row["utilization"], 0.8)
         self.assertEqual(row["overloaded"], 1)
 
     def test_not_overloaded_at_boundary(self):
-        # 0.8 * 615 = 492, overloaded is strictly greater than alpha
-        row = ttc.detect_metrics("checkoutservice", 492.0)
+        # 0.8 * 800 = 640, overloaded is strictly greater than alpha
+        row = ttc.detect_metrics("checkoutservice", 640.0)
         self.assertEqual(row["overloaded"], 0)
 
     def test_cartservice_uses_0_95(self):
-        # cartservice quota 1920, alpha 0.95 → boundary 1824
-        row = ttc.detect_metrics("cartservice", 1824.0)
+        # cartservice quota 800, alpha 0.95 → boundary 760
+        row = ttc.detect_metrics("cartservice", 760.0)
         self.assertEqual(row["alpha"], 0.95)
         self.assertEqual(row["overloaded"], 0)
-        row2 = ttc.detect_metrics("cartservice", 1825.0)
+        row2 = ttc.detect_metrics("cartservice", 761.0)
         self.assertEqual(row2["overloaded"], 1)
 
 

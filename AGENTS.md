@@ -29,7 +29,8 @@ This is a workshop deliverable: a presentation (project plan) + eventually a wri
 Guides and Info/     ← all human-facing docs (see §3 — start here for "why")
   mentor-update/     ← mentor-facing dry-results doc + curated/gallery PNGs ([MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md))
 experiments/         ← the actual tooling: runner, scenario configs, RetryGuard + Envoy retry collectors
-  configs/           ← 16 scenario YAML files (S1–S4 baseline/RG, S5×4 intervals, S6 recovery baseline/RG)
+  configs/           ← scenario YAML files (S1–S4 baseline/RG, S5×4 intervals, S6 recovery baseline/RG). Older files stay here.
+    final_configs/   ← copies of locked S1–S4 only, five variants each. New holds use these. See [final_configs/README.md](experiments/configs/final_configs/README.md)
   run_scenario.py    ← orchestrator, runs on Windows, drives everything over SSH
   retryguard.py      ← RetryGuard controller (deployed to master)
   envoy_retry_collector.py ← Gap 3: scrapes Envoy sidecar outbound retry counters (deployed to master)
@@ -38,7 +39,8 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
   results/           ← local results only (master still uses a flat `/home/idozacharia/experiments/results/`)
-    campaign_48/     ← **primary Phase 7 dataset** — 48-run campaign (2026-09-05 → 2026-09-06), in git, organized into 7 scenario subfolders (`S1_normal_op/` … `S6_forced_recovery/`) — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md)
+    final results/   ← **where every new hold is pulled.** Scenario, RetryGuard mode, then controller variant — the rule is in §6
+    campaign_48/     ← closed Phase 7 dataset (2026-09-05 → 2026-09-06), in git, organized into 7 scenario subfolders (`S1_normal_op/` … `S6_forced_recovery/`) — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md)
     august_38/       ← historical August 38-run matrix (git-tracked; do not delete; still a flat list of run folders, not reorganized)
 TopFull/             ← git submodule, upstream https://github.com/kaist-ina/TopFull (read locally; also cloned separately on the VMs)
 context/             ← papers/decks: RetryGuard.pdf, TopFull.pdf, Evaluating_RetryGuard_on_TopFull.{pdf,md} (current eval deck + transcription)
@@ -90,19 +92,19 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-10-11)
+## 4. Current status (as of 2026-10-13)
 
 ### Latest
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S2 both-on replicates 3 and 4 (2026-10-11).** RetryGuard on, TopFull on, tuned parameters, mix **275 / 90 / 100 / 90 / 5**. Both gates **PASS**. Locust rows **550 / 550**. Zero toggles. Folders `study4_s2_tune_rgtf1_rep3` and `study4_s2_tune_rgtf1_rep4`. Detail is the STATUS Done bullet and [2026-10-11-s2-rgtf1-rep3-rep4-abc.md](Guides%20and%20Info/2026-10-11-s2-rgtf1-rep3-rep4-abc.md).
-- **Checkout stays detector-hot.** Overloaded share **54.7% / 53.6% / 51.2% / 50.9%** across rep1–rep4 on. Checkout retry delta on the new holds is **15,511 / 15,629**. `grpc_4` is 0.
-- **Cluster restored.** Catalog **800 m**, checkout **800 m**, email **120 m**. Frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. VMs left **RUNNING**.
+- **RetryGuard parameters locked (2026-10-13).** Every RetryGuard-on run uses the twelve values in §5. Burst mode is `burst_rpr` **2.0**, `burst_window_seconds` 5, and `burst_min_first_attempts` 20. Normal mode omits those three keys. Bar **1.5** is dropped.
+- **Scenario 5 is the only exception** (it sweeps `interval_samples`). Holds before 2026-10-12, `campaign_48/`, and `august_38/` used older values and are not comparable.
+- **Canonical table:** [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md). Decision: [ADR 0008](docs/adr/0008-locked-retryguard-parameters.md).
 
 ### Still open
 
-- S1 and S2 loads are locked (counts are in §5). The [2026-09-21 methodology plan](docs/superpowers/plans/2026-09-21-s1-s6-methodology-and-calibration-implementation.md) stopped at Task 9 step 2a. S3 and S4 calibration is later. S6 stays on its current YAML.
+- S1, S2, S3, S4A, and S4B loads and CPU tables are locked (counts and constrained rows are in §5). The [2026-09-21 methodology plan](docs/superpowers/plans/2026-09-21-s1-s6-methodology-and-calibration-implementation.md) stopped at Task 9 step 2a. S6 stays on its current YAML.
 - Share [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md), then write the Phase 7 eval on `experiments/results/campaign_48/` once mentors say the data is enough.
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
@@ -125,16 +127,27 @@ If it doesn't recover within a few minutes, follow the troubleshooting table in 
 
 | # | Name | What changes | Duration | Config files |
 |---|---|---|---|---|
-| 1 | Normal Operation | Flat load, well within capacity. Locked mix **175 / 30 / 70 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run8) | 5 min | `scenario_1_{baseline,retryguard,baseline_no_topfull}.yaml` |
-| 2 | Sustained Overload (core) | Peak from t=0, **hold flat**. Locked mix **275 / 90 / 100 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run 89) | 10 min | `scenario_2_{baseline,retryguard,baseline_no_topfull,retryguard_no_topfull}.yaml` |
-| 3 | Targeted Bottleneck | `checkoutservice` at `cpu_limit_fraction: 0.1` (paper 1000m → **100m**) | 10 min | `scenario_3_{baseline,retryguard}.yaml` |
-| 4A/4B | Topology Position | productcatalog (A → **50m**) vs `emailservice` (B → **40m**, Checkout-mediated: Frontend → Checkout → Email) | 10 min | `scenario_4{a,b}_{baseline,retryguard}.yaml` |
+| 1 | Normal Operation | Flat load, well within capacity. Locked mix **175 / 30 / 70 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run8) | 5 min | `final_configs/1/` |
+| 2 | Sustained Overload (core) | Peak from t=0, **hold flat**. Locked mix **275 / 90 / 100 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run 89) | 10 min | `final_configs/2/` |
+| 3 | Targeted Bottleneck | Locked mix **175 / 30 / 70 / 90 / 5** (same as S1), `spawn_rate` 50. Paper-C1 with `checkoutservice` constrained to **200m** | 10 min | `final_configs/3/` |
+| 4A | Topology Position (gateway-adjacent) | Locked mix **10 / 10 / 10 / 600 / 5**, `spawn_rate` 50. Two configs: **unconstrained** (plain Paper-C1) and **constrained** (`productcatalogservice` → **50m**) | 10 min | `final_configs/4/4a_{unconstrained,constrained}/` |
+| 4B | Topology Position (Checkout-mediated: Frontend → Checkout → Email) | Locked mix **175 / 30 / 70 / 90 / 5** (same as S1), `spawn_rate` 50. Paper-C1 with `emailservice` constrained to **50m** | 10 min | `final_configs/4/4b/` |
 | 5 | Interval Tuning | Same load as S6; `interval_samples` = 10/20/30/60 | 15 min | `scenario_5_interval_{10,20,30,60}s.yaml` |
 | 6 | Forced Recovery | Peak 5 min, then ~25% load for 10 min | 15 min | `scenario_6_recovery_{baseline,retryguard}.yaml` |
 
+New holds for S1–S4 use [experiments/configs/final_configs/](experiments/configs/final_configs/README.md). Each scenario folder has five copies: `rg_only_burst`, `rg_only_normal`, `tf_only`, `both_burst`, `both_normal`. The files next to that folder (`scenario_1_baseline.yaml` and the rest) stay for history and are not moved. S5 and S6 are not in `final_configs/`.
+
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
-Note: since all Boutique services run at **1 replica**, Scenarios 3/4 constrain via `method: cpu_limit`. S3 and S4A use **`cpu_limit_fraction: 0.1`** (not absolute `"100m"`). S4B sets absolute `cpu_limit_millicores: 40` on `emailservice`. The runner reconciles K8s + Detector to paper quotas before/after each run — a leftover checkout `100m` from an older S3/S4 is healed and must not be treated as the S2 baseline. New S4A (**50m**) is not comparable to `campaign_48/` S4A (absolute 100m). Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
+Note: Scenarios 3/4 constrain via `method: cpu_limit` with absolute `cpu_limit_millicores` ([ADR 0006](docs/adr/0006-absolute-bottleneck-cap-not-fraction.md)); no `cpu_limit_fraction`. Each S3/S4 YAML carries the full Paper-C1 table with one row constrained (S3 checkout 200m, S4A-constrained catalog 50m, S4B email 50m; S4A-unconstrained none). S3, S4A, and S4B were locked on 2026-10-13; earlier S3/S4 holds (50m checkout, 40m email, other mixes) are not comparable. The two S4A variants share `scenario_name: topology_position_A` and are told apart by `log_folder` (`..._topology_position_A_constrained_run<N>` / `..._unconstrained_run<N>`). The runner reconciles K8s + Detector to paper quotas before/after each run — a leftover constrained value is healed and must not be treated as the S2 baseline. New S4A is not comparable to `campaign_48/` S4A (absolute 100m). Scenario 5's 8 August matrix runs (`august_38/`) have **no re-enable events** (they used a flat hold). Campaign S5 (`campaign_48/`, S6's load) **did** re-enable; compare against **S6 baseline**, not S2. August Scenario 2 run1–3 remain historical; campaign S2 run4–6 is the primary flat-hold dataset.
+
+### Locked CPU table (Paper-C1)
+
+Paper-C1 is the default CPU table for every hold. [ADR 0009](docs/adr/0009-paper-c1-default-cpu-table.md) is its only source of truth; do not copy the values elsewhere. Each scenario YAML carries the full table in `scale_constraints`. A scenario that constrains a service (S3, S4A, S4B) writes the constrained value in that service's row and leaves the rest at the table value. If a YAML disagrees with the ADR on an unconstrained row, fix the YAML. `PAPER_CPU_LIMIT_MILLICORES` in `experiments/topfull_cpu_quotas.py` mirrors the ADR, and a test fails if they differ. On the VMs, every hold resets all eleven Deployments to the table before and after the run, then aborts before Locust starts if live limits differ from table + constraints. There is no opt-out: the old `paper_cpu_reconcile` key is removed from the runner and ignored in old YAMLs.
+
+### Locked RetryGuard parameters
+
+Every run with RetryGuard on uses these values: `retry_metric` `edge_rpr`; `sample_interval_seconds` 1; `interval_samples` 20; `rejection_threshold` 0.2; `retries_threshold` 0.4; `climb_rpr_1_to_2` 0.16; `climb_rpr_2_to_3` 0.32; `climb_interval_seconds` 10; `reenable_rejection` 0.25; `burst_rpr` 2.0; `burst_window_seconds` 5; `burst_min_first_attempts` 20. Burst mode is the last three keys. RetryGuard normal mode omits exactly those three and keeps the other nine. Scenario 5 is the only exception (it sweeps `interval_samples`). Holds before 2026-10-12, `campaign_48/`, and `august_38/` used older values and are not comparable. Canonical table: [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md). Decision: [ADR 0008](docs/adr/0008-locked-retryguard-parameters.md).
 
 ---
 
@@ -169,11 +182,42 @@ ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp
    ssh topfull-master "sleep 2; ls /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs"
    ```
 
+New holds that are pulled into `final results/` use a file under `experiments/configs/final_configs/`. Example, S2 with both controllers on and RetryGuard in burst mode:
+
 ```powershell
-python experiments/run_scenario.py experiments/configs/scenario_1_baseline.yaml
+python experiments/run_scenario.py experiments/configs/final_configs/2/s2_both_burst.yaml
 ```
 
-The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, `resource_usage_collector.py`, and `topfull_throttle_collector.py` from this repo onto master before those processes start. It clears `src/logs` again at startup. That second clear is safe only when step 5 above showed an empty directory. Results go to `results_base_path/<log_folder>/` **on master**. The runner's printed `scp` command already routes to the correct `campaign_48/<scenario_subfolder>/` (e.g. `S2_sustained_overload/`) based on the scenario — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md).
+The older `experiments/configs/scenario_*.yaml` files are still valid runner inputs. They are kept for history and are not the configs for a new `final results/` hold.
+
+The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, `resource_usage_collector.py`, and `topfull_throttle_collector.py` from this repo onto master before those processes start. It clears `src/logs` again at startup. That second clear is safe only when step 5 above showed an empty directory. On master, results stay flat at `results_base_path/<log_folder>/`.
+
+**Pull every new hold into `final results/`.** The runner's printed `scp` and `python experiments/pull_results.py <config>` already point at the path below for every config, whatever its `log_folder`. `campaign_48/` is the closed Phase 7 dataset and is never a target. TopFull-only holds go in the `normal` mode folder:
+
+```
+experiments/results/final results/<scenario>_<normal|burst>/<variant>/<log_folder>/
+```
+
+| Scenario | `<scenario>` |
+|---|---|
+| 1 Normal Operation | `S1_normal_operation` |
+| 2 Sustained Overload | `S2_sustained_overload` |
+| 3 Targeted Bottleneck | `S3_targeted_bottleneck` |
+| 4A Topology Position | `S4A_topology_position` |
+| 4B Topology Position | `S4B_topology_position` |
+| 5 Interval Tuning | `S5_interval_tuning` |
+| 6 Forced Recovery | `S6_forced_recovery` |
+
+The last segment of `<scenario>_<normal|burst>` is the RetryGuard mode. Use `normal` when the YAML omits the three burst keys in §5. Use `burst` when the YAML sets them (`burst_rpr` **2.0**). The `log_folder` name keeps the bar. Older bar-1.5 holds share the `burst` folder. `<variant>` is the controller pair:
+
+| RetryGuard | TopFull | `<variant>` |
+|---|---|---|
+| on | off | `rg_only` |
+| off | on | `tf_only` |
+| on | on | `both` |
+| off | off | `both_off` |
+
+Create the scenario and variant directories when they are missing. The run directory name stays equal to `log_folder`. Example: `experiments/results/final results/S2_sustained_overload_burst/both/s2_burst20_rgtf1/`.
 
 **Before repeating a scenario:** open [STATUS.md](STATUS.md) "Next free slots", bump `run_number` and change `log_folder` in the YAML, or the new run will overwrite the folder **on master**. Never reuse August `run1–3` (S1–S4) or S5 `run1–2`.
 
@@ -212,7 +256,7 @@ Full config schema, `scale_constraints` methods, and troubleshooting: [PHASE5-EX
 - Does RetryGuard help at the **system level**, the **per-microservice level**, or both? (Mentors expect system-level gain may be small (~0.2%) while specific services improve a lot (~30%).) — **answerable** (goodput, P95, rejection).
 - **Topology beneficiaries** — which services gain most from suppressed retries? — **answerable** (per-endpoint CSVs).
 - **Chain propagation** — does relief at a bottleneck propagate upstream to callers? — **answerable**, coarse (only 5 Locust endpoints).
-- **Controller interaction** — how do TopFull's RL loop (1s) and RetryGuard (30s windows) interact/oscillate? — **partial** (`RPS` as proxy; `num_agent.csv` is empty). Recover→re-enable is the S6 load-drop (campaign complete), not flat S2.
+- **Controller interaction** — how do TopFull's RL loop (1s) and RetryGuard (locked 20 s window) interact/oscillate? — **partial** (`RPS` as proxy; `num_agent.csv` is empty). Recover→re-enable is the S6 load-drop (campaign complete), not flat S2.
 - **Topology position sensitivity** — does RetryGuard help more where TopFull's entry-level signal is weaker (Checkout-mediated `emailservice` vs direct ProductCatalog)? — **answerable** (S4A vs S4B).
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.

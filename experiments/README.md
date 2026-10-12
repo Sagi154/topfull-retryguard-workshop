@@ -67,6 +67,8 @@ The runner will:
 
 ## Config files
 
+New S1–S4 holds that land in `experiments/results/final results/` use `configs/final_configs/` (five variants per scenario: RetryGuard-only burst and normal, TopFull-only, both burst and normal). See [configs/final_configs/README.md](configs/final_configs/README.md). The table below is the older set; those files stay in place.
+
 | File | Scenario | Condition | Duration |
 |------|----------|-----------|----------|
 | `scenario_1_baseline.yaml` | Normal Operation | baseline | 5 min |
@@ -75,9 +77,11 @@ The runner will:
 | `scenario_2_retryguard.yaml` | Sustained Overload | RetryGuard on | 10 min |
 | `scenario_3_baseline.yaml` | Targeted Bottleneck (checkout) | baseline | 10 min |
 | `scenario_3_retryguard.yaml` | Targeted Bottleneck (checkout) | RetryGuard on | 10 min |
-| `scenario_4a_baseline.yaml` | Topology Position A (productcatalog) | baseline | 10 min |
-| `scenario_4a_retryguard.yaml` | Topology Position A (productcatalog) | RetryGuard on | 10 min |
-| `scenario_4b_baseline.yaml` | Topology Position B (`emailservice`, 40m, Checkout-mediated) | baseline | 10 min |
+| `scenario_4a_unconstrained_baseline.yaml` | Topology Position A, plain Paper-C1 (mix 10/10/10/600/5) | baseline | 10 min |
+| `scenario_4a_unconstrained_retryguard.yaml` | Topology Position A, plain Paper-C1 (mix 10/10/10/600/5) | RetryGuard on | 10 min |
+| `scenario_4a_constrained_baseline.yaml` | Topology Position A (productcatalog 50m, mix 10/10/10/600/5) | baseline | 10 min |
+| `scenario_4a_constrained_retryguard.yaml` | Topology Position A (productcatalog 50m, mix 10/10/10/600/5) | RetryGuard on | 10 min |
+| `scenario_4b_baseline.yaml` | Topology Position B (`emailservice`, 50m, Checkout-mediated) | baseline | 10 min |
 | `scenario_4b_retryguard.yaml` | Topology Position B (`emailservice`, 40m, Checkout-mediated) | RetryGuard on | 10 min |
 | `scenario_5_interval_10s.yaml` | Interval Tuning — 10s label (30s wait); **S6 load** | RetryGuard on | 15 min |
 | `scenario_5_interval_20s.yaml` | Interval Tuning — 20s label (60s wait); **S6 load** | RetryGuard on | 15 min |

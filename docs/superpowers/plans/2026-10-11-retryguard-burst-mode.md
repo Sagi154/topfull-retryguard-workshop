@@ -23,6 +23,7 @@
 - `run_scenario.py` copies only `retryguard.py` to master (`deploy_repo_script`), so all controller code stays inside that single file. No new runtime module.
 - Keep tests small. Do not over-test.
 - Live run plan is out of scope; it is chosen after implementation.
+- Start on a new branch `retryguard-burst-mode` cut from an updated `main` (Task 0). Every later task commits on that branch. Do not commit the plan on `main`.
 
 ## File Structure
 
@@ -36,6 +37,40 @@
 - Modify `CONTEXT.md`, create `docs/adr/0007-burst-mode-sliding-aggregate.md`, modify `Guides and Info/RETRYGUARD-IMPLEMENTATION.md`.
 
 Run all commands from the repo root `c:\Users\idoza\topfull-retryguard-workshop` in PowerShell.
+
+---
+
+### Task 0: Branch from updated main
+
+**Files:** none. This task only moves git state.
+
+- [ ] **Step 1: Fetch and update `main`**
+
+```powershell
+git fetch origin
+git checkout main
+git pull origin main
+```
+
+Expected: `main` is at the same commit as `origin/main`. If `git pull` reports local commits that are not on `origin/main`, stop and ask the user before branching. If the working tree has changes other than this plan file, stop and ask before switching branches.
+
+- [ ] **Step 2: Create the branch**
+
+```powershell
+git checkout -b retryguard-burst-mode
+git status -sb
+```
+
+Expected: `## retryguard-burst-mode`. The uncommitted plan file `docs/superpowers/plans/2026-10-11-retryguard-burst-mode.md` comes along with the working tree. Do not commit it on `main`.
+
+- [ ] **Step 3: Commit the plan on the new branch**
+
+```powershell
+git add docs/superpowers/plans/2026-10-11-retryguard-burst-mode.md
+git commit -m "docs: plan RetryGuard burst mode"
+```
+
+Every later task commits on this branch.
 
 ---
 
