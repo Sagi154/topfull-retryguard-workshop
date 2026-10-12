@@ -29,7 +29,8 @@ This is a workshop deliverable: a presentation (project plan) + eventually a wri
 Guides and Info/     ← all human-facing docs (see §3 — start here for "why")
   mentor-update/     ← mentor-facing dry-results doc + curated/gallery PNGs ([MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md))
 experiments/         ← the actual tooling: runner, scenario configs, RetryGuard + Envoy retry collectors
-  configs/           ← 16 scenario YAML files (S1–S4 baseline/RG, S5×4 intervals, S6 recovery baseline/RG)
+  configs/           ← scenario YAML files (S1–S4 baseline/RG, S5×4 intervals, S6 recovery baseline/RG). Older files stay here.
+    final_configs/   ← copies of locked S1–S4 only, five variants each. New holds use these. See [final_configs/README.md](experiments/configs/final_configs/README.md)
   run_scenario.py    ← orchestrator, runs on Windows, drives everything over SSH
   retryguard.py      ← RetryGuard controller (deployed to master)
   envoy_retry_collector.py ← Gap 3: scrapes Envoy sidecar outbound retry counters (deployed to master)
@@ -126,13 +127,15 @@ If it doesn't recover within a few minutes, follow the troubleshooting table in 
 
 | # | Name | What changes | Duration | Config files |
 |---|---|---|---|---|
-| 1 | Normal Operation | Flat load, well within capacity. Locked mix **175 / 30 / 70 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run8) | 5 min | `scenario_1_{baseline,retryguard,baseline_no_topfull}.yaml` |
-| 2 | Sustained Overload (core) | Peak from t=0, **hold flat**. Locked mix **275 / 90 / 100 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run 89) | 10 min | `scenario_2_{baseline,retryguard,baseline_no_topfull,retryguard_no_topfull}.yaml` |
-| 3 | Targeted Bottleneck | Locked mix **175 / 30 / 70 / 90 / 5** (same as S1), `spawn_rate` 50. Paper-C1 with `checkoutservice` constrained to **200m** | 10 min | `scenario_3_{baseline,retryguard}.yaml` |
-| 4A | Topology Position (gateway-adjacent) | Locked mix **10 / 10 / 10 / 600 / 5**, `spawn_rate` 50. Two configs: **unconstrained** (plain Paper-C1) and **constrained** (`productcatalogservice` → **50m**) | 10 min | `scenario_4a_{unconstrained,constrained}_{baseline,retryguard}.yaml` |
-| 4B | Topology Position (Checkout-mediated: Frontend → Checkout → Email) | Locked mix **175 / 30 / 70 / 90 / 5** (same as S1), `spawn_rate` 50. Paper-C1 with `emailservice` constrained to **50m** | 10 min | `scenario_4b_{baseline,retryguard}.yaml` |
+| 1 | Normal Operation | Flat load, well within capacity. Locked mix **175 / 30 / 70 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run8) | 5 min | `final_configs/1/` |
+| 2 | Sustained Overload (core) | Peak from t=0, **hold flat**. Locked mix **275 / 90 / 100 / 90 / 5**, `spawn_rate` 50, Paper-C1 (both-off run 89) | 10 min | `final_configs/2/` |
+| 3 | Targeted Bottleneck | Locked mix **175 / 30 / 70 / 90 / 5** (same as S1), `spawn_rate` 50. Paper-C1 with `checkoutservice` constrained to **200m** | 10 min | `final_configs/3/` |
+| 4A | Topology Position (gateway-adjacent) | Locked mix **10 / 10 / 10 / 600 / 5**, `spawn_rate` 50. Two configs: **unconstrained** (plain Paper-C1) and **constrained** (`productcatalogservice` → **50m**) | 10 min | `final_configs/4/4a_{unconstrained,constrained}/` |
+| 4B | Topology Position (Checkout-mediated: Frontend → Checkout → Email) | Locked mix **175 / 30 / 70 / 90 / 5** (same as S1), `spawn_rate` 50. Paper-C1 with `emailservice` constrained to **50m** | 10 min | `final_configs/4/4b/` |
 | 5 | Interval Tuning | Same load as S6; `interval_samples` = 10/20/30/60 | 15 min | `scenario_5_interval_{10,20,30,60}s.yaml` |
 | 6 | Forced Recovery | Peak 5 min, then ~25% load for 10 min | 15 min | `scenario_6_recovery_{baseline,retryguard}.yaml` |
+
+New holds for S1–S4 use [experiments/configs/final_configs/](experiments/configs/final_configs/README.md). Each scenario folder has five copies: `rg_only_burst`, `rg_only_normal`, `tf_only`, `both_burst`, `both_normal`. The files next to that folder (`scenario_1_baseline.yaml` and the rest) stay for history and are not moved. S5 and S6 are not in `final_configs/`.
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
@@ -179,9 +182,13 @@ ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp
    ssh topfull-master "sleep 2; ls /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs"
    ```
 
+New holds that are pulled into `final results/` use a file under `experiments/configs/final_configs/`. Example, S2 with both controllers on and RetryGuard in burst mode:
+
 ```powershell
-python experiments/run_scenario.py experiments/configs/scenario_1_baseline.yaml
+python experiments/run_scenario.py experiments/configs/final_configs/2/s2_both_burst.yaml
 ```
+
+The older `experiments/configs/scenario_*.yaml` files are still valid runner inputs. They are kept for history and are not the configs for a new `final results/` hold.
 
 The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, `resource_usage_collector.py`, and `topfull_throttle_collector.py` from this repo onto master before those processes start. It clears `src/logs` again at startup. That second clear is safe only when step 5 above showed an empty directory. On master, results stay flat at `results_base_path/<log_folder>/`.
 

@@ -1114,6 +1114,100 @@ class TestLockedS3S4Yamls(unittest.TestCase):
                     self.assertNotIn("cpu_limit_fraction", rows[svc], msg=name)
 
 
+class TestFinalConfigs(unittest.TestCase):
+    """Locked S1-S4 copies under configs/final_configs/. Five variants each.
+    S4 is three subfolders. S5 and S6 are not in this tree."""
+
+    S1_MIX = TestLockedS3S4Yamls.S1_MIX
+    S2_MIX = {"getproduct": 275, "postcheckout": 90, "getcart": 100,
+              "postcart": 90, "emptycart": 5}
+    A_MIX = TestLockedS3S4Yamls.A_MIX
+    # (folder under final_configs, filename prefix, mix, constrained millicores)
+    GROUPS = (
+        ("1", "s1", S1_MIX, {}),
+        ("2", "s2", S2_MIX, {}),
+        ("3", "s3", S1_MIX, {"checkoutservice": 200}),
+        ("4/4a_unconstrained", "4a_unconstrained", A_MIX, {}),
+        ("4/4a_constrained", "4a_constrained", A_MIX, {"productcatalogservice": 50}),
+        ("4/4b", "4b", S1_MIX, {"emailservice": 50}),
+    )
+    VARIANTS = (
+        "rg_only_burst",
+        "rg_only_normal",
+        "tf_only",
+        "both_burst",
+        "both_normal",
+    )
+
+    def _root(self):
+        return Path(__file__).resolve().parent / "configs" / "final_configs"
+
+    def _expected_paths(self):
+        root = self._root()
+        paths = []
+        for folder, prefix, _mix, _constrained in self.GROUPS:
+            for variant in self.VARIANTS:
+                paths.append(root / folder / f"{prefix}_{variant}.yaml")
+        return paths
+
+    def test_exactly_the_locked_variants(self):
+        root = self._root()
+        found = sorted(root.rglob("*.yaml"))
+        expected = sorted(self._expected_paths())
+        self.assertEqual(found, expected)
+        self.assertEqual(len(found), 30)
+        names = " ".join(p.name for p in found)
+        self.assertNotIn("scenario_5", names)
+        self.assertNotIn("scenario_6", names)
+
+    def test_mix_cpu_and_controllers(self):
+        import yaml
+        import topfull_cpu_quotas
+        locked = TestLockedRetryGuardParamsInYamls.LOCKED
+        burst = TestLockedRetryGuardParamsInYamls.BURST
+        folders = set()
+        for path in self._expected_paths():
+            cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+            folder, prefix, mix, constrained = next(
+                row for row in self.GROUPS if path.parent == self._root() / row[0]
+            )
+            variant = path.name[len(prefix) + 1:-len(".yaml")]
+            self.assertIn(variant, self.VARIANTS, msg=path.name)
+            self.assertEqual(cfg["locust"]["user_counts"], mix, msg=path.name)
+            self.assertEqual(cfg["locust"]["spawn_rate"], 50, msg=path.name)
+            rows = {c["deployment"]: c for c in cfg["scale_constraints"]}
+            expected = dict(topfull_cpu_quotas.PAPER_CPU_LIMIT_MILLICORES)
+            expected.pop("frontend", None)
+            expected.update(constrained)
+            self.assertEqual(set(rows), set(expected), msg=path.name)
+            for svc, millicores in expected.items():
+                self.assertEqual(rows[svc]["method"], "cpu_limit", msg=path.name)
+                self.assertEqual(
+                    rows[svc]["cpu_limit_millicores"], millicores,
+                    msg=f"{path.name} {svc}",
+                )
+                self.assertNotIn("cpu_limit_fraction", rows[svc], msg=path.name)
+            rg = cfg["retryguard"]
+            for key, value in locked.items():
+                self.assertEqual(rg.get(key), value, msg=f"{path.name} {key}")
+            if variant.endswith("normal"):
+                for key in burst:
+                    self.assertNotIn(key, rg, msg=path.name)
+            else:
+                for key, value in burst.items():
+                    self.assertEqual(rg.get(key), value, msg=f"{path.name} {key}")
+            rg_on = not variant.startswith("tf_only")
+            tf_on = not variant.startswith("rg_only")
+            self.assertEqual(rg["enabled"], rg_on, msg=path.name)
+            self.assertEqual(cfg["topfull_rl"]["enabled"], tf_on, msg=path.name)
+            self.assertEqual(cfg["run_number"], 1, msg=path.name)
+            self.assertEqual(
+                cfg["log_folder"], f"final_{prefix}_{variant}_run1", msg=path.name,
+            )
+            folders.add(cfg["log_folder"])
+        self.assertEqual(len(folders), 30)
+
+
 class TestEnsureDetectorQuotaOverlay(unittest.TestCase):
     def test_skips_when_marker_present(self):
         cfg = {

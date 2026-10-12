@@ -67,6 +67,8 @@ The runner will:
 
 ## Config files
 
+New S1–S4 holds that land in `experiments/results/final results/` use `configs/final_configs/` (five variants per scenario: RetryGuard-only burst and normal, TopFull-only, both burst and normal). See [configs/final_configs/README.md](configs/final_configs/README.md). The table below is the older set; those files stay in place.
+
 | File | Scenario | Condition | Duration |
 |------|----------|-----------|----------|
 | `scenario_1_baseline.yaml` | Normal Operation | baseline | 5 min |

@@ -46,7 +46,7 @@ Then refresh SSH hostnames in `~/.ssh/config` because IPs will have changed.
 
 ## 1. Pick the config file
 
-All 16 config files live in `experiments/configs/`. Each one is a single scenario × condition combination:
+New S1–S4 holds use `experiments/configs/final_configs/` (one folder per scenario, five variants: RetryGuard-only burst, RetryGuard-only normal, TopFull-only, both burst, both normal). Example: `python experiments/run_scenario.py experiments/configs/final_configs/2/s2_both_burst.yaml`. Layout: [experiments/configs/final_configs/README.md](../experiments/configs/final_configs/README.md). The table below is the older set. Those files stay in `experiments/configs/` and are not moved. S5 and S6 are only in that older set.
 
 | File | What it does | Duration |
 |---|---|---|
