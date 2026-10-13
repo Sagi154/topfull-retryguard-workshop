@@ -77,10 +77,10 @@ New S1–S4 holds that land in `experiments/results/final results/` use `configs
 | `scenario_2_retryguard.yaml` | Sustained Overload | RetryGuard on | 10 min |
 | `scenario_3_baseline.yaml` | Targeted Bottleneck (checkout) | baseline | 10 min |
 | `scenario_3_retryguard.yaml` | Targeted Bottleneck (checkout) | RetryGuard on | 10 min |
-| `scenario_4a_unconstrained_baseline.yaml` | Topology Position A, plain Paper-C1 (mix 10/10/10/600/5) | baseline | 10 min |
-| `scenario_4a_unconstrained_retryguard.yaml` | Topology Position A, plain Paper-C1 (mix 10/10/10/600/5) | RetryGuard on | 10 min |
-| `scenario_4a_constrained_baseline.yaml` | Topology Position A (productcatalog 50m, mix 10/10/10/600/5) | baseline | 10 min |
-| `scenario_4a_constrained_retryguard.yaml` | Topology Position A (productcatalog 50m, mix 10/10/10/600/5) | RetryGuard on | 10 min |
+| `scenario_4a_unconstrained_baseline.yaml` | Topology Position A, plain Paper-C1 (mix 50/20/50/600/5) | baseline | 10 min |
+| `scenario_4a_unconstrained_retryguard.yaml` | Topology Position A, plain Paper-C1 (mix 50/20/50/600/5) | RetryGuard on | 10 min |
+| `scenario_4a_constrained_baseline.yaml` | Topology Position A (productcatalog 100m, mix 50/20/50/600/5) | baseline | 10 min |
+| `scenario_4a_constrained_retryguard.yaml` | Topology Position A (productcatalog 100m, mix 50/20/50/600/5) | RetryGuard on | 10 min |
 | `scenario_4b_baseline.yaml` | Topology Position B (`emailservice`, 50m, Checkout-mediated) | baseline | 10 min |
 | `scenario_4b_retryguard.yaml` | Topology Position B (`emailservice`, 40m, Checkout-mediated) | RetryGuard on | 10 min |
 | `scenario_5_interval_10s.yaml` | Interval Tuning — 10s label (30s wait); **S6 load** | RetryGuard on | 15 min |

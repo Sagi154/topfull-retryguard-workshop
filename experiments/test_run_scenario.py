@@ -1086,13 +1086,13 @@ class TestLockedS3S4Yamls(unittest.TestCase):
 
     S1_MIX = {"getproduct": 175, "postcheckout": 30, "getcart": 70,
               "postcart": 90, "emptycart": 5}
-    A_MIX = {"getproduct": 10, "postcheckout": 10, "getcart": 10,
+    A_MIX = {"getproduct": 50, "postcheckout": 20, "getcart": 50,
              "postcart": 600, "emptycart": 5}
     # stem -> (user_counts, {service: constrained millicores})
     LOCKED = {
         "scenario_3": (S1_MIX, {"checkoutservice": 200}),
         "scenario_4b": (S1_MIX, {"emailservice": 50}),
-        "scenario_4a_constrained": (A_MIX, {"productcatalogservice": 50}),
+        "scenario_4a_constrained": (A_MIX, {"productcatalogservice": 100}),
         "scenario_4a_unconstrained": (A_MIX, {}),
     }
 
@@ -1134,7 +1134,7 @@ class TestFinalConfigs(unittest.TestCase):
         ("2", "s2", S2_MIX, {}),
         ("3", "s3", S1_MIX, {"checkoutservice": 200}),
         ("4/4a_unconstrained", "4a_unconstrained", A_MIX, {}),
-        ("4/4a_constrained", "4a_constrained", A_MIX, {"productcatalogservice": 50}),
+        ("4/4a_constrained", "4a_constrained", A_MIX, {"productcatalogservice": 100}),
         ("4/4b", "4b", S1_MIX, {"emailservice": 50}),
     )
     VARIANTS = (
@@ -1206,9 +1206,12 @@ class TestFinalConfigs(unittest.TestCase):
             tf_on = not variant.startswith("rg_only")
             self.assertEqual(rg["enabled"], rg_on, msg=path.name)
             self.assertEqual(cfg["topfull_rl"]["enabled"], tf_on, msg=path.name)
-            self.assertEqual(cfg["run_number"], 1, msg=path.name)
+            self.assertIsInstance(cfg["run_number"], int, msg=path.name)
+            self.assertGreaterEqual(cfg["run_number"], 1, msg=path.name)
             self.assertEqual(
-                cfg["log_folder"], f"final_{prefix}_{variant}_run1", msg=path.name,
+                cfg["log_folder"],
+                f"final_{prefix}_{variant}_run{cfg['run_number']}",
+                msg=path.name,
             )
             folders.add(cfg["log_folder"])
         self.assertEqual(len(folders), 30)

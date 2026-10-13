@@ -56,10 +56,10 @@ New S1–S4 holds use `experiments/configs/final_configs/` (one folder per scena
 | `scenario_2_retryguard.yaml` | Flat sustained overload + RetryGuard | 10 min |
 | `scenario_3_baseline.yaml` | Checkout CPU-capped, no RetryGuard | 10 min |
 | `scenario_3_retryguard.yaml` | Checkout CPU-capped + RetryGuard | 10 min |
-| `scenario_4a_unconstrained_baseline.yaml` | Plain Paper-C1, no RetryGuard | 10 min |
-| `scenario_4a_unconstrained_retryguard.yaml` | Plain Paper-C1 + RetryGuard | 10 min |
-| `scenario_4a_constrained_baseline.yaml` | ProductCatalog CPU-capped at 50m, no RetryGuard | 10 min |
-| `scenario_4a_constrained_retryguard.yaml` | ProductCatalog CPU-capped at 50m + RetryGuard | 10 min |
+| `scenario_4a_unconstrained_baseline.yaml` | Plain Paper-C1, mix 50/20/50/600/5, no RetryGuard | 10 min |
+| `scenario_4a_unconstrained_retryguard.yaml` | Plain Paper-C1, mix 50/20/50/600/5 + RetryGuard | 10 min |
+| `scenario_4a_constrained_baseline.yaml` | ProductCatalog CPU-capped at 100m, mix 50/20/50/600/5, no RetryGuard | 10 min |
+| `scenario_4a_constrained_retryguard.yaml` | ProductCatalog CPU-capped at 100m, mix 50/20/50/600/5 + RetryGuard | 10 min |
 | `scenario_4b_baseline.yaml` | Email CPU-capped at 50m, no RetryGuard | 10 min |
 | `scenario_4b_retryguard.yaml` | Email CPU-capped at 40m + RetryGuard | 10 min |
 | `scenario_5_interval_10s.yaml` | S6 load + RetryGuard, re-enable=30s | 15 min |

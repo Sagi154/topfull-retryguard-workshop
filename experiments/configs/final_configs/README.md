@@ -13,8 +13,8 @@ Regenerate with `python experiments/make_final_configs.py`. That script only wri
 | `1/` | S1 Normal Operation. Mix 175 / 30 / 70 / 90 / 5. Paper-C1. |
 | `2/` | S2 Sustained Overload. Mix 275 / 90 / 100 / 90 / 5. Paper-C1. |
 | `3/` | S3 Targeted Bottleneck. S1 mix. `checkoutservice` 200m. |
-| `4/4a_unconstrained/` | S4A. Mix 10 / 10 / 10 / 600 / 5. Plain Paper-C1. |
-| `4/4a_constrained/` | S4A. Same mix. `productcatalogservice` 50m. |
+| `4/4a_unconstrained/` | S4A. Mix 50 / 20 / 50 / 600 / 5. Plain Paper-C1. |
+| `4/4a_constrained/` | S4A. Same mix. `productcatalogservice` 100m. |
 | `4/4b/` | S4B. S1 mix. `emailservice` 50m. |
 
 Each folder has five files. The name is `<prefix>_<variant>.yaml` (`s1_`, `s2_`, `s3_`, `4a_unconstrained_`, `4a_constrained_`, `4b_`).
@@ -29,7 +29,7 @@ Each folder has five files. The name is `<prefix>_<variant>.yaml` (`s1_`, `s2_`,
 
 Burst mode is `burst_rpr` 2.0, `burst_window_seconds` 5, and `burst_min_first_attempts` 20. Normal mode omits those three keys. `tf_only` keeps them because it is a copy of the baseline YAML, but RetryGuard is off, so they are unused. Its mode folder is `normal`, as in the existing `tf_only` holds.
 
-Every file is `run_number: 1` and `log_folder: final_<prefix>_<variant>_run1`. Bump both on that file before a repeat. These slots are separate from the historical `scenario_*.yaml` counters.
+S3 and 4A constrained are at `run_number: 3` (`log_folder` `..._run3`). The other folders are `run_number: 1` and `log_folder: final_<prefix>_<variant>_run1`. Bump both on that file before a repeat. These slots are separate from the historical `scenario_*.yaml` counters.
 
 ## Where results go
 

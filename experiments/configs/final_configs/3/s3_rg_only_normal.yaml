@@ -16,7 +16,7 @@
 scenario_id: 3
 scenario_name: targeted_bottleneck
 condition: retryguard
-run_number: 1
+run_number: 3
 description: >
   checkoutservice constrained to 200m (Paper-C1 elsewhere). Locked S1 mix 175/30/70/90/5, spawn_rate 50. RetryGuard ON, TopFull OFF.
 
@@ -127,7 +127,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: final_s3_rg_only_normal_run1
+log_folder: final_s3_rg_only_normal_run3
 
 infra:
   master_ssh_host: topfull-master

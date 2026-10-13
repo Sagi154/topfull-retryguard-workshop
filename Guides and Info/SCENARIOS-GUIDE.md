@@ -75,7 +75,7 @@ Run each scenario **≥3 times per condition** (≥2 for Scenario 5 intervals). 
 | 1 — Normal Op | `scenario_1_baseline.yaml` | `scenario_1_retryguard.yaml` | baseline→run3, RG→run2 (smoke used earlier runs) |
 | 2 — Sustained Overload | `scenario_2_baseline.yaml` | `scenario_2_retryguard.yaml` | both→run1 |
 | 3 — Targeted Bottleneck | `scenario_3_baseline.yaml` | `scenario_3_retryguard.yaml` | both→run2 (smoke used run1) |
-| 4A — Topology (ProductCatalog), constrained 50m | `scenario_4a_constrained_baseline.yaml` | `scenario_4a_constrained_retryguard.yaml` | both→run1 |
+| 4A — Topology (ProductCatalog), constrained 100m | `scenario_4a_constrained_baseline.yaml` | `scenario_4a_constrained_retryguard.yaml` | both→run1 |
 | 4A — Topology, unconstrained reference | `scenario_4a_unconstrained_baseline.yaml` | `scenario_4a_unconstrained_retryguard.yaml` | both→run1 |
 | 4B — Topology (Email) | `scenario_4b_baseline.yaml` | `scenario_4b_retryguard.yaml` | both→run1 |
 | 5 — Interval tuning | — (use S6 baseline) | `scenario_5_interval_{10,20,30,60}s.yaml` | all→run3 |
@@ -289,7 +289,7 @@ Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used payments
 
 ### Load setup
 
-Same as Scenario 3 — normal-to-moderate Locust load, full call chain exercised. **4A** productcatalog → **50m** (paper 500m; not comparable to `campaign_48/`’s absolute 100m). **4B** sets absolute `cpu_limit_millicores: 40` on `emailservice` (Checkout-mediated: Frontend → Checkout → Email).
+Same as Scenario 3 — normal-to-moderate Locust load, full call chain exercised. **4A constrained** productcatalog → **100m** (Paper-C1 elsewhere), mix **50 / 20 / 50 / 600 / 5**. **4A unconstrained** is that mix on plain Paper-C1. **4B** sets absolute `cpu_limit_millicores: 40` on `emailservice` (Checkout-mediated: Frontend → Checkout → Email).
 
 Changed from paymentservice on 2026-10-09; `campaign_48/` S4B runs used paymentservice and are not comparable.
 
