@@ -99,5 +99,41 @@ class TestLineSpecs(unittest.TestCase):
         self.assertIs(every["inbound.cartservice.rejection"][3], True)
 
 
+import tempfile  # noqa: E402
+
+from test_hold_clock import E, iso, make_run  # noqa: E402
+
+
+def render(run: Path) -> str:
+    out = run / "explore.html"
+    explore_run.write_html(explore_run.build_figure(run), out)
+    return out.read_text(encoding="utf-8")
+
+
+class TestBuild(unittest.TestCase):
+    def test_html_has_codes_markers_and_retryguard_off_note(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = make_run(Path(tmp))
+            off = render(run)
+            self.assertIn("RetryGuard off in this run", off)
+            self.assertNotIn("E3 burst", off)
+            (run / "retryguard.log").write_text("\n".join([
+                f"{iso(E + 30)}  OBSERVE  frontend->checkoutservice  rpr=0.5000  attempts=3  "
+                "state=ON  metric=rpr",
+                f"{iso(E + 31)}  frontend->checkoutservice  ON→OFF   rpr=2.10  consecutive_high=2  "
+                "attempts=0  from_attempts=3  metric=rpr_burst  elapsed_s=4",
+                f"{iso(E + 32)}  OBSERVE  frontend->checkoutservice  rpr=0.0000  attempts=0  "
+                "state=OFF  metric=rpr",
+                f"{iso(E + 60)}  checkoutservice  OFF→ON   rejection=0.03  consecutive_low=11  "
+                "attempts=1  from_attempts=0  metric=rejection  elapsed_s=20",
+            ]), encoding="utf-8")
+            on = render(run)
+            self.assertNotIn("RetryGuard off in this run", on)
+            self.assertIn("E3 burst", on)
+            self.assertIn("V3", on)
+            self.assertIn("E14", on)
+            self.assertIn("V9", on)
+
+
 if __name__ == "__main__":
     unittest.main()
