@@ -206,6 +206,157 @@ class TestBuild(unittest.TestCase):
                 expected = "above" if shape.xref == strip_x else "below"
                 self.assertEqual(shape.layer, expected, shape.xref)
 
+    def test_code_key_follows_a_chart_that_can_grow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = make_run(Path(tmp))
+            out = Path(tmp) / "explore.html"
+            graphs_tool.write_html(graphs_tool.build_figure(run), out, run)
+            page = out.read_text(encoding="utf-8")
+        chart = page.index('id="compare-graph"')
+        key = page.index("Service codes, OFF→ON")
+        self.assertLess(chart, key)
+        wrapper = page[page.index("<body>") + len("<body>"):chart]
+        self.assertNotIn("height:", wrapper)
+        self.assertIn(
+            'id="compare-graph" class="plotly-graph-div" style="height:',
+            page,
+        )
+        self.assertGreater(page.find("function fitBox()"), 0)
+
+
+try:
+    from playwright.sync_api import sync_playwright
+except ImportError:  # pragma: no cover
+    sync_playwright = None
+
+
+class TestLegendClicks(unittest.TestCase):
+    """Clicks the legend the way the page does. A string check cannot see that
+    Plotly dropped the class the handler used to look for."""
+
+    def test_section_title_toggles_the_group_and_an_axis_title_does_not(self):
+        if sync_playwright is None:
+            self.skipTest("playwright is not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            run = make_run(Path(tmp))
+            out = Path(tmp) / "explore.html"
+            graphs_tool.write_html(graphs_tool.build_figure(run), out, run)
+            self._click(out)
+
+    def _click(self, out: Path) -> None:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            page = browser.new_page(viewport={"width": 1280, "height": 900})
+            page.goto(out.as_uri())
+            page.wait_for_selector("#compare-graph .legend .traces")
+            page.wait_for_selector("#graph .legend .traces")
+            page.wait_for_function(
+                """() => {
+                  const graph = document.getElementById('compare-graph');
+                  const svg = graph.querySelector('.main-svg');
+                  return svg && Math.abs(graph.offsetHeight - svg.getBoundingClientRect().height) < 2;
+                }"""
+            )
+            self._expect_toggle(page, "compare-graph", "locust", start_on=False)
+            self._expect_toggle(page, "graph", "locust", start_on=True)
+            self._item_toggles_only_itself(page)
+            self._axis_title_leaves_the_group(page)
+            browser.close()
+
+    def _expect_toggle(self, page, graph_id: str, group: str, start_on: bool) -> None:
+        names = self._names(page, graph_id, group)
+        self.assertTrue(names)
+        shown = start_on
+        self.assertEqual(self._state(page, graph_id, group), self._flags(names, shown))
+        self._click_legend(page, graph_id, "Goodput / RPS (req/s)", title=True)
+        shown = not shown
+        self._wait_state(page, graph_id, group, self._flags(names, shown), "section title")
+        self._click_legend(page, graph_id, "Goodput / RPS (req/s)", title=True)
+        shown = not shown
+        self._wait_state(page, graph_id, group, self._flags(names, shown), "section title again")
+
+    def _item_toggles_only_itself(self, page) -> None:
+        names = self._names(page, "compare-graph", "locust")
+        self._click_legend(page, "compare-graph", "Goodput", title=False)
+        expected = ["Goodput=on" if name == "Goodput" else f"{name}=off" for name in names]
+        self._wait_state(page, "compare-graph", "locust", expected, "Goodput item")
+
+    def _axis_title_leaves_the_group(self, page) -> None:
+        # The axis title uses the same word as the Rejection section. Plotly
+        # draws it with pointer-events:none, so a pointer click does not land
+        # on it; deliver the event to the title itself, which is the case the
+        # handler used to get wrong.
+        before = self._state(page, "graph", "rejection")
+        delivered = page.evaluate(
+            """() => {
+              const graph = document.getElementById('graph');
+              const node = [...graph.querySelectorAll('text')].find(item =>
+                item.textContent === 'Rejection' && !item.closest('.legend'));
+              if (!node) return false;
+              node.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
+              return true;
+            }"""
+        )
+        self.assertTrue(delivered)
+        page.wait_for_timeout(300)
+        self.assertEqual(self._state(page, "graph", "rejection"), before)
+
+    def _click_legend(self, page, graph_id: str, label: str, title: bool) -> None:
+        point = page.evaluate(
+            """(args) => {
+              const graph = document.getElementById(args.id);
+              const row = [...graph.querySelectorAll('.legend .traces')].find(item => {
+                const text = item.querySelector('text');
+                if (!text || text.textContent !== args.label) return false;
+                const isTitle = !item.querySelector('.legendtoggle');
+                return args.title ? isTitle : !isTitle;
+              });
+              if (!row) return null;
+              const text = row.querySelector('text');
+              text.scrollIntoView({block: 'center', inline: 'center'});
+              const box = text.getBoundingClientRect();
+              return {x: box.x + box.width / 2, y: box.y + box.height / 2};
+            }""",
+            {"id": graph_id, "label": label, "title": title},
+        )
+        self.assertIsNotNone(point, f"missing legend text {label} on {graph_id}")
+        page.mouse.click(point["x"], point["y"])
+
+    def _names(self, page, graph_id: str, group: str) -> list[str]:
+        return page.evaluate(
+            """(args) => document.getElementById(args.id).data
+              .filter(trace => trace.legendgroup === args.group)
+              .map(trace => trace.name)""",
+            {"id": graph_id, "group": group},
+        )
+
+    def _state(self, page, graph_id: str, group: str) -> list[str]:
+        return page.evaluate(
+            """(args) => document.getElementById(args.id).data
+              .filter(trace => trace.legendgroup === args.group)
+              .map(trace => trace.name + '=' + (trace.visible === 'legendonly' ? 'off' : 'on'))""",
+            {"id": graph_id, "group": group},
+        )
+
+    def _flags(self, names: list[str], shown: bool) -> list[str]:
+        mark = "on" if shown else "off"
+        return [f"{name}={mark}" for name in names]
+
+    def _wait_state(self, page, graph_id: str, group: str, expected: list[str], what: str) -> None:
+        try:
+            page.wait_for_function(
+                """(args) => {
+                  const got = document.getElementById(args.id).data
+                    .filter(trace => trace.legendgroup === args.group)
+                    .map(trace => trace.name + '=' + (trace.visible === 'legendonly' ? 'off' : 'on'));
+                  return JSON.stringify(got) === JSON.stringify(args.expected);
+                }""",
+                arg={"id": graph_id, "group": group, "expected": expected},
+                timeout=3000,
+            )
+        except Exception:
+            self.fail(f"after {what}: {self._state(page, graph_id, group)} != {expected}")
+
 
 if __name__ == "__main__":
     unittest.main()

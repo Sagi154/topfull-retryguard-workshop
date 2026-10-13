@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -435,7 +436,12 @@ LEGEND_CLICK_JS = """
   // Plotly greys a group title once every trace in it is hidden, and no legend
   // option stops that. Repaint the titles after each redraw.
   function keepTitles() {
-    graph.querySelectorAll(".legendtitletext").forEach(function (node) {
+    // A section title is a legend row with no toggle rect. Plotly 7 gives it the
+    // same legendtext class as an item, and greys it once the group is hidden.
+    graph.querySelectorAll(".legend .traces").forEach(function (row) {
+      if (row.querySelector(".legendtoggle")) return;
+      var node = row.querySelector("text");
+      if (!node) return;
       node.style.fill = "black";
       node.style.fillOpacity = "1";
     });
@@ -462,9 +468,11 @@ LEGEND_CLICK_JS = """
   graph.addEventListener("mousedown", function (event) {
     var node = event.target;
     var text = node.closest ? node.closest("text") : null;
-    // Axis titles use the same words as the legend groups. Only a legend title
-    // should toggle the group.
-    if (!text || !text.classList.contains("legendtitletext")) return;
+    // A section title is the legend row that has no toggle rect. An item row has
+    // one. An axis title sits outside the legend and can use the same words.
+    if (!text || !text.closest(".legend")) return;
+    var row = text.parentNode;
+    if (!row || row.querySelector(".legendtoggle")) return;
     var group = titleOf[text.textContent];
     if (!group) return;
     event.stopPropagation();
@@ -574,7 +582,11 @@ COMPARE_LEGEND_JS = """
   });
   graph.addEventListener('mousedown', function (event) {
     var text = event.target.closest ? event.target.closest('text') : null;
-    if (!text || !text.classList.contains('legendtitletext')) return;
+    // A section title is the legend row that has no toggle rect. An item row has
+    // one. An axis title sits outside the legend and can use the same words.
+    if (!text || !text.closest('.legend')) return;
+    var row = text.parentNode;
+    if (!row || row.querySelector('.legendtoggle')) return;
     var group = titleOf[text.textContent];
     if (!group) return;
     event.stopPropagation();
@@ -584,7 +596,12 @@ COMPARE_LEGEND_JS = """
     Plotly.restyle(graph, {visible: allHidden ? true : 'legendonly'}, indices).then(sync);
   }, true);
   function keepTitles() {
-    graph.querySelectorAll('.legendtitletext').forEach(function (node) {
+    // A section title is a legend row with no toggle rect. Plotly 7 gives it the
+    // same legendtext class as an item, and greys it once the group is hidden.
+    graph.querySelectorAll('.legend .traces').forEach(function (row) {
+      if (row.querySelector('.legendtoggle')) return;
+      var node = row.querySelector('text');
+      if (!node) return;
       node.style.fill = 'black';
       node.style.fillOpacity = '1';
     });
@@ -620,10 +637,23 @@ COMPARE_LEGEND_JS = """
       Plotly.relayout(graph, {'margin.t': graph.layout.margin.t + extra, height: graph.layout.height + extra});
     }
   }
-  graph.on('plotly_afterplot', function () { keepTitles(); liftLegend(); fitLegend(); });
+  // Plotly draws the svg at layout.height and leaves the div at its first
+  // pixel height. The extra hangs over the code key and cuts off the first rows.
+  function fitBox() {
+    var svg = graph.querySelector('.main-svg');
+    var box = graph.parentElement;
+    if (!svg || !box) return;
+    var drawn = Math.ceil(svg.getBoundingClientRect().height);
+    if (drawn > graph.offsetHeight + 1) {
+      box.style.height = drawn + 'px';
+      graph.style.height = drawn + 'px';
+    }
+  }
+  graph.on('plotly_afterplot', function () { keepTitles(); liftLegend(); fitLegend(); fitBox(); });
   new MutationObserver(keepTitles).observe(graph, {subtree: true, attributes: true, attributeFilter: ['style']});
   fitLegend();
-  setTimeout(fitLegend, 0);
+  fitBox();
+  setTimeout(function () { fitLegend(); fitBox(); }, 0);
 
   // Hovering the line, or the name on it, shows that action. The stroke is a few
   // pixels wide, so proximity — not only the text glyph — opens the same text.
@@ -705,15 +735,40 @@ def legend_html() -> str:
     ).replace("<td>", f'<td style="{cell}">')
 
 
+def detach_compare_height(block: str) -> str:
+    """Move the comparison chart's pixel height onto the plot itself.
+
+    Plotly wraps the plot in a fixed-height box. The page then lengthens the
+    plot so its legend clears the event names, and those extra pixels paint
+    over the code key that follows the box.
+    """
+    pattern = re.compile(
+        r'<div style="height:(\d+)px; width:100%;">'
+        r'(\s*)<div id="compare-graph" class="plotly-graph-div" style="height:100%; width:100%;">'
+    )
+    match = pattern.search(block)
+    if match is None:
+        raise RuntimeError("comparison chart wrapper was not the expected fixed-height box")
+    height, space = match.group(1), match.group(2)
+    return pattern.sub(
+        f'<div style="width:100%;">{space}'
+        f'<div id="compare-graph" class="plotly-graph-div" style="height:{height}px; width:100%;">',
+        block,
+        count=1,
+    )
+
+
 def write_html(fig: go.Figure, path: Path, run_dir: Path | None = None) -> None:
     page = pio.to_html(fig, full_html=True, include_plotlyjs=True, div_id="graph")
     key = legend_html()
     if run_dir is not None:
         compare = compare_figure(run_dir)
-        block = pio.to_html(compare, full_html=False, include_plotlyjs=False, div_id="compare-graph")
+        block = detach_compare_height(
+            pio.to_html(compare, full_html=False, include_plotlyjs=False, div_id="compare-graph")
+        )
         div, _, script = block.partition("<script>")
-        # Plotly wraps the chart in a sized div and closes it after the script. The key
-        # has to follow that close, or it is clipped inside the chart.
+        # Plotly closes the chart wrapper after the script. The key has to follow
+        # that close, or it sits inside the chart.
         script, wrapper, _ = script.rpartition("</div>")
         page = page.replace("<body>", "<body>" + div + wrapper + key)
         page = page.replace(
