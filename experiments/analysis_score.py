@@ -907,12 +907,18 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
             lines.append("")
             lines.append(_table("(a2) Burst window", "Edge", labels, burst_rows, sep))
 
-    def rejection_rows(key_streak: str, key_count: str, bold_at: int | None) -> list[tuple[str, list[str]]]:
+    def rejection_rows(
+        key_streak: str,
+        key_count: str,
+        bold_at: int | None,
+        source: str = "rejection",
+        services: tuple[str, ...] = SERVICES,
+    ) -> list[tuple[str, list[str]]]:
         rows = []
-        for service in SERVICES:
+        for service in services:
             cells = []
             for item in scored:
-                stats = item["rejection"].get(service)
+                stats = item[source].get(service)
                 if not stats:
                     cells.append("—")
                     continue
@@ -934,6 +940,16 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
         "(a) context: rejection streak under the re-enable bar / count",
         "Service", labels, rejection_rows("low_streak", "low_count", None), sep,
     ))
+    lines.append(_table(
+        "(a) context: HTTP-only rejection (5xx + resets) streak above 0.20 / count, four read callees",
+        "Service", labels,
+        rejection_rows("high_streak", "high_count", None, "rejection_http", GRPC_CALLEES), sep,
+    ))
+    lines.append(_table(
+        "(a) context: HTTP-only rejection (5xx + resets) streak under the re-enable bar / count, four read callees",
+        "Service", labels,
+        rejection_rows("low_streak", "low_count", None, "rejection_http", GRPC_CALLEES), sep,
+    ))
     grpc_rows = []
     for service in GRPC_CALLEES:
         cells = []
@@ -941,7 +957,7 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
             pair = item["grpc"].get(service, {})
             cells.append(f"{pair.get('grpc_4', 0):,} / {pair.get('grpc_14', 0):,}")
         grpc_rows.append((service, cells))
-    lines.append("gRPC counted in the rejection rate and in the retry policy. Cell is grpc_4 / grpc_14.")
+    lines.append("gRPC counted in the rejection rate on the four read callees (main rejection tables above) and in the retry policy. Cell is grpc_4 / grpc_14.")
     lines.append("")
     lines.append(_table("grpc_4 / grpc_14", "Service", labels, grpc_rows, sep))
 

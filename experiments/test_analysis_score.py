@@ -280,6 +280,22 @@ class TestScoreAndRender(unittest.TestCase):
             self.assertIn("frontend → checkoutservice", text)
             self.assertIn("no cap", text)
 
+    def test_http_only_table_lists_only_read_callees(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "run1"
+            fields = ["timestamp", "service", "total", "5xx", "resets", "grpc_4", "grpc_14"]
+            rows = []
+            for service in ("productcatalogservice", "checkoutservice"):
+                rows.append(["2026-10-13T00:00:00Z", service, 0, 0, 0, 0, 0])
+                rows.append(["2026-10-13T00:00:01Z", service, 100, 0, 0, 30, 10])
+            _write(folder / "service_inbound.csv", fields, rows)
+            text = score.render([score.score_run(folder)], ["1"])
+        marker = "HTTP-only rejection (5xx + resets) streak above 0.20 / count, four read callees"
+        self.assertIn(marker, text)
+        section = text.split(marker, 1)[1].split("\n\n", 2)[1]
+        self.assertIn("productcatalogservice", section)
+        self.assertNotIn("checkoutservice", section)
+
 
 if __name__ == "__main__":
     unittest.main()
