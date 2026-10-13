@@ -158,3 +158,17 @@ _Avoid_: elapsed seconds, t (when it means a file's own first poll), row index
 **Locust clock fit**:
 The per-run estimate of when each Locust row was written, for runs whose Locust CSVs have no timestamp column. Locust rows are about 1.05–1.10 s apart, not 1 s, so the fit is a start time plus a row spacing, not an offset alone.
 _Avoid_: offset, lag
+
+### Reading a run interactively
+
+**Edge code**:
+`E1`–`E14`: a fixed label for each of RetryGuard's 14 edges, numbered in `CONTROLLED_EDGES` order and identical on every run. Used on interactive-chart markers, with the full edge name on hover.
+_Avoid_: edge number (it is not a count), edge id
+
+**Service code**:
+`V1`–`V9`: a fixed label for each callee service that RetryGuard can re-enable (an `OFF→ON` is logged against a service, not an edge). `V` not `S`, because `S1`–`S6` already mean scenarios.
+_Avoid_: S-codes, service number
+
+**RetryGuard state strip**:
+A chart panel with one row per edge, coloured by that edge's attempts level (0–3), read from the per-tick `OBSERVE` lines. It is where attempts climbs (`1→2`, `2→3`) show; they are deliberately not vertical lines.
+_Avoid_: toggle panel, state line
