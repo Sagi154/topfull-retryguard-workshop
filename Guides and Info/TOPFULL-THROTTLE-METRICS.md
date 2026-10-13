@@ -2,9 +2,9 @@
 
 TopFull + RetryGuard Workshop — TAU Deepness Lab
 
-> How TopFull **decides** (paper + our stack), what **decision** it actually writes, the live **throttle signals** on `topfull-master`, what we already collect (and do not), and how to scrape a time series for future runs. **Wanted next:** layers A–D in [What it did vs why it throttled](#what-it-did-vs-why-it-throttled-wanted-for-future-runs) (cap/admitted, detector, cluster/candidates, RL state+action — each with a prefer-log vs fallback). Algorithm source: [TopFull.pdf](../context/TopFull.pdf) (KAIST, SIGCOMM ’24). Layer 1 Locust CSVs and the rest of the metric stack: [METRICS-GATHERED.md](METRICS-GATHERED.md). RetryGuard (a separate controller) is [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md). Why `num_agent.csv` is empty: [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md). Hardcoded CPU quotas TopFull believes (not K8s limits): [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md).
+> How TopFull **decides** (paper + our stack), what **decision** it actually writes, the live **throttle signals** on `topfull-master`, what we already collect (and do not), and how the collector writes a time series. Layers A and B ship in every `final results/` hold (`topfull_throttle.csv`, `topfull_detect.csv`). Layers C and D are still not collected. Algorithm source: [TopFull.pdf](../context/TopFull.pdf) (KAIST, SIGCOMM ’24). Layer 1 Locust CSVs and the rest of the metric stack: [METRICS-GATHERED.md](METRICS-GATHERED.md). RetryGuard (a separate controller) is [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md). Why `num_agent.csv` is empty: [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md). CPU quotas the detector is reconciled to: [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md). Derived readings (overloaded share, max utilization, live caps): [METRICS-GATHERED.md](METRICS-GATHERED.md#derived-metrics-analysis_scorepy).
 
-Nothing in `campaign_48/` or `august_38/` records TopFull’s actual throttle state. `num_agent.csv` was supposed to; it is zeros. You **cannot reconstruct** those counters from the finished runs. Locust `RPS` is only a proxy (completed traffic after the proxy, not the cap the RL set).
+Nothing in `campaign_48/` or `august_38/` records TopFull’s actual throttle state. `num_agent.csv` was supposed to; it is zeros. You **cannot reconstruct** those counters from those two sets. Every hold under `experiments/results/final results/` has `topfull_throttle.csv` and `topfull_detect.csv`. Locust `RPS` is only a proxy (completed traffic after the proxy, not the cap the RL set).
 
 The live signals sit on **`topfull-master` while a run is going**. Two are real and easy; extras exist only as prints.
 
@@ -67,7 +67,7 @@ The Go proxy is what you scrape below. The RL / detector prints (tmux `toprl`) a
 
 ## Throttle metrics in this project
 
-These are the live signals on `topfull-master` **during a run**. None of them are captured in `campaign_48/` or `august_38/` — only scrapable live. Locust `RPS` is not a substitute for the cap.
+These are the live signals on `topfull-master` **during a run**. `campaign_48/` and `august_38/` do not have them. `final results/` holds do, for threshold, admitted RPS, and the detector reconstruction. Locust `RPS` is not a substitute for the cap.
 
 | Signal | Source | Meaning |
 |---|---|---|
@@ -78,15 +78,15 @@ These are the live signals on `topfull-master` **during a run**. None of them ar
 
 `num_agent.csv` was supposed to record the throttle state. It is empty / almost all zeros across every finished run and **cannot be backfilled**. Do not revive it — drain the two live sources above instead.
 
-The collector is **implemented** (`experiments/topfull_throttle_collector.py`): Layer B (cAdvisor) and both CSV **row** cadences stay on the wall-clock **1 s** grid (`poll_interval_seconds`, default 1) so `topfull_throttle.csv` remains joinable with `service_edges.csv` / `service_inbound.csv` / `resource_usage.csv` on `timestamp`. Live Layer A `GET /thresholds` + `GET /stats` attempts use a slower cadence (`layer_a_poll_interval_seconds`, default **5**, applied even when a scenario YAML omits the key): a tick is an attempt iff `int(aligned_epoch) % layer_a_poll_interval_seconds == 0`. On a skipped tick, or on goproxy timeout, it **carries the last successful values** and sets the matching `*_fresh` flag to `0`. `*_fresh` stays binary `0`/`1` — `0` means the value in this row is carried, whether because this tick was not attempted by design or because the attempt timed out. Distinguish those two cases from `topfull_throttle_collector.log` (`WARNING  …fetch failed` only on genuine failures). Campaign folders still lack these files until the next run — this does not backfill `campaign_48/` or `august_38/`. Details are in [How to keep this for analysis](#how-to-keep-this-for-analysis-future-runs-only).
+The collector is **implemented** (`experiments/topfull_throttle_collector.py`): Layer B (cAdvisor) and both CSV **row** cadences stay on the wall-clock **1 s** grid (`poll_interval_seconds`, default 1) so `topfull_throttle.csv` remains joinable with `service_edges.csv` / `service_inbound.csv` / `resource_usage.csv` on `timestamp`. Live Layer A `GET /thresholds` + `GET /stats` attempts use a slower cadence (`layer_a_poll_interval_seconds`, default **5**, applied even when a scenario YAML omits the key): a tick is an attempt iff `int(aligned_epoch) % layer_a_poll_interval_seconds == 0`. On a skipped tick, or on goproxy timeout, it **carries the last successful values** and sets the matching `*_fresh` flag to `0`. `*_fresh` stays binary `0`/`1` — `0` means the value in this row is carried, whether because this tick was not attempted by design or because the attempt timed out. Distinguish those two cases from `topfull_throttle_collector.log` (`WARNING  …fetch failed` only on genuine failures). `campaign_48/` and `august_38/` do not have these files. `final results/` holds do. Details are in [How to keep this for analysis](#how-to-keep-this-for-analysis).
 
-**RetryGuard contrast.** RetryGuard is this project’s own controller, separate from TopFull. It makes a binary decision: toggle Istio `retries.attempts` (3 ↔ 0) per Kubernetes service from rejection-rate windows. See [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md). TopFull decides *how much traffic gets in*; RetryGuard decides *whether failed requests get retried once they are in*.
+**RetryGuard contrast.** RetryGuard is this project’s own controller, separate from TopFull. Locked runs shed on edge rpr and ramp attempts 0→1→2→3. A burst shed also goes to 0. See [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md). TopFull decides *how much traffic gets in*; RetryGuard decides *whether a caller→callee edge keeps its retries*.
 
 ---
 
-## What it did vs why it throttled (wanted for future runs)
+## What it did vs why it throttled
 
-`campaign_48/` only has Locust CSVs (plus our kubelet `resource_usage.csv`). That is the **outcome**, not the throttle. To reconstruct *why* TopFull may have throttled, future collection needs layers **A–D** below on one timeline. A 1 s kubelet scrape is **not** a substitute for Layer B — different sensor (kubelet vs cAdvisor) and different denominator (K8s CPU limit vs TopFull’s hardcoded quota in `overload_detection.py`).
+`campaign_48/` has Locust CSVs and kubelet `resource_usage.csv`, not the throttle files. `final results/` holds have Layers A and B. Layers C and D are still not collected. A 1 s kubelet scrape is **not** a substitute for Layer B — different sensor (kubelet vs cAdvisor) and a different quota (the reconciled Paper-C1 map, not a leftover hardcoded dict).
 
 ### Layer A — what TopFull did (the table above)
 
@@ -159,11 +159,11 @@ timestamp, cluster_id, goodput_over_cap, p95_ms, slo_ms, action
 |---|---|---|
 | Completed `RPS` / Fail / Goodput per Locust API | Locust CSVs from `metric_collector.py` | Collected. Weak **proxy** for admitted load. |
 | `num_agent.csv` | Copied into every run folder | **Empty** (almost all zeros). Do not revive; scrape the sources below instead. |
-| Admission **threshold** (cap) per Locust API | `rate_config/<api>` and `:8090/thresholds` | Collector implemented — writes `topfull_throttle.csv` on **future** runs. Campaign folders still lack the files. |
-| **Admitted** RPS per Locust API | `:8090/stats` | Collector implemented — same `topfull_throttle.csv`. Campaign folders still lack the files. |
-| Overloaded-service list / RL actions | stdout of tmux `toprl` (`deploy_rl.py`) | Printed, not a CSV. |
+| Admission **threshold** (cap) per Locust API | `topfull_throttle.csv` in every `final results/` hold | Collected there. Absent from `campaign_48/` and `august_38/`. A live 10000 is no cap; a live 0 is an empty read. |
+| **Admitted** RPS per Locust API | same file | Same. Filter `admitted_fresh==1` for a measured tick. |
+| Overloaded-service list / RL actions | stdout of tmux `toprl` (`deploy_rl.py`) | Printed, not a CSV. Layer B `overloaded` is the reconstructed detector bool, not this print. |
 
-The collector is implemented; campaign folders still lack the files until the next run. Existing 48 runs stay “`RPS` as proxy.”
+Layers A and B are collected on new holds. `campaign_48/` and `august_38/` stay “`RPS` as proxy.” Layers C and D are not collected.
 
 ---
 
@@ -240,11 +240,11 @@ ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master "tmux capture-pane -t to
 
 ---
 
-## How to keep this for analysis (future runs only)
+## How to keep this for analysis
 
-**Implemented (2026-09-09; Layer A scrape hardened 2026-09-11; Layer A attempt cadence split 2026-09-12).** Campaign folders still lack the files until the next run. Design: [2026-09-09-topfull-throttle-collector-design.md](../docs/superpowers/specs/2026-09-09-topfull-throttle-collector-design.md) + [2026-09-12-throttle-collector-split-intervals-design.md](../docs/superpowers/specs/2026-09-12-throttle-collector-split-intervals-design.md) — `topfull_throttle_collector.py` writes Layer A and Layer B on the **same wall-clock 1s grid** as the per-service mesh collector (one CSV row per API / service per second). Live proxied `:8090/thresholds` + `:8090/stats` fetches are attempted only when `int(aligned_epoch) % layer_a_poll_interval_seconds == 0` (default 5). Layers C/D remain out of scope.
+**Implemented (2026-09-09; Layer A scrape hardened 2026-09-11; Layer A attempt cadence split 2026-09-12).** Every `final results/` hold has the two CSVs. `campaign_48/` and `august_38/` do not, and this does not backfill them. Design: [2026-09-09-topfull-throttle-collector-design.md](../docs/superpowers/specs/2026-09-09-topfull-throttle-collector-design.md) + [2026-09-12-throttle-collector-split-intervals-design.md](../docs/superpowers/specs/2026-09-12-throttle-collector-split-intervals-design.md) — `topfull_throttle_collector.py` writes Layer A and Layer B on the **same wall-clock 1s grid** as the per-service mesh collector (one CSV row per API / service per second). Live proxied `:8090/thresholds` + `:8090/stats` fetches are attempted only when `int(aligned_epoch) % layer_a_poll_interval_seconds == 0` (default 5). Layers C/D remain out of scope.
 
-Same pattern as `resource_usage_collector.py` / `envoy_retry_collector.py`. Collect the layers in [What it did vs why it throttled](#what-it-did-vs-why-it-throttled-wanted-for-future-runs). A = what changed at the gate; B = why the detector fired; C = who was in the cluster; D = how hard the RL stepped. C and D can live in one file.
+Same pattern as `resource_usage_collector.py` / `envoy_retry_collector.py`. Collect the layers in [What it did vs why it throttled](#what-it-did-vs-why-it-throttled). A = what changed at the gate; B = why the detector fired; C = who was in the cluster; D = how hard the RL stepped. C and D can live in one file. A and B are what a `final results/` hold already has.
 
 **Layer A — proxy / cap (required):**
 

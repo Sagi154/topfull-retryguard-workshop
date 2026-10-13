@@ -687,7 +687,7 @@ def reenable_threshold_from_params(params: dict) -> float:
 # 0 -> 1 keeps the configured interval (interval_samples, 30 s). 1 -> 2 and
 # 2 -> 3 use this shorter bar. Shed (rpr above the threshold) keeps the
 # configured interval.
-CLIMB_INTERVAL_SECONDS = 15
+CLIMB_INTERVAL_SECONDS = 10
 
 
 def climb_interval_s(attempts: int, reenable_interval: int) -> int:
@@ -700,8 +700,9 @@ def climb_interval_s(attempts: int, reenable_interval: int) -> int:
 def climb_interval_from_params(params: dict) -> Optional[int]:
     """
     YAML override for the 1->2 and 2->3 climb quiet time, in seconds. None
-    means the caller should keep CLIMB_INTERVAL_SECONDS (15 s), the
-    long-standing default — a YAML that omits the key is unaffected.
+    means the caller should keep CLIMB_INTERVAL_SECONDS (10 s), the
+    default — a YAML that omits the key is unaffected. Holds that omitted
+    the key before 2026-10-13 ran with 15 s.
     """
     value = params.get("climb_interval_seconds")
     return int(value) if value is not None else None
@@ -823,7 +824,7 @@ class EdgeController:
     0.20 rejection_threshold. Further attempts climb one at a time while rpr
     stays at or under the configured climb bar (climb_rpr_1_to_2 at 1 attempt,
     climb_rpr_2_to_3 at 2). Climbs 1→2 and 2→3 each need
-    climb_interval_seconds of quiet (default CLIMB_INTERVAL_SECONDS, 15 s);
+    climb_interval_seconds of quiet (default CLIMB_INTERVAL_SECONDS, 10 s);
     0→1 and shed use the full interval (30 s). rpr above rpr_threshold for a
     full interval of row
     timestamps sheds straight to 0 from any attempt count.

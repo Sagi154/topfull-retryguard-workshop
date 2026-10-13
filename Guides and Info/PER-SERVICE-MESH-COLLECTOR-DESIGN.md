@@ -2,7 +2,7 @@
 
 TopFull + RetryGuard Workshop — TAU Deepness Lab
 
-> Design for gathering, **per Kubernetes service, with a shared timestamp**: outgoing retries, incoming retries, outgoing requests + status ("outgoing goodput"), incoming requests + status ("incoming goodput"), and offered load — plus what we know about each service's "capacity." Builds on [PER-SERVICE-METRICS.md](PER-SERVICE-METRICS.md) (feasibility) and extends `experiments/envoy_retry_collector.py`. **Implemented (2026-09-08)** — see [Status](#status) below; no campaign run yet has this data (`campaign_48/` / `august_38/` still use the legacy collector outputs).
+> Design for gathering, **per Kubernetes service, with a shared timestamp**: outgoing retries, incoming retries, outgoing requests + status ("outgoing goodput"), incoming requests + status ("incoming goodput"), and offered load — plus what we know about each service's "capacity." Builds on [PER-SERVICE-METRICS.md](PER-SERVICE-METRICS.md) (feasibility) and extends `experiments/envoy_retry_collector.py`. **Implemented.** The live scrape and the real CSV columns are in [Status](#status). `campaign_48/` and `august_38/` still have only the legacy two-caller files. Every hold under `experiments/results/final results/` has `service_edges.csv`, `service_inbound.csv`, and `service_capacity.json`.
 
 Those five metrics map almost 1:1 onto Envoy stats, but two of them (incoming retries, incoming requests) need a different vantage point than the current collector uses.
 
@@ -10,7 +10,9 @@ Those five metrics map almost 1:1 onto Envoy stats, but two of them (incoming re
 
 ## Where each metric actually lives in Envoy
 
-Envoy on **each** pod's sidecar exposes two families of counters: **outbound** (calls this pod *makes*) and **inbound/listener** (calls this pod *receives*). The current `envoy_retry_collector.py` only reads outbound retry counters from two callers. To get all five metrics for all 11 services you need both families, from **every** pod, every poll.
+The "Already collected?" column below is the gap as of the design (two callers, outbound retries only). The shipped collector covers all 11 services in both directions. See [Status](#status).
+
+Envoy on **each** pod's sidecar exposes two families of counters: **outbound** (calls this pod *makes*) and **inbound/listener** (calls this pod *receives*).
 
 | Requested metric | Envoy source | Whose sidecar | Already collected? |
 |---|---|---|---|
@@ -26,7 +28,7 @@ Key fact worth being explicit about: **(b) is not a real Envoy counter.** Envoy 
 
 ## What "everyone scrapes everyone" requires
 
-Today's `CALLER_TARGET_MAP` only lists 2 callers. To get (a)–(e) for **all 11 services** you need the full call graph, both directions:
+Before the rewrite, `CALLER_TARGET_MAP` listed 2 callers. The shipped collector parses every outbound cluster it sees, so this table is the call graph, not a hardcoded target list:
 
 | Caller | Targets it calls |
 |---|---|
@@ -41,6 +43,8 @@ Practically: scrape **every** pod's sidecar (not just frontend/checkout), and st
 ---
 
 ## Design: one unified per-service collector
+
+The paragraphs in this section are the original sketch (one wide CSV, `kubectl exec`, `curl localhost:15000/stats`). What shipped is the two-CSV network scrape in [Status](#status): `GET http://<pod_ip>:15020/stats/prometheus`, with `resets`, `rq_time_*`, `rq_time_buckets`, and `grpc_*` on inbound. Do not implement the exec steps below.
 
 Extend (or replace) `envoy_retry_collector.py` with a wider poller that, each cycle, for **every** service pod:
 
@@ -88,40 +92,42 @@ What we control and can read right now:
 
 | Knob | Where | Value |
 |---|---|---|
-| CPU limit + request | `kubectl get deployment <svc> -o jsonpath='{.spec.template.spec.containers[0].resources}'` | Paper-table baselines (see `experiments/topfull_cpu_quotas.py`) on non-bottleneck services after reconcile; S3/S4 bottleneck = `cpu_limit_fraction: 0.1` of that service’s paper quota (checkout/payment **100m**, productcatalog **50m**) |
-| Replica count | Same `kubectl get deployment` | Fixed at **1** everywhere (`instance_scaling.py`), all scenarios |
+| CPU limit + request | `kubectl get deployment <svc> -o jsonpath='{.spec.template.spec.containers[0].resources}'` | Paper-C1 ([ADR 0009](../docs/adr/0009-paper-c1-default-cpu-table.md)) on unconstrained services. A constrained service uses an absolute `cpu_limit_millicores` ([ADR 0006](../docs/adr/0006-absolute-bottleneck-cap-not-fraction.md)): S3 checkout **200m**, S4A-constrained catalog **50m**, S4B email **50m**. S4A unconstrained has no extra cap. |
+| Replica count | Same `kubectl get deployment`, or the HPA | Frontend is HPA min 1 / max 4, or pinned at 4 for a hold. The other services stay at 1 unless a hold pins them. |
 
-`run_scenario.py` reconciles every Boutique deployment to the paper CPU table before constraints, applies the fraction on the bottleneck, snapshots `service_capacity.json` **after** constraints, writes `topfull_run_quotas.json` for Detector, and restores paper limits at teardown. Manifest fields `paper_cpu_quotas` / `effective_cpu_quotas` record the maps used for the run.
+`run_scenario.py` reconciles every Boutique deployment to the Paper-C1 table before constraints, applies the absolute millicore cap on the bottleneck, snapshots `service_capacity.json` **before** constraints, writes `topfull_run_quotas.json` for Detector, and restores paper limits at teardown. Manifest fields `paper_cpu_quotas` / `effective_cpu_quotas` record the maps used for the run. The snapshot is the pre-constraint table, so an S3 file still shows checkout at the Paper-C1 limit, not 200m.
 
 What we do **not** control or know:
 
 - **No per-service request-rate or concurrency cap.** Istio/Envoy's circuit breaker (`DestinationRule.trafficPolicy.connectionPool`) is not configured anywhere in this stack — default is effectively unlimited pending requests/connections. There is no "max RPS `checkoutservice` can handle" number anywhere in the system; it's whatever CPU-bound throughput falls out of the effective CPU limit under that service's actual code path cost.
-- **Detector quotas vs K8s limits.** Before the quota↔K8s sync work, `overload_detection.py`'s hardcoded map (`cpu_quota = 200` default, plus per-service entries) could disagree with live `resources.limits.cpu` (e.g. leftover S3 checkout at 100m while Detector still used 1000). **After a run with the sync path**, K8s limits and Detector quotas are driven from the same paper + fraction map for that run — they match by construction. Locust user counts are still not auto-adjusted when quotas change.
+- **Detector quotas vs K8s limits.** Before the quota↔K8s sync work, `overload_detection.py`'s hardcoded map could disagree with live `resources.limits.cpu`. **After a run with the sync path**, K8s limits and Detector quotas are driven from the same Paper-C1 map plus any absolute `cpu_limit_millicores` for that run — they match by construction. Locust user counts are still not auto-adjusted when quotas change.
 
-So: "capacity" in this project **only exists as a CPU ceiling** (and trivially, replica=1). A truer notion of capacity (max sustainable RPS per service) would have to be measured empirically — e.g. a per-service saturation test — not read off any config; nothing currently does that.
+So: "capacity" in this project **only exists as a CPU ceiling** (and the live replica count). A truer notion of capacity (max sustainable RPS per service) is the frozen μ in [experiments/capacity/README.md](../experiments/capacity/README.md). `estimate_service_mu.py` is retired. `analysis_score.py` still reports inbound arrival rate and sojourn from the mesh CSVs.
 
 ---
 
 ## Status
 
-**Implemented (2026-09-08).** `experiments/envoy_retry_collector.py` now scrapes
-all 11 Boutique pods every poll (outbound `upstream_rq_*` **and** inbound
-`downstream_rq_*`), writing `service_edges.csv` (`timestamp, caller, target,
-total, 2xx, 4xx, 5xx, retry`) and `service_inbound.csv` (`timestamp, service,
-total, 2xx, 4xx, 5xx`) into the run's `record_path`. `run_scenario.py` patches
-the widened `sidecar.istio.io/statsInclusionRegexps` annotation
-(`(cluster\.outbound.*upstream_rq.*)|(http\.inbound.*downstream_rq.*)`) onto
-all 11 Deployments before every run (idempotent, not restored — see
+**Implemented.** `experiments/envoy_retry_collector.py` runs on master
+(`transport: network_prometheus`). Each poll GETs
+`http://<pod_ip>:15020/stats/prometheus` for all 11 Boutique pods. It writes:
+
+- `service_edges.csv`: `timestamp, caller, target, total, 2xx, 4xx, 5xx, retry, rq_time_sum_ms, rq_time_count`. Outbound `2xx`/`4xx`/`5xx` are live on this transport. Outbound `rq_time_*` stays 0.
+- `service_inbound.csv`: `timestamp, service, total, 2xx, 4xx, 5xx, resets, rq_time_sum_ms, rq_time_count, rq_time_buckets, grpc_2, grpc_4, grpc_13, grpc_14`.
+
+`run_scenario.py` patches the widened `sidecar.istio.io/statsInclusionRegexps`
+annotation (`(cluster\.outbound.*upstream_rq.*)|(http\.inbound.*downstream_rq.*)`)
+onto all 11 Deployments before every run (idempotent, not restored — see
 `experiments/run_scenario.py::ensure_envoy_stats_enabled`), and snapshots each
 service's original CPU limit/request/replica count into
-`service_capacity.json` before any `scale_constraints` are applied
+`service_capacity.json` **before** any `scale_constraints` are applied
 (`experiments/run_scenario.py::capture_service_capacity`).
 
-**No backfill.** As before, this does not apply to any existing run —
-`campaign_48/` and `august_38/` still have only the old
-`envoy_retries_{frontend,checkoutservice}.csv` shape (2 callers, outbound
-retries only, no inbound, no capacity snapshot). A **new run** is required to
-get `service_edges.csv` / `service_inbound.csv` / `service_capacity.json`.
+**No backfill of the closed sets.** `campaign_48/` and `august_38/` still have
+only `envoy_retries_{frontend,checkoutservice}.csv` (2 callers, outbound
+retries only, no inbound, no capacity snapshot). Every hold under
+`experiments/results/final results/` has the three mesh files. Derived
+metrics from those files: [METRICS-GATHERED.md](METRICS-GATHERED.md#derived-metrics-analysis_scorepy).
 
 **Outbound class columns:** on `transport: network_prometheus`,
 `service_edges.csv` `2xx` / `4xx` / `5xx` are live. The 2026-09-08 admin-port

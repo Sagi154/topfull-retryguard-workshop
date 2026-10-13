@@ -2,7 +2,7 @@
 
 TopFull + RetryGuard Workshop — TAU Deepness Lab
 
-> Comprehensive inventory of every metric collected during experiment runs: sources, columns, derived values, clocks, and what is empty or unused. **For the "why do we collect this" narrative (rationale per metric, mapped to the eval deck's open questions), see [METRICS-CATALOG.md](METRICS-CATALOG.md) instead — that doc is the companion "how + why" read; this one stays the columns/files inventory.** Operational details (how to pull, verify, load) live in [METRICS-COLLECTION-GUIDE.md](METRICS-COLLECTION-GUIDE.md). Gaps and what is answerable: [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md). RetryGuard’s use of these CSVs: [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md). Locust is **per entry API**, not per Kubernetes service — why, and how to get true per-service RPS/errors/latency/retries: [PER-SERVICE-METRICS.md](PER-SERVICE-METRICS.md). Concrete collector design for per-service outgoing/incoming retries, goodput, offered load, and capacity: [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md). TopFull admission caps (also per Locust API): [TOPFULL-THROTTLE-METRICS.md](TOPFULL-THROTTLE-METRICS.md).
+> Comprehensive inventory of every metric collected during experiment runs: sources, columns, derived values, clocks, and what is empty or unused. **For the "why do we collect this" narrative (rationale per metric, mapped to the eval deck's open questions), see [METRICS-CATALOG.md](METRICS-CATALOG.md) instead — that doc is the companion "how + why" read; this one stays the columns/files inventory.** How a hold is scored from these files: [ANALYSIS-TEMPLATE.md](ANALYSIS-TEMPLATE.md) and `python experiments/analysis_score.py <run_dir>`. Operational details (how to pull, verify, load) live in [METRICS-COLLECTION-GUIDE.md](METRICS-COLLECTION-GUIDE.md). Gaps and what is answerable: [PHASE7-DATA-GAPS.md](PHASE7-DATA-GAPS.md). RetryGuard’s use of these CSVs: [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md) (canonical parameter table; do not copy the values from this file). Locust is **per entry API**, not per Kubernetes service — why, and how to get true per-service RPS/errors/latency/retries: [PER-SERVICE-METRICS.md](PER-SERVICE-METRICS.md). Concrete collector design for per-service outgoing/incoming retries, goodput, offered load, and capacity: [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](PER-SERVICE-MESH-COLLECTOR-DESIGN.md). TopFull admission caps (also per Locust API): [TOPFULL-THROTTLE-METRICS.md](TOPFULL-THROTTLE-METRICS.md).
 
 We gather **three layers of measurement**, plus a run manifest. On the 48-run campaign (`campaign_48/`) every layer is present. The older August 38-run set only has Layer 1 Locust CSVs and RetryGuard logs.
 
@@ -16,7 +16,7 @@ The eval deck’s Layer 1 “retries per request” and Layer 2 CPU/memory do **
 |---|---|---|---|
 | **1. API / system performance** | goodput, latency, rejection, retries/request | Locust CSVs from TopFull `metric_collector.py` + Envoy retry CSVs | 1 s (Locust), 1 s (Envoy mesh) |
 | **2. Infrastructure** | CPU, memory, pod counts | `resource_usage.csv` via kubelet `stats/summary` (not TopFull’s in-memory `resource_collector.py`) | 5 s |
-| **3. Controller state** | RetryGuard toggle timing | `retryguard.log` | every 30 s window |
+| **3. Controller state** | RetryGuard toggle timing | `retryguard.log` | 1 s samples. Shed and 0→1 use `interval_samples` (locked 20 s). Climbs 1→2 and 2→3 use `climb_interval_seconds` (locked 10 s). |
 
 Each run folder also has `run_manifest.json` (scenario, condition, duration, collector flags).
 
@@ -48,7 +48,7 @@ These five files are **Locust APIs** (storefront actions), not one CSV per Bouti
 | `Latency95` | 95th-percentile latency in **ms**. **The latency metric of record.** |
 | `Latency99` | Always `0`. Hardcoded in TopFull. **Do not use.** P99 was dropped. |
 
-Rejection rate is **not a stored column**. Analysis derives storefront rejection as `Fail / RPS` (0 when `RPS == 0`). RetryGuard does **not** use this; it uses inbound `Δ5xx / Δtotal` from `service_inbound.csv` (see Layer 3). S2 `Fail/RPS ≈ 1` with mesh 5xx = 0 is SLO-miss, not Boutique rejection. See [2026-09-11-slo-fail-and-mu-estimator-design.md](../docs/superpowers/specs/2026-09-11-slo-fail-and-mu-estimator-design.md).
+Rejection rate is **not a stored column**. Analysis derives storefront rejection as `Fail / RPS` (0 when `RPS == 0`). That is the shopper-visible SLO-miss fraction, not the controller's input. Locked RetryGuard sheds on edge rpr from `service_edges.csv` and re-enables on inbound rejection from `service_inbound.csv` (see Layer 3 and [Derived metrics](#derived-metrics-analysis_scorepy)). S2 `Fail/RPS ≈ 1` with mesh 5xx = 0 is SLO-miss, not Boutique rejection. See [2026-09-11-slo-fail-and-mu-estimator-design.md](../docs/superpowers/specs/2026-09-11-slo-fail-and-mu-estimator-design.md).
 
 ### System-wide file: `total.csv`
 
@@ -116,7 +116,7 @@ Prerequisite (runner does this automatically): Istio hides `upstream_rq_retry*` 
 `GET http://<pod_ip>:15020/stats/prometheus`. Files are written into the run
 `record_path` on master during the run (no worker two-hop). **Writer for capacity:** `experiments/run_scenario.py::capture_service_capacity` (once per run, before `scale_constraints`).
 
-**Present only in runs launched after this collector landed** — not in `campaign_48/` or `august_38/`. The next new experiment run will be the first folder with these files.
+**Present in every hold under `experiments/results/final results/`** and in other runs launched after this collector landed (2026-09-08). **Not** in `campaign_48/` or `august_38/`.
 
 ### `service_edges.csv` — outbound per (caller, target)
 
@@ -143,16 +143,17 @@ Use for outgoing retries **and** for incoming retries at a service: sum `retry` 
 One row per `(timestamp, service)` — listener stats from that service's own sidecar.
 
 ```
-timestamp, service, total, 2xx, 4xx, 5xx, resets, rq_time_sum_ms, rq_time_count, rq_time_buckets
+timestamp, service, total, 2xx, 4xx, 5xx, resets, rq_time_sum_ms, rq_time_count, rq_time_buckets, grpc_2, grpc_4, grpc_13, grpc_14
 ```
 
 | Column | Meaning |
 |---|---|
 | `total` | Inbound requests received (offered load at this hop) |
 | `2xx` / `4xx` / `5xx` | Inbound status split |
-| `resets` | `downstream_rq_rx_reset` — connection resets on this service's inbound listener; RetryGuard's rejection surrogate is `Δ(5xx+resets)/Δtotal` |
-| `rq_time_sum_ms` / `rq_time_count` | Cumulative sum (ms) / count from Envoy's inbound `downstream_rq_time` latency histogram — added 2026-09-16, **absent from any run pulled before that date**. `Δrq_time_sum_ms / Δrq_time_count` between polls = this service's own mean inbound sojourn time (`W`) for that interval — the per-service latency input to `estimate_service_mu.py`'s `mu_hat_w = lambda + 1/W` (see `docs/superpowers/specs/2026-09-16-rho-estimator-correction.md`). Not the same as end-to-end/multi-hop Locust latency. **Live-verified 2026-09-16** on this cluster. |
-| `rq_time_buckets` | JSON object of cumulative histogram bucket counts keyed by Envoy `le` (ms, plus `+Inf`) — added 2026-09-16 (inbound only). Differenced between polls to derive a per-tick P50 (`w_p50_ms`) as a robustness check alongside the mean. Outbound edges CSV does **not** have this column (and outbound `upstream_rq_time` is excluded by Istio's default minimal proxy-stats on this cluster — structural zero). |
+| `resets` | `downstream_rq_rx_reset` — connection resets on this service's inbound listener. Inbound rejection is `(Δ5xx + Δresets) / Δtotal`, plus `Δgrpc_4 + Δgrpc_14` on the four read callees. |
+| `rq_time_sum_ms` / `rq_time_count` | Cumulative sum (ms) / count from Envoy's inbound `downstream_rq_time` latency histogram — added 2026-09-16, **absent from any run pulled before that date**. `Δrq_time_sum_ms / Δrq_time_count` between polls = this service's own mean inbound sojourn time. Not the same as end-to-end/multi-hop Locust latency. **Live-verified 2026-09-16** on this cluster. `analysis_score.py` reports the hold's sojourn from these columns. `estimate_service_mu.py` (`mu_hat_w = lambda + 1/W`) is retired; frozen μ is in [experiments/capacity/README.md](../experiments/capacity/README.md). |
+| `rq_time_buckets` | JSON object of cumulative histogram bucket counts keyed by Envoy `le` (ms, plus `+Inf`) — added 2026-09-16 (inbound only). The scorer's share of inbound requests above 500 ms is the complement of the `le=500` cumulative count, differenced between polls. Outbound edges CSV does **not** have this column (and outbound `upstream_rq_time` is excluded by Istio's default minimal proxy-stats on this cluster — structural zero). |
+| `grpc_2` / `grpc_4` / `grpc_13` / `grpc_14` | Inbound `istio_requests_total` with HTTP 200 and one `grpc_response_status`: UNKNOWN (2), DEADLINE_EXCEEDED (4), INTERNAL (13), UNAVAILABLE (14). `grpc_4` and `grpc_14` are counted in inbound rejection on the four read callees. |
 
 Derived goodput / RPS / rejection = diffs between consecutive polls of the same `service` row, same as Layer 2 CPU/memory.
 
@@ -170,7 +171,7 @@ Written once at run start (before any scenario CPU-limit patch). JSON object key
 }
 ```
 
-Missing or unparseable CPU values are `null`; services with no Deployment are omitted. Static for the run — captures **original** limits, not the patched `100m` bottleneck value applied during S3/S4.
+Missing or unparseable CPU values are `null`; services with no Deployment are omitted. Static for the run — captures **original** limits, not the constrained value applied during S3/S4 (checkout 200m, catalog 50m, email 50m).
 
 ### Chart pipeline caveat
 
@@ -196,17 +197,17 @@ Services scraped (11): frontend, cart, checkout, productcatalog, payment, recomm
 |---|---|
 | `cpu_millicores` | App-container CPU (`usageNanoCores` → millicores), summed across replicas |
 | `memory_working_set_bytes` | App-container working-set memory |
-| `replica_count` | Deployment `readyReplicas` — **always 1** (fixed-replica design) |
+| `replica_count` | Deployment `readyReplicas`. Frontend is HPA min 1 / max 4, or pinned at 4 for a hold. The other services stay at 1 unless a hold pins them. `cpu_millicores` is summed across replicas, so frontend can sit above its per-pod quota. |
 
 Missing pods in a poll are omitted, not zero-filled.
 
 TopFull’s own `resource_collector.py` still only feeds the RL loop in memory. It does **not** write per-run CPU/memory files. That is why we built this collector.
 
-**Pod autoscaling / `num_instances.csv`:** never collected. Replicas are fixed at 1; S3/S4 constrain via CPU limit (`100m`), not replica count. “Prevents over-scaling” is not measurable in this setup.
+**Pod autoscaling / `num_instances.csv`:** never collected as its own series. `replica_count` in `resource_usage.csv` is the live ready count. Frontend runs under HPA (min 1 / max 4) or pinned at 4. S3/S4 constrain via an absolute CPU limit ([ADR 0006](../docs/adr/0006-absolute-bottleneck-cap-not-fraction.md)): checkout **200m**, catalog **50m** (S4A constrained), email **50m** (S4B). S4A unconstrained leaves the Paper-C1 table ([ADR 0009](../docs/adr/0009-paper-c1-default-cpu-table.md)). “Prevents over-scaling” is not a separate metric.
 
 ---
 
-## Layer 3 supplement — TopFull throttle (future runs)
+## Layer 3 supplement — TopFull throttle
 
 **Writer:** `experiments/topfull_throttle_collector.py` on master. CSV rows stay on
 1s wall-clock ticks shared with the mesh collector (`poll_interval_seconds`,
@@ -214,8 +215,7 @@ default 1). Live Layer A `GET /thresholds` + `GET /stats` attempts use
 `layer_a_poll_interval_seconds` (default **5**, even when the scenario YAML
 omits the key). `topfull_detect.csv` cadence is unchanged (still 1 s).
 
-**Present only in runs launched after this collector landed** — not in
-`campaign_48/` or `august_38/`.
+**Present in every `final results/` hold.** Not in `campaign_48/` or `august_38/`.
 
 ### `topfull_throttle.csv`
 timestamp, api, threshold, admitted_rps, threshold_fresh, admitted_fresh
@@ -247,7 +247,9 @@ is a **direct** HTTP scrape of the cAdvisor DaemonSet (`cadvisor` namespace,
 (Layer 2, kubelet `stats/summary`); it exists specifically to approximate
 what TopFull's own `Detector` sees. `quota` is `topfull_cpu_quotas.
 paper_limit_for(service)`, overridden per-run by that run's
-`effective_cpu_quotas` (paper table + any active S3/S4 `cpu_limit_fraction`)
+`effective_cpu_quotas` (Paper-C1 table plus any absolute
+`cpu_limit_millicores` constraint — [ADR 0006](../docs/adr/0006-absolute-bottleneck-cap-not-fraction.md),
+[ADR 0009](../docs/adr/0009-paper-c1-default-cpu-table.md))
 — the same map written to `topfull_run_quotas.json` for the live Detector
 overlay, so this column tracks what the detector was reconciled to that run,
 not a stale hardcoded map. `alpha` approximates only the detector's
@@ -268,23 +270,63 @@ while a service sits just under α (S1 run20 / S2 run17: frontend max util
 
 ## Layer 3 — RetryGuard decisions
 
-**File:** `retryguard.log` (RetryGuard runs only).
+**File:** `retryguard.log` (RetryGuard runs only). Canonical parameters: [RETRYGUARD-IMPLEMENTATION.md](RETRYGUARD-IMPLEMENTATION.md) and [ADR 0008](../docs/adr/0008-locked-retryguard-parameters.md). Do not treat the numbers below as a second source of truth.
 
-RetryGuard reads `{record_path}/service_inbound.csv` every 1 s. For each of the 9 `CONTROLLED_SERVICES` it computes inbound `Δ5xx / Δtotal` against the last consumed poll (SKIP if no newer timestamp). That rate is Algorithm 1 `measure_value()`. Locust CSVs are not opened.
+Locked runs use `retry_metric: edge_rpr`. The controller reads `service_edges.csv` every 1 s for **14** caller→callee edges (`CONTROLLED_EDGES`) and `service_inbound.csv` for re-enable. It does not patch `frontend` or `redis-cart`. The nine `CONTROLLED_SERVICES` are the HTTP backends those edges land on.
 
-It controls nine HTTP backends (including `paymentservice`). It does not patch `frontend` or `redis-cart`.
+`rpr = Δretry / (Δtotal − Δretry)` on one edge (retries per first attempt). A tick with no first attempts is skipped.
 
-Default: disable after 30 consecutive 1 s samples ≥ 20% inbound 5xx; re-enable after 30 consecutive samples below 20% (Scenario 5 sweeps `interval_samples` 10/20/30/60).
+| Step | Signal | Quiet time |
+|---|---|---|
+| any → 0 (shed) | edge rpr above `retries_threshold` (locked 0.4) | `interval_samples` (locked 20 s of row timestamps). Scenario 5 sweeps 10/20/30/60. |
+| 0 → 1 | inbound rejection strictly under `reenable_rejection` (locked 0.25) | `interval_samples` |
+| 1 → 2 | rpr ≤ `climb_rpr_1_to_2` (locked 0.16) | `climb_interval_seconds` (locked 10 s; code default `CLIMB_INTERVAL_SECONDS` is also 10). Holds that omitted the key before 2026-10-13 ran at 15 s. |
+| 2 → 3 | rpr ≤ `climb_rpr_2_to_3` (locked 0.32) | `climb_interval_seconds` |
+
+Inbound rejection is `(Δ5xx + Δresets) / Δtotal`, plus `Δgrpc_4 + Δgrpc_14` on the four read callees (`adservice`, `currencyservice`, `productcatalogservice`, `recommendationservice`). The scorer uses the same formula. HTTP-only (`5xx + resets`) is a companion table for those four. Storefront `Fail/RPS` is a third number and is not this signal.
+
+Disable writes `retries: {attempts: 0}` plus a route `timeout` equal to `perTryTimeout` on that caller→callee route. Omitting the `retries` block falls back to Istio's default of 2 retries. Restore is a ramp (0→1→2→3), not a jump back to 3.
+
+Burst mode (the three keys `burst_rpr` 2.0, `burst_window_seconds` 5, `burst_min_first_attempts` 20) is a second shed test beside the normal one. Normal mode omits those three keys. The burst bar at the current cap is `burst_rpr × attempts / attempts_on` (2.00 / 1.33 / 0.67 at 3 / 2 / 1 attempts). A burst shed goes to 0 (`metric=rpr_burst`) and recovers on the normal path. Bar 1.5 is dropped.
+
+Holds before 2026-10-12, `campaign_48/`, and `august_38/` used older values (rejection mode or earlier edge-mode bars, `interval_samples` 30) and are not comparable.
 
 | Log keyword | Meaning |
 |---|---|
-| `START` | Params + service list |
-| `OBSERVE` | Window result: rejection, consecutive low/high, ON/OFF |
-| `ON→OFF` | Disabled Istio retries on that service (`attempts` omitted) |
-| `OFF→ON` | Restored `attempts: 3` |
-| `SKIP` / `PATCH_FAIL` / `SHUTDOWN` | Missing CSV / K8s patch failed / stop |
+| `START` | Params. Includes `metric=edge_rpr`, `edges=14`, `attempts_on=3`, `rpr_threshold=` (the YAML key is `retries_threshold`), and the three burst keys when burst is on. |
+| `OBSERVE` | One sample. Edge lines are `caller->callee` with `rpr=`, `attempts=`, `elapsed_s=`, `metric=rpr`, and `burst_rpr5=` when burst is on. Callee lines while an edge is at 0 are `metric=rejection`. |
+| `ON→OFF` | Shed to 0 attempts. `metric=rpr` or `metric=rpr_burst`. Carries `from_attempts=` and `elapsed_s=`. |
+| `OFF→ON` | 0→1. `metric=rejection`, `attempts=1`. |
+| `0→1` / `1→2` / `2→3` | The ramp steps. `1→2` and `2→3` are `metric=rpr`. |
+| `SKIP` / `PATCH_FAIL` / `EXIT` | No newer row / K8s patch failed / stop. |
 
-These timestamps are the overlay on the mentor Locust charts.
+Edge names inside lines use ASCII `->`. Transition arrows are unicode (`ON→OFF`, not `ON->OFF`). These timestamps are the overlay on the mentor Locust charts.
+
+---
+
+## Derived metrics (`analysis_score.py`)
+
+`python experiments/analysis_score.py <run_dir>` prints the tables [ANALYSIS-TEMPLATE.md](ANALYSIS-TEMPLATE.md) pastes. None of these are stored columns. The scorer uses every inbound row and every Locust row with `RPS > 0`. It does not drop the first 30 Locust rows or the last 5 polls (`s2_probe_tables.py` and the canon scorer trim `[30:-5]`).
+
+When `retryguard.log` has no `START` line, the scorer falls back to shed bar 0.5 and re-enable bar 0.10. A `START` line wins, including older logs. `rpr_threshold` on `START` is YAML `retries_threshold`.
+
+| Derived metric | Formula / source | Template item |
+|---|---|---|
+| Edge rpr | `Δretry / (Δtotal − Δretry)` on one `service_edges.csv` edge. A tick with no first attempts is skipped. | 3, 4 |
+| Volume rpr | Hold's `Δretry / first attempts` on that edge. | 4 |
+| File streak | Seconds from the first consecutive scored tick above the shed bar to the last. One tick is 0 seconds. Controller `high` on the same edge is a sample count, not seconds. Older guides that counted rows say so. | 4 |
+| Storefront rejection | Locust `Fail / RPS` while `RPS > 0`. | 10 |
+| Inbound rejection | `(Δ5xx + Δresets) / Δtotal`, plus `Δgrpc_4 + Δgrpc_14` on the four read callees. Same formula as `retryguard.measure_inbound_rejection`. Streaks above 0.20 and under `reenable_rejection`. | 5, 8 |
+| HTTP-only rejection | `(Δ5xx + Δresets) / Δtotal` on those four callees only. Printed so guides before 2026-10-13 (HTTP-only in the main table) can be compared. Rescored copies end in `-rescored.md`. | 5 |
+| `grpc_4` / `grpc_14` | Positive deltas summed per service. `grpc_4` is DEADLINE_EXCEEDED, `grpc_14` is UNAVAILABLE. The retry policy retries those codes on the four read callees. | 7 |
+| Detector overloaded share | `overloaded=1` ticks over `topfull_detect.csv` rows. Bold at a share of at least 0.5. | 6 |
+| Detector max utilization | Max `utilization` (`cadvisor_cpu / quota`) per service. | 16 |
+| Inbound arrival rate | Positive `Δtotal` over the elapsed time of `service_inbound.csv`, req/s. | 12 |
+| Inbound sojourn | `Δrq_time_sum_ms / Δrq_time_count`, milliseconds. | 13 |
+| Share above 500 ms | From the `le=500` bucket of `rq_time_buckets`. | 14 |
+| Locust goodput / fail rate / P95 | Mean of `Goodput`, `Fail/RPS`, and `Latency95` while `RPS > 0`, per API. | 9–11 |
+| Live throttle caps | `topfull_throttle.csv` rows with `threshold_fresh=1` and threshold above 0. 10000 is no cap. A live 0 is an empty read. Last usable cap is held for at most 6 s. | 17 |
+| Per-callee toggle stats | From the log: `ON→OFF` / `OFF→ON` counts, shed rpr, seconds to first shed, attempts after re-enable, time OFF, OFF-window rejection min/median, longest streak under `reenable_rejection`. A burst shed is tagged `b` and its value is the 5 s aggregate `ΣΔretry / ΣΔfirst`. | 8 |
 
 ---
 
@@ -313,11 +355,11 @@ The comparison the project is built for:
 | Goodput | Locust `Goodput` | Mean across 3 repeats, 5 s downsample |
 | P95 | Locust `Latency95` | Same |
 | Rejection | derived `Fail/RPS` | Same |
-| Retries/request | Envoy Δretry/Δtotal | Per target + summed |
-| CPU / memory | `resource_usage.csv` | Per service (the Layer 1 Locust columns are not) |
-| Toggles | `retryguard.log` | `ON→OFF` / `OFF→ON` overlays |
+| Retries/request | Envoy edge rpr `Δretry / (Δtotal − Δretry)`, plus volume rpr | Per edge. Not `Δretry / Δtotal`. |
+| CPU / memory | `resource_usage.csv` | Per service (the Layer 1 Locust columns are not). Mean and max millicores are summed across replicas. |
+| Toggles | `retryguard.log` | `ON→OFF` / `OFF→ON` / `1→2` / `2→3`, including `metric=rpr_burst` |
 
-Per-service RPS / errors / hop latency are **not** in this table today. Feasibility and how to scrape them from Envoy: [PER-SERVICE-METRICS.md](PER-SERVICE-METRICS.md).
+Per-service RPS / errors / hop latency are scored from `service_inbound.csv` and `service_edges.csv` (see [Derived metrics](#derived-metrics-analysis_scorepy)). Feasibility: [PER-SERVICE-METRICS.md](PER-SERVICE-METRICS.md).
 
 ---
 
@@ -329,14 +371,14 @@ Per-service RPS / errors / hop latency are **not** in this table today. Feasibil
 
 ---
 
-## Campaign vs August
+## Campaign vs August vs final results
 
-| | `campaign_48/` (primary) | `august_38/` (historical) |
-|---|---|---|
-| Locust CSVs + `total.csv` | Yes | Yes |
-| `retryguard.log` | RG runs | RG runs |
-| Envoy retry CSVs (`envoy_retries_*.csv`) | **All 48 folders** | **None** |
-| Full-mesh Envoy (`service_edges.csv`, `service_inbound.csv`, `service_capacity.json`) | **None** (pre-dates collector) | **None** |
-| TopFull throttle (`topfull_throttle.csv`, `topfull_detect.csv`) | **None** (pre-dates collector) | **None** |
-| `resource_usage.csv` | **All 48 folders** | **None** |
-| Re-enable (`OFF→ON`) | S5 + S6 (and a few others) | **Never** |
+| | `final results/` (new holds) | `campaign_48/` (closed Phase 7) | `august_38/` (historical) |
+|---|---|---|---|
+| Locust CSVs + `total.csv` | Yes | Yes | Yes |
+| `retryguard.log` | RG runs, edge mode, burst when the YAML sets it | RG runs, older controller | RG runs, older controller |
+| Envoy retry CSVs (`envoy_retries_*.csv`) | **None** (legacy shape) | **All 48 folders** | **None** |
+| Full-mesh Envoy (`service_edges.csv`, `service_inbound.csv`, `service_capacity.json`) | **Yes** | **None** (pre-dates collector) | **None** |
+| TopFull throttle (`topfull_throttle.csv`, `topfull_detect.csv`) | **Yes** | **None** (pre-dates collector) | **None** |
+| `resource_usage.csv` | **Yes** | **All 48 folders** | **None** |
+| Re-enable (`OFF→ON`) | When the load recovers | S5 + S6 (and a few others) | **Never** |

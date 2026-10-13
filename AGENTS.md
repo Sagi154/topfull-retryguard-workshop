@@ -90,6 +90,18 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | [PRESENTATION-GUIDE.md](Guides%20and%20Info/PRESENTATION-GUIDE.md), [PRESENTATION-ACTION-ITEMS.md](Guides%20and%20Info/PRESENTATION-ACTION-ITEMS.md), [NOTEBOOKLM-PROMPT.md](Guides%20and%20Info/NOTEBOOKLM-PROMPT.md) | Work on the slide deck / presentation track (separate from the lab track) |
 | [GEMINI-PROMPT.md](GEMINI-PROMPT.md), [CANVAS-VIEWING.md](CANVAS-VIEWING.md) | Presentation-generation tooling and how to view the interactive canvas in Cursor |
 
+### Where to find metrics
+
+| Question | Read |
+|---|---|
+| What do we collect, and in which file/column? | [METRICS-GATHERED.md](Guides%20and%20Info/METRICS-GATHERED.md) (includes the derived-metrics table) |
+| Why do we collect each metric? | [METRICS-CATALOG.md](Guides%20and%20Info/METRICS-CATALOG.md) |
+| How is a run's output produced, pulled, verified? | [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) |
+| Per-service vs per-entry-API data, mesh files | [PER-SERVICE-METRICS.md](Guides%20and%20Info/PER-SERVICE-METRICS.md), [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](Guides%20and%20Info/PER-SERVICE-MESH-COLLECTOR-DESIGN.md) |
+| TopFull throttle caps / detector files | [TOPFULL-THROTTLE-METRICS.md](Guides%20and%20Info/TOPFULL-THROTTLE-METRICS.md) |
+| How metrics are displayed and scored in a write-up | [ANALYSIS-TEMPLATE.md](Guides%20and%20Info/ANALYSIS-TEMPLATE.md), computed by `experiments/analysis_score.py` |
+| Controller vs scorer rejection definitions | [2026-10-13-controller-vs-scorer-rejection.md](Guides%20and%20Info/2026-10-13-controller-vs-scorer-rejection.md) |
+
 ---
 
 ## 4. Current status (as of 2026-10-13)
