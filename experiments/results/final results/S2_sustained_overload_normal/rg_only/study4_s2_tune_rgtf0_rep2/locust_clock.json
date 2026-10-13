@@ -1,0 +1,16 @@
+{
+  "method": "fit",
+  "start_utc": "2026-10-11T00:40:41.250Z",
+  "spacing_s": 1.075,
+  "rows": 571,
+  "anchor_rows": [
+    10,
+    570
+  ],
+  "anchor_utc": [
+    "2026-10-11T00:40:52.000Z",
+    "2026-10-11T00:50:54.000Z"
+  ],
+  "correlation": 0.9725569311394019,
+  "flagged": false
+}

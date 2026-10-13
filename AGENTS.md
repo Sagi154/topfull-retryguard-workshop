@@ -95,6 +95,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | Question | Read |
 |---|---|
 | What do we collect, and in which file/column? | [METRICS-GATHERED.md](Guides%20and%20Info/METRICS-GATHERED.md) (includes the derived-metrics table) |
+| How do I line up metrics in time / see a run second by second? | `python experiments/run_timeline.py <run_dir>` → `timeline.png`; design in [2026-10-13-hold-clock-design.md](docs/superpowers/specs/2026-10-13-hold-clock-design.md) |
 | Why do we collect each metric? | [METRICS-CATALOG.md](Guides%20and%20Info/METRICS-CATALOG.md) |
 | How is a run's output produced, pulled, verified? | [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) |
 | Is a hold's TopFull cap / admitted data trustworthy? | The `Throttle data quality` table from `experiments/analysis_score.py`; rule in §6 "After every hold" |

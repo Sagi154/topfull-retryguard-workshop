@@ -365,9 +365,10 @@ Per-service RPS / errors / hop latency are scored from `service_inbound.csv` and
 
 ## Clock alignment (important)
 
-- Locust CSVs: no clock; row *i* ≈ second *i* of the run. Toggle overlays line up with these charts. Locust CSVs remain index-based with no timestamp column.
-- Envoy mesh + throttle collectors now stamp `floor(unix_time / interval) * interval` UTC seconds (aligned). `resource_usage.csv` uses interval=5 on the same grid. Throttle **rows** stay 1 s; Layer A live `/thresholds`+`/stats` attempts use `layer_a_poll_interval_seconds` (default 5) on that same aligned grid. Skipped ticks still write a `topfull_throttle.csv` row with `*_fresh=0`.
-- Envoy + CPU/memory: UTC timestamps. Charts set *t* = 0 at **that file’s first poll**, which can be a few seconds before/after Locust. Do not treat “CPU dip at 60 s” as the same instant as “toggle at 60 s” on a Locust chart.
+- Read every run on the **hold clock**: seconds since the first Locust row, in master's UTC. `experiments/hold_clock.py` adds a `hold_s` column to any source; `experiments/run_timeline.py` writes `timeline.png` (and `timeline_1s.csv` with `--csv`). Design and per-second rules: [2026-10-13-hold-clock-design.md](../docs/superpowers/specs/2026-10-13-hold-clock-design.md).
+- Locust CSVs: rows are about 1.05–1.10 s apart, not 1 s, and the first row is the first poll with traffic. Folders without a Locust `timestamp` column use that run's Locust clock fit in `locust_clock.json` (start, spacing, anchors, correlation, flag). Holds after the 2026-10-13 patch have a `timestamp` column (last column, UTC milliseconds) and `locust_started_at` in `run_manifest.json`.
+- Envoy mesh + throttle collectors stamp `floor(unix_time / interval) * interval` UTC seconds (aligned). `resource_usage.csv` uses interval=5 on the same grid. Throttle **rows** stay 1 s; Layer A live `/thresholds`+`/stats` attempts use `layer_a_poll_interval_seconds` (default 5) on that same aligned grid. Skipped ticks still write a `topfull_throttle.csv` row with `*_fresh=0`.
+- Each collector starts on its own. On `final results/` holds the first mesh inbound poll is roughly 25–60 s before the first Locust row, and the throttle and CPU collectors start earlier still (up to about two minutes). A file's own first poll is not t = 0. Escape time is the exception: it keeps its first-mesh-poll definition.
 
 ---
 
