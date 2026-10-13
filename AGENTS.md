@@ -288,6 +288,10 @@ When you complete meaningful work (a scenario actually run, a bug fixed, a new p
 
 Issues and specs live as GitHub issues in `Sagi154/topfull-retryguard-workshop`. See `docs/agents/issue-tracker.md`.
 
+### Triage labels
+
+Defaults: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` at the repo root and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+Single-context: one `CONTEXT.md` at the repo root and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
