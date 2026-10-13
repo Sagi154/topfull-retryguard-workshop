@@ -126,7 +126,7 @@ Checkout's own completed-request sojourn settling above 500 ms (Istio's perTryTi
 _Avoid_: overload (the latch is one mechanism for it)
 
 **Escape time**:
-Seconds after the first mesh inbound poll when recommendations arrival first stays above 560 req/s for 5 consecutive 1 s ticks, ending a latch; **never** if it does not within the hold. Scrape holes reset the streak instead of counting as zero. It replaces sticky/released as the primary description of a latch hold: on runs 132–153 every released hold escapes, and sticky and "other" holds are never. Computed by `experiments/s2_latch_escape.py`.
+Seconds after the first mesh inbound poll when recommendations arrival first stays above 560 req/s for 5 consecutive 1 s ticks, ending a latch; **never** if it does not within the hold. Scrape holes reset the streak instead of counting as zero. It replaces sticky/released as the primary description of a latch hold: on runs 132–153 every released hold escapes, and sticky and "other" holds are never. Computed by `experiments/s2_latch_escape.py`. It is not on the hold clock.
 _Avoid_: release time (a hold can release without ever having latched)
 
 **Edge**:
@@ -148,3 +148,13 @@ _Avoid_: burst streak, 5-tick streak
 **Burst bar**:
 `burst_rpr × attempts / attempts_on`. The window rpr must be at or above it (`≥`) to shed. Scaling by cap keeps the bar reachable at 1 and 2 attempts, where rpr cannot exceed the cap.
 _Avoid_: threshold (that is the normal `retries_threshold`, 0.4)
+
+### Time within a run
+
+**Hold clock**:
+Seconds since the first Locust row of a run, measured in master's UTC. Every collector's rows are placed on it; rows from before load starts get negative times.
+_Avoid_: elapsed seconds, t (when it means a file's own first poll), row index
+
+**Locust clock fit**:
+The per-run estimate of when each Locust row was written, for runs whose Locust CSVs have no timestamp column. Locust rows are about 1.05–1.10 s apart, not 1 s, so the fit is a start time plus a row spacing, not an offset alone.
+_Avoid_: offset, lag
