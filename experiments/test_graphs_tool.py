@@ -1,4 +1,4 @@
-"""Unit tests for experiments/explore_run.py."""
+"""Unit tests for experiments/graphs_tool.py."""
 import json
 import math
 import sys
@@ -10,7 +10,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import explore_run  # noqa: E402
+import graphs_tool  # noqa: E402
 import run_timeline  # noqa: E402
 
 NAN = float("nan")
@@ -22,13 +22,13 @@ def events(rows):
 
 class TestCodes(unittest.TestCase):
     def test_codes_follow_controlled_edges_order(self):
-        codes = explore_run.EDGE_CODES
+        codes = graphs_tool.EDGE_CODES
         self.assertEqual(len(codes), 14)
         self.assertEqual(codes["frontend->adservice"], "E1")
         self.assertEqual(codes["frontend->checkoutservice"], "E3")
         self.assertEqual(codes["frontend->productcatalogservice"], "E5")
         self.assertEqual(codes["recommendationservice->productcatalogservice"], "E14")
-        services = explore_run.SERVICE_CODES
+        services = graphs_tool.SERVICE_CODES
         self.assertEqual(len(services), 9)
         self.assertEqual(services["adservice"], "V1")
         self.assertEqual(services["checkoutservice"], "V3")
@@ -38,7 +38,7 @@ class TestCodes(unittest.TestCase):
 
 class TestMarkers(unittest.TestCase):
     def test_labels_hover_and_climb_exclusion(self):
-        found = explore_run.markers(events([
+        found = graphs_tool.markers(events([
             [10.0, "frontend->productcatalogservice", "ON→OFF", "rpr_burst", "2.46", NAN, "3", NAN],
             [20.0, "checkoutservice", "OFF→ON", "rejection", NAN, "0.03", "0", "11"],
             [30.0, "frontend->checkoutservice", "ON→OFF", "rpr", "0.90", NAN, "1", NAN],
@@ -54,7 +54,7 @@ class TestMarkers(unittest.TestCase):
         self.assertNotEqual(found[0]["color"], found[1]["color"])
 
     def test_comparison_series_keeps_climbs_as_their_own_lines(self):
-        series = explore_run.event_series(events([
+        series = graphs_tool.event_series(events([
             [10.0, "frontend->productcatalogservice", "ON→OFF", "rpr_burst", "2.46", NAN, "3", NAN],
             [30.0, "frontend->checkoutservice", "ON→OFF", "rpr", "0.90", NAN, "1", NAN],
             [20.0, "checkoutservice", "OFF→ON", "rejection", NAN, "0.03", "0", "11"],
@@ -64,10 +64,10 @@ class TestMarkers(unittest.TestCase):
         self.assertEqual([item[0] for item in series], ["ON→OFF", "OFF→ON", "1→2", "2→3"])
         self.assertEqual(series[0][1][:2], [10.0, 10.0])
         self.assertIn(30.0, series[0][1])
-        climb = explore_run.markers(events([
+        climb = graphs_tool.markers(events([
             [40.0, "frontend->cartservice", "1→2", "rpr", NAN, NAN, "1", NAN],
-        ]), steps=explore_run.COMPARE_EVENT_STEPS)[0]
-        self.assertEqual(explore_run.event_caption(climb), "E2 1→2")
+        ]), steps=graphs_tool.COMPARE_EVENT_STEPS)[0]
+        self.assertEqual(graphs_tool.event_caption(climb), "E2 1→2")
         self.assertIn("frontend->cartservice 1→2", climb["hover"])
 
 
@@ -75,11 +75,11 @@ class TestSloMiss(unittest.TestCase):
     def test_fail_over_rps_empty_when_no_load(self):
         view = pd.DataFrame({"locust.total.Fail": [0.0, 5.0, 3.0],
                              "locust.total.RPS": [10.0, 0.0, 6.0]})
-        result = explore_run.slo_miss(view)
+        result = graphs_tool.slo_miss(view)
         self.assertEqual(result.iloc[0], 0.0)
         self.assertTrue(math.isnan(result.iloc[1]))
         self.assertEqual(result.iloc[2], 0.5)
-        self.assertIsNone(explore_run.slo_miss(pd.DataFrame({"x": [1]})))
+        self.assertIsNone(graphs_tool.slo_miss(pd.DataFrame({"x": [1]})))
 
 
 class TestStrip(unittest.TestCase):
@@ -88,10 +88,10 @@ class TestStrip(unittest.TestCase):
             "rg.frontend->checkoutservice.attempts": [3.0, 0.0],
             "rg.frontend->adservice.attempts": [3.0, 3.0],
         })
-        matrix = explore_run.strip_matrix(view)
+        matrix = graphs_tool.strip_matrix(view)
         self.assertEqual(list(matrix.index), ["E1", "E3"])
         self.assertEqual(matrix.loc["E3"].tolist(), [3.0, 0.0])
-        self.assertIsNone(explore_run.strip_matrix(pd.DataFrame({"locust.total.RPS": [1.0]})))
+        self.assertIsNone(graphs_tool.strip_matrix(pd.DataFrame({"locust.total.RPS": [1.0]})))
 
 
 class TestLineSpecs(unittest.TestCase):
@@ -108,20 +108,20 @@ class TestLineSpecs(unittest.TestCase):
         })
 
     def test_quiet_lines_are_legend_only_unless_all(self):
-        by_column = {s[1]: s for s in explore_run.line_specs(self.view())}
+        by_column = {s[1]: s for s in graphs_tool.line_specs(self.view())}
         self.assertIs(by_column["inbound.checkoutservice.rejection"][3], True)
         self.assertEqual(by_column["inbound.cartservice.rejection"][3], "legendonly")
         self.assertEqual(by_column["edge.frontend->checkoutservice.rpr"][2], "E3 frontend->checkoutservice")
         self.assertEqual(by_column["inbound.cartservice.rejection"][2], "cartservice")
         self.assertEqual(by_column["locust.total.Goodput"][2], "Goodput")
-        every = {s[1]: s for s in explore_run.line_specs(self.view(), show_all=True)}
+        every = {s[1]: s for s in graphs_tool.line_specs(self.view(), show_all=True)}
         self.assertIs(every["inbound.cartservice.rejection"][3], True)
 
     def test_cpu_name_carries_the_table_limit(self):
-        named = explore_run.line_specs(self.view(), limits={"frontend": 1150})
+        named = graphs_tool.line_specs(self.view(), limits={"frontend": 1150})
         cpu = next(spec for spec in named if spec[1] == "resource.frontend.cpu_millicores")
         self.assertEqual(cpu[2], "frontend (1150)")
-        plain = explore_run.line_specs(self.view())
+        plain = graphs_tool.line_specs(self.view())
         cpu = next(spec for spec in plain if spec[1] == "resource.frontend.cpu_millicores")
         self.assertEqual(cpu[2], "frontend")
 
@@ -131,12 +131,12 @@ from test_hold_clock import E, iso, make_run  # noqa: E402
 
 def render(run: Path) -> str:
     out = run / "explore.html"
-    explore_run.write_html(explore_run.build_figure(run), out)
+    graphs_tool.write_html(graphs_tool.build_figure(run), out)
     return out.read_text(encoding="utf-8")
 
 
 def strip_note_texts(fig) -> list[str]:
-    xref = f"{explore_run.axis(explore_run.ROW['strip'], 'x')} domain"
+    xref = f"{graphs_tool.axis(graphs_tool.ROW['strip'], 'x')} domain"
     return [annotation.text for annotation in fig.layout.annotations if annotation.xref == xref]
 
 
@@ -149,7 +149,7 @@ class TestCpuLimits(unittest.TestCase):
                 "method": "cpu_limit",
                 "cpu_limit_millicores": 200,
             }]}), encoding="utf-8")
-            limits = explore_run.cpu_limits(Path(tmp))
+            limits = graphs_tool.cpu_limits(Path(tmp))
         self.assertEqual(limits["checkoutservice"], 200)
         self.assertEqual(limits["frontend"], 1150)
 
@@ -158,7 +158,7 @@ class TestBuild(unittest.TestCase):
     def test_html_has_codes_markers_and_retryguard_off_note(self):
         with tempfile.TemporaryDirectory() as tmp:
             run = make_run(Path(tmp))
-            off_fig = explore_run.build_figure(run)
+            off_fig = graphs_tool.build_figure(run)
             off = render(run)
             self.assertEqual(strip_note_texts(off_fig), ["RetryGuard off in this run"])
             self.assertIn("RetryGuard off in this run", off)
@@ -173,7 +173,7 @@ class TestBuild(unittest.TestCase):
                 f"{iso(E + 60)}  checkoutservice  OFF→ON   rejection=0.03  consecutive_low=11  "
                 "attempts=1  from_attempts=0  metric=rejection  elapsed_s=20",
             ]), encoding="utf-8")
-            on_fig = explore_run.build_figure(run)
+            on_fig = graphs_tool.build_figure(run)
             on = render(run)
             self.assertNotIn("RetryGuard off in this run", on)
             self.assertIn("E3 burst", on)
@@ -183,7 +183,7 @@ class TestBuild(unittest.TestCase):
             labels = [annotation.text for annotation in on_fig.layout.annotations]
             self.assertIn("E3 burst", labels)
             self.assertIn("V3", labels)
-            compare = explore_run.compare_figure(run)
+            compare = graphs_tool.compare_figure(run)
             named = {
                 annotation.text: annotation.hovertext
                 for annotation in compare.layout.annotations
@@ -196,9 +196,9 @@ class TestBuild(unittest.TestCase):
             burst = next(annotation for annotation in compare.layout.annotations if annotation.text == "E3 burst")
             self.assertEqual(burst.yanchor, "bottom")
             self.assertEqual(burst.y, 1)
-            strip_x = explore_run.axis(explore_run.ROW["strip"], "x")
+            strip_x = graphs_tool.axis(graphs_tool.ROW["strip"], "x")
             switch_lines = [shape for shape in on_fig.layout.shapes if shape.line.width == 1]
-            self.assertEqual(explore_run.axis(explore_run.ROW["locust"], "x"), "x")
+            self.assertEqual(graphs_tool.axis(graphs_tool.ROW["locust"], "x"), "x")
             self.assertTrue(any(shape.xref == "x" for shape in switch_lines))
             self.assertTrue(any(shape.name == "ON→OFF" for shape in switch_lines))
             self.assertTrue(switch_lines)

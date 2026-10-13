@@ -1,6 +1,6 @@
-"""Interactive Plotly view of one run on the hold clock.
+"""graphs_tool: interactive Plotly view of one run on the hold clock.
 
-    python experiments/explore_run.py <run_dir> [--all]
+    python experiments/graphs_tool.py <run_dir> [--all]
 
 Writes experiments/explore_out/<run folder name>.html (not committed).
 Design and decisions: docs/superpowers/specs/2026-10-13-interactive-run-explorer-design.md

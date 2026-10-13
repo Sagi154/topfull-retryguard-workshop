@@ -14,8 +14,8 @@ A personal tool for exploring one run at a time: zoom, hover, toggle lines. It i
 
 ## Shape
 
-- New file `experiments/explore_run.py`:
-  `python experiments/explore_run.py <run_dir> [--all]`
+- New file `experiments/graphs_tool.py` (graphs_tool):
+  `python experiments/graphs_tool.py <run_dir> [--all]`
 - Output: `experiments/explore_out/<log_folder>.html`, git-ignored, self-contained (`include_plotlyjs=True`, about 3 MB, works offline).
 - It imports `run_timeline` (`per_second_view`, `panel_columns`, `switch_events`, `escape_hold_s`) and never reads the CSVs itself. All clock alignment, per-second rules, carry limits and the rejection formula come from there.
 - `plotly` is a new dependency: add it to `experiments/requirements.txt`.
@@ -70,7 +70,7 @@ A re-enable is a service event, not an edge event, so it gets one `V` marker. It
 
 ## Decisions
 
-**Attempts climbs (`1→2`, `2→3`) are not vertical lines.** They are logged as per-edge switches (9 in the 31 current `final results/` logs, against 65 sheds and 57 re-enables) and are already visible on the state strip. They also appear as hover text. Reason: marker clutter on every panel, and the strip shows the same information per edge. To reverse this, add `"1→2"` and `"2→3"` to `VERTICAL_LINE_STEPS` in `explore_run.py` (the constant is `("ON→OFF", "OFF→ON")`). The colour for them already exists in `run_timeline.SWITCH_COLORS`. A future agent should not treat the missing lines as a bug.
+**Attempts climbs (`1→2`, `2→3`) are not vertical lines.** They are logged as per-edge switches (9 in the 31 current `final results/` logs, against 65 sheds and 57 re-enables) and are already visible on the state strip. They also appear as hover text. Reason: marker clutter on every panel, and the strip shows the same information per edge. To reverse this, add `"1→2"` and `"2→3"` to `VERTICAL_LINE_STEPS` in `graphs_tool.py` (the constant is `("ON→OFF", "OFF→ON")`). The colour for them already exists in `run_timeline.SWITCH_COLORS`. A future agent should not treat the missing lines as a bug.
 
 **Rejection means two things on one panel.** The solid lines use the controller's formula `(Δ5xx + Δresets) / Δtotal` (plus the gRPC term on four services). The dashed line is the shopper-visible SLO miss. They differ, and S2 can show SLO-miss near 1 with mesh 5xx at 0. See [2026-10-13-controller-vs-scorer-rejection.md](../../../Guides%20and%20Info/2026-10-13-controller-vs-scorer-rejection.md).
 
