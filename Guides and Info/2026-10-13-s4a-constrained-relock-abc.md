@@ -218,7 +218,7 @@ Inbound resets.
 
 ### Part 1
 
-### rg_only/final_4a_constrained_rg_only_normal_run3_r2
+### final_4a_constrained_rg_only_normal_run3_r2
 
 | Name | ON→OFF | 0→1 | 1→2 | 2→3 |
 | --- | ---: | ---: | ---: | ---: |
@@ -237,7 +237,7 @@ Inbound resets.
 | 2026-10-13T15:46:06Z | frontend → recommendationservice | 2→3 | 2 | rpr 0.00 |
 | 2026-10-13T15:48:31Z | frontend → recommendationservice | ON→OFF | 3 | rpr 3.05 |
 
-### rg_only/4
+### final_4a_constrained_rg_only_normal_run4
 
 | Name | ON→OFF | 0→1 | 1→2 | 2→3 |
 | --- | ---: | ---: | ---: | ---: |
@@ -268,7 +268,7 @@ Inbound resets.
 | 2026-10-13T16:08:17Z | recommendationservice | OFF→ON | 0 | rejection 0.00 |
 | 2026-10-13T16:08:29Z | frontend → recommendationservice | 1→2 | 1 | rpr 0.00 |
 
-### both/3
+### final_4a_constrained_both_normal_run3
 
 | Name | ON→OFF | 0→1 | 1→2 | 2→3 |
 | --- | ---: | ---: | ---: | ---: |
@@ -293,7 +293,7 @@ final_4a_constrained_both_normal_run4: no transition lines.
 final_4a_constrained_tf_only_run3_r2: no transition lines.
 final_4a_constrained_tf_only_run4: no transition lines.
 
-### rg_only/3
+### final_4a_constrained_rg_only_burst_run3
 
 | Name | ON→OFF | 0→1 | 1→2 | 2→3 | ON→OFF burst |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -315,7 +315,7 @@ final_4a_constrained_tf_only_run4: no transition lines.
 | 2026-10-13T19:19:24Z | frontend → recommendationservice | 1→2 | 1 | rpr 0.00 |
 | 2026-10-13T19:19:36Z | frontend → recommendationservice | 2→3 | 2 | rpr 0.00 |
 
-### rg_only/4
+### final_4a_constrained_rg_only_burst_run4
 
 | Name | ON→OFF | 0→1 | 1→2 | 2→3 | ON→OFF burst |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -341,7 +341,8 @@ final_4a_constrained_tf_only_run4: no transition lines.
 | 2026-10-13T19:57:47Z | recommendationservice → productcatalogservice | ON→OFF (burst) | 3 | rpr 2.00 |
 
 final_4a_constrained_both_burst_run3: no transition lines.
-### both/final_4a_constrained_both_burst_run4_r2
+
+### final_4a_constrained_both_burst_run4_r2
 
 | Name | ON→OFF | 0→1 | 1→2 | 2→3 | ON→OFF burst |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -383,6 +384,8 @@ final_4a_constrained_both_burst_run3: no transition lines.
 | OFF rejection min / median | 0.000 / 0.682; 0.000 / 0.000; 0.000 / 0.000 | 0.000 / 0.556; 0.000 / 0.000; 0.000 / 0.000; 0.000 / 0.000 | **┃** | 0.000 / 0.000; 0.000 / 0.146; 0.000 / 0.036 | — | **┃** | — | — | **┃** | 0.000 / 0.639; 0.000 / 0.785; 0.000 / 0.654 | 0.000 / 0.613; 0.000 / 0.220; 0.000 / 0.510; 0.000 / 0.734 | **┃** | — | 0.000 / 0.000; 0.000 / 0.067; 0.000 / 0.000; 0.000 / 0.000; 0.000 / 0.092 |
 | Longest streak under 0.25 | 10; 10; 10 | 10; 10; 10; 10 | **┃** | 10; 10; 10 | — | **┃** | — | — | **┃** | 10; 10; 10 | 10; 10; 10; 5 | **┃** | — | 10; 10; 10; 10; 10 |
 
+`final_4a_constrained_both_normal_run3`, `final_4a_constrained_rg_only_burst_run3`, and `final_4a_constrained_both_burst_run4_r2` re-enabled and ended at 3 attempts, and `final_4a_constrained_rg_only_normal_run4` re-enabled and ended at 2. `final_4a_constrained_rg_only_normal_run3_r2` and `final_4a_constrained_rg_only_burst_run4` re-enabled earlier sheds and were still at 0 at exit, and `final_4a_constrained_both_normal_run4` and `final_4a_constrained_both_burst_run3` never shed. The longest under-bar streak in the table is 10 samples, and `final_4a_constrained_rg_only_burst_run4`'s last window is 5.
+
 #### frontend → productcatalogservice
 
 | frontend → productcatalogservice | final_4a_constrained_rg_only_normal_run3_r2 | final_4a_constrained_rg_only_normal_run4 | **┃** | final_4a_constrained_both_normal_run3 | final_4a_constrained_both_normal_run4 | **┃** | final_4a_constrained_tf_only_run3_r2 | final_4a_constrained_tf_only_run4 | **┃** | final_4a_constrained_rg_only_burst_run3 | final_4a_constrained_rg_only_burst_run4 | **┃** | final_4a_constrained_both_burst_run3 | final_4a_constrained_both_burst_run4_r2 |
@@ -395,6 +398,8 @@ final_4a_constrained_both_burst_run3: no transition lines.
 | OFF rejection min / median | — | 0.000 / 0.000 | **┃** | — | — | **┃** | — | — | **┃** | — | — | **┃** | — | — |
 | Longest streak under 0.25 | — | 10 | **┃** | — | — | **┃** | — | — | **┃** | — | — | **┃** | — | — |
 
+Only `final_4a_constrained_rg_only_normal_run4` shed (rpr 1.04), re-enabled, and climbed to 3 attempts. Its under-bar streak is 10. Every other scored column is `0 / 0` or an em dash.
+
 #### recommendationservice → productcatalogservice
 
 | recommendationservice → productcatalogservice | final_4a_constrained_rg_only_normal_run3_r2 | final_4a_constrained_rg_only_normal_run4 | **┃** | final_4a_constrained_both_normal_run3 | final_4a_constrained_both_normal_run4 | **┃** | final_4a_constrained_tf_only_run3_r2 | final_4a_constrained_tf_only_run4 | **┃** | final_4a_constrained_rg_only_burst_run3 | final_4a_constrained_rg_only_burst_run4 | **┃** | final_4a_constrained_both_burst_run3 | final_4a_constrained_both_burst_run4_r2 |
@@ -406,6 +411,8 @@ final_4a_constrained_both_burst_run3: no transition lines.
 | Time OFF (s) | — | — | **┃** | — | — | **┃** | — | — | **┃** | — | 19 | **┃** | — | — |
 | OFF rejection min / median | — | — | **┃** | — | — | **┃** | — | — | **┃** | — | 0.000 / 0.797 | **┃** | — | — |
 | Longest streak under 0.25 | — | — | **┃** | — | — | **┃** | — | — | **┃** | — | 1 | **┃** | — | — |
+
+Only `final_4a_constrained_rg_only_burst_run4` shed (burst rpr 2.00) and stayed at 0 (`OFF→ON` 0, attempts 0, time OFF 19 s). Its under-bar streak is 1. Every other scored column is `0 / 0` or an em dash.
 
 ## Locust goodput
 
@@ -570,7 +577,7 @@ A live read has `threshold_fresh=1` and threshold above 0. 10000 is no cap. A li
 
 A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live 0 is left out.
 
-### rg_only/final_4a_constrained_rg_only_normal_run3_r2
+### final_4a_constrained_rg_only_normal_run3_r2
 
 | API | Live caps |
 | --- | --- |
@@ -580,7 +587,7 @@ A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live
 | postcart | no cap 15:36:55–15:49:00 |
 | emptycart | no cap 15:36:55–15:49:00 |
 
-### rg_only/4
+### final_4a_constrained_rg_only_normal_run4
 
 | API | Live caps |
 | --- | --- |
@@ -590,7 +597,7 @@ A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live
 | postcart | no cap 15:56:35–15:58:55 |
 | emptycart | no cap 15:56:35–15:58:55 |
 
-### both/3
+### final_4a_constrained_both_normal_run3
 
 | API | Live caps |
 | --- | --- |
@@ -600,7 +607,7 @@ A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live
 | postcart | no cap 17:12:50–17:15:05; 270.099 at 17:15:07; 270.2 at 17:15:10; 269.69 at 17:15:13; 269.7 17:15:15–17:15:20; 356.666 at 17:15:22; 356.048 at 17:15:24; 356 at 17:15:25; 354.578 17:15:29–17:24:53; 354.6 at 17:24:55 |
 | emptycart | no cap 17:12:50–17:24:55 |
 
-### both/4
+### final_4a_constrained_both_normal_run4
 
 | API | Live caps |
 | --- | --- |
@@ -610,7 +617,7 @@ A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live
 | postcart | no cap 17:55:25–17:57:25; 210 at 17:57:30; 268.5 at 17:57:35; 268.488 at 17:57:36; 268.5 at 17:57:40; 363.2 at 17:57:45; 362.363 at 17:57:48; 362.4 at 17:57:50; 466.5 at 17:57:55; 466.507 17:57:56–18:07:21 |
 | emptycart | no cap 17:55:25–17:57:55 |
 
-### tf_only/final_4a_constrained_tf_only_run3_r2
+### final_4a_constrained_tf_only_run3_r2
 
 | API | Live caps |
 | --- | --- |
@@ -620,7 +627,7 @@ A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live
 | postcart | no cap 18:32:15–18:33:55; 163.4 at 18:34:00; 163.393 at 18:34:02; 163.4 at 18:34:05; 246.7 at 18:34:10; 246.67 at 18:34:13; 246.7 at 18:34:15; 324.662 at 18:34:18; 324.7 18:34:20–18:34:25; 420.1 at 18:34:30; 430.6 at 18:43:55 |
 | emptycart | no cap 18:32:15–18:43:55 |
 
-### tf_only/4
+### final_4a_constrained_tf_only_run4
 
 | API | Live caps |
 | --- | --- |
@@ -632,7 +639,7 @@ A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live
 
 A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live 0 is left out.
 
-### rg_only/3
+### final_4a_constrained_rg_only_burst_run3
 
 | API | Live caps |
 | --- | --- |
@@ -642,7 +649,7 @@ A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live
 | postcart | no cap at 19:08:25; 417.753 19:08:26–19:08:29; no cap at 19:08:30; 417.753 19:08:31–19:08:34; no cap at 19:08:35; 417.753 19:08:36–19:08:39; no cap at 19:08:40; 417.753 19:08:41–19:08:44; no cap at 19:08:45; 417.753 19:08:46–19:08:49; no cap at 19:08:50; 417.753 19:08:51–19:08:54; no cap at 19:08:55; 417.753 19:08:56–19:08:59; no cap at 19:09:00; 417.753 19:09:01–19:09:04; no cap at 19:09:05; 417.753 19:09:06–19:09:09; no cap at 19:09:10; 417.753 19:09:11–19:09:14; no cap at 19:09:15; 417.753 19:09:16–19:09:19; no cap at 19:09:20; 417.753 19:09:21–19:09:24; no cap at 19:09:25; 417.753 19:09:26–19:09:29; no cap at 19:09:30; 417.753 19:09:31–19:09:34; no cap at 19:09:35; 417.753 19:09:36–19:09:39; no cap at 19:09:40; 417.753 19:09:41–19:09:44; no cap at 19:09:45; 417.753 19:09:46–19:09:49; no cap at 19:09:50; 417.753 19:09:51–19:09:54; no cap at 19:09:55; 417.753 19:09:56–19:09:59; no cap at 19:10:00; 417.753 19:10:01–19:10:04; no cap at 19:10:05; 417.753 19:10:06–19:10:09; no cap at 19:10:10; 417.753 19:10:11–19:10:14; no cap at 19:10:15; 417.753 19:10:16–19:10:19; no cap at 19:10:20; 417.753 19:10:21–19:10:24; no cap at 19:10:25; 417.753 19:10:26–19:10:29; no cap at 19:10:30; 417.753 19:10:31–19:10:34; no cap at 19:10:35; 417.753 19:10:36–19:10:39; no cap at 19:10:40; 417.753 19:10:41–19:10:44; no cap at 19:10:45; 417.753 19:10:46–19:10:49; no cap at 19:10:50; 417.753 19:10:51–19:10:54; no cap at 19:10:55; 417.753 19:10:56–19:20:24; no cap at 19:20:25; 417.753 19:20:26–19:20:27 |
 | emptycart | no cap 19:08:25–19:20:25 |
 
-### rg_only/4
+### final_4a_constrained_rg_only_burst_run4
 
 | API | Live caps |
 | --- | --- |
@@ -652,7 +659,7 @@ A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live
 | postcart | 417.753 19:46:06–19:46:09; no cap at 19:46:10; 417.753 19:46:11–19:46:14; no cap at 19:46:15; 417.753 19:46:16–19:46:19; no cap at 19:46:20; 417.753 19:46:21–19:46:24; no cap at 19:46:25; 417.753 19:46:26–19:46:29; no cap at 19:46:30; 417.753 19:46:31–19:46:34; no cap at 19:46:35; 417.753 19:46:36–19:46:39; no cap at 19:46:40; 417.753 19:46:41–19:46:44; no cap at 19:46:45; 417.753 19:46:46–19:46:49; no cap at 19:46:50; 417.753 19:46:51–19:46:54; no cap at 19:46:55; 417.753 19:46:56–19:46:59; no cap at 19:47:00; 417.753 19:47:01–19:47:04; no cap at 19:47:05; 417.753 19:47:06–19:47:09; no cap at 19:47:10; 417.753 19:47:11–19:47:14; no cap at 19:47:15; 417.753 19:47:16–19:47:19; no cap at 19:47:20; 417.753 19:47:21–19:47:24; no cap at 19:47:25; 417.753 19:47:26–19:47:29; no cap at 19:47:30; 417.753 19:47:31–19:47:34; no cap at 19:47:35; 417.753 19:47:36–19:47:39; no cap at 19:47:40; 417.753 19:47:41–19:47:44; no cap at 19:47:45; 417.753 19:47:46–19:47:49; no cap at 19:47:50; 417.753 19:47:51–19:47:54; no cap at 19:47:55; 417.753 19:47:56–19:47:59; no cap at 19:48:00; 417.753 19:48:01–19:48:04; no cap at 19:48:05; 417.753 19:48:06–19:48:09; no cap at 19:48:10; 417.753 19:48:11–19:48:14; no cap at 19:48:15; 417.753 19:48:16–19:48:19; no cap at 19:48:20; 417.753 19:48:21–19:48:24; no cap at 19:48:25; 417.753 19:48:26–19:58:04; no cap at 19:58:05; 417.753 at 19:58:06 |
 | emptycart | no cap 19:46:10–19:58:05 |
 
-### both/3
+### final_4a_constrained_both_burst_run3
 
 | API | Live caps |
 | --- | --- |
@@ -662,7 +669,7 @@ A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live
 | postcart | 417.753 20:23:48–20:23:49; no cap at 20:23:50; 417.753 20:23:51–20:23:54; no cap at 20:23:55; 417.753 20:23:56–20:23:59; no cap at 20:24:00; 417.753 20:24:01–20:24:04; no cap at 20:24:05; 417.753 20:24:06–20:24:09; no cap at 20:24:10; 417.753 20:24:11–20:24:14; no cap at 20:24:15; 417.753 20:24:16–20:24:19; no cap at 20:24:20; 417.753 20:24:21–20:24:24; no cap at 20:24:25; 417.753 20:24:26–20:24:29; no cap at 20:24:30; 417.753 20:24:31–20:24:34; no cap at 20:24:35; 417.753 20:24:36–20:24:39; no cap at 20:24:40; 417.753 20:24:41–20:24:44; no cap at 20:24:45; 417.753 20:24:46–20:24:49; no cap at 20:24:50; 417.753 20:24:51–20:24:54; no cap at 20:24:55; 417.753 20:24:56–20:24:59; no cap at 20:25:00; 417.753 20:25:01–20:25:04; no cap at 20:25:05; 417.753 20:25:06–20:25:09; no cap at 20:25:10; 417.753 20:25:11–20:25:14; no cap at 20:25:15; 417.753 20:25:16–20:25:19; no cap at 20:25:20; 417.753 20:25:21–20:25:24; no cap at 20:25:25; 417.753 20:25:26–20:25:29; no cap at 20:25:30; 417.753 20:25:31–20:25:34; no cap at 20:25:35; 417.753 20:25:36–20:25:39; no cap at 20:25:40; 417.753 20:25:41–20:25:44; no cap at 20:25:45; 417.753 20:25:46–20:25:49; no cap at 20:25:50; 417.753 20:25:51–20:25:54; no cap at 20:25:55; 234.5 at 20:26:00; 234.3 at 20:26:05; 307.3 at 20:26:10; 307.4 at 20:26:15; 307.356 at 20:26:17; 401.4 at 20:26:20; 422.821 20:26:24–20:35:46 |
 | emptycart | no cap 20:23:50–20:26:20 |
 
-### both/final_4a_constrained_both_burst_run4_r2
+### final_4a_constrained_both_burst_run4_r2
 
 | API | Live caps |
 | --- | --- |
