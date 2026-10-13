@@ -1,6 +1,8 @@
 """pull_results.py — scp a finished run's results down from topfull-master.
 
-The rho report is retired. This command only pulls. Score the folder with
+The rho report is retired. After the pull this writes locust_clock.json and
+timeline.png into the run folder (experiments/run_timeline.py); a failure
+there only prints a warning. Score the folder with
 experiments/analysis_score.py.
 
 This is the automated version of the manual step `run_scenario.py` prints at
@@ -46,6 +48,18 @@ def resolve_pull_paths(cfg: dict) -> tuple[str, str, str]:
     return master, remote_dest, local_dest_dir
 
 
+def build_timeline(run_dir: Path) -> None:
+    """Write locust_clock.json and timeline.png. Never fails the pull."""
+    try:
+        import run_timeline
+
+        png = run_timeline.build(run_dir)
+        print(f"[pull_results] Timeline: {png}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[pull_results] WARNING: timeline not built for {run_dir}: {exc}",
+              file=sys.stderr)
+
+
 def pull_results(config_path: str, run_report: bool = False, dry_run: bool = False) -> Path:
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
@@ -74,6 +88,7 @@ def pull_results(config_path: str, run_report: bool = False, dry_run: bool = Fal
         return local_run_dir
 
     print(f"[pull_results] Pulled to {local_run_dir}")
+    build_timeline(local_run_dir)
     if run_report:
         print(
             "[pull_results] rho_estimate_report is retired; "
