@@ -36,6 +36,7 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   envoy_retry_collector.py ← Gap 3: scrapes Envoy sidecar outbound retry counters (deployed to master)
   resource_usage_collector.py ← Layer 2: scrapes CPU/memory per service via kubelet stats/summary (deployed to master)
   mentor_charts.py / mentor_charts_data.py / mentor_charts_plots.py ← regenerate mentor-update PNGs from `campaign_48/` (`python experiments/mentor_charts.py`)
+  graphs_tool.py ← **graphs_tool.** Every analysis of one `final results/` run starts here. What the page shows: [GRAPHS-TOOL.md](Guides%20and%20Info/GRAPHS-TOOL.md). Command: §3 "Where to find metrics"
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
   results/           ← local results only (master still uses a flat `/home/idozacharia/experiments/results/`)
@@ -85,6 +86,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | **[RON-NEZER-SETUP-VS-WORKSHOP.md](Guides%20and%20Info/RON-NEZER-SETUP-VS-WORKSHOP.md)** | **The 2026-09-20 audit.** Copied his VMs, not his experiment setup. `/home/user/TopFull` is Ron's 2025 recipe (load mix, detector quotas, HPA, custom images); live runs use `/home/idozacharia/TopFull` (KAIST + our patches). |
 | **[RON-NEZER-BASE-MIGRATION.md](Guides%20and%20Info/RON-NEZER-BASE-MIGRATION.md)** | **Narrative of the migration onto Ron's setup as the experiment base.** Where we differed, what we changed (CPU/replica/HPA + loadgen shape), what was left out, what's still open. Specs/plans/ADRs are linked from there — start here, not in the task logs. Remaining-work checkboxes: [2026-09-21-s1-s6-loadgen-numbers-remaining-work.md](docs/superpowers/specs/2026-09-21-s1-s6-loadgen-numbers-remaining-work.md). |
 | [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md) | Understand exactly how `experiments/retryguard.py` maps to paper Algorithm 1, its metric source, endpoint→service map, VS patch mechanics, log format |
+| **[GRAPHS-TOOL.md](Guides%20and%20Info/GRAPHS-TOOL.md)** | **What the graphs_tool page shows.** Nine stacked panels, the comparison chart, event codes, and how to read one hold. Read this before interpreting an explorer page |
 | **[ANALYSIS-TEMPLATE.md](Guides%20and%20Info/ANALYSIS-TEMPLATE.md)** | **Write-up for a new hold or a group of holds.** Section order, (a)/(b)/(c) cell shapes, bold rules. Score with `python experiments/analysis_score.py`. The (a)/(b)/(c) definitions are [2026-09-24-s2-both-off-abc-reading.md](Guides%20and%20Info/2026-09-24-s2-both-off-abc-reading.md). `rho_estimate_report.py` is retired. |
 | [NEXT-PHASES-PLAN.md](Guides%20and%20Info/NEXT-PHASES-PLAN.md) | See the presentation-track vs lab-track split and near-term suggested order |
 | [PRESENTATION-GUIDE.md](Guides%20and%20Info/PRESENTATION-GUIDE.md), [PRESENTATION-ACTION-ITEMS.md](Guides%20and%20Info/PRESENTATION-ACTION-ITEMS.md), [NOTEBOOKLM-PROMPT.md](Guides%20and%20Info/NOTEBOOKLM-PROMPT.md) | Work on the slide deck / presentation track (separate from the lab track) |
@@ -95,7 +97,8 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | Question | Read |
 |---|---|
 | What do we collect, and in which file/column? | [METRICS-GATHERED.md](Guides%20and%20Info/METRICS-GATHERED.md) (includes the derived-metrics table) |
-| How do I line up metrics in time / see a run second by second? | `python experiments/run_timeline.py <run_dir>` → `timeline.png`; design in [2026-10-13-hold-clock-design.md](docs/superpowers/specs/2026-10-13-hold-clock-design.md) |
+| How do I line up metrics in time / see a run second by second? | Static chart: `python experiments/run_timeline.py <run_dir>` → `timeline.png`; design in [2026-10-13-hold-clock-design.md](docs/superpowers/specs/2026-10-13-hold-clock-design.md) |
+| **graphs_tool** — analyse one run | For every analysis of one hold, run **graphs_tool**: `python experiments/graphs_tool.py "<run_dir>"`. It writes `experiments/explore_out/<run>.html` (git-ignored, works offline). One folder under `experiments/results/final results/` (S1–S4). What each panel and the comparison chart mean: [GRAPHS-TOOL.md](Guides%20and%20Info/GRAPHS-TOOL.md). `--all` shows quiet lines on the stacked panels. Needs `plotly` from `experiments/requirements.txt` |
 | Why do we collect each metric? | [METRICS-CATALOG.md](Guides%20and%20Info/METRICS-CATALOG.md) |
 | How is a run's output produced, pulled, verified? | [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) |
 | Is a hold's TopFull cap / admitted data trustworthy? | The `Throttle data quality` table from `experiments/analysis_score.py`; rule in §6 "After every hold" |

@@ -12,3 +12,4 @@ __pycache__/
 .worktrees/
 .superpowers/
 timeline_1s.csv
+experiments/explore_out/
