@@ -23,9 +23,11 @@ line. A log from before those fields existed uses retryguard.climb_rpr_limit
 for the START line's rpr_threshold and attempts_on (0.17 and 0.33 at the
 defaults). A climb streak is a count of OBSERVE samples, not seconds.
 
-Rejection streaks use (delta 5xx + delta resets) / delta total. grpc_4
-and grpc_14 are a separate pair of sums. A non-positive total delta
-breaks a streak.
+Rejection streaks use (delta 5xx + delta resets) / delta total, plus
+delta grpc_4 + delta grpc_14 on the four read callees. That is the
+controller's own formula (retryguard.measure_inbound_rejection). The
+HTTP-only value for those four is kept in "rejection_http". A
+non-positive total delta breaks a streak.
 """
 from __future__ import annotations
 
@@ -335,11 +337,15 @@ def controller_high(samples: list[dict]) -> int | None:
     return max(highs)
 
 
-def rejection_streaks(rows: list[dict], high_bar: float, low_bar: float) -> dict:
+def rejection_streaks(
+    rows: list[dict], high_bar: float, low_bar: float, count_grpc: bool = False
+) -> dict:
     """Longest / count above high_bar, and longest / count strictly under low_bar.
 
     Rows are one service, time-sorted. A non-positive total delta breaks
-    both streaks and counts for neither.
+    both streaks and counts for neither. count_grpc adds grpc_4 + grpc_14
+    and is the controller's formula on the four read callees
+    (retryguard.measure_inbound_rejection(..., count_grpc=True)).
     """
     ordered = sorted(rows, key=lambda row: row.get("timestamp", ""))
     high_longest = high_count = 0
@@ -349,6 +355,8 @@ def rejection_streaks(rows: list[dict], high_bar: float, low_bar: float) -> dict
     for row in ordered:
         total = _num(row, "total")
         failed = _num(row, "5xx") + _num(row, "resets")
+        if count_grpc:
+            failed += _num(row, "grpc_4") + _num(row, "grpc_14")
         if prev is None:
             prev = (total, failed)
             continue
@@ -591,11 +599,15 @@ def score_run(run_dir: Path) -> dict:
     for row in inbound_rows:
         by_service[row.get("service", "")].append(row)
     rejection = {}
+    rejection_http = {}
     resets = {}
     grpc = {}
     inbound = {}
     for service, rows in by_service.items():
-        rejection[service] = rejection_streaks(rows, high_bar, low_bar)
+        matched = service in GRPC_CALLEES
+        rejection[service] = rejection_streaks(rows, high_bar, low_bar, count_grpc=matched)
+        if matched:
+            rejection_http[service] = rejection_streaks(rows, high_bar, low_bar)
         resets[service] = positive_column_delta(rows, "resets")
         grpc[service] = {
             "grpc_4": positive_column_delta(rows, "grpc_4"),
@@ -666,6 +678,7 @@ def score_run(run_dir: Path) -> dict:
         "has_log": log_path.is_file(),
         "edges": edges,
         "rejection": rejection,
+        "rejection_http": rejection_http,
         "resets": resets,
         "grpc": grpc,
         "inbound": inbound,

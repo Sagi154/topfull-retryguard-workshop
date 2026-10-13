@@ -149,6 +149,44 @@ class TestRejectionAndInbound(unittest.TestCase):
         self.assertEqual(stats["low_streak"], 1)
         self.assertEqual(stats["low_count"], 1)
 
+    def test_count_grpc_adds_grpc_failures(self):
+        rows = [
+            {"timestamp": "2026-10-13T00:00:00Z", "total": 0, "5xx": 0, "resets": 0, "grpc_4": 0, "grpc_14": 0},
+            {"timestamp": "2026-10-13T00:00:01Z", "total": 100, "5xx": 0, "resets": 0, "grpc_4": 30, "grpc_14": 10},  # 0.40 with grpc
+        ]
+        http = score.rejection_streaks(rows, 0.20, 0.10)
+        matched = score.rejection_streaks(rows, 0.20, 0.10, count_grpc=True)
+        self.assertEqual(http["high_count"], 0)
+        self.assertEqual(http["low_count"], 1)
+        self.assertEqual(matched["high_count"], 1)
+        self.assertEqual(matched["high_streak"], 1)
+        self.assertEqual(matched["low_count"], 0)
+
+    def test_count_grpc_without_grpc_columns_equals_http(self):
+        rows = [
+            {"timestamp": "2026-10-13T00:00:00Z", "total": 0, "5xx": 0, "resets": 0},
+            {"timestamp": "2026-10-13T00:00:01Z", "total": 10, "5xx": 0, "resets": 3},
+        ]
+        self.assertEqual(
+            score.rejection_streaks(rows, 0.20, 0.10, count_grpc=True),
+            score.rejection_streaks(rows, 0.20, 0.10),
+        )
+
+    def test_score_run_matches_only_on_read_callees(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "run1"
+            fields = ["timestamp", "service", "total", "5xx", "resets", "grpc_4", "grpc_14"]
+            rows = []
+            for service in ("productcatalogservice", "checkoutservice"):
+                rows.append(["2026-10-13T00:00:00Z", service, 0, 0, 0, 0, 0])
+                rows.append(["2026-10-13T00:00:01Z", service, 100, 0, 0, 30, 10])
+            _write(folder / "service_inbound.csv", fields, rows)
+            result = score.score_run(folder)
+            self.assertEqual(result["rejection"]["productcatalogservice"]["high_count"], 1)
+            self.assertEqual(result["rejection_http"]["productcatalogservice"]["high_count"], 0)
+            self.assertEqual(result["rejection"]["checkoutservice"]["high_count"], 0)
+            self.assertNotIn("checkoutservice", result["rejection_http"])
+
     def test_sojourn_and_share_above_500(self):
         buckets_a = json.dumps({"500": 80, "+Inf": 100})
         buckets_b = json.dumps({"500": 170, "+Inf": 200})
