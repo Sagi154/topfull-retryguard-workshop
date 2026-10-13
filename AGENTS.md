@@ -36,7 +36,7 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   envoy_retry_collector.py ← Gap 3: scrapes Envoy sidecar outbound retry counters (deployed to master)
   resource_usage_collector.py ← Layer 2: scrapes CPU/memory per service via kubelet stats/summary (deployed to master)
   mentor_charts.py / mentor_charts_data.py / mentor_charts_plots.py ← regenerate mentor-update PNGs from `campaign_48/` (`python experiments/mentor_charts.py`)
-  explore_run.py ← interactive Plotly view of one `final results/` run on the hold clock → `experiments/explore_out/<run>.html` (git-ignored); personal exploration tool, not part of the pull
+  explore_run.py ← interactive hold-clock page for one `final results/` run. How to run it: §3 "Where to find metrics"
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
   results/           ← local results only (master still uses a flat `/home/idozacharia/experiments/results/`)
@@ -96,7 +96,8 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | Question | Read |
 |---|---|
 | What do we collect, and in which file/column? | [METRICS-GATHERED.md](Guides%20and%20Info/METRICS-GATHERED.md) (includes the derived-metrics table) |
-| How do I line up metrics in time / see a run second by second? | `python experiments/run_timeline.py <run_dir>` → `timeline.png`; design in [2026-10-13-hold-clock-design.md](docs/superpowers/specs/2026-10-13-hold-clock-design.md) |
+| How do I line up metrics in time / see a run second by second? | Static chart: `python experiments/run_timeline.py <run_dir>` → `timeline.png`; design in [2026-10-13-hold-clock-design.md](docs/superpowers/specs/2026-10-13-hold-clock-design.md) |
+| How do I inspect one hold (zoom, hover, toggle lines)? | `python experiments/explore_run.py "<run_dir>"` writes `experiments/explore_out/<run>.html` (git-ignored, works offline). Use one folder under `experiments/results/final results/` (S1–S4). The page is a comparison chart over seven stacked panels on the hold clock. `--all` shows quiet lines on the stacked panels. Needs `plotly` from `experiments/requirements.txt`. Design: [2026-10-13-interactive-run-explorer-design.md](docs/superpowers/specs/2026-10-13-interactive-run-explorer-design.md) |
 | Why do we collect each metric? | [METRICS-CATALOG.md](Guides%20and%20Info/METRICS-CATALOG.md) |
 | How is a run's output produced, pulled, verified? | [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) |
 | Is a hold's TopFull cap / admitted data trustworthy? | The `Throttle data quality` table from `experiments/analysis_score.py`; rule in §6 "After every hold" |

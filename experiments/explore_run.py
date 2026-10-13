@@ -462,7 +462,10 @@ LEGEND_CLICK_JS = """
   graph.addEventListener("mousedown", function (event) {
     var node = event.target;
     var text = node.closest ? node.closest("text") : null;
-    var group = text ? titleOf[text.textContent] : null;
+    // Axis titles use the same words as the legend groups. Only a legend title
+    // should toggle the group.
+    if (!text || !text.classList.contains("legendtitletext")) return;
+    var group = titleOf[text.textContent];
     if (!group) return;
     event.stopPropagation();
     var groupEntries = entries(group);
@@ -571,7 +574,8 @@ COMPARE_LEGEND_JS = """
   });
   graph.addEventListener('mousedown', function (event) {
     var text = event.target.closest ? event.target.closest('text') : null;
-    var group = text ? titleOf[text.textContent] : null;
+    if (!text || !text.classList.contains('legendtitletext')) return;
+    var group = titleOf[text.textContent];
     if (!group) return;
     event.stopPropagation();
     var indices = [];
