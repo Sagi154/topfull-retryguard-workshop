@@ -273,12 +273,17 @@ def per_second_view(run_dir: Path, clock: dict | None = None) -> pd.DataFrame:
     return with_flags(view)
 
 
+SWITCH_EVENT_COLUMNS = [
+    "hold_s", "name", "step", "metric", "rpr", "rejection", "from_attempts", "consecutive_low",
+]
+
+
 def switch_events(run_dir: Path, clock: dict) -> pd.DataFrame:
     df = hold_clock.load_source(run_dir, "retryguard", clock)
     if df.empty or "step" not in df.columns:
-        return pd.DataFrame(columns=["hold_s", "name", "step"])
+        return pd.DataFrame(columns=SWITCH_EVENT_COLUMNS)
     switches = df[(df["kind"] == "switch") & df["hold_s"].notna()]
-    return switches[["hold_s", "name", "step"]].reset_index(drop=True)
+    return switches.reindex(columns=SWITCH_EVENT_COLUMNS).reset_index(drop=True)
 
 
 def select_columns(view: pd.DataFrame, patterns: list[str] | None) -> pd.DataFrame:

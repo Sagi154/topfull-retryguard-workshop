@@ -91,13 +91,21 @@ class TestPerSecondView(unittest.TestCase):
     def test_retryguard_observe_and_switches(self):
         (self.run / "retryguard.log").write_text("\n".join([
             f"{iso(1)}  OBSERVE  frontend->checkoutservice  rpr=0.5000  attempts=3  state=ON",
-            f"{iso(2)}  frontend->checkoutservice  ON→OFF   rpr=2.10  metric=rpr_burst",
+            f"{iso(2)}  frontend->checkoutservice  ON→OFF   rpr=2.10  consecutive_high=2  attempts=0  "
+            "from_attempts=3  metric=rpr_burst  elapsed_s=4",
+            f"{iso(3)}  checkoutservice  OFF→ON   rejection=0.03  consecutive_low=11  attempts=1  "
+            "from_attempts=0  metric=rejection  elapsed_s=20",
         ]), encoding="utf-8")
         view = self.view()
         self.assertEqual(view.loc[1, "rg.frontend->checkoutservice.rpr"], 0.5)
         self.assertEqual(view.loc[2, "rg.switches"], "frontend->checkoutservice ON→OFF")
         events = run_timeline.switch_events(self.run, CLOCK)
+        self.assertEqual(list(events.columns), run_timeline.SWITCH_EVENT_COLUMNS)
         self.assertEqual(events["hold_s"].iloc[0], 2.0)
+        self.assertEqual(events["metric"].iloc[0], "rpr_burst")
+        self.assertEqual(events["from_attempts"].iloc[0], "3")
+        self.assertEqual(events["consecutive_low"].iloc[1], "11")
+        self.assertTrue(empty(events["rejection"].iloc[0]))
 
 
 import pandas as pd  # noqa: E402
