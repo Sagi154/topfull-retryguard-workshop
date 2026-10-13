@@ -1,6 +1,8 @@
 """Unit tests for experiments/explore_run.py."""
+import json
 import math
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -51,6 +53,23 @@ class TestMarkers(unittest.TestCase):
         self.assertIn("consecutive_low=11", found[1]["hover"])
         self.assertNotEqual(found[0]["color"], found[1]["color"])
 
+    def test_comparison_series_keeps_climbs_as_their_own_lines(self):
+        series = explore_run.event_series(events([
+            [10.0, "frontend->productcatalogservice", "ON→OFF", "rpr_burst", "2.46", NAN, "3", NAN],
+            [30.0, "frontend->checkoutservice", "ON→OFF", "rpr", "0.90", NAN, "1", NAN],
+            [20.0, "checkoutservice", "OFF→ON", "rejection", NAN, "0.03", "0", "11"],
+            [40.0, "frontend->cartservice", "1→2", "rpr", NAN, NAN, "1", NAN],
+            [50.0, "frontend->cartservice", "2→3", "rpr", NAN, NAN, "2", NAN],
+        ]))
+        self.assertEqual([item[0] for item in series], ["ON→OFF", "OFF→ON", "1→2", "2→3"])
+        self.assertEqual(series[0][1][:2], [10.0, 10.0])
+        self.assertIn(30.0, series[0][1])
+        climb = explore_run.markers(events([
+            [40.0, "frontend->cartservice", "1→2", "rpr", NAN, NAN, "1", NAN],
+        ]), steps=explore_run.COMPARE_EVENT_STEPS)[0]
+        self.assertEqual(explore_run.event_caption(climb), "E2 1→2")
+        self.assertIn("frontend->cartservice 1→2", climb["hover"])
+
 
 class TestSloMiss(unittest.TestCase):
     def test_fail_over_rps_empty_when_no_load(self):
@@ -98,8 +117,14 @@ class TestLineSpecs(unittest.TestCase):
         every = {s[1]: s for s in explore_run.line_specs(self.view(), show_all=True)}
         self.assertIs(every["inbound.cartservice.rejection"][3], True)
 
+    def test_cpu_name_carries_the_table_limit(self):
+        named = explore_run.line_specs(self.view(), limits={"frontend": 1150})
+        cpu = next(spec for spec in named if spec[1] == "resource.frontend.cpu_millicores")
+        self.assertEqual(cpu[2], "frontend (1150)")
+        plain = explore_run.line_specs(self.view())
+        cpu = next(spec for spec in plain if spec[1] == "resource.frontend.cpu_millicores")
+        self.assertEqual(cpu[2], "frontend")
 
-import tempfile  # noqa: E402
 
 from test_hold_clock import E, iso, make_run  # noqa: E402
 
@@ -113,6 +138,20 @@ def render(run: Path) -> str:
 def strip_note_texts(fig) -> list[str]:
     xref = f"{explore_run.axis(explore_run.ROW['strip'], 'x')} domain"
     return [annotation.text for annotation in fig.layout.annotations if annotation.xref == xref]
+
+
+class TestCpuLimits(unittest.TestCase):
+    def test_manifest_row_overrides_the_paper_table(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp) / "run_manifest.json"
+            manifest.write_text(json.dumps({"scale_constraints": [{
+                "deployment": "checkoutservice",
+                "method": "cpu_limit",
+                "cpu_limit_millicores": 200,
+            }]}), encoding="utf-8")
+            limits = explore_run.cpu_limits(Path(tmp))
+        self.assertEqual(limits["checkoutservice"], 200)
+        self.assertEqual(limits["frontend"], 1150)
 
 
 class TestBuild(unittest.TestCase):
@@ -144,8 +183,24 @@ class TestBuild(unittest.TestCase):
             labels = [annotation.text for annotation in on_fig.layout.annotations]
             self.assertIn("E3 burst", labels)
             self.assertIn("V3", labels)
+            compare = explore_run.compare_figure(run)
+            named = {
+                annotation.text: annotation.hovertext
+                for annotation in compare.layout.annotations
+            }
+            self.assertIn("frontend->checkoutservice ON→OFF", named["E3 burst"])
+            self.assertIn("rpr=", named["E3 burst"])
+            self.assertIn("from_attempts=", named["E3 burst"])
+            self.assertIn("checkoutservice OFF→ON", named["V3"])
+            self.assertIn("consecutive_low=", named["V3"])
+            burst = next(annotation for annotation in compare.layout.annotations if annotation.text == "E3 burst")
+            self.assertEqual(burst.yanchor, "bottom")
+            self.assertEqual(burst.y, 1)
             strip_x = explore_run.axis(explore_run.ROW["strip"], "x")
             switch_lines = [shape for shape in on_fig.layout.shapes if shape.line.width == 1]
+            self.assertEqual(explore_run.axis(explore_run.ROW["locust"], "x"), "x")
+            self.assertTrue(any(shape.xref == "x" for shape in switch_lines))
+            self.assertTrue(any(shape.name == "ON→OFF" for shape in switch_lines))
             self.assertTrue(switch_lines)
             for shape in switch_lines:
                 expected = "above" if shape.xref == strip_x else "below"

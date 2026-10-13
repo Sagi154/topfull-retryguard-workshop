@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import json
 import sys
 from pathlib import Path
 
@@ -21,12 +22,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import hold_clock  # noqa: E402
 import run_timeline  # noqa: E402
+import topfull_cpu_quotas  # noqa: E402
 
 OUT_DIR = Path(__file__).resolve().parent / "explore_out"
 
-# Attempts climbs (1→2, 2→3) are deliberately not vertical lines: they show on the
-# state strip and in hover text. To draw them, add them here. See the spec, "Decisions".
+# Attempts climbs (1→2, 2→3) are deliberately not vertical lines on the stacked
+# panels: they show on the state strip and in hover text. To draw them there, add
+# them here. See the spec, "Decisions". The comparison chart lists every step the
+# run logged, climbs included, so each kind can be toggled on its own.
 VERTICAL_LINE_STEPS = ("ON→OFF", "OFF→ON")
+COMPARE_EVENT_STEPS = VERTICAL_LINE_STEPS + ("1→2", "2→3")
+EVENT_GROUP = "events"
 
 EDGE_NAMES = [f"{caller}->{target}" for caller, target in run_timeline.CONTROLLED_EDGES]
 EDGE_CODES = {name: f"E{i}" for i, name in enumerate(EDGE_NAMES, start=1)}
@@ -46,21 +52,52 @@ def marker_label(step: str, name: str, metric) -> str | None:
     return None
 
 
-def markers(events: pd.DataFrame) -> list[dict]:
+def markers(events: pd.DataFrame, steps: tuple[str, ...] = VERTICAL_LINE_STEPS) -> list[dict]:
     found = []
     for _, event in events.iterrows():
         step = event["step"]
-        if step not in VERTICAL_LINE_STEPS:
+        if step not in steps:
             continue
         lines = [f"{event['name']} {step}"]
         lines += [f"{key}={event[key]}" for key in HOVER_FIELDS if pd.notna(event[key])]
         found.append({
             "x": float(event["hold_s"]),
+            "step": step,
+            "name": event["name"],
             "label": marker_label(step, event["name"], event["metric"]),
             "hover": "<br>".join(lines),
             "color": run_timeline.SWITCH_COLORS.get(step, "gray"),
         })
     return found
+
+
+def event_caption(marker: dict) -> str:
+    """Short name drawn on a comparison-chart line, so the line can be hovered."""
+    if marker["label"]:
+        return marker["label"]
+    code = EDGE_CODES.get(marker["name"], marker["name"])
+    return f"{code} {marker['step']}"
+
+
+def event_series(events: pd.DataFrame) -> list[tuple[str, list, list, list, str]]:
+    """One vertical-line series per RetryGuard step that this run logged."""
+    grouped: dict[str, list[dict]] = {}
+    for marker in markers(events, steps=COMPARE_EVENT_STEPS):
+        grouped.setdefault(marker["step"], []).append(marker)
+    series = []
+    for step in COMPARE_EVENT_STEPS:
+        rows = grouped.get(step) or []
+        if not rows:
+            continue
+        x: list = []
+        y: list = []
+        hover: list = []
+        for marker in rows:
+            x += [marker["x"], marker["x"], None]
+            y += [0, 1, None]
+            hover += [marker["hover"], marker["hover"], None]
+        series.append((step, x, y, hover, rows[0]["color"]))
+    return series
 
 
 def slo_miss(view: pd.DataFrame) -> pd.Series | None:
@@ -81,23 +118,44 @@ def strip_matrix(view: pd.DataFrame) -> pd.DataFrame | None:
     return pd.DataFrame(rows).T
 
 
-def trace_name(key: str, column: str) -> str:
+def cpu_limits(run_dir: Path) -> dict[str, int]:
+    """Millicore limit per service: the run's CPU table, else the paper table."""
+    limits = dict(topfull_cpu_quotas.PAPER_CPU_LIMIT_MILLICORES)
+    manifest_path = Path(run_dir) / "run_manifest.json"
+    if not manifest_path.exists():
+        return limits
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for row in manifest.get("scale_constraints") or []:
+        if row.get("method") != "cpu_limit" or "deployment" not in row:
+            continue
+        limits[row["deployment"]] = topfull_cpu_quotas.cpu_limit_millicores_for(row)
+    return limits
+
+
+def trace_name(key: str, column: str, limits: dict[str, int] | None = None) -> str:
     if key in ("locust", "p95"):
         return column.split(".")[-1]
     if key == "rpr":
         edge = column[len("edge."):-len(".rpr")]
         return f"{EDGE_CODES.get(edge, edge)} {edge}"
-    return column.split(".")[1]
+    service = column.split(".")[1]
+    if key == "cpu" and limits and service in limits:
+        return f"{service} ({limits[service]})"
+    return service
 
 
-def line_specs(view: pd.DataFrame, show_all: bool = False) -> list[tuple[str, str, str, object]]:
+def line_specs(
+    view: pd.DataFrame,
+    show_all: bool = False,
+    limits: dict[str, int] | None = None,
+) -> list[tuple[str, str, str, object]]:
     default = run_timeline.panel_columns(view)
     every = run_timeline.panel_columns(view, show_all=True)
     specs = []
     for key in PANEL_KEYS:
         for column in every[key]:
             visible = True if show_all or column in default[key] else "legendonly"
-            specs.append((key, column, trace_name(key, column), visible))
+            specs.append((key, column, trace_name(key, column, limits), visible))
     return specs
 
 
@@ -111,12 +169,59 @@ PANELS = (
     ("cpu", "CPU (millicores)"),
 )
 ROW = {key: index for index, (key, _) in enumerate(PANELS, start=1)}
-ROW_HEIGHTS = [0.17, 0.13, 0.15, 0.15, 0.12, 0.14, 0.14]
+PANEL_TITLES = dict(PANELS)
+
+
+def ylabel(key: str) -> str:
+    return PANEL_TITLES[key]
+
+
+# The comparison chart overlays any of the line panels. req/s stays on the left axis, so a
+# cap and goodput read on the same scale. Each other unit has its own right-hand axis,
+# hidden until one of its lines is shown, so a rejection fraction is not flattened by
+# milliseconds or millicores.
+UNIT = {"locust": "req/s", "caps": "req/s", "p95": "ms", "rejection": "fraction",
+        "rpr": "retries/request", "cpu": "millicores"}
+COMPARE_AXIS = {
+    "req/s": "yaxis",
+    "ms": "yaxis2",
+    "fraction": "yaxis3",
+    "retries/request": "yaxis4",
+    "millicores": "yaxis5",
+}
+
+
+def series_of(view: pd.DataFrame, column: str) -> pd.Series:
+    if column == "locust.total.slo_miss":
+        return slo_miss(view)
+    return view[column]
+ROW_HEIGHTS = [0.15, 0.11, 0.13, 0.13, 0.10, 0.12, 0.12]
 ATTEMPT_COLORS = {0: "#d62728", 1: "#ff7f0e", 2: "#f2c744", 3: "#2ca02c"}
 
 
 def axis(row: int, letter: str) -> str:
+    """Axis name for a stacked panel. Row 1 is the first panel."""
     return letter if row == 1 else f"{letter}{row}"
+
+
+def trace_yaxis(unit: str) -> str:
+    key = COMPARE_AXIS[unit]
+    return "y" if key == "yaxis" else "y" + key[len("yaxis"):]
+
+
+def right_axis(title: str, position: float | None) -> dict:
+    axis_layout = {
+        "title": {"text": title},
+        "overlaying": "y",
+        "side": "right",
+        "visible": False,
+        "showgrid": False,
+        "zeroline": False,
+    }
+    if position is not None:
+        axis_layout["anchor"] = "free"
+        axis_layout["position"] = position
+    return axis_layout
 
 
 def attempts_colorscale() -> list[list]:
@@ -138,17 +243,19 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
     clock = hold_clock.read_clock(run_dir)
     view = run_timeline.per_second_view(run_dir, clock)
     events = run_timeline.switch_events(run_dir, clock)
+    limits = cpu_limits(run_dir)
     fig = make_subplots(
         rows=len(PANELS), cols=1, shared_xaxes=True,
         vertical_spacing=0.025, row_heights=ROW_HEIGHTS,
     )
     used = set()
 
-    for key, column, name, visible in line_specs(view, show_all):
+    for key, column, name, visible in line_specs(view, show_all, limits):
         x, y = run_timeline._plot_points(view[column])
         fig.add_trace(
             go.Scatter(x=x, y=y, mode="lines", name=name, visible=visible,
-                       line={"width": 1.2}, legendgroup=key),
+                       line={"width": 1.2}, legendgroup=key,
+                       legendgrouptitle={"text": ylabel(key), "font": {"color": "black"}}),
             row=ROW[key], col=1,
         )
         used.add(key)
@@ -159,7 +266,8 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
         fig.add_trace(
             go.Scatter(x=x, y=y, mode="lines", name="Locust SLO-miss",
                        line={"width": 1.5, "dash": "dash", "color": "black"},
-                       legendgroup="rejection"),
+                       legendgroup="rejection",
+                       legendgrouptitle={"text": ylabel("rejection"), "font": {"color": "black"}}),
             row=ROW["rejection"], col=1,
         )
         used.add("rejection")
@@ -185,18 +293,33 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
             add_note(fig, row, "none in this run")
 
     shapes = []
-    for marker in markers(events):
+    for marker in markers(events, steps=COMPARE_EVENT_STEPS):
         for row in range(1, len(PANELS) + 1):
             shapes.append({
                 "type": "line", "xref": axis(row, "x"), "yref": f"{axis(row, 'y')} domain",
                 "x0": marker["x"], "x1": marker["x"], "y0": 0, "y1": 1,
                 "line": {"color": marker["color"], "width": 1}, "opacity": 0.6,
                 "layer": "above" if row == ROW["strip"] else "below",
+                "name": marker["step"],
             })
+        if not marker["label"]:
+            continue
         fig.add_annotation(
             x=marker["x"], xref="x", y=1, yref="y domain", yanchor="bottom",
             text=marker["label"], textangle=-90, showarrow=False,
             font={"size": 9, "color": marker["color"]}, hovertext=marker["hover"],
+            name=marker["step"],
+        )
+    for step, _x, _y, _hover, color in event_series(events):
+        fig.add_trace(
+            go.Scatter(
+                x=[None], y=[None], mode="lines", name=step,
+                line={"color": color, "width": 2},
+                legendgroup=EVENT_GROUP,
+                legendgrouptitle={"text": "RetryGuard events", "font": {"color": "black"}},
+                hoverinfo="skip", showlegend=True,
+            ),
+            row=1, col=1,
         )
 
     escape_s = run_timeline.escape_hold_s(run_dir, clock)
@@ -211,37 +334,390 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
         )
     fig.update_layout(shapes=shapes)
 
-    for key, ylabel in PANELS:
-        fig.update_yaxes(title_text=ylabel, row=ROW[key], col=1)
+    for key, title in PANELS:
+        fig.update_yaxes(title_text=title, row=ROW[key], col=1)
     fig.update_xaxes(
         title_text="Hold clock (s since the first Locust row)",
         rangeslider={"visible": True, "thickness": 0.03}, row=len(PANELS), col=1,
     )
     fig.update_layout(
         title=run_dir.name, height=1600, hovermode="x unified", margin={"t": 90},
+        legend={"groupclick": "toggleitem", "tracegroupgap": 14,
+                "grouptitlefont": {"color": "black"}},
     )
     return fig
 
 
-def legend_html() -> str:
-    def table(title: str, codes: dict[str, str]) -> str:
-        rows = "".join(
-            f"<tr><td><b>{code}</b></td><td>{html.escape(name)}</td></tr>"
-            for name, code in codes.items()
+def compare_figure(run_dir: Path) -> go.Figure:
+    """One chart where any lines can be overlaid, each unit on its own y-axis."""
+    run_dir = Path(run_dir)
+    clock = hold_clock.read_clock(run_dir)
+    view = run_timeline.per_second_view(run_dir, clock)
+    limits = cpu_limits(run_dir)
+    events = run_timeline.switch_events(run_dir, clock)
+    specs = line_specs(view, show_all=True, limits=limits)
+    if slo_miss(view) is not None:
+        specs.append(("rejection", "locust.total.slo_miss", "Locust SLO-miss", True))
+    fig = go.Figure()
+    for key, column, name, _visible in specs:
+        x, y = run_timeline._plot_points(series_of(view, column))
+        unit = UNIT[key]
+        fig.add_trace(go.Scatter(
+            x=list(x), y=list(y), mode="lines", name=name, visible="legendonly",
+            line={"width": 1.4}, legendgroup=key, meta=unit, yaxis=trace_yaxis(unit),
+            legendgrouptitle={"text": ylabel(key)},
+        ))
+    # Event lines use a fixed 0–1 axis over the plot, so a shed stays full height
+    # when a req/s line and a rejection line are on different scales.
+    for step, x, y, _hover, color in event_series(events):
+        fig.add_trace(go.Scatter(
+            x=x, y=y, mode="lines", name=step, visible=True,
+            line={"width": 1.2, "color": color},
+            hoverinfo="skip",
+            legendgroup=EVENT_GROUP, meta="event",
+            legendgrouptitle={"text": "RetryGuard events"},
+            yaxis="y6",
+        ))
+    # Names sit above the plot, same as the stacked panels.
+    for marker in markers(events, steps=COMPARE_EVENT_STEPS):
+        fig.add_annotation(
+            x=marker["x"], xref="x", y=1, yref="y domain", yanchor="bottom",
+            text=event_caption(marker), textangle=-90, showarrow=False,
+            font={"size": 9, "color": marker["color"]}, hovertext=marker["hover"],
+            name=marker["step"],
         )
-        return f"<div><h3>{title}</h3><table>{rows}</table></div>"
-
-    return (
-        '<div style="display:flex;gap:48px;padding:16px;font-family:sans-serif;font-size:13px">'
-        + table("Edge codes (ON→OFF markers)", EDGE_CODES)
-        + table("Service codes (OFF→ON markers)", SERVICE_CODES)
-        + "</div>"
+    # Every line starts hidden, and Plotly then sizes the x-axis to an empty span
+    # instead of the hold. Pin the span so a line shows across the whole run.
+    hold = view.index.to_numpy(dtype=float)
+    x_range = [float(hold.min()), float(hold.max())] if hold.size else [0, 1]
+    fig.update_layout(
+        height=760, hovermode="x unified",
+        margin={"t": 340, "r": 36, "b": 48, "l": 64},
+        legend={"groupclick": "toggleitem", "tracegroupgap": 16, "orientation": "h",
+                "x": 0, "xanchor": "left", "y": 1, "yanchor": "bottom",
+                "font": {"size": 11}, "grouptitlefont": {"color": "black"}},
+        xaxis={"title": "Hold clock (s since the first Locust row)",
+               "domain": [0, 0.74], "range": x_range},
+        yaxis={"title": {"text": "req/s"}},
+        yaxis2=right_axis("ms", None),
+        yaxis3=right_axis("fraction", 0.82),
+        yaxis4=right_axis("retries/req", 0.90),
+        yaxis5=right_axis("millicores", 0.98),
+        yaxis6={
+            "overlaying": "y",
+            "side": "left",
+            "showticklabels": False,
+            "showgrid": False,
+            "zeroline": False,
+            "showline": False,
+            "ticks": "",
+            "range": [0, 1],
+            "fixedrange": True,
+        },
     )
+    return fig
 
 
-def write_html(fig: go.Figure, path: Path) -> None:
-    page = pio.to_html(fig, full_html=True, include_plotlyjs=True)
-    page = page.replace("</body>", legend_html() + "</body>")
+# Plotly's legend has no mode where a title click toggles the group while an item
+# click toggles only itself, and it greys a title whenever its group is fully hidden.
+# groupclick stays "toggleitem"; this script adds the title behaviour on top.
+LEGEND_CLICK_JS = """
+<script>
+(function () {
+  var graph = document.getElementById("graph");
+
+  function entries(group) {
+    return graph.data
+      .map(function (trace, index) { return { trace: trace, index: index }; })
+      .filter(function (entry) { return entry.trace.legendgroup === group; });
+  }
+
+  // Plotly greys a group title once every trace in it is hidden, and no legend
+  // option stops that. Repaint the titles after each redraw.
+  function keepTitles() {
+    graph.querySelectorAll(".legendtitletext").forEach(function (node) {
+      node.style.fill = "black";
+      node.style.fillOpacity = "1";
+    });
+  }
+
+  // An item click toggles only that trace. A title click toggles the whole group.
+  // Both are done here: with legend groups, Plotly's own click hides every trace
+  // in the group, so the built-in handler is cancelled and the click redone.
+  graph.on("plotly_legendclick", function (event) {
+    var trace = event.fullData[event.curveNumber];
+    var show = trace.visible === "legendonly";
+    Plotly.restyle(graph, { visible: show ? true : "legendonly" }, [event.curveNumber]).then(function () {
+      keepTitles();
+      return syncEvents();
+    });
+    return false;
+  });
+
+  var titleOf = {};
+  graph.data.forEach(function (trace) {
+    if (trace.legendgroup && trace.legendgrouptitle) titleOf[trace.legendgrouptitle.text] = trace.legendgroup;
+  });
+
+  graph.addEventListener("mousedown", function (event) {
+    var node = event.target;
+    var text = node.closest ? node.closest("text") : null;
+    var group = text ? titleOf[text.textContent] : null;
+    if (!group) return;
+    event.stopPropagation();
+    var groupEntries = entries(group);
+    var allHidden = groupEntries.every(function (entry) { return entry.trace.visible === "legendonly"; });
+    Plotly.restyle(graph, { visible: allHidden ? true : "legendonly" },
+      groupEntries.map(function (entry) { return entry.index; })).then(function () {
+        keepTitles();
+        return syncEvents();
+      });
+  }, true);
+
+  // The event lines are shapes, not traces. The legend items only exist so a
+  // section click can show or hide one step on every panel.
+  function syncEvents() {
+    var shown = {};
+    graph.data.forEach(function (trace) {
+      if (trace.legendgroup !== "events") return;
+      shown[trace.name] = trace.visible !== "legendonly";
+    });
+    if (!Object.keys(shown).length) return;
+    function apply(item) {
+      if (!Object.prototype.hasOwnProperty.call(shown, item.name)) return item;
+      var copy = Object.assign({}, item);
+      copy.visible = shown[item.name];
+      return copy;
+    }
+    return Plotly.relayout(graph, {
+      shapes: (graph.layout.shapes || []).map(apply),
+      annotations: (graph.layout.annotations || []).map(apply),
+    });
+  }
+
+  graph.on("plotly_afterplot", keepTitles);
+  new MutationObserver(keepTitles).observe(graph, { subtree: true, attributes: true, attributeFilter: ["style"] });
+})();
+</script>
+"""
+
+
+COMPARE_LEGEND_JS = """
+<script>
+(function () {
+  function start() {
+    var graph = document.getElementById('compare-graph');
+    if (!graph || !graph.data) { setTimeout(start, 50); return; }
+    wire(graph);
+  }
+  function wire(graph) {
+  var AXIS = AXIS_MAP;
+  // A unit's axis stays hidden until one of its lines is on, so an unused scale
+  // does not sit on the chart and a fraction is not drawn against milliseconds.
+  var RIGHT = ['ms', 'fraction', 'retries/request', 'millicores'];
+  // A unit's axis stays hidden until one of its lines is on. Visible units pack
+  // against the plot: the first on the right edge, the rest stepping outward.
+  // A millicores axis left at the far margin reads as a section that did nothing.
+  function syncAxes() {
+    var shown = {};
+    graph.data.forEach(function (trace) {
+      if (!trace.meta || !AXIS[trace.meta] || AXIS[trace.meta] === 'yaxis') return;
+      if (trace.visible !== 'legendonly') shown[trace.meta] = true;
+    });
+    var active = RIGHT.filter(function (unit) { return shown[unit]; });
+    var edge = active.length ? 1 - 0.07 * active.length : 0.97;
+    var update = {'xaxis.domain[1]': Math.max(0.6, edge)};
+    RIGHT.forEach(function (unit) {
+      var key = AXIS[unit];
+      var place = active.indexOf(unit);
+      update[key + '.visible'] = place !== -1;
+      if (place !== -1) {
+        update[key + '.anchor'] = 'free';
+        update[key + '.side'] = 'right';
+        update[key + '.position'] = edge + 0.07 * place;
+      }
+    });
+    return Plotly.relayout(graph, update);
+  }
+  // The names on the event lines are annotations. Hiding a step hides its names
+  // with the line, the same way the stacked panels hide their event marks.
+  function syncEvents() {
+    var shown = {};
+    graph.data.forEach(function (trace) {
+      if (trace.legendgroup !== 'events') return;
+      shown[trace.name] = trace.visible !== 'legendonly';
+    });
+    if (!Object.keys(shown).length) return;
+    function apply(item) {
+      if (!Object.prototype.hasOwnProperty.call(shown, item.name)) return item;
+      var copy = Object.assign({}, item);
+      copy.visible = shown[item.name];
+      return copy;
+    }
+    return Plotly.relayout(graph, {
+      annotations: (graph.layout.annotations || []).map(apply),
+    });
+  }
+  function sync() { return syncAxes().then(syncEvents); }
+  graph.on('plotly_legendclick', function (event) {
+    var trace = event.fullData[event.curveNumber];
+    var show = trace.visible === 'legendonly';
+    Plotly.restyle(graph, {visible: show ? true : 'legendonly'}, [event.curveNumber]).then(sync);
+    return false;
+  });
+  var titleOf = {};
+  graph.data.forEach(function (trace) {
+    if (trace.legendgrouptitle) titleOf[trace.legendgrouptitle.text] = trace.legendgroup;
+  });
+  graph.addEventListener('mousedown', function (event) {
+    var text = event.target.closest ? event.target.closest('text') : null;
+    var group = text ? titleOf[text.textContent] : null;
+    if (!group) return;
+    event.stopPropagation();
+    var indices = [];
+    graph.data.forEach(function (trace, index) { if (trace.legendgroup === group) indices.push(index); });
+    var allHidden = indices.every(function (index) { return graph.data[index].visible === 'legendonly'; });
+    Plotly.restyle(graph, {visible: allHidden ? true : 'legendonly'}, indices).then(sync);
+  }, true);
+  function keepTitles() {
+    graph.querySelectorAll('.legendtitletext').forEach(function (node) {
+      node.style.fill = 'black';
+      node.style.fillOpacity = '1';
+    });
+  }
+  // The legend is a row of columns above the chart. The event names also sit
+  // above the plot, so the legend stays clear of that band. When the window is
+  // too narrow the columns wrap; grow the chart so they still fit.
+  var fits = 0;
+  var NAME_ROOM = 68;
+  function liftLegend() {
+    var plotH = graph._fullLayout && graph._fullLayout._size && graph._fullLayout._size.h;
+    if (!plotH) return;
+    var y = 1 + NAME_ROOM / plotH;
+    var current = graph.layout.legend && graph.layout.legend.y;
+    if (current != null && Math.abs(current - y) < 0.004) return;
+    return Plotly.relayout(graph, {'legend.y': y});
+  }
+  function fitLegend() {
+    if (fits > 6) return;
+    var legend = graph.querySelector('.legend');
+    var grid = graph.querySelector('.gridlayer');
+    if (!legend || !grid) return;
+    var legendBox = legend.getBoundingClientRect();
+    var gridBox = grid.getBoundingClientRect();
+    var host = graph.getBoundingClientRect();
+    var gap = gridBox.top - legendBox.bottom;
+    var need = 0;
+    if (gap < NAME_ROOM - 2) need = NAME_ROOM - gap;
+    if (legendBox.top < host.top + 2) need = Math.max(need, host.top + 2 - legendBox.top);
+    if (need > 2) {
+      fits += 1;
+      var extra = need + 8;
+      Plotly.relayout(graph, {'margin.t': graph.layout.margin.t + extra, height: graph.layout.height + extra});
+    }
+  }
+  graph.on('plotly_afterplot', function () { keepTitles(); liftLegend(); fitLegend(); });
+  new MutationObserver(keepTitles).observe(graph, {subtree: true, attributes: true, attributeFilter: ['style']});
+  fitLegend();
+  setTimeout(fitLegend, 0);
+
+  // Hovering the line, or the name on it, shows that action. The stroke is a few
+  // pixels wide, so proximity — not only the text glyph — opens the same text.
+  var tip = document.createElement('div');
+  tip.id = 'event-tip';
+  tip.style.cssText = 'position:fixed;z-index:30;display:none;max-width:340px;padding:6px 8px;'
+    + 'background:#fff;border:1px solid #bbb;border-radius:4px;font:12px/1.35 sans-serif;'
+    + 'color:#222;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.18)';
+  graph.appendChild(tip);
+  function escapeHtml(value) {
+    return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function actionTip(ev) {
+    var axis = graph._fullLayout && graph._fullLayout.xaxis;
+    var plot = graph.querySelector('.nsewdrag');
+    if (!axis || !plot || typeof axis.d2p !== 'function') { tip.style.display = 'none'; return; }
+    var box = plot.getBoundingClientRect();
+    if (ev.clientX < box.left || ev.clientX > box.right || ev.clientY < box.top || ev.clientY > box.bottom) {
+      tip.style.display = 'none';
+      return;
+    }
+    var shown = {};
+    graph.data.forEach(function (trace) {
+      if (trace.legendgroup !== 'events') return;
+      shown[trace.name] = trace.visible !== 'legendonly';
+    });
+    var px = ev.clientX - graph.getBoundingClientRect().left;
+    var near = (graph.layout.annotations || []).filter(function (item) {
+      return item.hovertext && shown[item.name] && Math.abs(axis.d2p(item.x) - px) <= 8;
+    });
+    if (!near.length) { tip.style.display = 'none'; return; }
+    tip.innerHTML = near.map(function (item) {
+      return item.hovertext.split('<br>').map(escapeHtml).join('<br>');
+    }).join('<hr style="border:none;border-top:1px solid #ddd;margin:4px 0">');
+    tip.style.display = 'block';
+    var left = ev.clientX + 14;
+    if (left + 340 > window.innerWidth) left = ev.clientX - 354;
+    tip.style.left = left + 'px';
+    tip.style.top = Math.min(ev.clientY + 14, window.innerHeight - 80) + 'px';
+  }
+  graph.addEventListener('mousemove', actionTip);
+  graph.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+  }
+  start();
+})();
+</script>
+"""
+
+
+def compare_legend_js() -> str:
+    return COMPARE_LEGEND_JS.replace("AXIS_MAP", json.dumps(COMPARE_AXIS))
+
+
+def legend_html() -> str:
+    """The E and V key. It sits above the stacked panels, next to the marker labels."""
+    edges = list(EDGE_CODES.items())
+    edge_rows = "".join(
+        "<tr>"
+        f"<td><b>{left_code}</b></td><td>{html.escape(left_name)}</td>"
+        f"<td style='padding-left:20px'><b>{right_code}</b></td><td>{html.escape(right_name)}</td>"
+        "</tr>"
+        for (left_name, left_code), (right_name, right_code) in zip(edges[:7], edges[7:])
+    )
+    service_rows = "".join(
+        f"<tr><td><b>{code}</b></td><td>{html.escape(name)}</td></tr>"
+        for name, code in SERVICE_CODES.items()
+    )
+    cell = "padding:1px 8px 1px 0;white-space:nowrap"
+    return (
+        '<div style="display:flex;gap:40px;margin:8px 16px 4px;padding:8px 12px;'
+        'font-family:sans-serif;font-size:12px;line-height:1.35;color:#222;'
+        'background:#f6f7f9;border:1px solid #ddd">'
+        '<table style="border-collapse:collapse">'
+        f'<caption style="text-align:left;font-weight:600;padding-bottom:4px">Edge codes, ON→OFF</caption>'
+        f"{edge_rows}</table>"
+        '<table style="border-collapse:collapse">'
+        f'<caption style="text-align:left;font-weight:600;padding-bottom:4px">Service codes, OFF→ON</caption>'
+        f"{service_rows}</table></div>"
+    ).replace("<td>", f'<td style="{cell}">')
+
+
+def write_html(fig: go.Figure, path: Path, run_dir: Path | None = None) -> None:
+    page = pio.to_html(fig, full_html=True, include_plotlyjs=True, div_id="graph")
+    key = legend_html()
+    if run_dir is not None:
+        compare = compare_figure(run_dir)
+        block = pio.to_html(compare, full_html=False, include_plotlyjs=False, div_id="compare-graph")
+        div, _, script = block.partition("<script>")
+        # Plotly wraps the chart in a sized div and closes it after the script. The key
+        # has to follow that close, or it is clipped inside the chart.
+        script, wrapper, _ = script.rpartition("</div>")
+        page = page.replace("<body>", "<body>" + div + wrapper + key)
+        page = page.replace(
+            "</body>", "<script>" + script + compare_legend_js() + "</body>"
+        )
+    else:
+        page = page.replace("<body>", "<body>" + key)
+    page = page.replace("</body>", LEGEND_CLICK_JS + "</body>")
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(page, encoding="utf-8")
@@ -254,7 +730,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     run = Path(args.run)
     out = OUT_DIR / f"{run.name}.html"
-    write_html(build_figure(run, show_all=args.all), out)
+    write_html(build_figure(run, show_all=args.all), out, run)
     print(out)
     return 0
 

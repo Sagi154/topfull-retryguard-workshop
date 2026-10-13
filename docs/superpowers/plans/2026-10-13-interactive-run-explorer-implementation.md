@@ -54,7 +54,7 @@ Spec: [docs/superpowers/specs/2026-10-13-interactive-run-explorer-design.md](../
 **Interfaces:**
 - Produces: `run_timeline.SWITCH_EVENT_COLUMNS: list[str]` = `["hold_s", "name", "step", "metric", "rpr", "rejection", "from_attempts", "consecutive_low"]`; `run_timeline.switch_events(run_dir, clock) -> DataFrame` with exactly those columns (missing fields are NaN; values from the log other than `hold_s` are strings).
 
-- [ ] **Step 1: Install plotly and pin it**
+- [x] **Step 1: Install plotly and pin it**
 
 Run in the Python environment you run `run_timeline.py` with:
 
@@ -70,7 +70,7 @@ PyYAML==6.0.3
 plotly==<version from pip show>
 ```
 
-- [ ] **Step 2: Ignore the output folder**
+- [x] **Step 2: Ignore the output folder**
 
 Append to `.gitignore` (after the `timeline_1s.csv` line):
 
@@ -78,7 +78,7 @@ Append to `.gitignore` (after the `timeline_1s.csv` line):
 experiments/explore_out/
 ```
 
-- [ ] **Step 3: Write the failing test**
+- [x] **Step 3: Write the failing test**
 
 In `experiments/test_run_timeline.py`, replace the last four lines of `test_retryguard_observe_and_switches` (from `events = run_timeline.switch_events(...)` to the end of that method) and the two log lines above it, so the log carries real-format fields. The whole method becomes:
 
@@ -103,12 +103,12 @@ In `experiments/test_run_timeline.py`, replace the last four lines of `test_retr
         self.assertTrue(empty(events["rejection"].iloc[0]))
 ```
 
-- [ ] **Step 4: Run it to verify it fails**
+- [x] **Step 4: Run it to verify it fails**
 
 Run: `python -m pytest experiments/test_run_timeline.py::TestPerSecondView::test_retryguard_observe_and_switches -v`
 Expected: FAIL with `AttributeError: module 'run_timeline' has no attribute 'SWITCH_EVENT_COLUMNS'`.
 
-- [ ] **Step 5: Implement**
+- [x] **Step 5: Implement**
 
 In `experiments/run_timeline.py`, replace the whole `switch_events` function with:
 
@@ -126,12 +126,12 @@ def switch_events(run_dir: Path, clock: dict) -> pd.DataFrame:
     return switches.reindex(columns=SWITCH_EVENT_COLUMNS).reset_index(drop=True)
 ```
 
-- [ ] **Step 6: Run the timeline tests**
+- [x] **Step 6: Run the timeline tests**
 
 Run: `python -m pytest experiments/test_run_timeline.py experiments/test_hold_clock.py -q`
 Expected: all pass (the static chart only reads `hold_s` and `step`).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add experiments/run_timeline.py experiments/test_run_timeline.py experiments/requirements.txt .gitignore
@@ -158,7 +158,7 @@ git commit -m "feat(timeline): switch_events carries metric and hover fields; ad
   - `trace_name(key: str, column: str) -> str`
   - `line_specs(view: DataFrame, show_all: bool = False) -> list[tuple[str, str, str, object]]` of `(panel_key, column, trace_name, visible)` where `visible` is `True` or `"legendonly"`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `experiments/test_explore_run.py`:
 
@@ -268,12 +268,12 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `python -m pytest experiments/test_explore_run.py -v`
 Expected: collection error `ModuleNotFoundError: No module named 'explore_run'`.
 
-- [ ] **Step 3: Implement the helpers**
+- [x] **Step 3: Implement the helpers**
 
 Create `experiments/explore_run.py`:
 
@@ -373,12 +373,12 @@ def line_specs(view: pd.DataFrame, show_all: bool = False) -> list[tuple[str, st
     return specs
 ```
 
-- [ ] **Step 4: Run to verify they pass**
+- [x] **Step 4: Run to verify they pass**
 
 Run: `python -m pytest experiments/test_explore_run.py -v`
 Expected: 5 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add experiments/explore_run.py experiments/test_explore_run.py
@@ -397,7 +397,7 @@ git commit -m "feat(explore): edge/service codes, markers, SLO-miss, strip matri
 - Consumes: Task 2 helpers; `hold_clock.read_clock`, `run_timeline.per_second_view`, `run_timeline.switch_events`, `run_timeline.escape_hold_s`, `run_timeline._plot_points`.
 - Produces: `PANELS`, `build_figure(run_dir, show_all=False) -> go.Figure`, `legend_html() -> str`, `write_html(fig, path) -> None`, `main(argv=None) -> int`.
 
-- [ ] **Step 1: Write the failing smoke test**
+- [x] **Step 1: Write the failing smoke test**
 
 Append to `experiments/test_explore_run.py`, above the `if __name__` line:
 
@@ -438,12 +438,12 @@ class TestBuild(unittest.TestCase):
             self.assertIn("V9", on)
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `python -m pytest experiments/test_explore_run.py::TestBuild -v`
 Expected: FAIL with `AttributeError: module 'explore_run' has no attribute 'write_html'`.
 
-- [ ] **Step 3: Replace the imports block**
+- [x] **Step 3: Replace the imports block**
 
 In `experiments/explore_run.py`, replace the import block (from `from __future__ import annotations` through `import run_timeline  # noqa: E402`) with:
 
@@ -468,7 +468,7 @@ import run_timeline  # noqa: E402
 OUT_DIR = Path(__file__).resolve().parent / "explore_out"
 ```
 
-- [ ] **Step 4: Append the figure, HTML and CLI code**
+- [x] **Step 4: Append the figure, HTML and CLI code**
 
 Append to the end of `experiments/explore_run.py`:
 
@@ -633,17 +633,17 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-- [ ] **Step 5: Run the explore tests**
+- [x] **Step 5: Run the explore tests**
 
 Run: `python -m pytest experiments/test_explore_run.py -v`
 Expected: 6 passed.
 
-- [ ] **Step 6: Run the whole timeline family**
+- [x] **Step 6: Run the whole timeline family**
 
 Run: `python -m pytest experiments/test_explore_run.py experiments/test_run_timeline.py experiments/test_hold_clock.py -q`
 Expected: all pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add experiments/explore_run.py experiments/test_explore_run.py
@@ -657,7 +657,7 @@ git commit -m "feat(explore): interactive Plotly figure, legend table and CLI"
 **Files:**
 - Modify: `AGENTS.md` (§2 repo layout), `STATUS.md` (Done)
 
-- [ ] **Step 1: Burst run**
+- [x] **Step 1: Burst run**
 
 ```powershell
 python experiments/explore_run.py "experiments/results/final results/S2_sustained_overload_burst/both/s2_burst20_rgtf1"
@@ -666,7 +666,7 @@ python -c "import sys; sys.path.insert(0,'experiments'); import explore_run as e
 
 Expected: the first prints the HTML path under `experiments/explore_out/`. In the second, `shapes` is 196 (28 markers × 7 panels), or 197 if the run has an escape line. The log has 14 `E3 burst` sheds and 14 `V3` re-enables, so `annotations` is at least 28.
 
-- [ ] **Step 2: Find a normal-mode run with a `metric=rpr` shed**
+- [x] **Step 2: Find a normal-mode run with a `metric=rpr` shed**
 
 ```powershell
 python -c "import sys,pathlib; sys.path.insert(0,'experiments'); import hold_clock; [print(p.parent) for p in sorted(pathlib.Path('experiments/results/final results').rglob('retryguard.log')) if (lambda d: 'step' in d and ((d.kind=='switch')&(d.step=='ON→OFF')&(d.metric=='rpr')).any())(hold_clock.retryguard_rows(p.read_text(encoding='utf-8',errors='replace')))]"
@@ -680,15 +680,15 @@ python -c "import sys; sys.path.insert(0,'experiments'); import explore_run as e
 
 If the list is empty, stop and report; the label rule is wrong.
 
-- [ ] **Step 3: Check a RetryGuard-off run**
+- [x] **Step 3: Check a RetryGuard-off run**
 
 Pick any `tf_only` folder (for example `experiments/results/final results/S2_sustained_overload_normal/tf_only/s2_normal_tf1rg0`), build it, and confirm the page opens with "RetryGuard off in this run" and no marker lines.
 
-- [ ] **Step 4: Ask the user to open the pages**
+- [x] **Step 4: Ask the user to open the pages**
 
 Report the three HTML paths and ask the user to check, by eye, that panels zoom together, the legend toggles hidden lines, marker labels are readable, and the range slider does not hide the bottom panel. Fix layout constants (`height`, `row_heights`, slider `thickness`) from what they report. Do not mark this task done until they have looked.
 
-- [ ] **Step 5: Docs**
+- [x] **Step 5: Docs**
 
 In `AGENTS.md` §2 repo layout, add one line after the `mentor_charts*.py` line:
 
@@ -698,7 +698,7 @@ In `AGENTS.md` §2 repo layout, add one line after the `mentor_charts*.py` line:
 
 In `STATUS.md`, read the Done section's format and append one bullet in the same style: interactive run explorer (`experiments/explore_run.py`) built on the hold clock; spec and plan paths; `plotly` added to `experiments/requirements.txt`; attempts climbs are deliberately not vertical lines (spec "Decisions").
 
-- [ ] **Step 6: Final test run and commit**
+- [x] **Step 6: Final test run and commit**
 
 Run: `python -m pytest experiments/test_explore_run.py experiments/test_run_timeline.py experiments/test_hold_clock.py -q`
 Expected: all pass.
