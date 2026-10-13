@@ -2,7 +2,7 @@
 
 ## Setup
 
-Scenario 3, 600 s. Mix 175 / 30 / 70 / 90 / 5 (getproduct / postcheckout / getcart / postcart / emptycart), `spawn_rate` 50. Paper-C1, with checkoutservice constrained to 200 m. Frontend HPA min = max = 4. productcatalogservice HPA min = max = 1. Frontend sidecar `proxyCPU` 90 m, `proxyCPULimit` unset. Cool-off between holds is 120 s. RetryGuard uses the locked parameters. Burst holds set `burst_rpr` 2.0, `burst_window_seconds` 5, and `burst_min_first_attempts` 20. Normal holds and the TopFull-only holds omit those three keys. Each cell is two repeats. The bold bar splits the pairs.
+Scenario 3, 600 s. Mix 175 / 30 / 70 / 90 / 5 (getproduct / postcheckout / getcart / postcart / emptycart), `spawn_rate` 50. Paper-C1, with checkoutservice constrained to 200 m. Frontend HPA min = max = 4. productcatalogservice HPA min = max = 1. Frontend sidecar `proxyCPU` 90 m, `proxyCPULimit` unset. Cool-off between holds is 120 s. RetryGuard uses the locked parameters. Burst holds set `burst_rpr` 2.0, `burst_window_seconds` 5, and `burst_min_first_attempts` 20. Normal-mode RetryGuard holds omit those three keys. TopFull-only still has them in `s3_tf_only.yaml`; RetryGuard is off on that cell, so its result directory is `normal`. Each cell is two repeats. The bold bar splits the pairs.
 
 The first launch of `final_s3_rg_only_normal_run1` is INVALID (locust_rows 682) and stays on disk. It is not a column. Its one replay, `final_s3_rg_only_normal_run1_r2`, is the scored hold for that cell. Earlier S3 holds, including the Set B checkout 200/100 pair, used a different CPU table and are not columns.
 
