@@ -41,7 +41,7 @@ SERVICE_NAMES = list(dict.fromkeys(target for _, target in run_timeline.CONTROLL
 SERVICE_CODES = {name: f"V{i}" for i, name in enumerate(SERVICE_NAMES, start=1)}
 
 HOVER_FIELDS = ("metric", "rpr", "rejection", "from_attempts", "consecutive_low")
-PANEL_KEYS = ("locust", "p95", "rejection", "rpr", "caps", "cpu")
+PANEL_KEYS = ("locust", "p95", "rejection", "rpr", "retry_cum", "caps", "overload_ticks", "cpu")
 
 
 def marker_label(step: str, name: str, metric) -> str | None:
@@ -136,8 +136,9 @@ def cpu_limits(run_dir: Path) -> dict[str, int]:
 def trace_name(key: str, column: str, limits: dict[str, int] | None = None) -> str:
     if key in ("locust", "p95"):
         return column.split(".")[-1]
-    if key == "rpr":
-        edge = column[len("edge."):-len(".rpr")]
+    if key in ("rpr", "retry_cum"):
+        suffix = ".rpr" if key == "rpr" else ".retry_cum"
+        edge = column[len("edge."):-len(suffix)]
         return f"{EDGE_CODES.get(edge, edge)} {edge}"
     service = column.split(".")[1]
     if key == "cpu" and limits and service in limits:
@@ -165,7 +166,9 @@ PANELS = (
     ("p95", "P95 (ms)"),
     ("rejection", "Rejection"),
     ("rpr", "Retries per request"),
+    ("retry_cum", "Cumulative retries"),
     ("caps", "TopFull cap (req/s)"),
+    ("overload_ticks", "Overload ticks"),
     ("strip", "Attempts (0 off, 3 full)"),
     ("cpu", "CPU (millicores)"),
 )
@@ -182,21 +185,35 @@ def ylabel(key: str) -> str:
 # hidden until one of its lines is shown, so a rejection fraction is not flattened by
 # milliseconds or millicores.
 UNIT = {"locust": "req/s", "caps": "req/s", "p95": "ms", "rejection": "fraction",
-        "rpr": "retries/request", "cpu": "millicores"}
+        "rpr": "retries/request", "cpu": "millicores",
+        "retry_cum": "retries", "overload_ticks": "ticks"}
 COMPARE_AXIS = {
     "req/s": "yaxis",
     "ms": "yaxis2",
     "fraction": "yaxis3",
     "retries/request": "yaxis4",
     "millicores": "yaxis5",
+    "retries": "yaxis7",
+    "ticks": "yaxis8",
 }
+STEP_KEYS = frozenset({"retry_cum", "overload_ticks"})
 
 
 def series_of(view: pd.DataFrame, column: str) -> pd.Series:
     if column == "locust.total.slo_miss":
         return slo_miss(view)
     return view[column]
-ROW_HEIGHTS = [0.15, 0.11, 0.13, 0.13, 0.10, 0.12, 0.12]
+
+
+def plot_points(series: pd.Series, step: bool = False) -> tuple:
+    """Step series stay joined across a poll gap. A rate series still breaks."""
+    if not step:
+        return run_timeline._plot_points(series)
+    points = series.dropna()
+    return points.index.to_numpy(dtype=float), points.to_numpy(dtype=float)
+
+
+ROW_HEIGHTS = [0.12, 0.09, 0.10, 0.10, 0.10, 0.08, 0.10, 0.10, 0.10]
 ATTEMPT_COLORS = {0: "#d62728", 1: "#ff7f0e", 2: "#f2c744", 3: "#2ca02c"}
 
 
@@ -252,10 +269,12 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
     used = set()
 
     for key, column, name, visible in line_specs(view, show_all, limits):
-        x, y = run_timeline._plot_points(view[column])
+        step = key in STEP_KEYS
+        x, y = plot_points(view[column], step=step)
+        line = {"width": 1.2, "shape": "hv"} if step else {"width": 1.2}
         fig.add_trace(
             go.Scatter(x=x, y=y, mode="lines", name=name, visible=visible,
-                       line={"width": 1.2}, legendgroup=key,
+                       line=line, legendgroup=key,
                        legendgrouptitle={"text": ylabel(key), "font": {"color": "black"}}),
             row=ROW[key], col=1,
         )
@@ -342,7 +361,7 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
         rangeslider={"visible": True, "thickness": 0.03}, row=len(PANELS), col=1,
     )
     fig.update_layout(
-        title=run_dir.name, height=1600, hovermode="x unified", margin={"t": 90},
+        title=run_dir.name, height=2100, hovermode="x unified", margin={"t": 90},
         legend={"groupclick": "toggleitem", "tracegroupgap": 14,
                 "grouptitlefont": {"color": "black"}},
     )
@@ -361,11 +380,13 @@ def compare_figure(run_dir: Path) -> go.Figure:
         specs.append(("rejection", "locust.total.slo_miss", "Locust SLO-miss", True))
     fig = go.Figure()
     for key, column, name, _visible in specs:
-        x, y = run_timeline._plot_points(series_of(view, column))
+        step = key in STEP_KEYS
+        x, y = plot_points(series_of(view, column), step=step)
         unit = UNIT[key]
+        line = {"width": 1.4, "shape": "hv"} if step else {"width": 1.4}
         fig.add_trace(go.Scatter(
             x=list(x), y=list(y), mode="lines", name=name, visible="legendonly",
-            line={"width": 1.4}, legendgroup=key, meta=unit, yaxis=trace_yaxis(unit),
+            line=line, legendgroup=key, meta=unit, yaxis=trace_yaxis(unit),
             legendgrouptitle={"text": ylabel(key)},
         ))
     # Event lines use a fixed 0–1 axis over the plot, so a shed stays full height
@@ -404,6 +425,8 @@ def compare_figure(run_dir: Path) -> go.Figure:
         yaxis3=right_axis("fraction", 0.82),
         yaxis4=right_axis("retries/req", 0.90),
         yaxis5=right_axis("millicores", 0.98),
+        yaxis7=right_axis("retries", None),
+        yaxis8=right_axis("ticks", None),
         yaxis6={
             "overlaying": "y",
             "side": "left",
@@ -525,7 +548,7 @@ COMPARE_LEGEND_JS = """
   var AXIS = AXIS_MAP;
   // A unit's axis stays hidden until one of its lines is on, so an unused scale
   // does not sit on the chart and a fraction is not drawn against milliseconds.
-  var RIGHT = ['ms', 'fraction', 'retries/request', 'millicores'];
+  var RIGHT = ['ms', 'fraction', 'retries/request', 'millicores', 'retries', 'ticks'];
   // A unit's axis stays hidden until one of its lines is on. Visible units pack
   // against the plot: the first on the right edge, the rest stepping outward.
   // A millicores axis left at the far margin reads as a section that did nothing.

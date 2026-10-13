@@ -125,6 +125,22 @@ class TestLineSpecs(unittest.TestCase):
         cpu = next(spec for spec in plain if spec[1] == "resource.frontend.cpu_millicores")
         self.assertEqual(cpu[2], "frontend")
 
+    def test_cumulative_lines_follow_the_busy_rule(self):
+        view = self.view()
+        view["edge.frontend->checkoutservice.retry_cum"] = [0.0, 4.0]
+        view["edge.frontend->cartservice.retry_cum"] = [0.0, 0.0]
+        view["detect.checkoutservice.overload_ticks_cum"] = [1.0, 2.0]
+        view["detect.emailservice.overload_ticks_cum"] = [0.0, 0.0]
+        quiet = {spec[1]: spec for spec in graphs_tool.line_specs(view)}
+        self.assertEqual(quiet["edge.frontend->checkoutservice.retry_cum"][3], True)
+        self.assertEqual(quiet["edge.frontend->checkoutservice.retry_cum"][2], "E3 frontend->checkoutservice")
+        self.assertEqual(quiet["edge.frontend->cartservice.retry_cum"][3], "legendonly")
+        self.assertEqual(quiet["detect.checkoutservice.overload_ticks_cum"][3], True)
+        self.assertEqual(quiet["detect.emailservice.overload_ticks_cum"][3], "legendonly")
+        every = {spec[1]: spec for spec in graphs_tool.line_specs(view, show_all=True)}
+        self.assertIs(every["edge.frontend->cartservice.retry_cum"][3], True)
+        self.assertIs(every["detect.emailservice.overload_ticks_cum"][3], True)
+
 
 from test_hold_clock import E, iso, make_run  # noqa: E402
 
@@ -193,6 +209,8 @@ class TestBuild(unittest.TestCase):
             self.assertIn("from_attempts=", named["E3 burst"])
             self.assertIn("checkoutservice OFF→ON", named["V3"])
             self.assertIn("consecutive_low=", named["V3"])
+            self.assertEqual(compare.layout.yaxis7.title.text, "retries")
+            self.assertEqual(compare.layout.yaxis8.title.text, "ticks")
             burst = next(annotation for annotation in compare.layout.annotations if annotation.text == "E3 burst")
             self.assertEqual(burst.yanchor, "bottom")
             self.assertEqual(burst.y, 1)

@@ -66,6 +66,55 @@ class TestPerSecondView(unittest.TestCase):
         self.assertAlmostEqual(view.loc[1, "inbound.cartservice.rejection"], 0.1)
         self.assertTrue(empty(view.loc[2, "inbound.cartservice.total_per_s"]))
 
+    def test_retry_cumulative_sums_increases_and_drops_a_reset(self):
+        header = ["timestamp", "caller", "target", "total", "2xx", "4xx", "5xx", "retry"]
+        write_csv(self.run / "service_edges.csv", header, [
+            [iso(0), "frontend", "checkoutservice", 0, 0, 0, 0, 0],
+            [iso(1), "frontend", "checkoutservice", 10, 10, 0, 0, 3],
+            [iso(2), "frontend", "checkoutservice", 20, 20, 0, 0, 3],
+            [iso(3), "frontend", "checkoutservice", 30, 30, 0, 0, 8],
+            [iso(0), "frontend", "cartservice", 0, 0, 0, 0, 0],
+            [iso(1), "frontend", "cartservice", 10, 10, 0, 0, 5],
+            [iso(2), "frontend", "cartservice", 20, 20, 0, 0, 2],
+        ])
+        view = self.view()
+        checkout = "edge.frontend->checkoutservice.retry_cum"
+        cart = "edge.frontend->cartservice.retry_cum"
+        self.assertEqual(view.loc[1, checkout], 3)
+        self.assertEqual(view.loc[2, checkout], 3)
+        self.assertEqual(view.loc[3, checkout], 8)
+        self.assertEqual(view.loc[1, cart], 5)
+        self.assertTrue(empty(view.loc[2, cart]))
+
+    def test_overload_ticks_count_polls_not_carried_seconds(self):
+        header = ["timestamp", "service", "cadvisor_cpu", "quota", "alpha", "utilization", "overloaded"]
+        write_csv(self.run / "topfull_detect.csv", header, [
+            [iso(0), "checkoutservice", 180, 200, 0.8, 0.9, 1],
+            [iso(1), "checkoutservice", 100, 200, 0.8, 0.5, 0],
+            [iso(2), "checkoutservice", 180, 200, 0.8, 0.9, 1],
+            [iso(0), "frontend", 200, 1150, 0.8, 0.2, 1],
+            [iso(7), "frontend", 200, 1150, 0.8, 0.2, 1],
+            [iso(0), "emailservice", 10, 150, 0.8, 0.1, 0],
+            [iso(1), "emailservice", 10, 150, 0.8, 0.1, 0],
+        ])
+        view = self.view()
+        checkout = "detect.checkoutservice.overload_ticks_cum"
+        frontend = "detect.frontend.overload_ticks_cum"
+        self.assertEqual(view.loc[0, checkout], 1)
+        self.assertEqual(view.loc[1, checkout], 1)
+        self.assertEqual(view.loc[2, checkout], 2)
+        self.assertEqual(view.loc[0, frontend], 1)
+        self.assertEqual(view.loc[1, "detect.frontend.overloaded"], 1)
+        self.assertTrue(empty(view.loc[1, frontend]))
+        self.assertEqual(view.loc[7, frontend], 2)
+        shown = run_timeline.panel_columns(view)["overload_ticks"]
+        self.assertEqual(shown, [
+            "detect.checkoutservice.overload_ticks_cum",
+            "detect.frontend.overload_ticks_cum",
+        ])
+        every = run_timeline.panel_columns(view, show_all=True)["overload_ticks"]
+        self.assertIn("detect.emailservice.overload_ticks_cum", every)
+
     def test_cap_carry_rules(self):
         header = ["timestamp", "api", "threshold", "admitted_rps", "threshold_fresh", "admitted_fresh"]
         rows = [

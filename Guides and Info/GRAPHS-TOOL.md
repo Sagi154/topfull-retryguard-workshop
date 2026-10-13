@@ -1,0 +1,139 @@
+# graphs_tool — what the page shows
+
+One hold, one HTML page, on the hold clock. Use it for every analysis of a single run: zoom, hover, and turn lines on or off. It is not a report figure. The committed `timeline.png` from `run_timeline.py` stays the static record.
+
+Checked against `s2_burst20_rgtf1` on 2026-10-14. Build record: [2026-10-13-interactive-run-explorer-design.md](../docs/superpowers/specs/2026-10-13-interactive-run-explorer-design.md).
+
+## What it is and how to run it
+
+```powershell
+pip install -r experiments/requirements.txt   # once; needs plotly
+python experiments/graphs_tool.py "<run_dir>"
+python experiments/graphs_tool.py "<run_dir>" --all
+```
+
+The page is `experiments/explore_out/<run folder name>.html`. It is git-ignored, self-contained, and works offline.
+
+The run folder is one hold under `experiments/results/final results/` (S1–S4). `campaign_48/`, `august_38/`, S5, and S6 are out of scope.
+
+`--all` draws every service and every RetryGuard edge on the stacked panels. Without it, a line that never leaves zero stays in the legend only, so a quiet edge does not flatten the axis.
+
+## Page layout
+
+Top to bottom:
+
+1. **Comparison chart.** One plot. Every line starts hidden. Turn on any mix of series; each unit keeps its own y-axis.
+2. **Code key.** Edge codes E1–E14 (sheds) and service codes V1–V9 (re-enables).
+3. **Stacked panels.** Nine panels, one shared hold-clock x-axis. The bottom panel has the range slider. Hover is unified: one x position shows every visible line.
+
+Event names sit above each plot, not inside it. A section title in the legend turns the whole group on or off. One item turns only that line. An axis title that uses the same word as a section (the Rejection panel) does not toggle the group.
+
+## Hold clock
+
+t = 0 is the first Locust row of the hold, not the first mesh poll and not wall-clock midnight. Every panel uses that same zero, so a shed line on the retry panel is the same instant as the line on goodput.
+
+How the fit works, and why a Locust row is not "second i": [2026-10-13-hold-clock-design.md](../docs/superpowers/specs/2026-10-13-hold-clock-design.md).
+
+## Panels
+
+| # | Panel | What a point is | Source | Unit | Shown by default |
+|---|---|---|---|---|---|
+| 1 | Goodput / RPS | Locust goodput and offered RPS | `total.csv` `Goodput`, `RPS` | req/s | both, when the file has them |
+| 2 | P95 | Shopper-visible latency | `total.csv` `Latency95` | ms | the P95 line |
+| 3 | Rejection | Solid: controller rejection per service. Dashed black: Locust SLO-miss | `service_inbound.csv`; SLO-miss is `Fail/RPS` from `total.csv` | fraction | services with any rejection above 0 |
+| 4 | Retries per request | `Δretry / (Δtotal − Δretry)` on one caller→callee edge | `service_edges.csv` | retries/request | RetryGuard edges with any retry increase |
+| 5 | Cumulative retries | Running sum of positive `retry` increases since the first mesh poll | `service_edges.csv` `retry` | retries | same edges as panel 4 |
+| 6 | TopFull cap | Live admission cap per entry API | `topfull_throttle.csv` `threshold` | req/s | APIs that had a real cap |
+| 7 | Overload ticks | Running count of detector polls with `overloaded=1` | `topfull_detect.csv` | ticks | services with at least one such poll |
+| 8 | Attempts | Heatmap. Row = edge, colour = attempts 0–3 | `retryguard.log` `OBSERVE` | attempts | every controlled edge, when RetryGuard ran |
+| 9 | CPU | App-container CPU | `resource_usage.csv` | millicores | every Boutique service except `__master_node__` |
+
+A line going up means more of that quantity at that second. On panels 5 and 7 the line is a step: it stays flat until the next poll, then jumps by what that poll added. It does not fall. On the other line panels a rise is a rate or a reading, and it can fall.
+
+**Cumulative retries** count increases during this hold. The Envoy counter is a lifetime total, and a previous run can leave a large number in the first row. Those leftovers are not drawn. A poll where the counter goes backwards is dropped and does not add. The fourteen lines are RetryGuard's controlled edges, named `E3 frontend->checkoutservice` and so on.
+
+**Overload ticks** count detector rows, not seconds. The detector writes about once a second. A carried flag (the last 0/1 held for up to 6 s when a poll is missing) is not an extra tick. The services are the eleven the detector scrapes, including `redis-cart`. On `s2_burst20_rgtf1`, checkout and email are the lines that climb; the others stay at zero and are hidden until `--all`.
+
+**Rejection** uses the controller formula: `(Δ5xx + Δresets) / Δtotal`, plus `Δgrpc_4 + Δgrpc_14` on adservice, currencyservice, productcatalogservice, and recommendationservice. The dashed line is shopper-visible failure, `Fail/RPS` of the Locust total. They are different. S2 can show SLO-miss near 1 while mesh 5xx is 0. See [2026-10-13-controller-vs-scorer-rejection.md](2026-10-13-controller-vs-scorer-rejection.md).
+
+**TopFull cap.** A reading of 10000 means no cap and is not drawn. A fresh 0 is an empty read, not a cap of zero. The last usable cap is held for at most 6 s. If `analysis_score.py` flags the hold (`Throttle data quality`), do not read the cap line as measured. Goodput, P95, rejection, retries, and overload ticks do not use that file.
+
+**Attempts.** Colour runs from red (0, retries off) through orange and yellow to green (3, full). A run with RetryGuard off says "RetryGuard off in this run" instead of the heatmap.
+
+**CPU.** The legend name includes the limit in millicores, for example `frontend (1150)`, from the run manifest when it sets one and otherwise from the paper table. `__master_node__` is the master VM and is left out so it does not squash the service lines.
+
+A panel with nothing to draw says "none in this run".
+
+## Comparison chart
+
+Same series as the line panels, overlaid. Nothing is on until you turn it on.
+
+| Unit | Axis | Series |
+|---|---|---|
+| req/s | left, always there | Goodput, RPS, TopFull cap |
+| ms | right, while a P95 line is on | P95 |
+| fraction | right | Rejection, Locust SLO-miss |
+| retries/request | right | Retries per request |
+| millicores | right | CPU |
+| retries | right | Cumulative retries |
+| ticks | right | Overload ticks |
+
+A right-hand axis is hidden until one of its lines is on, then it packs against the plot. Cumulative retries and overload ticks do not share an axis: a retry total is often thousands, and an overload count is at most about one per second of the hold. Turning on one group does not move the other onto that scale.
+
+RetryGuard event lines use a hidden 0–1 axis, so a shed stays full height no matter which units are on.
+
+## Event lines and codes
+
+Vertical lines mark RetryGuard switches, on every panel and on the comparison chart.
+
+| Log line | Colour | Name on the line | Hover |
+|---|---|---|---|
+| `ON→OFF`, `metric=rpr_burst` | red | `E5 burst` | edge, step, rpr, `from_attempts` |
+| `ON→OFF`, `metric=rpr` | red | `E5 normal` | edge, step, rpr, `from_attempts` |
+| `OFF→ON` | green | `V3` | service, step, rejection, `consecutive_low` |
+| `1→2`, `2→3` | orange | `E5 1→2` on the comparison chart | edge, step |
+
+Hover fields appear only when that log line has them. The legend entries `ON→OFF`, `OFF→ON`, `1→2`, and `2→3` show or hide that step everywhere. Climbs are drawn on the stacked panels as well; only the comparison chart prints the `E5 1→2` name on the line.
+
+On an S2 run only, a dashed black line on the goodput panel marks **escape**: the first time recommendationservice arrivals stay above 560 req/s for 5 seconds. It is absent when the run never escapes. It is not on the other panels.
+
+Edge codes follow RetryGuard's controlled-edge order. Service codes follow the order those callees first appear. `V`, not `S`, because S1–S6 already mean scenarios.
+
+| Code | Edge | Code | Edge |
+|---|---|---|---|
+| E1 | frontend→adservice | E8 | checkoutservice→cartservice |
+| E2 | frontend→cartservice | E9 | checkoutservice→currencyservice |
+| E3 | frontend→checkoutservice | E10 | checkoutservice→emailservice |
+| E4 | frontend→currencyservice | E11 | checkoutservice→paymentservice |
+| E5 | frontend→productcatalogservice | E12 | checkoutservice→productcatalogservice |
+| E6 | frontend→recommendationservice | E13 | checkoutservice→shippingservice |
+| E7 | frontend→shippingservice | E14 | recommendationservice→productcatalogservice |
+
+| Code | Service | Code | Service |
+|---|---|---|---|
+| V1 | adservice | V6 | recommendationservice |
+| V2 | cartservice | V7 | shippingservice |
+| V3 | checkoutservice | V8 | emailservice |
+| V4 | currencyservice | V9 | paymentservice |
+| V5 | productcatalogservice | | |
+
+## Reading it honestly
+
+- An empty second is "no sample", not zero. A rate line breaks when the gap is longer than 3 s, so a 2 s mesh poll stays connected and a multi-second hole does not. Cumulative retries and overload ticks are steps and stay joined across the mesh poll (2 s on `s2_burst20_rgtf1`, 5 s when the collector is on its default).
+- Caps are carried at most 6 s. CPU is carried at most 5 s. A carried point is the previous reading, not a new measurement.
+- Do not treat a cap line as measured on a hold that `analysis_score.py` flags for throttle data quality.
+- P99 is not on the page. `Latency99` in the Locust files is empty; P95 is the latency number.
+- `campaign_48/` and `august_38/` are a different collector generation. Do not point graphs_tool at them and read the page as if it were a `final results/` hold.
+
+## Which panel answers which question
+
+| Question | Look at |
+|---|---|
+| Did the shop keep completing work, and at what latency? | Goodput / RPS, P95 |
+| Did shoppers see failures the mesh did not? | Rejection: dashed SLO-miss against the solid service lines |
+| Did retries pile up before a shed? | Cumulative retries, with the red `E<n> burst` or `E<n> normal` line |
+| Was the shed a rate spike or a slow climb? | Retries per request at the same line |
+| Which edges were actually turned down, and when did they come back? | Attempts strip, plus the red and green event lines |
+| Where did TopFull place a cap? | TopFull cap |
+| Which services did the detector call overloaded, and for how many polls? | Overload ticks. The slope is how often the flag was on, not a CPU value |
+| Who was near their CPU limit? | CPU, names in parentheses are the limit |

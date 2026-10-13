@@ -72,6 +72,16 @@ def measured(secs: np.ndarray, values, name: str) -> pd.DataFrame:
     return series.groupby(level=0).mean().rename(name).to_frame()
 
 
+def cumulative_sum(secs: np.ndarray, deltas, name: str) -> pd.DataFrame:
+    """Running sum of per-poll increases, stored on the later poll's second.
+
+    Two polls in one second add. Seconds with no poll stay empty, so a carried
+    reading is not an extra tick.
+    """
+    added = pd.Series(np.asarray(deltas, dtype=float), index=secs).groupby(level=0).sum()
+    return added.cumsum().rename(name).to_frame()
+
+
 def ratio(num, den) -> np.ndarray:
     num = np.asarray(num, dtype=float)
     den = np.asarray(den, dtype=float)
@@ -176,6 +186,8 @@ def edge_frames(run_dir: Path, clock: dict) -> list[pd.DataFrame]:
         if {"total", "retry"} <= set(d):
             frames.append(measured(
                 secs, ratio(d["retry"], d["total"] - d["retry"]), f"{prefix}.rpr"))
+        if "retry" in d:
+            frames.append(cumulative_sum(secs, d["retry"], f"{prefix}.retry_cum"))
         if {"rq_time_sum_ms", "rq_time_count"} <= set(d):
             frames.append(measured(
                 secs, ratio(d["rq_time_sum_ms"], d["rq_time_count"]), f"{prefix}.sojourn_ms"))
@@ -221,6 +233,21 @@ def reading_frames(
     return frames
 
 
+def overload_tick_frames(run_dir: Path, clock: dict) -> list[pd.DataFrame]:
+    """Count of detector rows with overloaded=1, not seconds the flag was carried."""
+    df = hold_clock.load_source(run_dir, "topfull_detect", clock)
+    if df.empty or "overloaded" not in df.columns:
+        return []
+    frames = []
+    for service, group in df.groupby("service", sort=True):
+        group = group.sort_values("hold_s")
+        flag = pd.to_numeric(group["overloaded"], errors="coerce").fillna(0)
+        ticks = (flag.to_numpy(dtype=float) == 1).astype(float)
+        frames.append(cumulative_sum(
+            seconds(group["hold_s"]), ticks, f"detect.{label(service)}.overload_ticks_cum"))
+    return frames
+
+
 def retryguard_frames(run_dir: Path, clock: dict) -> list[pd.DataFrame]:
     df = hold_clock.load_source(run_dir, "retryguard", clock)
     if df.empty:
@@ -262,6 +289,7 @@ def per_second_view(run_dir: Path, clock: dict | None = None) -> pd.DataFrame:
         + edge_frames(run_dir, clock)
         + throttle_frames(run_dir, clock)
         + reading_frames(run_dir, clock, "topfull_detect", "detect", DETECT_READINGS, THROTTLE_CARRY_S)
+        + overload_tick_frames(run_dir, clock)
         + reading_frames(run_dir, clock, "resource_usage", "resource", RESOURCE_READINGS, RESOURCE_CARRY_S)
         + retryguard_frames(run_dir, clock)
     )
@@ -332,6 +360,17 @@ def panel_columns(view: pd.DataFrame, show_all: bool = False) -> dict[str, list[
             if present(f"edge.{caller}->{target}.rpr")
             and (show_all or any_positive(f"edge.{caller}->{target}.retry_per_s"))
         ],
+        "retry_cum": [
+            f"edge.{caller}->{target}.retry_cum" for caller, target in CONTROLLED_EDGES
+            if present(f"edge.{caller}->{target}.retry_cum")
+            and (show_all or any_positive(f"edge.{caller}->{target}.retry_cum"))
+        ],
+        "overload_ticks": sorted(
+            column for column in view.columns
+            if column.startswith("detect.") and column.endswith(".overload_ticks_cum")
+            and not column.endswith(FLAG)
+            and (show_all or any_positive(column))
+        ),
         "cpu": sorted(
             column for column in view.columns
             if column.startswith("resource.") and column.endswith(".cpu_millicores")
