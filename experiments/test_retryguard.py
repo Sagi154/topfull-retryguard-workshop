@@ -992,6 +992,57 @@ class TestGrpcRetryCallees(unittest.TestCase):
         self.assertAlmostEqual(on, 0.40)
 
 
+class TestScorerControllerRejectionParity(unittest.TestCase):
+    ROWS = [
+        # timestamp, total, 5xx, resets, grpc_4, grpc_14
+        ("2026-10-13T00:00:00Z", 0, 0, 0, 0, 0),
+        ("2026-10-13T00:00:01Z", 100, 5, 5, 0, 0),    # 0.10 either way
+        ("2026-10-13T00:00:02Z", 200, 5, 5, 30, 10),  # 0.40 with grpc, 0.00 http
+        ("2026-10-13T00:00:03Z", 200, 5, 5, 30, 10),  # no arrivals
+        ("2026-10-13T00:00:04Z", 300, 25, 5, 30, 10), # 0.20 http, not above 0.20
+    ]
+
+    def _csv_rows(self):
+        return [
+            {"timestamp": t, "total": tot, "5xx": f, "resets": r, "grpc_4": g4, "grpc_14": g14}
+            for t, tot, f, r, g4, g14 in self.ROWS
+        ]
+
+    def _controller_rates(self, count_grpc):
+        snaps = [
+            retryguard.InboundSnapshot(t, float(tot), float(f), resets=float(r),
+                                       grpc_4=float(g4), grpc_14=float(g14))
+            for t, tot, f, r, g4, g14 in self.ROWS
+        ]
+        rates, previous = [], None
+        for snap in snaps:
+            # Controller returns 0.0 on a non-positive total delta; the scorer
+            # skips that tick. Drop it so the counts compare the same arrivals.
+            if previous is not None and snap.total <= previous.total:
+                rates.append(None)
+                _, previous = retryguard.measure_inbound_rejection(
+                    previous, snap, count_grpc
+                )
+                continue
+            rate, previous = retryguard.measure_inbound_rejection(
+                previous, snap, count_grpc
+            )
+            rates.append(rate)
+        return rates
+
+    def test_counts_agree_for_both_modes(self):
+        import analysis_score as score
+        for count_grpc in (False, True):
+            rates = [r for r in self._controller_rates(count_grpc) if r is not None]
+            stats = score.rejection_streaks(self._csv_rows(), 0.20, 0.10, count_grpc=count_grpc)
+            self.assertEqual(stats["high_count"], sum(1 for r in rates if r > 0.20))
+            self.assertEqual(stats["low_count"], sum(1 for r in rates if r < 0.10))
+
+    def test_read_callee_lists_match(self):
+        import analysis_score as score
+        self.assertEqual(set(score.GRPC_CALLEES), set(retryguard.GRPC_RETRY_CALLEES))
+
+
 class TestRunScenarioRetryOnMatches(unittest.TestCase):
     def test_same_string_as_controller(self):
         import run_scenario
