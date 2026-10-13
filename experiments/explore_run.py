@@ -167,6 +167,7 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
     matrix = strip_matrix(view)
     if matrix is None:
         add_note(fig, ROW["strip"], "RetryGuard off in this run")
+        used.add("strip")
     else:
         fig.add_trace(
             go.Heatmap(
@@ -189,7 +190,8 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
             shapes.append({
                 "type": "line", "xref": axis(row, "x"), "yref": f"{axis(row, 'y')} domain",
                 "x0": marker["x"], "x1": marker["x"], "y0": 0, "y1": 1,
-                "line": {"color": marker["color"], "width": 1}, "opacity": 0.6, "layer": "below",
+                "line": {"color": marker["color"], "width": 1}, "opacity": 0.6,
+                "layer": "above" if row == ROW["strip"] else "below",
             })
         fig.add_annotation(
             x=marker["x"], xref="x", y=1, yref="y domain", yanchor="bottom",

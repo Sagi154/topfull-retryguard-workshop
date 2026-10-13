@@ -110,11 +110,18 @@ def render(run: Path) -> str:
     return out.read_text(encoding="utf-8")
 
 
+def strip_note_texts(fig) -> list[str]:
+    xref = f"{explore_run.axis(explore_run.ROW['strip'], 'x')} domain"
+    return [annotation.text for annotation in fig.layout.annotations if annotation.xref == xref]
+
+
 class TestBuild(unittest.TestCase):
     def test_html_has_codes_markers_and_retryguard_off_note(self):
         with tempfile.TemporaryDirectory() as tmp:
             run = make_run(Path(tmp))
+            off_fig = explore_run.build_figure(run)
             off = render(run)
+            self.assertEqual(strip_note_texts(off_fig), ["RetryGuard off in this run"])
             self.assertIn("RetryGuard off in this run", off)
             self.assertNotIn("E3 burst", off)
             (run / "retryguard.log").write_text("\n".join([
@@ -127,12 +134,22 @@ class TestBuild(unittest.TestCase):
                 f"{iso(E + 60)}  checkoutservice  OFF→ON   rejection=0.03  consecutive_low=11  "
                 "attempts=1  from_attempts=0  metric=rejection  elapsed_s=20",
             ]), encoding="utf-8")
+            on_fig = explore_run.build_figure(run)
             on = render(run)
             self.assertNotIn("RetryGuard off in this run", on)
             self.assertIn("E3 burst", on)
             self.assertIn("V3", on)
             self.assertIn("E14", on)
             self.assertIn("V9", on)
+            labels = [annotation.text for annotation in on_fig.layout.annotations]
+            self.assertIn("E3 burst", labels)
+            self.assertIn("V3", labels)
+            strip_x = explore_run.axis(explore_run.ROW["strip"], "x")
+            switch_lines = [shape for shape in on_fig.layout.shapes if shape.line.width == 1]
+            self.assertTrue(switch_lines)
+            for shape in switch_lines:
+                expected = "above" if shape.xref == strip_x else "below"
+                self.assertEqual(shape.layer, expected, shape.xref)
 
 
 if __name__ == "__main__":
