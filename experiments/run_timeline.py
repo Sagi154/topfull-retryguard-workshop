@@ -289,3 +289,166 @@ def select_columns(view: pd.DataFrame, patterns: list[str] | None) -> pd.DataFra
         if not column.endswith(FLAG) and any(fnmatch.fnmatchcase(column, p) for p in patterns)
     ]
     return view[[name for column in keep for name in (column, column + FLAG)]]
+
+
+PANELS = (
+    ("locust", "Goodput / RPS (req/s)"),
+    ("p95", "P95 (ms)"),
+    ("caps", "TopFull cap (req/s)"),
+    ("rejection", "Inbound rejection"),
+    ("rpr", "Retries per request"),
+    ("cpu", "CPU (millicores)"),
+)
+SWITCH_COLORS = {"ON→OFF": "red", "OFF→ON": "green", "1→2": "orange", "2→3": "orange"}
+MAX_PLOT_GAP_S = 3
+
+
+def panel_columns(view: pd.DataFrame, show_all: bool = False) -> dict[str, list[str]]:
+    def present(column: str) -> bool:
+        return column in view.columns
+
+    def any_positive(column: str) -> bool:
+        return present(column) and bool((view[column] > 0).any())
+
+    return {
+        "locust": [c for c in ("locust.total.Goodput", "locust.total.RPS") if present(c)],
+        "p95": [c for c in ("locust.total.Latency95",) if present(c)],
+        "caps": [
+            f"throttle.{api}.cap" for api in analysis_score.APIS
+            if present(f"throttle.{api}.cap") and view[f"throttle.{api}.cap"].notna().any()
+        ],
+        "rejection": [
+            f"inbound.{service}.rejection" for service in analysis_score.SERVICES
+            if present(f"inbound.{service}.rejection")
+            and (show_all or any_positive(f"inbound.{service}.rejection"))
+        ],
+        "rpr": [
+            f"edge.{caller}->{target}.rpr" for caller, target in CONTROLLED_EDGES
+            if present(f"edge.{caller}->{target}.rpr")
+            and (show_all or any_positive(f"edge.{caller}->{target}.retry_per_s"))
+        ],
+        "cpu": sorted(
+            column for column in view.columns
+            if column.startswith("resource.") and column.endswith(".cpu_millicores")
+            and column != "resource.__master_node__.cpu_millicores"
+        ),
+    }
+
+
+def escape_hold_s(run_dir: Path, clock: dict) -> float | None:
+    if not any(part.startswith("S2_") for part in Path(run_dir).resolve().parts):
+        return None
+    import s2_latch_escape as escape
+
+    inbound = escape.read_inbound(str(Path(run_dir) / "service_inbound.csv"))
+    t0 = escape.mesh_t0(inbound)
+    if t0 is None:
+        return None
+    recs = escape.rate_series(escape.service_rows(inbound, "recommendationservice"), t0)
+    escape_s = escape.first_sustained(recs, escape.DEFAULT_RATE, escape.DEFAULT_PERSIST, "arrival")
+    if escape_s is None:
+        return None
+    return t0 + escape_s - hold_clock.zero_epoch(clock)
+
+
+def _plot_points(series: pd.Series) -> tuple[np.ndarray, np.ndarray]:
+    """Measured points only, joined across gaps up to MAX_PLOT_GAP_S."""
+    points = series.dropna()
+    x = points.index.to_numpy(dtype=float)
+    y = points.to_numpy(dtype=float)
+    if x.size > 1:
+        breaks = np.flatnonzero(np.diff(x) > MAX_PLOT_GAP_S) + 1
+        x, y = np.insert(x, breaks, np.nan), np.insert(y, breaks, np.nan)
+    return x, y
+
+
+def plot_timeline(
+    view: pd.DataFrame,
+    events: pd.DataFrame,
+    out_path: Path,
+    title: str = "",
+    show_all: bool = False,
+    escape_s: float | None = None,
+) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    panels = panel_columns(view, show_all)
+    fig, axes = plt.subplots(len(PANELS), 1, sharex=True, figsize=(14, 3 * len(PANELS)))
+    for ax, (key, ylabel) in zip(axes, PANELS):
+        columns = panels[key]
+        for column in columns:
+            name = column.split(".")[-1] if key in ("locust", "p95") else column.split(".")[1]
+            ax.plot(*_plot_points(view[column]), linewidth=0.9, label=name)
+        for _, event in events.iterrows():
+            ax.axvline(event["hold_s"], color=SWITCH_COLORS.get(event["step"], "gray"),
+                       linewidth=0.8, alpha=0.7)
+        if key == "locust" and escape_s is not None:
+            ax.axvline(escape_s, color="black", linestyle="--", linewidth=1.2, label="escape")
+        if not columns:
+            ax.text(0.5, 0.5, "none in this run", transform=ax.transAxes,
+                    ha="center", va="center", color="gray")
+        else:
+            ax.legend(loc="upper right", fontsize=7, ncol=min(4, len(columns) + 1))
+        ax.set_ylabel(ylabel)
+        ax.grid(alpha=0.3)
+    axes[-1].set_xlabel("Hold clock (s since the first Locust row)")
+    if not events.empty:
+        steps = sorted(set(events["step"]))
+        fig.legend(
+            [Line2D([0], [0], color=SWITCH_COLORS.get(step, "gray")) for step in steps],
+            [f"RetryGuard {step}" for step in steps],
+            loc="upper left", fontsize=8,
+        )
+    fig.suptitle(title)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=100)
+    plt.close(fig)
+
+
+def build(
+    run_dir: Path,
+    show_all: bool = False,
+    write_csv: bool = False,
+    columns: list[str] | None = None,
+) -> Path:
+    run_dir = Path(run_dir)
+    clock = hold_clock.write_clock(run_dir)
+    view = per_second_view(run_dir, clock)
+    png = run_dir / PNG_NAME
+    plot_timeline(
+        view, switch_events(run_dir, clock), png,
+        title=run_dir.name, show_all=show_all, escape_s=escape_hold_s(run_dir, clock),
+    )
+    if write_csv:
+        select_columns(view, columns).to_csv(run_dir / CSV_NAME)
+    return png
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Hold-clock timeline for run folders.")
+    parser.add_argument("runs", nargs="*", help="Run folders")
+    parser.add_argument("--tree", help="Every folder under this path that has total.csv")
+    parser.add_argument("--all", action="store_true", help="Every service and edge in panels 4 and 5")
+    parser.add_argument("--csv", action="store_true", help="Also write timeline_1s.csv")
+    parser.add_argument("--columns", nargs="*", help="Glob patterns for the CSV columns")
+    args = parser.parse_args(argv)
+    failures = 0
+    for run in hold_clock.run_dirs(args.runs, args.tree):
+        try:
+            png = build(run, show_all=args.all, write_csv=args.csv, columns=args.columns)
+        except (ValueError, KeyError) as exc:
+            print(f"{run.name}: ERROR {exc}")
+            failures += 1
+            continue
+        clock = hold_clock.read_clock(run)
+        print(f"{run.name}: {png.name} ({clock['method']}{', FLAGGED' if clock['flagged'] else ''})")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+

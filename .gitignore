@@ -11,3 +11,4 @@ __pycache__/
 .cursor/
 .worktrees/
 .superpowers/
+timeline_1s.csv

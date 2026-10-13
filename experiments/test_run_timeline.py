@@ -100,5 +100,48 @@ class TestPerSecondView(unittest.TestCase):
         self.assertEqual(events["hold_s"].iloc[0], 2.0)
 
 
+import pandas as pd  # noqa: E402
+from test_hold_clock import make_run  # noqa: E402
+
+
+class TestChart(unittest.TestCase):
+    def test_panel_rules(self):
+        nan_ = float("nan")
+        view = pd.DataFrame({
+            "locust.total.Goodput": [1.0, 2.0],
+            "locust.total.RPS": [1.0, 2.0],
+            "locust.total.Latency95": [5.0, 6.0],
+            "inbound.cartservice.rejection": [0.0, 0.0],
+            "inbound.checkoutservice.rejection": [0.0, 0.1],
+            "edge.frontend->cartservice.rpr": [nan_, nan_],
+            "edge.frontend->cartservice.retry_per_s": [0.0, 0.0],
+            "edge.frontend->checkoutservice.rpr": [0.0, 0.4],
+            "edge.frontend->checkoutservice.retry_per_s": [0.0, 2.0],
+            "resource.frontend.cpu_millicores": [10.0, 20.0],
+            "resource.adservice.cpu_millicores": [1.0, 1.0],
+            "resource.__master_node__.cpu_millicores": [4000.0, 5000.0],
+            "throttle.getproduct.cap": [nan_, nan_],
+            "throttle.getcart.cap": [nan_, 300.0],
+        })
+        panels = run_timeline.panel_columns(view)
+        self.assertEqual(panels["caps"], ["throttle.getcart.cap"])
+        self.assertEqual(panels["rejection"], ["inbound.checkoutservice.rejection"])
+        self.assertEqual(panels["rpr"], ["edge.frontend->checkoutservice.rpr"])
+        self.assertEqual(panels["cpu"], ["resource.adservice.cpu_millicores",
+                                         "resource.frontend.cpu_millicores"])
+        every = run_timeline.panel_columns(view, show_all=True)
+        self.assertEqual(len(every["rejection"]), 2)
+        self.assertEqual(len(every["rpr"]), 2)
+
+    def test_build_writes_clock_png_and_csv(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = make_run(Path(tmp))
+            png = run_timeline.build(run, write_csv=True, columns=["locust.total.*"])
+            self.assertGreater(png.stat().st_size, 0)
+            self.assertTrue((run / hold_clock.CLOCK_JSON).is_file())
+            header = (run / run_timeline.CSV_NAME).read_text(encoding="utf-8").splitlines()[0]
+            self.assertTrue(header.startswith("hold_s,locust.total.RPS,"))
+
+
 if __name__ == "__main__":
     unittest.main()
