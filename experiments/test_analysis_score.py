@@ -299,3 +299,38 @@ class TestScoreAndRender(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestThrottleQuality(unittest.TestCase):
+    def _rows(self, fresh_until: int, total: int = 120):
+        rows = []
+        for sec in range(total):
+            ok = int(sec % 5 == 0 and sec <= fresh_until)
+            rows.append({
+                "timestamp": f"2026-10-13T00:{sec // 60:02d}:{sec % 60:02d}Z",
+                "api": "getproduct", "threshold_fresh": ok, "admitted_fresh": ok,
+            })
+        return rows
+
+    def test_healthy_hold_is_not_flagged(self):
+        q = score.throttle_quality(self._rows(fresh_until=119), Path("missing.log"))
+        self.assertFalse(q["flagged"])
+        self.assertLessEqual(q["threshold_gap_s"], 5)
+
+    def test_reads_that_stop_flag_the_hold(self):
+        q = score.throttle_quality(self._rows(fresh_until=20), Path("missing.log"))
+        self.assertTrue(q["flagged"])
+        self.assertGreater(q["threshold_gap_s"], score.THROTTLE_STALE_S)
+
+    def test_fetch_warning_in_log_flags_the_hold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "topfull_throttle_collector.log"
+            log.write_text(
+                "2026-10-13T00:00:00Z  START  x\n"
+                "2026-10-13T00:00:05Z  WARNING  stats fetch failed: timed out\n",
+                encoding="utf-8",
+            )
+            q = score.throttle_quality(self._rows(fresh_until=119), log)
+        self.assertTrue(q["flagged"])
+        self.assertEqual(q["warnings"], 1)
+        self.assertEqual(q["first_warning"], "2026-10-13T00:00:05Z")

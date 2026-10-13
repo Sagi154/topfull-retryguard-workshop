@@ -48,6 +48,7 @@ REJECTION_BOLD = 30
 OVERLOAD_BOLD = 0.5
 PASSTHROUGH = 10000
 GAP_S = 1.5
+THROTTLE_STALE_S = 30
 
 SERVICES = (
     "frontend",
@@ -505,6 +506,58 @@ def live_caps(rows: list[dict]) -> dict[str, list[dict]]:
     return out
 
 
+def _longest_gap(stamps: list[datetime], fresh: list[bool]) -> float | None:
+    """Longest stretch (s) with no fresh read, including the head and the tail."""
+    if not stamps:
+        return None
+    last = stamps[0]
+    worst = 0.0
+    for stamp, ok in zip(stamps, fresh):
+        if ok:
+            worst = max(worst, (stamp - last).total_seconds())
+            last = stamp
+    return max(worst, (stamps[-1] - last).total_seconds())
+
+
+def throttle_quality(rows: list[dict], log_path: Path) -> dict:
+    """How trustworthy topfull_throttle.csv is for this hold.
+
+    Live reads of the TopFull proxy (/thresholds, /stats) normally land every 5 s.
+    A hold is flagged when topfull_throttle_collector.log has any fetch WARNING, or when
+    any API goes longer than THROTTLE_STALE_S without a fresh threshold or admitted read.
+    """
+    warnings = 0
+    first_warning = None
+    if log_path.is_file():
+        for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if "WARNING" in line and "fetch failed" in line:
+                warnings += 1
+                if first_warning is None:
+                    first_warning = line.split()[0]
+    by_api: dict[str, list[dict]] = defaultdict(list)
+    for row in rows:
+        if row.get("timestamp"):
+            by_api[row.get("api", "")].append(row)
+    gaps: dict[str, float | None] = {"threshold_fresh": None, "admitted_fresh": None}
+    for series in by_api.values():
+        series.sort(key=lambda r: r["timestamp"])
+        stamps = [parse_ts(r["timestamp"]) for r in series]
+        for key in gaps:
+            gap = _longest_gap(stamps, [int(float(r.get(key) or 0)) == 1 for r in series])
+            if gap is not None and (gaps[key] is None or gap > gaps[key]):
+                gaps[key] = gap
+    worst = max([g for g in gaps.values() if g is not None], default=None)
+    flagged = warnings > 0 or (worst is not None and worst > THROTTLE_STALE_S)
+    return {
+        "has_csv": bool(rows),
+        "warnings": warnings,
+        "first_warning": first_warning,
+        "threshold_gap_s": gaps["threshold_fresh"],
+        "admitted_gap_s": gaps["admitted_fresh"],
+        "flagged": flagged,
+    }
+
+
 def mesh_gate(inbound_rows: list[dict]) -> dict:
     by_service: dict[str, list[str]] = defaultdict(list)
     for row in inbound_rows:
@@ -688,6 +741,9 @@ def score_run(run_dir: Path) -> dict:
         "locust_total_rows": len(total_rows),
         "transitions": log["transitions"],
         "caps": live_caps(throttle_rows),
+        "throttle_quality": throttle_quality(
+            throttle_rows, run_dir / "topfull_throttle_collector.log"
+        ),
         "gate": mesh_gate(inbound_rows),
     }
 
@@ -1117,6 +1173,33 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
     ))
     lines.append(_table("Detector max utilization", "Service", labels, util_rows, sep))
 
+    lines.append("## Throttle data quality")
+    lines.append("")
+    lines.append(
+        f"Live reads of the TopFull proxy normally land every 5 s. A hold is **FLAGGED** when "
+        f"`topfull_throttle_collector.log` has any `fetch failed` WARNING, or when an API goes "
+        f"longer than {THROTTLE_STALE_S} s without a fresh threshold or admitted read. Cap and "
+        f"admitted-rate numbers on a flagged hold are carried values; filter on `*_fresh==1` or "
+        f"drop the hold from those numbers. Goodput, P95 and rejection do not use this file."
+    )
+    lines.append("")
+    lines.append(
+        "| Hold | Status | Fetch warnings | First warning | "
+        "Longest no-fresh threshold (s) | Longest no-fresh admitted (s) |"
+    )
+    lines.append("| --- | --- | --- | --- | --- | --- |")
+    for label, item in zip(labels, scored):
+        q = item["throttle_quality"]
+        if not q["has_csv"]:
+            lines.append(f"| {label} | no topfull_throttle.csv | — | — | — | — |")
+            continue
+        status = "**FLAGGED**" if q["flagged"] else "ok"
+        first = q["first_warning"][11:19] if q["first_warning"] else "—"
+        lines.append(
+            f"| {label} | {status} | {q['warnings']} | {first} | "
+            f"{_fmt(q['threshold_gap_s'], '.0f')} | {_fmt(q['admitted_gap_s'], '.0f')} |"
+        )
+    lines.append("")
     lines.append("## TopFull live caps")
     lines.append("")
     lines.append("A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live 0 is left out.")
