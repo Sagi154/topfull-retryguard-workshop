@@ -7,8 +7,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Scenario 4A — Topology Position: Gateway-Adjacent (CONSTRAINED)  |  RETRYGUARD
 #
-# Locked 2026-10-13. productcatalogservice constrained to 50m (Paper-C1 elsewhere).
-# Locked mix 10/10/10/600/5 (postcart-heavy), spawn_rate 50.
+# Locked 2026-10-13. productcatalogservice constrained to 100m (Paper-C1 elsewhere).
+# Locked mix 50/20/50/600/5 (postcart-heavy), spawn_rate 50.
 # CPU: full Paper-C1 table in scale_constraints (ADR 0009); only the row named
 # above differs from the table. Constraints are absolute millicores (ADR 0006).
 # ─────────────────────────────────────────────────────────────────────────────
@@ -18,15 +18,15 @@ scenario_name: topology_position_A
 condition: retryguard
 run_number: 3
 description: >
-  productcatalogservice constrained to 50m (Paper-C1 elsewhere). Locked mix 10/10/10/600/5 (postcart-heavy), spawn_rate 50. RetryGuard ON, TopFull OFF.
+  productcatalogservice constrained to 100m (Paper-C1 elsewhere). Locked mix 50/20/50/600/5 (postcart-heavy), spawn_rate 50. RetryGuard ON, TopFull OFF.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   10
-    postcheckout: 10
-    getcart:      10
+    getproduct:   50
+    postcheckout: 20
+    getcart:      50
     postcart:     600
     emptycart:    5
   spawn_rate: 50
@@ -34,7 +34,7 @@ locust:
     - online_boutique_create_v2.sh
 
 # Paper-C1 millicores (ADR 0009). Frontend 1150m is the HPA pin, not a scale_constraint.
-# productcatalogservice is the constrained row: 50m instead of the table value.
+# productcatalogservice is the constrained row: 100m instead of the table value.
 scale_constraints:
 - deployment: checkoutservice
   namespace: default
@@ -50,7 +50,7 @@ scale_constraints:
   namespace: default
   container: server
   method: cpu_limit
-  cpu_limit_millicores: 50
+  cpu_limit_millicores: 100
 - deployment: cartservice
   namespace: default
   container: server

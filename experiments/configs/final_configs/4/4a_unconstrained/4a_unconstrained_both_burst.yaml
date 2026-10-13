@@ -8,7 +8,7 @@
 # Scenario 4A — Topology Position: Gateway-Adjacent (UNCONSTRAINED reference)  |  RETRYGUARD
 #
 # Locked 2026-10-13. No service constrained: the plain Paper-C1 table. Reference for 4A constrained.
-# Locked mix 10/10/10/600/5 (postcart-heavy), spawn_rate 50.
+# Locked mix 50/20/50/600/5 (postcart-heavy), spawn_rate 50.
 # CPU: full Paper-C1 table in scale_constraints (ADR 0009); only the row named
 # above differs from the table. Constraints are absolute millicores (ADR 0006).
 # ─────────────────────────────────────────────────────────────────────────────
@@ -18,15 +18,15 @@ scenario_name: topology_position_A
 condition: retryguard
 run_number: 1
 description: >
-  No service constrained: the plain Paper-C1 table. Reference for 4A constrained. Locked mix 10/10/10/600/5 (postcart-heavy), spawn_rate 50. TopFull + RetryGuard ON.
+  No service constrained: the plain Paper-C1 table. Reference for 4A constrained. Locked mix 50/20/50/600/5 (postcart-heavy), spawn_rate 50. TopFull + RetryGuard ON.
 
 duration_seconds: 600
 
 locust:
   user_counts:
-    getproduct:   10
-    postcheckout: 10
-    getcart:      10
+    getproduct:   50
+    postcheckout: 20
+    getcart:      50
     postcart:     600
     emptycart:    5
   spawn_rate: 50
