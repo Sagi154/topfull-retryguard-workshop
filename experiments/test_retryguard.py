@@ -770,7 +770,7 @@ class TestAttemptRamp(unittest.TestCase):
     def to_attempts(self, ctrl, attempts):
         # One row to open the streak, then N seconds of 1s rows.
         reenable_span = ctrl.interval + 1                      # 0 -> 1: 30 s
-        climb_span = retryguard.CLIMB_INTERVAL_SECONDS + 1     # 1 -> 2, 2 -> 3: 15 s
+        climb_span = retryguard.CLIMB_INTERVAL_SECONDS + 1     # 1 -> 2, 2 -> 3: 10 s
         if attempts == 0:
             change = self.feed(ctrl, reenable_span, 0.9)[0]
             ctrl.commit(change)
@@ -838,10 +838,10 @@ class TestAttemptRamp(unittest.TestCase):
         self.assertEqual(climb3[0].desired_attempts, {"frontend": 3})
 
     def test_climb_interval_per_step(self):
-        self.assertEqual(retryguard.CLIMB_INTERVAL_SECONDS, 15)
+        self.assertEqual(retryguard.CLIMB_INTERVAL_SECONDS, 10)
         self.assertEqual(retryguard.climb_interval_s(0, 30), 30)
-        self.assertEqual(retryguard.climb_interval_s(1, 30), 15)
-        self.assertEqual(retryguard.climb_interval_s(2, 30), 15)
+        self.assertEqual(retryguard.climb_interval_s(1, 30), 10)
+        self.assertEqual(retryguard.climb_interval_s(2, 30), 10)
 
     def test_climb_interval_seconds_defaults_to_the_constant(self):
         ctrl = retryguard.EdgeController((self.EDGE,), 0.5, 0.2, 3)
@@ -894,15 +894,15 @@ class TestAttemptRamp(unittest.TestCase):
     def test_quiet_rpr_climbs_one_step_at_a_time(self):
         ctrl = self.make()
         self.to_attempts(ctrl, 1)
-        self.assertEqual(self.feed(ctrl, 15, 0.10), [])      # rows 1..15 = 14 s elapsed
-        climb = self.feed(ctrl, 1, 0.10)                      # row 16 = 15 s elapsed
+        self.assertEqual(self.feed(ctrl, 10, 0.10), [])      # rows 1..10 = 9 s elapsed
+        climb = self.feed(ctrl, 1, 0.10)                      # row 11 = 10 s elapsed
         self.assertEqual(climb[0].transition, "RAMP")
         self.assertEqual(climb[0].desired_attempts, {"frontend": 2})
         self.assertEqual(climb[0].lines[0][1:3], ("1", "2"))
         ctrl.commit(climb[0])
         self.assertEqual(ctrl.edge_state[self.EDGE].attempts, 2)
         self.assertEqual(ctrl.edge_state[self.EDGE].consecutive_low, 0)
-        self.assertEqual(self.feed(ctrl, 15, 0.10), [])
+        self.assertEqual(self.feed(ctrl, 10, 0.10), [])
         climb3 = self.feed(ctrl, 1, 0.10)
         self.assertEqual(climb3[0].desired_attempts, {"frontend": 3})
         self.assertEqual(climb3[0].caller_attempts, {})
@@ -947,7 +947,7 @@ class TestAttemptRamp(unittest.TestCase):
     def test_uncommitted_climb_is_proposed_again(self):
         ctrl = self.make()
         self.to_attempts(ctrl, 1)
-        first = self.feed(ctrl, 16, 0.05)
+        first = self.feed(ctrl, 11, 0.05)
         self.assertEqual(len(first), 1)
         again = self.feed(ctrl, 1, 0.05)
         self.assertEqual(again[0].desired_attempts, {"frontend": 2})
@@ -990,6 +990,57 @@ class TestGrpcRetryCallees(unittest.TestCase):
         on, _ = retryguard.measure_inbound_rejection(prev, curr, count_grpc=True)
         self.assertAlmostEqual(off, 0.0)
         self.assertAlmostEqual(on, 0.40)
+
+
+class TestScorerControllerRejectionParity(unittest.TestCase):
+    ROWS = [
+        # timestamp, total, 5xx, resets, grpc_4, grpc_14
+        ("2026-10-13T00:00:00Z", 0, 0, 0, 0, 0),
+        ("2026-10-13T00:00:01Z", 100, 5, 5, 0, 0),    # 0.10 either way
+        ("2026-10-13T00:00:02Z", 200, 5, 5, 30, 10),  # 0.40 with grpc, 0.00 http
+        ("2026-10-13T00:00:03Z", 200, 5, 5, 30, 10),  # no arrivals
+        ("2026-10-13T00:00:04Z", 300, 25, 5, 30, 10), # 0.20 http, not above 0.20
+    ]
+
+    def _csv_rows(self):
+        return [
+            {"timestamp": t, "total": tot, "5xx": f, "resets": r, "grpc_4": g4, "grpc_14": g14}
+            for t, tot, f, r, g4, g14 in self.ROWS
+        ]
+
+    def _controller_rates(self, count_grpc):
+        snaps = [
+            retryguard.InboundSnapshot(t, float(tot), float(f), resets=float(r),
+                                       grpc_4=float(g4), grpc_14=float(g14))
+            for t, tot, f, r, g4, g14 in self.ROWS
+        ]
+        rates, previous = [], None
+        for snap in snaps:
+            # Controller returns 0.0 on a non-positive total delta; the scorer
+            # skips that tick. Drop it so the counts compare the same arrivals.
+            if previous is not None and snap.total <= previous.total:
+                rates.append(None)
+                _, previous = retryguard.measure_inbound_rejection(
+                    previous, snap, count_grpc
+                )
+                continue
+            rate, previous = retryguard.measure_inbound_rejection(
+                previous, snap, count_grpc
+            )
+            rates.append(rate)
+        return rates
+
+    def test_counts_agree_for_both_modes(self):
+        import analysis_score as score
+        for count_grpc in (False, True):
+            rates = [r for r in self._controller_rates(count_grpc) if r is not None]
+            stats = score.rejection_streaks(self._csv_rows(), 0.20, 0.10, count_grpc=count_grpc)
+            self.assertEqual(stats["high_count"], sum(1 for r in rates if r > 0.20))
+            self.assertEqual(stats["low_count"], sum(1 for r in rates if r < 0.10))
+
+    def test_read_callee_lists_match(self):
+        import analysis_score as score
+        self.assertEqual(set(score.GRPC_CALLEES), set(retryguard.GRPC_RETRY_CALLEES))
 
 
 class TestRunScenarioRetryOnMatches(unittest.TestCase):

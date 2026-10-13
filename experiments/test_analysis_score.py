@@ -149,6 +149,44 @@ class TestRejectionAndInbound(unittest.TestCase):
         self.assertEqual(stats["low_streak"], 1)
         self.assertEqual(stats["low_count"], 1)
 
+    def test_count_grpc_adds_grpc_failures(self):
+        rows = [
+            {"timestamp": "2026-10-13T00:00:00Z", "total": 0, "5xx": 0, "resets": 0, "grpc_4": 0, "grpc_14": 0},
+            {"timestamp": "2026-10-13T00:00:01Z", "total": 100, "5xx": 0, "resets": 0, "grpc_4": 30, "grpc_14": 10},  # 0.40 with grpc
+        ]
+        http = score.rejection_streaks(rows, 0.20, 0.10)
+        matched = score.rejection_streaks(rows, 0.20, 0.10, count_grpc=True)
+        self.assertEqual(http["high_count"], 0)
+        self.assertEqual(http["low_count"], 1)
+        self.assertEqual(matched["high_count"], 1)
+        self.assertEqual(matched["high_streak"], 1)
+        self.assertEqual(matched["low_count"], 0)
+
+    def test_count_grpc_without_grpc_columns_equals_http(self):
+        rows = [
+            {"timestamp": "2026-10-13T00:00:00Z", "total": 0, "5xx": 0, "resets": 0},
+            {"timestamp": "2026-10-13T00:00:01Z", "total": 10, "5xx": 0, "resets": 3},
+        ]
+        self.assertEqual(
+            score.rejection_streaks(rows, 0.20, 0.10, count_grpc=True),
+            score.rejection_streaks(rows, 0.20, 0.10),
+        )
+
+    def test_score_run_matches_only_on_read_callees(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "run1"
+            fields = ["timestamp", "service", "total", "5xx", "resets", "grpc_4", "grpc_14"]
+            rows = []
+            for service in ("productcatalogservice", "checkoutservice"):
+                rows.append(["2026-10-13T00:00:00Z", service, 0, 0, 0, 0, 0])
+                rows.append(["2026-10-13T00:00:01Z", service, 100, 0, 0, 30, 10])
+            _write(folder / "service_inbound.csv", fields, rows)
+            result = score.score_run(folder)
+            self.assertEqual(result["rejection"]["productcatalogservice"]["high_count"], 1)
+            self.assertEqual(result["rejection_http"]["productcatalogservice"]["high_count"], 0)
+            self.assertEqual(result["rejection"]["checkoutservice"]["high_count"], 0)
+            self.assertNotIn("checkoutservice", result["rejection_http"])
+
     def test_sojourn_and_share_above_500(self):
         buckets_a = json.dumps({"500": 80, "+Inf": 100})
         buckets_b = json.dumps({"500": 170, "+Inf": 200})
@@ -242,6 +280,57 @@ class TestScoreAndRender(unittest.TestCase):
             self.assertIn("frontend → checkoutservice", text)
             self.assertIn("no cap", text)
 
+    def test_http_only_table_lists_only_read_callees(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "run1"
+            fields = ["timestamp", "service", "total", "5xx", "resets", "grpc_4", "grpc_14"]
+            rows = []
+            for service in ("productcatalogservice", "checkoutservice"):
+                rows.append(["2026-10-13T00:00:00Z", service, 0, 0, 0, 0, 0])
+                rows.append(["2026-10-13T00:00:01Z", service, 100, 0, 0, 30, 10])
+            _write(folder / "service_inbound.csv", fields, rows)
+            text = score.render([score.score_run(folder)], ["1"])
+        marker = "HTTP-only rejection (5xx + resets) streak above 0.20 / count, four read callees"
+        self.assertIn(marker, text)
+        section = text.split(marker, 1)[1].split("\n\n", 2)[1]
+        self.assertIn("productcatalogservice", section)
+        self.assertNotIn("checkoutservice", section)
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestThrottleQuality(unittest.TestCase):
+    def _rows(self, fresh_until: int, total: int = 120):
+        rows = []
+        for sec in range(total):
+            ok = int(sec % 5 == 0 and sec <= fresh_until)
+            rows.append({
+                "timestamp": f"2026-10-13T00:{sec // 60:02d}:{sec % 60:02d}Z",
+                "api": "getproduct", "threshold_fresh": ok, "admitted_fresh": ok,
+            })
+        return rows
+
+    def test_healthy_hold_is_not_flagged(self):
+        q = score.throttle_quality(self._rows(fresh_until=119), Path("missing.log"))
+        self.assertFalse(q["flagged"])
+        self.assertLessEqual(q["threshold_gap_s"], 5)
+
+    def test_reads_that_stop_flag_the_hold(self):
+        q = score.throttle_quality(self._rows(fresh_until=20), Path("missing.log"))
+        self.assertTrue(q["flagged"])
+        self.assertGreater(q["threshold_gap_s"], score.THROTTLE_STALE_S)
+
+    def test_fetch_warning_in_log_flags_the_hold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "topfull_throttle_collector.log"
+            log.write_text(
+                "2026-10-13T00:00:00Z  START  x\n"
+                "2026-10-13T00:00:05Z  WARNING  stats fetch failed: timed out\n",
+                encoding="utf-8",
+            )
+            q = score.throttle_quality(self._rows(fresh_until=119), log)
+        self.assertTrue(q["flagged"])
+        self.assertEqual(q["warnings"], 1)
+        self.assertEqual(q["first_warning"], "2026-10-13T00:00:05Z")

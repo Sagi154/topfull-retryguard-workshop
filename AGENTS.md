@@ -90,6 +90,20 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | [PRESENTATION-GUIDE.md](Guides%20and%20Info/PRESENTATION-GUIDE.md), [PRESENTATION-ACTION-ITEMS.md](Guides%20and%20Info/PRESENTATION-ACTION-ITEMS.md), [NOTEBOOKLM-PROMPT.md](Guides%20and%20Info/NOTEBOOKLM-PROMPT.md) | Work on the slide deck / presentation track (separate from the lab track) |
 | [GEMINI-PROMPT.md](GEMINI-PROMPT.md), [CANVAS-VIEWING.md](CANVAS-VIEWING.md) | Presentation-generation tooling and how to view the interactive canvas in Cursor |
 
+### Where to find metrics
+
+| Question | Read |
+|---|---|
+| What do we collect, and in which file/column? | [METRICS-GATHERED.md](Guides%20and%20Info/METRICS-GATHERED.md) (includes the derived-metrics table) |
+| How do I line up metrics in time / see a run second by second? | `python experiments/run_timeline.py <run_dir>` → `timeline.png`; design in [2026-10-13-hold-clock-design.md](docs/superpowers/specs/2026-10-13-hold-clock-design.md) |
+| Why do we collect each metric? | [METRICS-CATALOG.md](Guides%20and%20Info/METRICS-CATALOG.md) |
+| How is a run's output produced, pulled, verified? | [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) |
+| Is a hold's TopFull cap / admitted data trustworthy? | The `Throttle data quality` table from `experiments/analysis_score.py`; rule in §6 "After every hold" |
+| Per-service vs per-entry-API data, mesh files | [PER-SERVICE-METRICS.md](Guides%20and%20Info/PER-SERVICE-METRICS.md), [PER-SERVICE-MESH-COLLECTOR-DESIGN.md](Guides%20and%20Info/PER-SERVICE-MESH-COLLECTOR-DESIGN.md) |
+| TopFull throttle caps / detector files | [TOPFULL-THROTTLE-METRICS.md](Guides%20and%20Info/TOPFULL-THROTTLE-METRICS.md) |
+| How metrics are displayed and scored in a write-up | [ANALYSIS-TEMPLATE.md](Guides%20and%20Info/ANALYSIS-TEMPLATE.md), computed by `experiments/analysis_score.py` |
+| Controller vs scorer rejection definitions | [2026-10-13-controller-vs-scorer-rejection.md](Guides%20and%20Info/2026-10-13-controller-vs-scorer-rejection.md) |
+
 ---
 
 ## 4. Current status (as of 2026-10-13)
@@ -192,6 +206,8 @@ The older `experiments/configs/scenario_*.yaml` files are still valid runner inp
 
 The runner handles everything end-to-end, including copying `retryguard.py`, `envoy_retry_collector.py`, `resource_usage_collector.py`, and `topfull_throttle_collector.py` from this repo onto master before those processes start. It clears `src/logs` again at startup. That second clear is safe only when step 5 above showed an empty directory. On master, results stay flat at `results_base_path/<log_folder>/`.
 
+**After every hold: check throttle data quality.** The TopFull proxy admin endpoints (`/thresholds`, `/stats`) sometimes time out and the collector then carries stale values. In the 2026-10-10 → 10-12 S2 holds, 6 of 17 were affected (4 of them in the `study6` window), one for ~70% of its run. Right after pulling, run `python experiments/analysis_score.py <run_dir>` and read its `Throttle data quality` table, or just `rg "fetch failed" "<run_dir>/topfull_throttle_collector.log"`. A hold is **FLAGGED** if that log has any `fetch failed` WARNING or any API goes over 30 s with no fresh threshold or admitted read (normal is 5 s). Then: (1) put one line in the [STATUS.md](STATUS.md) Done bullet for that hold saying it is flagged and how long it was stale; (2) never use its cap or admitted-rate numbers as measured (drop them or filter on `*_fresh==1`); (3) name it in the write-up per [ANALYSIS-TEMPLATE.md](Guides%20and%20Info/ANALYSIS-TEMPLATE.md) item 17; (4) if the flag is on a TopFull-on hold, tell the user so they can decide on a re-run, since the repeat slot is a bump of `run_number`. Goodput, P95, rejection, and retry numbers do not use that file and remain valid. Not a flag: a missing `EXIT` line in `resource_usage_collector.log` (the kill lands before it is written; `SHUTDOWN` is the reliable end marker), and an Envoy or resource log that is only `START` / `SHUTDOWN` (successful polls log nothing).
+
 **Pull every new hold into `final results/`.** The runner's printed `scp` and `python experiments/pull_results.py <config>` already point at the path below for every config, whatever its `log_folder`. `campaign_48/` is the closed Phase 7 dataset and is never a target. TopFull-only holds go in the `normal` mode folder:
 
 ```
@@ -276,6 +292,10 @@ When you complete meaningful work (a scenario actually run, a bug fixed, a new p
 
 Issues and specs live as GitHub issues in `Sagi154/topfull-retryguard-workshop`. See `docs/agents/issue-tracker.md`.
 
+### Triage labels
+
+Defaults: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` at the repo root and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+Single-context: one `CONTEXT.md` at the repo root and ADRs in `docs/adr/`. See `docs/agents/domain.md`.

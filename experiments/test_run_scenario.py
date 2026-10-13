@@ -229,15 +229,17 @@ class TestLaunchLocustWiring(unittest.TestCase):
         with self.assertRaises(SystemExit):
             run_scenario._launch_locust(cfg, user_counts={}, spawn_rate=None)
 
+    @mock.patch("run_scenario.master_utc_now", return_value="2026-10-13T12:00:00.000Z")
     @mock.patch("run_scenario._launch_locust")
-    def test_start_locust_launches_only_phase_zero(self, mock_launch):
+    def test_start_locust_launches_only_phase_zero(self, mock_launch, _mock_now):
         cfg = self._base_cfg()
         phases = [
             {"at_seconds": 0, "user_counts": {"getproduct": 100}, "spawn_rate": 90},
             {"at_seconds": 300, "user_counts": {"getproduct": 25}, "spawn_rate": 90},
         ]
-        run_scenario.start_locust(cfg, phases)
+        started_at = run_scenario.start_locust(cfg, phases)
         mock_launch.assert_called_once_with(cfg, {"getproduct": 100}, 90)
+        self.assertEqual(started_at, "2026-10-13T12:00:00.000Z")
 
     @mock.patch("run_scenario._launch_locust")
     def test_switch_locust_phase_relaunches_with_new_load(self, mock_launch):
@@ -925,6 +927,28 @@ class TestServiceCapacity(unittest.TestCase):
         self.assertEqual(len(manifest_calls), 1)
         self.assertIn("topfull_throttle_collector", manifest_calls[0].args[2])
         self.assertEqual(manifest_calls[0].args[2]["cpu_request_fraction"], 1.0)
+
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    def test_collect_results_records_locust_started_at(self, mock_ssh, mock_write_json):
+        mock_ssh.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
+        cfg = {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "topfull_src_path": "/home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src",
+                "results_base_path": "/home/idozacharia/experiments/results",
+            },
+            "scenario_id": 1, "scenario_name": "scenario_1_baseline",
+            "condition": "baseline", "run_number": 7, "duration_seconds": 300,
+            "retryguard": {"enabled": False},
+            "log_folder": "test_run",
+        }
+        run_scenario.collect_results(cfg, locust_started_at="2026-10-13T12:00:00.000Z")
+        manifest = [
+            c.args[2] for c in mock_write_json.call_args_list
+            if c.args[1].endswith("run_manifest.json")
+        ][0]
+        self.assertEqual(manifest["locust_started_at"], "2026-10-13T12:00:00.000Z")
 
     @mock.patch("run_scenario.write_remote_json")
     @mock.patch("run_scenario.ssh")

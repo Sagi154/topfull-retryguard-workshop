@@ -1199,10 +1199,20 @@ def _launch_locust(cfg: dict, user_counts: dict, spawn_rate) -> None:
     step(f"Locust running: {count} processes [OK]")
 
 
-def start_locust(cfg: dict, phases: list[dict]) -> None:
+def master_utc_now(cfg: dict) -> str | None:
+    """Master's UTC clock to the millisecond, or None when the read fails."""
+    result = ssh(cfg["infra"]["master_ssh_host"],
+                 "date -u +%Y-%m-%dT%H:%M:%S.%3NZ", check=False)
+    text = (result.stdout or "").strip()
+    return text if result.returncode == 0 and text else None
+
+
+def start_locust(cfg: dict, phases: list[dict]) -> str | None:
     banner("Starting Locust load")
     first = phases[0]
+    started_at = master_utc_now(cfg)
     _launch_locust(cfg, first["user_counts"], first["spawn_rate"])
+    return started_at
 
 
 def switch_locust_phase(cfg: dict, phase: dict) -> None:
@@ -1437,6 +1447,7 @@ def collect_results(
     cfg: dict,
     capacity: dict | None = None,
     effective_quotas: dict | None = None,
+    locust_started_at: str | None = None,
 ) -> str:
     banner("Collecting results")
     master = cfg["infra"]["master_ssh_host"]
@@ -1474,6 +1485,7 @@ def collect_results(
         "paper_cpu_quotas": paper,
         "effective_cpu_quotas": effective,
         "log_folder":    log_folder,
+        "locust_started_at": locust_started_at,
         "collected_at":  datetime.utcnow().isoformat() + "Z",
     }
     write_remote_json(master, f"{dest}/run_manifest.json", manifest)
@@ -1565,6 +1577,7 @@ def run(config_path: str):
     capacity = {}
     effective_quotas = {}
     start_ts = datetime.now()
+    locust_started_at = None
 
     try:
         preflight(cfg)
@@ -1585,7 +1598,7 @@ def run(config_path: str):
         start_overlapped_services(cfg)
         require_master_processes(cfg)
 
-        start_locust(cfg, phases)
+        locust_started_at = start_locust(cfg, phases)
         fired_phases = {0}
 
         banner(f"Experiment running - {duration}s")
@@ -1618,7 +1631,8 @@ def run(config_path: str):
         stop_locust(cfg)
         stop_master_stack(cfg)
 
-        collect_results(cfg, capacity, effective_quotas=effective_quotas)
+        collect_results(cfg, capacity, effective_quotas=effective_quotas,
+                        locust_started_at=locust_started_at)
 
         delete_run_quotas_json(cfg)
         if restore_records:

@@ -180,7 +180,7 @@ From 1 or 2, the edge is watched on rpr again. The climb bars are YAML keys on t
 | 2 → 3 | rpr ≤ `climb_rpr_2_to_3` (0.32) | `climb_interval_seconds` (10 s) |
 | any → 0 (shed) | rpr > `retries_threshold` (0.4) | `interval_samples` (20 s; Scenario 5 sweeps 10/20/30/60) |
 
-With the locked quiet times the ramp from 0 to 3 takes at least 40 s. `CLIMB_INTERVAL_SECONDS` in `retryguard.py` is 15 s when a YAML omits `climb_interval_seconds`. Locked runs set 10 s. The two rpr bars are YAML keys.
+With the locked quiet times the ramp from 0 to 3 takes at least 40 s. `CLIMB_INTERVAL_SECONDS` in `retryguard.py` is 10 s, the same value locked YAMLs set. A YAML that omits `climb_interval_seconds` now gets 10 s. Holds that omitted the key before 2026-10-13 ran with 15 s. The two rpr bars are YAML keys.
 
 `ON→OFF` and `OFF→ON` stay the shed and the 0→1 step, so the toggle parser still matches. `OFF→ON` logs `attempts=1`. Climbs log `1→2` and `2→3` and are not toggle events. The name field is `caller->target` on an edge line and the service name on a rejection line:
 
