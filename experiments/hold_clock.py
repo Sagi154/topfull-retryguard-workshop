@@ -191,6 +191,68 @@ def zero_epoch(clock: dict) -> float:
     return parse_utc(clock["start_utc"])
 
 
+def locust_epochs(df: pd.DataFrame, clock: dict) -> np.ndarray:
+    if "timestamp" in df.columns:
+        return epochs(df["timestamp"])
+    return zero_epoch(clock) + np.arange(len(df)) * float(clock["spacing_s"])
+
+
+def _safe_epoch(value: str) -> float:
+    try:
+        return parse_utc(value)
+    except ValueError:
+        return float("nan")
+
+
+def retryguard_rows(text: str) -> pd.DataFrame:
+    rows = []
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        row = {"timestamp": parts[0], "line": line}
+        if parts[1] == "OBSERVE" and len(parts) >= 3:
+            row.update(kind="OBSERVE", name=parts[2])
+            fields = parts[3:]
+        elif len(parts) >= 3 and ("→" in parts[2] or "->" in parts[2]):
+            row.update(kind="switch", name=parts[1], step=parts[2].replace("->", "→"))
+            fields = parts[3:]
+        else:
+            row["kind"] = parts[1]
+            fields = parts[2:]
+        for token in fields:
+            if "=" in token:
+                key, value = token.split("=", 1)
+                row.setdefault(key, value)
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def load_source(run_dir: Path, name: str, clock: dict | None = None) -> pd.DataFrame:
+    run_dir = Path(run_dir)
+    clock = clock or read_clock(run_dir)
+    zero = zero_epoch(clock)
+    if name in LOCUST_FILES:
+        df = read_csv(run_dir / f"{name}.csv")
+        if not df.empty:
+            df["hold_s"] = locust_epochs(df, clock) - zero
+        return df
+    if name in COLLECTOR_FILES:
+        df = read_csv(run_dir / f"{name}.csv")
+        if not df.empty:
+            df["hold_s"] = epochs(df["timestamp"]) - zero
+        return df
+    if name == "retryguard":
+        path = run_dir / "retryguard.log"
+        if not path.is_file():
+            return pd.DataFrame()
+        df = retryguard_rows(path.read_text(encoding="utf-8", errors="replace"))
+        if not df.empty:
+            df["hold_s"] = df["timestamp"].map(_safe_epoch) - zero
+        return df
+    raise ValueError(f"unknown source {name!r}")
+
+
 def run_dirs(paths: list[str], tree: str | None) -> list[Path]:
     found = [Path(p) for p in paths]
     if tree:
