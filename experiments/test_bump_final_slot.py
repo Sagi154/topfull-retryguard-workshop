@@ -60,6 +60,19 @@ class TestBumpFileGuard(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 bump_final_slot.bump_file(path)
 
+    def test_accepts_s2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "final_configs" / "2" / "s2_rg_only_normal.yaml"
+            path.parent.mkdir(parents=True)
+            text = SAMPLE.replace(
+                "final_s3_rg_only_normal", "final_s2_rg_only_normal"
+            ).replace("\n", "\r\n")
+            path.write_bytes(text.encode("utf-8"))
+            self.assertEqual(bump_final_slot.bump_file(path), 2)
+            raw = path.read_bytes()
+            self.assertIn(b"log_folder: final_s2_rg_only_normal_run2\r\n", raw)
+            self.assertIn(b"run_number: 2\r\n", raw)
+
 
 if __name__ == "__main__":
     unittest.main()

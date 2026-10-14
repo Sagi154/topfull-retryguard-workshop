@@ -1,4 +1,4 @@
-"""Advance run_number and log_folder on one S3/S4 final_configs YAML.
+"""Advance run_number and log_folder on one S2/S3/S4 final_configs YAML.
 
 The campaign file stays the runner input. Rep 1 uses the run1 name already
 in the file. After that folder is pulled, bump to run2 and launch again.
@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 ALLOWED_PREFIXES = (
+    "s2_",
     "s3_",
     "4a_constrained_",
     "4a_unconstrained_",
@@ -66,7 +67,7 @@ def bump_file(path: Path) -> int:
     if "final_configs" not in parts:
         raise SystemExit(f"refusing {path}: not under final_configs")
     if not any(path.name.startswith(prefix) for prefix in ALLOWED_PREFIXES):
-        raise SystemExit(f"refusing {path}: not an S3/S4 campaign file")
+        raise SystemExit(f"refusing {path}: not an S2/S3/S4 campaign file")
     original = path.read_bytes().decode("utf-8")
     updated = bump_text(original)
     with path.open("w", encoding="utf-8", newline="") as handle:
