@@ -114,7 +114,7 @@ Longest streak / count of inbound rejection above 0.20. Bold when a controlled s
 | adservice | 0 / 0 | 0 / 0 | **┃** | 1 / 1 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 |
 | redis-cart (not controlled) | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 |
 
-Longest streak / count under the re-enable bar 0.25.
+Longest streak / count under the re-enable bar. The eight RetryGuard columns use 0.25 from the START line. The two TopFull-only columns, final_4a_unconstrained_tf_only_run1 and final_4a_unconstrained_tf_only_run2, have no retryguard.log, so the scorer uses its default 0.10. That is why adservice on tf_only_run1 is 261 / 306 under the bar and 0 / 0 above 0.20.
 
 | Service | final_4a_unconstrained_rg_only_normal_run1 | final_4a_unconstrained_rg_only_normal_run2 | **┃** | final_4a_unconstrained_both_normal_run1 | final_4a_unconstrained_both_normal_run2 | **┃** | final_4a_unconstrained_tf_only_run1 | final_4a_unconstrained_tf_only_run2 | **┃** | final_4a_unconstrained_rg_only_burst_run1 | final_4a_unconstrained_rg_only_burst_run2 | **┃** | final_4a_unconstrained_both_burst_run1 | final_4a_unconstrained_both_burst_run2 |
 | --- | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: |
@@ -139,7 +139,7 @@ HTTP-only rejection (5xx + resets) streak above 0.20 / count, four read callees.
 | currencyservice | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 |
 | adservice | 0 / 0 | 0 / 0 | **┃** | 1 / 1 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 | **┃** | 0 / 0 | 0 / 0 |
 
-HTTP-only rejection (5xx + resets) streak under the re-enable bar / count, four read callees.
+HTTP-only rejection (5xx + resets) streak under the re-enable bar / count, four read callees. Same bars as the table above: 0.25 on the RetryGuard columns, 0.10 on the two TopFull-only columns.
 
 | Service | final_4a_unconstrained_rg_only_normal_run1 | final_4a_unconstrained_rg_only_normal_run2 | **┃** | final_4a_unconstrained_both_normal_run1 | final_4a_unconstrained_both_normal_run2 | **┃** | final_4a_unconstrained_tf_only_run1 | final_4a_unconstrained_tf_only_run2 | **┃** | final_4a_unconstrained_rg_only_burst_run1 | final_4a_unconstrained_rg_only_burst_run2 | **┃** | final_4a_unconstrained_both_burst_run1 | final_4a_unconstrained_both_burst_run2 |
 | --- | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: | :---: | ---: | ---: |
