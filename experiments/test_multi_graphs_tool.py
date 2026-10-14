@@ -142,5 +142,51 @@ class TestLegendFigure(unittest.TestCase):
         self.assertFalse(legend.layout.xaxis.visible)
 
 
+from test_hold_clock import E, iso, make_run  # noqa: E402
+
+
+class TestPage(unittest.TestCase):
+    def test_real_runs_give_panels_then_legend_then_code_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_a = make_run(Path(tmp) / "a")
+            run_b = make_run(Path(tmp) / "b")
+            (run_b / "retryguard.log").write_text(
+                f"{iso(E + 31)}  frontend->checkoutservice  ON→OFF   rpr=2.10  "
+                "consecutive_high=2  attempts=0  from_attempts=3  metric=rpr_burst  elapsed_s=4\n",
+                encoding="utf-8",
+            )
+            out = Path(tmp) / "multi.html"
+            multi_graphs_tool.write_page([run_a, run_b], out)
+            page = out.read_text(encoding="utf-8")
+            single = Path(tmp) / "single.html"
+            graphs_tool.write_html(graphs_tool.build_figure(run_a), single, run_a)
+            single_size = len(single.read_text(encoding="utf-8"))
+        panel0 = page.index('id="panel-0"')
+        panel1 = page.index('id="panel-1"')
+        legend = page.index('id="legend-graph"')
+        key = page.index("Service codes, OFF→ON")
+        self.assertLess(panel0, panel1)
+        self.assertLess(panel1, legend)
+        self.assertLess(legend, key)
+        self.assertEqual(page.count("Plotly.newPlot("), 3)
+        self.assertNotIn('id="panel-2"', page)
+        self.assertIn("E3 burst", page)
+        # One Plotly bundle, not one per figure.
+        self.assertLess(len(page), 2 * single_size)
+
+    def test_out_path_joins_names_and_disambiguates_repeats(self):
+        path = multi_graphs_tool.out_path([Path("x/run_a"), Path("y/run_b"), Path("z/run_a")])
+        self.assertEqual(path.parent, graphs_tool.OUT_DIR)
+        self.assertEqual(path.name, "multi_run_a__run_b__run_a-3.html")
+
+    def test_cli_needs_two_existing_runs(self):
+        with self.assertRaises(SystemExit) as one:
+            multi_graphs_tool.main(["only_one"])
+        self.assertEqual(one.exception.code, 2)
+        with self.assertRaises(SystemExit) as missing:
+            multi_graphs_tool.main(["does_not_exist_a", "does_not_exist_b"])
+        self.assertEqual(missing.exception.code, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

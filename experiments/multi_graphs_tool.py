@@ -150,3 +150,74 @@ def legend_figure(union: dict, colors: dict) -> go.Figure:
                 "font": {"size": 11}, "grouptitlefont": {"color": "black"}},
     )
     return fig
+
+
+PAGE_STYLE = """
+body { margin: 0; font-family: sans-serif; color: #222; }
+h3.run { margin: 14px 16px 0; font-size: 14px; }
+div.note { margin: 2px 16px 0; min-height: 15px; font-size: 12px; color: #777; }
+"""
+
+
+def out_path(run_dirs: list[Path]) -> Path:
+    """multi_<names>.html. A repeated run folder name gets its position appended."""
+    names: list[str] = []
+    for index, run_dir in enumerate(run_dirs, start=1):
+        name = Path(run_dir).name
+        names.append(f"{name}-{index}" if name in names else name)
+    return OUT_DIR / f"multi_{'__'.join(names)}.html"
+
+
+def build_page(run_dirs: list[Path]) -> str:
+    run_dirs = [Path(run_dir) for run_dir in run_dirs]
+    figs = [panel_figure(run_dir) for run_dir in run_dirs]
+    pin_x_range(figs)
+    union = series_union(figs)
+    colors = assign_colors(figs, union)
+    decorate_slider(figs)
+    legend = legend_figure(union, colors)
+
+    parts = []
+    for index, (run_dir, fig) in enumerate(zip(run_dirs, figs)):
+        parts.append(f'<h3 class="run">{html.escape(run_label(run_dir))}</h3>')
+        parts.append(f'<div id="note-{index}" class="note"></div>')
+        parts.append(pio.to_html(
+            fig, full_html=False, include_plotlyjs=True if index == 0 else False,
+            div_id=f"panel-{index}",
+        ))
+    parts.append(pio.to_html(legend, full_html=False, include_plotlyjs=False, div_id="legend-graph"))
+    parts.append(graphs_tool.legend_html())
+    title = html.escape(" vs ".join(run_dir.name for run_dir in run_dirs))
+    return (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        f"<title>{title}</title><style>{PAGE_STYLE}</style></head><body>"
+        + "".join(parts)
+        + "</body></html>"
+    )
+
+
+def write_page(run_dirs: list[Path], path: Path) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(build_page(run_dirs), encoding="utf-8")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Interactive hold-clock comparison of several runs, one panel each.")
+    parser.add_argument("runs", nargs="+", help="Run folders (at least two)")
+    args = parser.parse_args(argv)
+    runs = [Path(run) for run in args.runs]
+    if len(runs) < 2:
+        parser.error("need at least two run folders")
+    missing = [str(run) for run in runs if not run.is_dir()]
+    if missing:
+        parser.error("not a folder: " + ", ".join(missing))
+    out = out_path(runs)
+    write_page(runs, out)
+    print(out)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
