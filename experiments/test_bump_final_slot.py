@@ -1,4 +1,4 @@
-"""Slot bump for the S3/S4 mode-matrix YAMLs.
+"""Slot bump for the S1/S2/S3/S4 mode-matrix YAMLs.
 
 Run:
     python experiments/test_bump_final_slot.py
@@ -52,11 +52,24 @@ class TestBumpFileGuard(unittest.TestCase):
             self.assertNotIn(b"\n\n", raw.replace(b"\r\n", b""))
             self.assertIn(b"log_folder: final_s3_rg_only_normal_run2\r\n", raw)
 
-    def test_refuses_s1(self):
+    def test_accepts_s1(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "final_configs" / "1" / "s1_rg_only_normal.yaml"
             path.parent.mkdir(parents=True)
-            path.write_text(SAMPLE.replace("s3_rg_only_normal", "s1_rg_only_normal"), encoding="utf-8")
+            text = SAMPLE.replace(
+                "final_s3_rg_only_normal", "final_s1_rg_only_normal"
+            ).replace("\n", "\r\n")
+            path.write_bytes(text.encode("utf-8"))
+            self.assertEqual(bump_final_slot.bump_file(path), 2)
+            raw = path.read_bytes()
+            self.assertIn(b"log_folder: final_s1_rg_only_normal_run2\r\n", raw)
+            self.assertIn(b"run_number: 2\r\n", raw)
+
+    def test_refuses_s5(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "final_configs" / "5" / "s5_interval_10s.yaml"
+            path.parent.mkdir(parents=True)
+            path.write_text(SAMPLE, encoding="utf-8")
             with self.assertRaises(SystemExit):
                 bump_final_slot.bump_file(path)
 
