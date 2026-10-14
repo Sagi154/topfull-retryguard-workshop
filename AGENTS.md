@@ -114,7 +114,7 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 
 - **S4 relock mode matrix (2026-10-14).** Branch `s4-relock-mode-matrix` from `e26f05c`, thirty holds. S4A constrained catalog 100 m on mix 50/20/50/600/5 in `run3` and `run4`. S4A unconstrained catalog 800 m on that mix in `run1` and `run2`. S4B email 50 m on mix 175/30/70/90/5 in `run1` and `run2`. Next free slots: constrained run 5, unconstrained run 3, S4B run 3.
 - **39 PASS, 5 INVALID, and 21 throttle FLAG** lines in [2026-10-13-s4-relock-mode-matrix-run-log.md](docs/superpowers/plans/2026-10-13-s4-relock-mode-matrix-run-log.md), including the 2026-10-14 re-gate lines. Guides: [2026-10-13-s4a-constrained-relock-abc.md](Guides%20and%20Info/2026-10-13-s4a-constrained-relock-abc.md), [2026-10-13-s4a-unconstrained-relock-abc.md](Guides%20and%20Info/2026-10-13-s4a-unconstrained-relock-abc.md), [2026-10-13-s4b-relock-abc.md](Guides%20and%20Info/2026-10-13-s4b-relock-abc.md).
-- The cluster was restored to frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset, checkout 800 m, catalog 800 m, email 120 m, and the three VMs were stopped (topfull-master, topfull-worker-1, and topfull-load TERMINATED). Task 9 replaces that clause after it stops them.
+- The cluster was restored to frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset, checkout 800 m, catalog 800 m, email 120 m, and the three VMs were stopped (topfull-master, topfull-worker-1, and topfull-load TERMINATED).
 
 ### Still open
 
