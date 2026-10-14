@@ -137,3 +137,22 @@ Edge codes follow RetryGuard's controlled-edge order. Service codes follow the o
 | Where did TopFull place a cap? | TopFull cap |
 | Which services did the detector call overloaded, and for how many polls? | Overload ticks. The slope is how often the flag was on, not a CPU value |
 | Who was near their CPU limit? | CPU, names in parentheses are the limit |
+
+## multi_graphs_tool: several holds, one legend
+
+```powershell
+python experiments/multi_graphs_tool.py "<run_dir>" "<run_dir>" ["<run_dir>" ...]
+```
+
+Two or more holds from `experiments/results/final results/` (S1–S4). The page is `experiments/explore_out/multi_<run names>.html` (git-ignored, offline). Built from [2026-10-14-multi-graphs-tool-design.md](../docs/superpowers/specs/2026-10-14-multi-graphs-tool-design.md).
+
+Top to bottom: one comparison panel per run (the run label sits above it), then one legend, then the E/V code key. The legend is the only control. A click on a legend item or a section title changes every panel, so all panels always show the same metrics. Everything starts off except the RetryGuard event lines.
+
+- **x** is linked. Zoom, pan, or the range slider (under the last panel) on one panel moves all of them. t = 0 is each run's own hold clock, and every panel shows the longest run's span, so a shorter run has empty space on the right.
+- **y** is shared per unit. The range is 0 to 1.05 times the largest visible value in any panel, so equal heights mean equal values across runs. Turning on a line that peaks high in one run rescales all panels. A manual y range on one panel is copied to the others.
+- **Names are the same in every panel.** CPU lines carry the service name only; the limit is in the hover (`… of 1150m`). The same series has the same colour in every panel.
+- **"none in this run"** above a panel means a line you turned on does not exist in that run (for example RetryGuard edges on a `tf_only` run). It is not a zero.
+- Each panel draws its own run's RetryGuard events and names. Hover over a name for the detail.
+
+Not in this page: the nine stacked panels, `--all`, S5/S6/`campaign_48/`/`august_38/`.
+
