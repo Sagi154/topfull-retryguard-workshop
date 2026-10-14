@@ -329,7 +329,7 @@ PAGE_JS = r"""
           return Plotly.relayout(panel, update);
         });
       });
-      return Promise.all(jobs).then(function () { busy = false; showNotes(state); });
+      return Promise.all(jobs).then(function () { showNotes(state); }).finally(function () { busy = false; });
     }
 
     // Item click: toggle that one legend trace, then redraw the panels.
@@ -407,13 +407,16 @@ PAGE_JS = r"""
             reset = true;
           }
         });
-        if (reset) Object.assign(update, yRanges(legendState()));
+        if (reset) {
+          update['xaxis.range'] = X_PIN.slice();
+          Object.assign(update, yRanges(legendState()));
+        }
         if (!Object.keys(update).length) return;
         // A reset also has to fix the panel that was clicked, which autoranged itself.
         var targets = reset ? panels : panels.filter(function (other) { return other !== panel; });
         busy = true;
         Promise.all(targets.map(function (other) { return Plotly.relayout(other, update); }))
-          .then(function () { busy = false; });
+          .finally(function () { busy = false; });
       });
     });
     keepTitles();

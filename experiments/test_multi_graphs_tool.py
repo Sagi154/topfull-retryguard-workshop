@@ -367,6 +367,21 @@ class TestLinkedZoom(BrowserCase):
         self.wait("() => { const r = document.getElementById('panel-1').layout.yaxis.range;"
                   " return r && Math.abs(r[1] - 94.5) < 0.01; }")
 
+    def test_yaxis_autorange_alone_restores_the_pinned_x_range(self):
+        self.click_legend("Goodput", title=False)
+        self.wait("() => { const r = document.getElementById('panel-0').layout.yaxis.range;"
+                  " return r && Math.abs(r[1] - 94.5) < 0.01; }")
+        self.page.evaluate(
+            "() => Plotly.relayout(document.getElementById('panel-0'), {'xaxis.range': [10, 40]})")
+        self.wait("() => document.getElementById('panel-1').layout.xaxis.range[0] === 10")
+        self.page.evaluate(
+            "() => Plotly.relayout(document.getElementById('panel-1'), {'yaxis.autorange': true})")
+        self.wait("() => { const a = document.getElementById('panel-0').layout.xaxis.range;"
+                  " const b = document.getElementById('panel-1').layout.xaxis.range;"
+                  " return a[0] === 0 && a[1] === 600 && b[0] === 0 && b[1] === 600; }")
+        self.wait("() => { const r = document.getElementById('panel-1').layout.yaxis.range;"
+                  " return r && Math.abs(r[1] - 94.5) < 0.01; }")
+
 
 if __name__ == "__main__":
     unittest.main()
