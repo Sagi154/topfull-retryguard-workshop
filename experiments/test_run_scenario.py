@@ -1490,6 +1490,13 @@ class TestMeshCollectorNetworkWiring(unittest.TestCase):
 class TestStartMasterStackTopfullRl(unittest.TestCase):
     """topfull_rl.enabled defaults True; false skips deploy_rl but keeps proxy+metrics."""
 
+    def setUp(self):
+        # The proxy-limits guard has its own tests (test_run_scenario_proxy_guard.py);
+        # these mocked-ssh tests only check which sessions and scripts start.
+        patcher = mock.patch("run_scenario.ensure_proxy_uncapped")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _cfg(self, rl_enabled=None):
         cfg = {
             "infra": {
@@ -1713,6 +1720,13 @@ class TestRestartBeforeHold(unittest.TestCase):
 
 
 class TestOverlappedStartup(unittest.TestCase):
+    def setUp(self):
+        # Guarded separately in test_run_scenario_proxy_guard.py; these tests
+        # only check ordering and failure propagation of the overlapped start.
+        patcher = mock.patch("run_scenario.ensure_proxy_uncapped")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _cfg(self, restart=False):
         cfg = {
             "infra": {

@@ -115,9 +115,9 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **RetryGuard parameters locked (2026-10-13).** Every RetryGuard-on run uses the twelve values in §5. Burst mode is `burst_rpr` **2.0**, `burst_window_seconds` 5, and `burst_min_first_attempts` 20. Normal mode omits those three keys. Bar **1.5** is dropped.
-- **Scenario 5 is the only exception** (it sweeps `interval_samples`). Holds before 2026-10-12, `campaign_48/`, and `august_38/` used older values and are not comparable.
-- **Canonical table:** [RETRYGUARD-IMPLEMENTATION.md](Guides%20and%20Info/RETRYGUARD-IMPLEMENTATION.md). Decision: [ADR 0008](docs/adr/0008-locked-retryguard-parameters.md).
+- **S4 relock mode matrix (2026-10-14).** Branch `s4-relock-mode-matrix` from `e26f05c`, thirty holds. S4A constrained catalog 100 m on mix 50/20/50/600/5 in `run3` and `run4`. S4A unconstrained catalog 800 m on that mix in `run1` and `run2`. S4B email 50 m on mix 175/30/70/90/5 in `run1` and `run2`. Next free slots: constrained run 5, unconstrained run 3, S4B run 3.
+- **39 PASS, 5 INVALID, and 21 throttle FLAG** lines in [2026-10-13-s4-relock-mode-matrix-run-log.md](docs/superpowers/plans/2026-10-13-s4-relock-mode-matrix-run-log.md), including the 2026-10-14 re-gate lines. Guides: [2026-10-13-s4a-constrained-relock-abc.md](Guides%20and%20Info/2026-10-13-s4a-constrained-relock-abc.md), [2026-10-13-s4a-unconstrained-relock-abc.md](Guides%20and%20Info/2026-10-13-s4a-unconstrained-relock-abc.md), [2026-10-13-s4b-relock-abc.md](Guides%20and%20Info/2026-10-13-s4b-relock-abc.md).
+- The cluster was restored to frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset, checkout 800 m, catalog 800 m, email 120 m, and the three VMs were stopped (topfull-master, topfull-worker-1, and topfull-load TERMINATED). Task 9 replaces that clause after it stops them.
 
 ### Still open
 
@@ -125,6 +125,7 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 - Share [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md), then write the Phase 7 eval on `experiments/results/campaign_48/` once mentors say the data is enough.
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
+- The S4 relock mode matrix is the locked S4A/S4B set under `final results/`, and the catalog-50m mode matrix and `campaign_48/` S4A/S4B are not comparable.
 
 Read [STATUS.md](STATUS.md) before a new hold, a `run_number` bump, scoring an old folder, or deciding what is left. After a hold, append one bullet under Done there, update Next free slots, and replace Latest here.
 

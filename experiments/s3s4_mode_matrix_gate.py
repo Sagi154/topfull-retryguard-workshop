@@ -89,6 +89,14 @@ def main(argv: list[str]) -> None:
     catalog = [row for row in usage if row["service"] == "productcatalogservice"]
     print(f"frontend_4={sum(row['replica_count'] == '4' for row in frontend)}/{len(frontend)}")
     print(f"catalog_1={sum(row['replica_count'] == '1' for row in catalog)}/{len(catalog)}")
+    # A catalog sample with replica_count 0 is a Not Ready flap (the pod is up
+    # and pinned at its CPU limit). It is recorded here and is not a gate.
+    not_ready = [row["timestamp"] for row in catalog if row["replica_count"] == "0"]
+    print(f"catalog_not_ready={len(not_ready)}" + (f" at {','.join(not_ready)}" if not_ready else ""))
+    # Evidence the TopFull RL loop ran: deploy_rl writes num_agent.csv only
+    # when it is on. A TopFull-on hold that never capped an API still passes.
+    num_agent = root / "num_agent.csv"
+    print("topfull_rl_ran=" + ("yes" if num_agent.is_file() and num_agent.stat().st_size > 0 else "no"))
     throttle = _rows(throttle_path)
     live = [row for row in throttle if row["threshold_fresh"] == "1"]
 

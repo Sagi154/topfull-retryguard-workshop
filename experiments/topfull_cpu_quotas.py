@@ -208,3 +208,30 @@ def effective_cpu_quotas(constraints: List[dict]) -> Dict[str, int]:
             continue
         out[c["deployment"]] = cpu_limit_millicores_for(c)
     return out
+
+
+# --------------------------------------------------------------------------- #
+#  Catalog probe tolerance
+# --------------------------------------------------------------------------- #
+# At a constrained CPU limit the catalog container is pinned at its limit and
+# the 1 s exec probe (`grpc_health_probe`) misses its deadline, so Kubernetes
+# marks the pod Not Ready (readyReplicas absent -> replica_count 0) for a few
+# seconds. A longer timeout and more allowed failures stop that without
+# changing the CPU limit under test. The manifest values stay the default.
+PROBE_SERVICE = "productcatalogservice"
+DEFAULT_PROBE: Dict[str, int] = {"timeoutSeconds": 1, "failureThreshold": 3}
+TOLERANT_PROBE: Dict[str, int] = {"timeoutSeconds": 5, "failureThreshold": 6}
+
+
+def probe_settings_for(constraints: List[dict], restore: bool = False) -> Dict[str, int]:
+    """Probe timeout/threshold for the catalog Deployment.
+
+    Tolerant only while the catalog CPU limit is below the Paper-C1 value for
+    this config; ``restore=True`` always returns the manifest default.
+    """
+    if restore:
+        return dict(DEFAULT_PROBE)
+    limit = effective_cpu_quotas(constraints)[PROBE_SERVICE]
+    if limit < paper_limit_for(PROBE_SERVICE):
+        return dict(TOLERANT_PROBE)
+    return dict(DEFAULT_PROBE)

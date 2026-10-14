@@ -16,7 +16,7 @@
 scenario_id: 4
 scenario_name: topology_position_A
 condition: retryguard
-run_number: 1
+run_number: 3
 description: >
   No service constrained: the plain Paper-C1 table. Reference for 4A constrained. Locked mix 50/20/50/600/5 (postcart-heavy), spawn_rate 50. RetryGuard ON, TopFull OFF.
 
@@ -126,7 +126,7 @@ topfull_throttle_collector:
   enabled: true
   poll_interval_seconds: 1
 
-log_folder: final_4a_unconstrained_rg_only_normal_run1
+log_folder: final_4a_unconstrained_rg_only_normal_run3
 
 infra:
   master_ssh_host: topfull-master
