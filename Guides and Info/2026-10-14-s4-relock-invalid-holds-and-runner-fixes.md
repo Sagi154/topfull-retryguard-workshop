@@ -75,7 +75,7 @@ The plan's pass rules changed to match, in all three sections (4A constrained, 4
 
 ### Run log: re-gated launches
 
-Twenty launches changed from INVALID to PASS. Each line keeps its original reason, prefixed with `re-gated 2026-10-14` and a note that the reason is recorded, not a gate. A script checked that each reason was one of the two non-failures before flipping it. Five launches stay INVALID: holds 7 and 8 (both launches of each) and hold 3's replay. The log now reads 29 PASS, 5 INVALID and 3 not gated.
+Twenty launches changed from INVALID to PASS. Each line keeps its original reason, prefixed with `re-gated 2026-10-14` and a note that the reason is recorded, not a gate. A script checked that each reason was one of the two non-failures before flipping it. Five launches stay INVALID: holds 7 and 8 (both launches of each) and hold 3's replay. At the re-gate the S4A slice read 29 PASS, 5 INVALID and 3 not gated. The finished log, including the S4B lines and hold 28's pre-Locust not-gated line, reads 39 PASS, 5 INVALID and 4 not gated.
 
 Holds 7 and 8 need to be run again under the new cleanup. For the guide columns, the first-launch folders of re-gated holds now qualify, so some replay folders are redundant. Which folder each column uses was left open.
 
@@ -89,4 +89,4 @@ Holds 7 and 8 need to be run again under the new cleanup. For the guide columns,
 - **Live test of the guard.** Master had no proxy running when we finished, so the threshold read was not exercised end to end. The URL and port extraction was checked on master. The first hold under the new runner is the real test; a false abort would stop before Locust.
 - **Probe fix unconfirmed.** The next constrained hold shows whether the Not Ready flaps stop. `catalog_not_ready` in the gate output is the check.
 - **Disk.** Old pulled folders on master are still there.
-- **Uncommitted.** This doc, the runner, gate, quotas module, tests, plan and run log are working-tree changes in the worktree. The worktree also has other uncommitted edits (`4b_*.yaml`) that are not part of this work.
+- **Committed.** This doc, the runner, the gate, the quotas module, the tests, the plan, and the run log are on `s4-relock-mode-matrix`. The 4b YAML bumps are in `6930ec0`. The VM stop, push, and local merge are still ahead in Task 9.
