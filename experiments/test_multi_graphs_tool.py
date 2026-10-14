@@ -188,5 +188,144 @@ class TestPage(unittest.TestCase):
         self.assertEqual(missing.exception.code, 2)
 
 
+try:
+    from playwright.sync_api import sync_playwright
+except ImportError:  # pragma: no cover
+    sync_playwright = None
+
+
+def two_synthetic_panels():
+    """A: 300 s, Goodput peaks at 30, a rejection line. B: 600 s, Goodput peaks at 90,
+    a retries-per-request line A lacks, and an ON→OFF event with a name on the line."""
+    fig_a = synthetic([("locust", "Goodput", [10.0, 20.0, 30.0]),
+                       ("rejection", "checkoutservice", [0.0, 0.5, 0.2])], 300)
+    fig_b = synthetic([("locust", "Goodput", [30.0, 60.0, 90.0]),
+                       ("rpr", "E3 frontend->checkoutservice", [0.0, 1.0, 2.0])],
+                      600, events=("ON→OFF",))
+    return fig_a, fig_b
+
+
+class BrowserCase(unittest.TestCase):
+    """Loads the page in Chromium and clicks the legend the way a person does."""
+
+    def setUp(self):
+        if sync_playwright is None:
+            self.skipTest("playwright is not installed")
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        out = Path(self.tmp.name) / "multi.html"
+        fig_a, fig_b = two_synthetic_panels()
+        with mock.patch.object(graphs_tool, "compare_figure", side_effect=[fig_a, fig_b]):
+            multi_graphs_tool.write_page(
+                [Path("final/S2/both/run_a"), Path("final/S2/rg_only/run_b")], out)
+        self.playwright = sync_playwright().start()
+        self.addCleanup(self.playwright.stop)
+        browser = self.playwright.chromium.launch()
+        self.addCleanup(browser.close)
+        self.page = browser.new_page(viewport={"width": 1280, "height": 900})
+        self.page.goto(out.as_uri())
+        self.page.wait_for_selector("#legend-graph .legend .traces")
+        self.page.wait_for_function(
+            "() => ['panel-0','panel-1','legend-graph'].every("
+            "id => document.getElementById(id) && document.getElementById(id).data)"
+        )
+
+    def click_legend(self, label: str, title: bool) -> None:
+        point = self.page.evaluate(
+            """(args) => {
+              const graph = document.getElementById('legend-graph');
+              const row = [...graph.querySelectorAll('.legend .traces')].find(item => {
+                const text = item.querySelector('text');
+                if (!text || text.textContent !== args.label) return false;
+                const isTitle = !item.querySelector('.legendtoggle');
+                return args.title ? isTitle : !isTitle;
+              });
+              if (!row) return null;
+              const text = row.querySelector('text');
+              text.scrollIntoView({block: 'center', inline: 'center'});
+              const box = text.getBoundingClientRect();
+              return {x: box.x + box.width / 2, y: box.y + box.height / 2};
+            }""",
+            {"label": label, "title": title},
+        )
+        self.assertIsNotNone(point, f"missing legend text {label}")
+        self.page.mouse.click(point["x"], point["y"])
+
+    def visible(self, panel: int, name: str) -> bool:
+        return self.page.evaluate(
+            """(args) => document.getElementById('panel-' + args.panel).data
+              .filter(t => t.name === args.name)
+              .every(t => t.visible !== 'legendonly')""",
+            {"panel": panel, "name": name},
+        )
+
+    def wait(self, expression: str, arg=None, timeout: int = 4000) -> None:
+        self.page.wait_for_function(expression, arg=arg, timeout=timeout)
+
+    def y_range(self, panel: int, axis: str = "yaxis"):
+        return self.page.evaluate(
+            "(args) => document.getElementById('panel-' + args.panel).layout[args.axis].range",
+            {"panel": panel, "axis": axis},
+        )
+
+
+class TestLegendDrivesPanels(BrowserCase):
+    def test_item_click_shows_the_line_in_every_panel_with_one_shared_y_range(self):
+        self.assertFalse(self.visible(0, "Goodput"))
+        self.assertFalse(self.visible(1, "Goodput"))
+        self.click_legend("Goodput", title=False)
+        self.wait("() => document.getElementById('panel-1').data"
+                  ".every(t => t.name !== 'Goodput' || t.visible === true)")
+        self.assertTrue(self.visible(0, "Goodput"))
+        self.assertTrue(self.visible(1, "Goodput"))
+        # Max over both runs is 90; the range is [0, 90 * 1.05] on both panels.
+        self.wait("() => { const r = document.getElementById('panel-0').layout.yaxis.range;"
+                  " return r && Math.abs(r[1] - 94.5) < 0.01; }")
+        self.assertEqual(self.y_range(0), self.y_range(1))
+        self.assertAlmostEqual(self.y_range(1)[1], 94.5, places=2)
+        self.assertEqual(self.y_range(1)[0], 0)
+
+    def test_section_title_toggles_the_whole_group_in_every_panel(self):
+        self.click_legend("Goodput / RPS (req/s)", title=True)
+        self.wait("() => document.getElementById('panel-0').data"
+                  ".filter(t => t.legendgroup === 'locust').every(t => t.visible === true)")
+        self.assertTrue(self.visible(1, "Goodput"))
+        self.click_legend("Goodput / RPS (req/s)", title=True)
+        self.wait("() => document.getElementById('panel-0').data"
+                  ".filter(t => t.legendgroup === 'locust').every(t => t.visible === 'legendonly')")
+        self.assertFalse(self.visible(1, "Goodput"))
+
+    def test_right_axis_shows_on_every_panel_when_a_line_of_that_unit_is_on(self):
+        self.assertFalse(self.page.evaluate(
+            "() => document.getElementById('panel-0').layout.yaxis3.visible"))
+        self.click_legend("checkoutservice", title=False)
+        self.wait("() => document.getElementById('panel-1').layout.yaxis3.visible === true")
+        self.assertTrue(self.page.evaluate(
+            "() => document.getElementById('panel-0').layout.yaxis3.visible"))
+        self.assertEqual(self.y_range(0, "yaxis3"), self.y_range(1, "yaxis3"))
+        self.assertAlmostEqual(self.y_range(1, "yaxis3")[1], 0.525, places=3)
+
+    def test_note_names_a_visible_series_the_run_lacks(self):
+        self.assertEqual(self.page.inner_text("#note-0"), "")
+        self.click_legend("E3 frontend->checkoutservice", title=False)
+        self.wait("() => document.getElementById('note-0').textContent.length > 0")
+        self.assertIn("none in this run", self.page.inner_text("#note-0"))
+        self.assertIn("Retries per request (1)", self.page.inner_text("#note-0"))
+        self.assertEqual(self.page.inner_text("#note-1"), "")
+
+    def test_event_item_hides_the_names_on_the_lines(self):
+        self.assertTrue(self.page.evaluate(
+            "() => document.getElementById('panel-1').layout.annotations[0].visible !== false"))
+        self.click_legend("ON→OFF", title=False)
+        self.wait("() => document.getElementById('panel-1').layout.annotations[0].visible === false")
+        self.click_legend("ON→OFF", title=False)
+        self.wait("() => document.getElementById('panel-1').layout.annotations[0].visible === true")
+
+    def test_legend_figure_shrinks_to_its_legend(self):
+        self.wait("() => document.getElementById('legend-graph').offsetHeight < 900")
+        height = self.page.evaluate("() => document.getElementById('legend-graph').offsetHeight")
+        self.assertGreater(height, 40)
+
+
 if __name__ == "__main__":
     unittest.main()

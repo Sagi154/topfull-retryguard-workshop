@@ -171,7 +171,7 @@ def out_path(run_dirs: list[Path]) -> Path:
 def build_page(run_dirs: list[Path]) -> str:
     run_dirs = [Path(run_dir) for run_dir in run_dirs]
     figs = [panel_figure(run_dir) for run_dir in run_dirs]
-    pin_x_range(figs)
+    x_pin = pin_x_range(figs)
     union = series_union(figs)
     colors = assign_colors(figs, union)
     decorate_slider(figs)
@@ -192,6 +192,7 @@ def build_page(run_dirs: list[Path]) -> str:
         '<!DOCTYPE html><html><head><meta charset="utf-8">'
         f"<title>{title}</title><style>{PAGE_STYLE}</style></head><body>"
         + "".join(parts)
+        + page_script(len(figs), x_pin)
         + "</body></html>"
     )
 
@@ -217,6 +218,193 @@ def main(argv: list[str] | None = None) -> int:
     write_page(runs, out)
     print(out)
     return 0
+
+
+PAGE_JS = r"""
+<script>
+(function () {
+  var PANEL_IDS = __PANEL_IDS__;
+  var AXIS = __AXIS__;
+  var X_PIN = __X_PIN__;
+  // A unit's axis stays hidden until one of its lines is on. Visible units pack
+  // against the plot: the first on the right edge, the rest stepping outward.
+  var RIGHT = ['ms', 'fraction', 'retries/request', 'millicores', 'retries', 'ticks'];
+  var EVENTS = 'events';
+
+  function start() {
+    var legend = document.getElementById('legend-graph');
+    var panels = PANEL_IDS.map(function (id) { return document.getElementById(id); });
+    var ready = legend && legend.data && panels.every(function (panel) { return panel && panel.data; });
+    if (!ready) { setTimeout(start, 50); return; }
+    wire(legend, panels);
+  }
+
+  function wire(legend, panels) {
+    var busy = false;
+
+    function key(trace) { return trace.legendgroup + '||' + trace.name; }
+
+    // The legend figure is the only place visibility is decided.
+    function legendState() {
+      var state = {};
+      legend.data.forEach(function (trace) { state[key(trace)] = trace.visible !== 'legendonly'; });
+      return state;
+    }
+
+    function axisUpdate() {
+      var shown = {};
+      legend.data.forEach(function (trace) {
+        if (!AXIS[trace.meta] || AXIS[trace.meta] === 'yaxis') return;
+        if (trace.visible !== 'legendonly') shown[trace.meta] = true;
+      });
+      var active = RIGHT.filter(function (unit) { return shown[unit]; });
+      var edge = active.length ? 1 - 0.07 * active.length : 0.97;
+      var update = {'xaxis.domain[1]': Math.max(0.6, edge)};
+      RIGHT.forEach(function (unit) {
+        var name = AXIS[unit];
+        var place = active.indexOf(unit);
+        update[name + '.visible'] = place !== -1;
+        if (place !== -1) {
+          update[name + '.anchor'] = 'free';
+          update[name + '.side'] = 'right';
+          update[name + '.position'] = edge + 0.07 * place;
+        }
+      });
+      return update;
+    }
+
+    // One range per unit, from the largest visible value in any panel, so a
+    // height on one panel means the same thing on every other panel.
+    function yRanges(state) {
+      var top = {};
+      panels.forEach(function (panel) {
+        panel.data.forEach(function (trace) {
+          if (!state[key(trace)] || !AXIS[trace.meta]) return;
+          var max = top[trace.meta];
+          Array.prototype.forEach.call(trace.y || [], function (value) {
+            if (typeof value === 'number' && isFinite(value) && (max === undefined || value > max)) max = value;
+          });
+          if (max !== undefined) top[trace.meta] = max;
+        });
+      });
+      var update = {};
+      Object.keys(top).forEach(function (unit) {
+        update[AXIS[unit] + '.range'] = [0, top[unit] > 0 ? top[unit] * 1.05 : 1];
+      });
+      return update;
+    }
+
+    function showNotes(state) {
+      panels.forEach(function (panel, index) {
+        var present = {};
+        panel.data.forEach(function (trace) { present[key(trace)] = true; });
+        var missing = {};
+        legend.data.forEach(function (trace) {
+          if (trace.legendgroup === EVENTS || !state[key(trace)] || present[key(trace)]) return;
+          var title = trace.legendgrouptitle.text;
+          missing[title] = (missing[title] || 0) + 1;
+        });
+        var parts = Object.keys(missing).map(function (title) { return title + ' (' + missing[title] + ')'; });
+        document.getElementById('note-' + index).textContent =
+          parts.length ? 'none in this run: ' + parts.join(', ') : '';
+      });
+    }
+
+    function apply() {
+      var state = legendState();
+      var shared = Object.assign({}, axisUpdate(), yRanges(state));
+      busy = true;
+      var jobs = panels.map(function (panel) {
+        var visible = panel.data.map(function (trace) { return state[key(trace)] ? true : 'legendonly'; });
+        var update = Object.assign({}, shared);
+        // The names on the event lines are annotations. They follow the legend.
+        update.annotations = (panel.layout.annotations || []).map(function (item) {
+          var k = EVENTS + '||' + item.name;
+          if (!Object.prototype.hasOwnProperty.call(state, k)) return item;
+          var copy = Object.assign({}, item);
+          copy.visible = state[k];
+          return copy;
+        });
+        return Plotly.restyle(panel, {visible: visible}).then(function () {
+          return Plotly.relayout(panel, update);
+        });
+      });
+      return Promise.all(jobs).then(function () { busy = false; showNotes(state); });
+    }
+
+    // Item click: toggle that one legend trace, then redraw the panels.
+    legend.on('plotly_legendclick', function (event) {
+      var trace = event.fullData[event.curveNumber];
+      var show = trace.visible === 'legendonly';
+      Plotly.restyle(legend, {visible: show ? true : 'legendonly'}, [event.curveNumber]).then(apply);
+      return false;
+    });
+
+    // Title click: toggle the whole group. A title is the legend row without a
+    // toggle rect; an axis title can use the same words, so only legend rows count.
+    var titleOf = {};
+    legend.data.forEach(function (trace) { titleOf[trace.legendgrouptitle.text] = trace.legendgroup; });
+    legend.addEventListener('mousedown', function (event) {
+      var text = event.target.closest ? event.target.closest('text') : null;
+      if (!text || !text.closest('.legend')) return;
+      var row = text.parentNode;
+      if (!row || row.querySelector('.legendtoggle')) return;
+      var group = titleOf[text.textContent];
+      if (!group) return;
+      event.stopPropagation();
+      var indices = [];
+      legend.data.forEach(function (trace, index) { if (trace.legendgroup === group) indices.push(index); });
+      var allHidden = indices.every(function (index) { return legend.data[index].visible === 'legendonly'; });
+      Plotly.restyle(legend, {visible: allHidden ? true : 'legendonly'}, indices).then(apply);
+    }, true);
+
+    // Plotly greys a title once every item in its group is hidden. Repaint black.
+    function keepTitles() {
+      legend.querySelectorAll('.legend .traces').forEach(function (row) {
+        if (row.querySelector('.legendtoggle')) return;
+        var node = row.querySelector('text');
+        if (!node) return;
+        node.style.fill = 'black';
+        node.style.fillOpacity = '1';
+      });
+    }
+
+    // The legend is a row of columns that wrap with the window. Size the figure
+    // to the legend so there is no empty band and Plotly never scrolls it.
+    // Plotly 7 clips the item row and leaves the drag layer on top of it when
+    // the figure is only 16px taller than the legend, so the pad is 32.
+    var lastHeight = 0;
+    function fitLegend() {
+      var node = legend.querySelector('.legend');
+      if (!node) return;
+      var height = Math.ceil(node.getBoundingClientRect().height) + 32;
+      if (Math.abs(height - lastHeight) < 3) return;
+      lastHeight = height;
+      legend.parentElement.style.height = height + 'px';
+      legend.style.height = height + 'px';
+      Plotly.relayout(legend, {height: height});
+    }
+
+    legend.on('plotly_afterplot', function () { keepTitles(); fitLegend(); });
+    new MutationObserver(keepTitles).observe(legend, {subtree: true, attributes: true, attributeFilter: ['style']});
+    keepTitles();
+    fitLegend();
+    setTimeout(fitLegend, 0);
+    showNotes(legendState());
+  }
+  start();
+})();
+</script>
+"""
+
+
+def page_script(panel_count: int, x_pin: list[float]) -> str:
+    return (
+        PAGE_JS
+        .replace("__PANEL_IDS__", json.dumps([f"panel-{i}" for i in range(panel_count)]))
+        .replace("__AXIS__", json.dumps(graphs_tool.COMPARE_AXIS))
+        .replace("__X_PIN__", json.dumps(x_pin))
+    )
 
 
 if __name__ == "__main__":
