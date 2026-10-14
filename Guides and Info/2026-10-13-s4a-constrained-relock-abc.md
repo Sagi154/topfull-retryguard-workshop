@@ -4,7 +4,7 @@
 
 Scenario 4A constrained, 600 s. Mix 50 / 20 / 50 / 600 / 5 (getproduct / postcheckout / getcart / postcart / emptycart), `spawn_rate` 50. Paper-C1, with productcatalogservice constrained to 100 m. Frontend HPA min = max = 4. productcatalogservice HPA min = max = 1. Frontend sidecar `proxyCPU` 90 m, `proxyCPULimit` unset. Cool-off between holds is 120 s. RetryGuard uses the locked parameters. Burst holds set `burst_rpr` 2.0, `burst_window_seconds` 5, and `burst_min_first_attempts` 20. Normal-mode RetryGuard holds omit those three keys. TopFull-only has no `retryguard.log`. Each cell is two repeats. The bold bar splits the pairs.
 
-A failed catalog replica gate, a locust row count outside 540–580, or `live5s_caps` above 0 on a TopFull-off hold got one replay. The column is the `_r2` folder when that replay passed, and the canonical folder when the replay failed. `Guides and Info/2026-10-13-s4a-constrained-mode-matrix-abc.md` is catalog 50 m and mix 10 / 10 / 10 / 600 / 5. It is not a column here.
+Replays followed the gate in force at launch. Re-gated 2026-10-14: a catalog replica gap is recorded, not a gate. A locust row count outside 540–580, or `live5s_caps` above 0 on a TopFull-off hold, stays INVALID. The tabulated column was chosen before the re-gate and was left in place. `Guides and Info/2026-10-13-s4a-constrained-mode-matrix-abc.md` is catalog 50 m and mix 10 / 10 / 10 / 600 / 5. It is not a column here.
 
 Scored folders:
 
@@ -23,23 +23,23 @@ Scored folders:
 
 | Hold | log_folder | Mode | TopFull | In this guide |
 | --- | --- | --- | --- | --- |
-| 1 | final_4a_constrained_rg_only_normal_run3 | normal | off | INVALID, catalog_1 85/87, kept, not scored |
+| 1 | final_4a_constrained_rg_only_normal_run3 | normal | off | PASS, catalog replica gap (catalog_1 85/87), re-gated 2026-10-14: recorded, not a gate, kept, not scored |
 | 1 replay | final_4a_constrained_rg_only_normal_run3_r2 | normal | off | PASS, scored |
-| 2 | final_4a_constrained_rg_only_normal_run4 | normal | off | INVALID, catalog_1 77/80, scored; replay also INVALID |
-| 2 replay | final_4a_constrained_rg_only_normal_run4_r2 | normal | off | INVALID, catalog_1 89/97, not scored |
-| 3 | final_4a_constrained_both_normal_run3 | normal | on | first launch exited 1 before Locust; relaunch INVALID, catalog_1 103/106, scored |
+| 2 | final_4a_constrained_rg_only_normal_run4 | normal | off | PASS, catalog replica gap (catalog_1 77/80), re-gated 2026-10-14: recorded, not a gate, scored; replay also PASS |
+| 2 replay | final_4a_constrained_rg_only_normal_run4_r2 | normal | off | PASS, catalog replica gap (catalog_1 89/97), re-gated 2026-10-14: recorded, not a gate, not scored |
+| 3 | final_4a_constrained_both_normal_run3 | normal | on | first launch exited 1 before Locust, not gated; relaunch PASS, catalog replica gap (catalog_1 103/106), re-gated 2026-10-14: recorded, not a gate, scored |
 | 3 replay | final_4a_constrained_both_normal_run3_r2 | normal | on | INVALID, locust_rows 535, not scored |
 | 4 | final_4a_constrained_both_normal_run4 | normal | on | PASS, scored |
-| 5 | final_4a_constrained_tf_only_run3 | tf | on | INVALID, catalog_1 95/96, kept, not scored |
+| 5 | final_4a_constrained_tf_only_run3 | tf | on | PASS, catalog replica gap (catalog_1 95/96), re-gated 2026-10-14: recorded, not a gate, kept, not scored |
 | 5 replay | final_4a_constrained_tf_only_run3_r2 | tf | on | PASS, scored |
 | 6 | final_4a_constrained_tf_only_run4 | tf | on | PASS, scored |
-| 7 | final_4a_constrained_rg_only_burst_run3 | burst_rpr 2.0 | off | INVALID, catalog_1 83/88 and live5s_caps 2764, scored; replay also INVALID |
+| 7 | final_4a_constrained_rg_only_burst_run3 | burst_rpr 2.0 | off | INVALID, catalog replica gap (catalog_1 83/88) re-gated 2026-10-14: recorded, not a gate; live5s_caps 2764 with TopFull off, scored; replay also INVALID |
 | 7 replay | final_4a_constrained_rg_only_burst_run3_r2 | burst_rpr 2.0 | off | INVALID, live5s_caps 2776, not scored |
-| 8 | final_4a_constrained_rg_only_burst_run4 | burst_rpr 2.0 | off | INVALID, catalog_1 88/91 and live5s_caps 2764, scored; replay also INVALID |
-| 8 replay | final_4a_constrained_rg_only_burst_run4_r2 | burst_rpr 2.0 | off | INVALID, catalog_1 86/89 and live5s_caps 2768, not scored |
-| 9 | final_4a_constrained_both_burst_run3 | burst_rpr 2.0 | on | INVALID, catalog_1 109/112, scored; replay also INVALID |
-| 9 replay | final_4a_constrained_both_burst_run3_r2 | burst_rpr 2.0 | on | INVALID, catalog_1 99/102, not scored |
-| 10 | final_4a_constrained_both_burst_run4 | burst_rpr 2.0 | on | INVALID, catalog_1 151/152, kept, not scored |
+| 8 | final_4a_constrained_rg_only_burst_run4 | burst_rpr 2.0 | off | INVALID, catalog replica gap (catalog_1 88/91) re-gated 2026-10-14: recorded, not a gate; live5s_caps 2764 with TopFull off, scored; replay also INVALID |
+| 8 replay | final_4a_constrained_rg_only_burst_run4_r2 | burst_rpr 2.0 | off | INVALID, catalog replica gap (catalog_1 86/89) re-gated 2026-10-14: recorded, not a gate; live5s_caps 2768 with TopFull off, not scored |
+| 9 | final_4a_constrained_both_burst_run3 | burst_rpr 2.0 | on | PASS, catalog replica gap (catalog_1 109/112), re-gated 2026-10-14: recorded, not a gate, scored; replay also PASS |
+| 9 replay | final_4a_constrained_both_burst_run3_r2 | burst_rpr 2.0 | on | PASS, catalog replica gap (catalog_1 99/102), re-gated 2026-10-14: recorded, not a gate, not scored |
+| 10 | final_4a_constrained_both_burst_run4 | burst_rpr 2.0 | on | PASS, catalog replica gap (catalog_1 151/152), re-gated 2026-10-14: recorded, not a gate, kept, not scored |
 | 10 replay | final_4a_constrained_both_burst_run4_r2 | burst_rpr 2.0 | on | PASS, scored |
 
 Table columns follow the ten scored rows, in that order. A launch that is not scored stays on disk and is not a column.

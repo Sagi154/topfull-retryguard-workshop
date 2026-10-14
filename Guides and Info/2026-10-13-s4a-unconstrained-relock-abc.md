@@ -4,7 +4,7 @@
 
 Scenario 4A unconstrained, 600 s. Mix 50 / 20 / 50 / 600 / 5 (getproduct / postcheckout / getcart / postcart / emptycart), `spawn_rate` 50. Plain Paper-C1. productcatalogservice stays at 800 m. No constrained row. Frontend HPA min = max = 4. productcatalogservice HPA min = max = 1. Frontend sidecar `proxyCPU` 90 m, `proxyCPULimit` unset. Cool-off between holds is 120 s. RetryGuard uses the locked parameters. Burst holds set `burst_rpr` 2.0, `burst_window_seconds` 5, and `burst_min_first_attempts` 20. Normal-mode RetryGuard holds omit those three keys. TopFull-only has no `retryguard.log`. Each cell is two repeats. The bold bar splits the pairs.
 
-A TopFull-on hold whose `live5s_caps` was 0 got one replay. The column is the canonical folder because that replay failed the same cap check. Holds 11, 12, 17, and 18 passed, so their columns are the canonical folders. `Guides and Info/2026-10-13-s4a-constrained-relock-abc.md` is catalog 100 m. `Guides and Info/2026-10-13-s4a-constrained-mode-matrix-abc.md` is catalog 50 m. Neither is a column here.
+Replays followed the gate in force at launch. Re-gated 2026-10-14: `live5s_caps` 0 on a TopFull-on hold is recorded, not a gate. The tabulated column was chosen before the re-gate and was left in place. Holds 11, 12, 17, and 18 passed on the first launch, so their columns are the canonical folders. `Guides and Info/2026-10-13-s4a-constrained-relock-abc.md` is catalog 100 m. `Guides and Info/2026-10-13-s4a-constrained-mode-matrix-abc.md` is catalog 50 m. Neither is a column here.
 
 Scored folders:
 
@@ -25,20 +25,20 @@ Scored folders:
 | --- | --- | --- | --- | --- |
 | 11 | final_4a_unconstrained_rg_only_normal_run1 | normal | off | PASS, scored |
 | 12 | final_4a_unconstrained_rg_only_normal_run2 | normal | off | PASS, scored; throttle FLAG |
-| 13 | final_4a_unconstrained_both_normal_run1 | normal | on | INVALID, live5s_caps 0, scored; replay also INVALID |
-| 13 replay | final_4a_unconstrained_both_normal_run1_r2 | normal | on | INVALID, live5s_caps 0, not scored |
-| 14 | final_4a_unconstrained_both_normal_run2 | normal | on | INVALID, live5s_caps 0, scored; replay also INVALID |
-| 14 replay | final_4a_unconstrained_both_normal_run2_r2 | normal | on | INVALID, live5s_caps 0, not scored |
-| 15 | final_4a_unconstrained_tf_only_run1 | tf | on | INVALID, live5s_caps 0, scored; replay also INVALID |
-| 15 replay | final_4a_unconstrained_tf_only_run1_r2 | tf | on | INVALID, live5s_caps 0, not scored |
-| 16 | final_4a_unconstrained_tf_only_run2 | tf | on | INVALID, live5s_caps 0, scored; replay also INVALID |
-| 16 replay | final_4a_unconstrained_tf_only_run2_r2 | tf | on | INVALID, live5s_caps 0, not scored |
+| 13 | final_4a_unconstrained_both_normal_run1 | normal | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, scored; replay also PASS |
+| 13 replay | final_4a_unconstrained_both_normal_run1_r2 | normal | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, not scored |
+| 14 | final_4a_unconstrained_both_normal_run2 | normal | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, scored; replay also PASS |
+| 14 replay | final_4a_unconstrained_both_normal_run2_r2 | normal | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, not scored |
+| 15 | final_4a_unconstrained_tf_only_run1 | tf | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, scored; replay also PASS |
+| 15 replay | final_4a_unconstrained_tf_only_run1_r2 | tf | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, not scored |
+| 16 | final_4a_unconstrained_tf_only_run2 | tf | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, scored; replay also PASS |
+| 16 replay | final_4a_unconstrained_tf_only_run2_r2 | tf | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, not scored |
 | 17 | final_4a_unconstrained_rg_only_burst_run1 | burst_rpr 2.0 | off | PASS, scored |
 | 18 | final_4a_unconstrained_rg_only_burst_run2 | burst_rpr 2.0 | off | PASS, scored |
-| 19 | final_4a_unconstrained_both_burst_run1 | burst_rpr 2.0 | on | INVALID, live5s_caps 0, scored; replay also INVALID |
-| 19 replay | final_4a_unconstrained_both_burst_run1_r2 | burst_rpr 2.0 | on | INVALID, live5s_caps 0, not scored |
-| 20 | final_4a_unconstrained_both_burst_run2 | burst_rpr 2.0 | on | first launch exited 1 before collect (disk full), not scored; relaunch INVALID, live5s_caps 0, scored |
-| 20 replay | final_4a_unconstrained_both_burst_run2_r2 | burst_rpr 2.0 | on | INVALID, live5s_caps 0, throttle FLAG, not scored |
+| 19 | final_4a_unconstrained_both_burst_run1 | burst_rpr 2.0 | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, scored; replay also PASS |
+| 19 replay | final_4a_unconstrained_both_burst_run1_r2 | burst_rpr 2.0 | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, not scored |
+| 20 | final_4a_unconstrained_both_burst_run2 | burst_rpr 2.0 | on | first launch exited 1 before collect (disk full), not gated, not scored; relaunch PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, scored |
+| 20 replay | final_4a_unconstrained_both_burst_run2_r2 | burst_rpr 2.0 | on | PASS, live5s_caps 0, re-gated 2026-10-14: recorded, not a gate, throttle FLAG, not scored |
 
 Table columns follow the ten scored rows, in that order. A launch that is not scored stays on disk and is not a column.
 
