@@ -1,0 +1,16 @@
+{
+  "method": "stamped",
+  "start_utc": "2026-10-14T11:15:57.681Z",
+  "spacing_s": 1.0979998111724854,
+  "rows": 556,
+  "correlation": 0.743439776399734,
+  "flagged": true,
+  "fit_check": {
+    "start_error_s": -2.8740146160125732,
+    "anchor_errors_s": [
+      -2.9260001182556152,
+      1.3350000381469727
+    ],
+    "spacing_s": 1.1084558823529411
+  }
+}
