@@ -1,6 +1,6 @@
 # multi_graphs_tool: design
 
-Date: 2026-10-14. Status: agreed in a brainstorming session, not yet built. Builds on [2026-10-13-interactive-run-explorer-design.md](2026-10-13-interactive-run-explorer-design.md) (graphs_tool, implemented in `experiments/graphs_tool.py`). What graphs_tool shows: [GRAPHS-TOOL.md](../../../Guides%20and%20Info/GRAPHS-TOOL.md).
+Date: 2026-10-14. Status: agreed in a brainstorming session, built. Builds on [2026-10-13-interactive-run-explorer-design.md](2026-10-13-interactive-run-explorer-design.md) (graphs_tool, implemented in `experiments/graphs_tool.py`). What graphs_tool shows: [GRAPHS-TOOL.md](../../../Guides%20and%20Info/GRAPHS-TOOL.md).
 
 ## Purpose
 

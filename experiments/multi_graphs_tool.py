@@ -142,6 +142,8 @@ def legend_figure(union: dict, colors: dict) -> go.Figure:
         ))
     fig.update_layout(
         height=LEGEND_HEIGHT,
+        # No plot to drag. The drag layer would sit on top of wrapped legend rows.
+        dragmode=False,
         margin={"t": 4, "r": 36, "b": 4, "l": 64},
         xaxis={"visible": False},
         yaxis={"visible": False},
@@ -160,11 +162,21 @@ div.note { margin: 2px 16px 0; min-height: 15px; font-size: 12px; color: #777; }
 
 
 def out_path(run_dirs: list[Path]) -> Path:
-    """multi_<names>.html. A repeated run folder name gets its position appended."""
+    """multi_<names>.html. A repeated run folder name gets its position appended.
+
+    The suffix keeps bumping until that segment is not already used.
+    """
+    chosen: set[str] = set()
     names: list[str] = []
     for index, run_dir in enumerate(run_dirs, start=1):
-        name = Path(run_dir).name
-        names.append(f"{name}-{index}" if name in names else name)
+        base = Path(run_dir).name
+        segment = base if base not in chosen else f"{base}-{index}"
+        bump = index
+        while segment in chosen:
+            bump += 1
+            segment = f"{base}-{bump}"
+        chosen.add(segment)
+        names.append(segment)
     return OUT_DIR / f"multi_{'__'.join(names)}.html"
 
 
@@ -329,7 +341,7 @@ PAGE_JS = r"""
           return Plotly.relayout(panel, update);
         });
       });
-      return Promise.all(jobs).then(function () { showNotes(state); }).finally(function () { busy = false; });
+      return Promise.all(jobs).then(function () { showNotes(state); }).finally(function () { busy = false; }).catch(function (err) { console.error(err); });
     }
 
     // Item click: toggle that one legend trace, then redraw the panels.
@@ -373,19 +385,29 @@ PAGE_JS = r"""
     // to the legend so there is no empty band and Plotly never scrolls it.
     // Plotly 7 clips the item row and leaves the drag layer on top of it when
     // the figure is only 16px taller than the legend, so the pad is 32.
+    // The legend has no plot to drag, but Plotly still draws .nsewdrag over
+    // wrapped rows and recreates that rect on every relayout.
     var lastHeight = 0;
+    function releaseDrag() {
+      legend.querySelectorAll('.nsewdrag').forEach(function (node) {
+        node.style.pointerEvents = 'none';
+      });
+    }
     function fitLegend() {
       var node = legend.querySelector('.legend');
       if (!node) return;
       var height = Math.ceil(node.getBoundingClientRect().height) + 32;
-      if (Math.abs(height - lastHeight) < 3) return;
+      if (Math.abs(height - lastHeight) < 3) {
+        releaseDrag();
+        return;
+      }
       lastHeight = height;
       legend.parentElement.style.height = height + 'px';
       legend.style.height = height + 'px';
-      Plotly.relayout(legend, {height: height});
+      Plotly.relayout(legend, {height: height}).then(releaseDrag);
     }
 
-    legend.on('plotly_afterplot', function () { keepTitles(); fitLegend(); });
+    legend.on('plotly_afterplot', function () { keepTitles(); releaseDrag(); fitLegend(); });
     new MutationObserver(keepTitles).observe(legend, {subtree: true, attributes: true, attributeFilter: ['style']});
     // Zoom and pan are mirrored between panels. busy stops a panel echoing a
     // change it just received; apply() sets it too, since it relayouts every panel.
@@ -416,12 +438,14 @@ PAGE_JS = r"""
         var targets = reset ? panels : panels.filter(function (other) { return other !== panel; });
         busy = true;
         Promise.all(targets.map(function (other) { return Plotly.relayout(other, update); }))
-          .finally(function () { busy = false; });
+          .finally(function () { busy = false; })
+          .catch(function (err) { console.error(err); });
       });
     });
     keepTitles();
     fitLegend();
     setTimeout(fitLegend, 0);
+    releaseDrag();
     showNotes(legendState());
   }
   start();

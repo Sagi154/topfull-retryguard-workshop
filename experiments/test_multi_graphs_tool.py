@@ -140,6 +140,7 @@ class TestLegendFigure(unittest.TestCase):
         self.assertEqual(legend.layout.legend.groupclick, "toggleitem")
         self.assertEqual(legend.layout.height, multi_graphs_tool.LEGEND_HEIGHT)
         self.assertFalse(legend.layout.xaxis.visible)
+        self.assertIs(legend.layout.dragmode, False)
 
 
 from test_hold_clock import E, iso, make_run  # noqa: E402
@@ -178,6 +179,12 @@ class TestPage(unittest.TestCase):
         path = multi_graphs_tool.out_path([Path("x/run_a"), Path("y/run_b"), Path("z/run_a")])
         self.assertEqual(path.parent, graphs_tool.OUT_DIR)
         self.assertEqual(path.name, "multi_run_a__run_b__run_a-3.html")
+
+    def test_out_path_bumps_until_the_segment_is_unused(self):
+        path = multi_graphs_tool.out_path([Path("x/run"), Path("y/run"), Path("z/run-2")])
+        segments = path.stem.removeprefix("multi_").split("__")
+        self.assertEqual(segments, ["run", "run-2", "run-2-3"])
+        self.assertEqual(len(segments), len(set(segments)))
 
     def test_cli_needs_two_existing_runs(self):
         with self.assertRaises(SystemExit) as one:
@@ -325,6 +332,71 @@ class TestLegendDrivesPanels(BrowserCase):
         self.wait("() => document.getElementById('legend-graph').offsetHeight < 900")
         height = self.page.evaluate("() => document.getElementById('legend-graph').offsetHeight")
         self.assertGreater(height, 40)
+
+    def test_wrapped_legend_row_receives_the_click(self):
+        # 280px puts CPU or RetryGuard events on a second row that is still inside
+        # Plotly's legend clip and under .nsewdrag. At 400px that second row is
+        # clipped, so the click never reaches it.
+        fig_a = synthetic(
+            [("locust", "Goodput", [10.0, 20.0, 30.0]),
+             ("cpu", "catalogservice", [100.0, 200.0, 150.0])], 300)
+        fig_b = synthetic(
+            [("locust", "Goodput", [30.0, 60.0, 90.0]),
+             ("cpu", "catalogservice", [80.0, 120.0, 90.0])],
+            600, events=("ON→OFF",))
+        out = Path(self.tmp.name) / "wrapped.html"
+        with mock.patch.object(graphs_tool, "compare_figure", side_effect=[fig_a, fig_b]):
+            multi_graphs_tool.write_page(
+                [Path("final/S2/both/run_a"), Path("final/S2/rg_only/run_b")], out)
+        self.page.set_viewport_size({"width": 280, "height": 1200})
+        self.page.goto(out.as_uri())
+        self.page.wait_for_selector("#legend-graph .legend .traces")
+        self.page.wait_for_function(
+            "() => ['panel-0','panel-1','legend-graph'].every("
+            "id => document.getElementById(id) && document.getElementById(id).data)"
+        )
+        self.wait("() => document.getElementById('legend-graph').offsetHeight < 900")
+        self.wait("""() => {
+          const drag = document.querySelector('#legend-graph .nsewdrag');
+          return !drag || getComputedStyle(drag).pointerEvents === 'none';
+        }""")
+        rows = self.page.evaluate("""() => {
+          const graph = document.getElementById('legend-graph');
+          graph.scrollIntoView({block: 'center'});
+          const drag = graph.querySelector('.nsewdrag');
+          const dragBox = drag ? drag.getBoundingClientRect() : null;
+          return [...graph.querySelectorAll('.legend .traces')].map(row => {
+            const text = row.querySelector('text');
+            const box = text.getBoundingClientRect();
+            const x = box.x + box.width / 2;
+            const y = box.y + box.height / 2;
+            const hit = document.elementFromPoint(x, y);
+            const underDrag = !!(dragBox && x >= dragBox.left && x <= dragBox.right
+              && y >= dragBox.top && y <= dragBox.bottom);
+            return {
+              label: text.textContent,
+              top: Math.round(box.top),
+              title: !row.querySelector('.legendtoggle'),
+              underDrag: underDrag,
+              hit: hit ? hit.tagName + '.' + (hit.getAttribute('class') || '') : null,
+            };
+          });
+        }""")
+        goodput = next(row for row in rows if row["label"] == "Goodput")
+        later_labels = {"ON→OFF", "RetryGuard events", "CPU (millicores)", "catalogservice"}
+        later = [row for row in rows
+                 if row["underDrag"] and row["hit"] and "legend" in row["hit"]
+                 and row["label"] in later_labels and row["top"] > goodput["top"] + 20]
+        self.assertTrue(later, ascii(rows))
+        target = min(later, key=lambda row: row["top"])
+        self.click_legend(target["label"], title=target["title"])
+        if target["label"] in ("ON→OFF", "RetryGuard events"):
+            self.wait("() => document.getElementById('panel-1').layout.annotations[0].visible === false")
+            self.assertFalse(self.visible(1, "ON→OFF"))
+        else:
+            self.wait("() => document.getElementById('panel-0').data"
+                      ".filter(t => t.name === 'catalogservice').every(t => t.visible === true)")
+            self.assertTrue(self.visible(1, "catalogservice"))
 
 
 class TestLinkedZoom(BrowserCase):
