@@ -115,13 +115,13 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S2 mode matrix (2026-10-14).** Branch `s2-mode-matrix` from `189359f` (the plan commit on top of `4ee1975`). Ten holds, mix 275/90/100/90/5, Paper-C1, `run1` and `run2` of `rg_only_normal`, `both_normal`, `tf_only`, `rg_only_burst`, and `both_burst`. Next free slot for those five YAMLs is run 3.
-- **10 PASS, 0 INVALID, 4 throttle FLAG.** Flags: `final_s2_tf_only_run2`, `final_s2_rg_only_burst_run2`, `final_s2_both_burst_run1`, `final_s2_both_burst_run2`. Run log: [2026-10-14-s2-mode-matrix-run-log.md](docs/superpowers/plans/2026-10-14-s2-mode-matrix-run-log.md). Guide: [2026-10-14-s2-mode-matrix-abc.md](Guides%20and%20Info/2026-10-14-s2-mode-matrix-abc.md).
-- **Cluster restored.** Frontend HPA min 1 / max 4, catalog HPA min 1 / max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. The three VMs were left RUNNING.
+- **S4A constrained RetryGuard-only burst rerun (2026-10-14).** Replacements for INVALID holds 7 and 8. `run5` INVALID (535 rows). `run5_r2` PASS (551) and `run6` PASS (550) are the scored columns. Next free slot: `4a_constrained_rg_only_burst.yaml` is run 7. The other four constrained YAMLs stay at run 5.
+- **1 INVALID, 2 PASS, 2 throttle FLAG.** Both PASS holds: catalog_not_ready=0, live5s_caps=0, one burst shed on frontend → recommendationservice, FLAG 228 warnings / 575 s. Cap and admitted-rate numbers are carried. Run log: [2026-10-13-s4-relock-mode-matrix-run-log.md](docs/superpowers/plans/2026-10-13-s4-relock-mode-matrix-run-log.md). Guide: [2026-10-13-s4a-constrained-relock-abc.md](Guides%20and%20Info/2026-10-13-s4a-constrained-relock-abc.md).
+- **Cluster restored.** Frontend HPA min 1 / max 4, catalog HPA min 1 / max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset, checkout 800 m, catalog 800 m, email 120 m. The three VMs were left RUNNING.
 
 ### Still open
 
-- S1, S2, S3, S4A, and S4B loads and CPU tables are locked (counts and constrained rows are in §5). The [2026-09-21 methodology plan](docs/superpowers/plans/2026-09-21-s1-s6-methodology-and-calibration-implementation.md) stopped at Task 9 step 2a. S6 stays on its current YAML. This matrix is the locked S2 set under `final results/`. The `study*` folders, the `s2_burst20_*` folders, and `campaign_48/` S2 are not comparable.
+- S1, S2, S3, S4A, and S4B loads and CPU tables are locked (counts and constrained rows are in §5). The [2026-09-21 methodology plan](docs/superpowers/plans/2026-09-21-s1-s6-methodology-and-calibration-implementation.md) stopped at Task 9 step 2a. S6 stays on its current YAML. The 2026-10-14 S2 mode matrix is the locked S2 set under `final results/`. The `study*` folders, the `s2_burst20_*` folders, and `campaign_48/` S2 are not comparable.
 - Share [MENTOR-UPDATE.md](Guides%20and%20Info/mentor-update/MENTOR-UPDATE.md), then write the Phase 7 eval on `experiments/results/campaign_48/` once mentors say the data is enough.
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
