@@ -4,13 +4,13 @@
 
 **Goal:** Run the locked S4A-constrained, S4A-unconstrained, and S4B configs twice each for five controller cells: RetryGuard-only normal, both-on normal, TopFull-only, RetryGuard-only burst, and both-on burst.
 
-**Architecture:** The fifteen YAMLs under `experiments/configs/final_configs/4/` are already the locked cells on `main` at `e26f05c`. The campaign commits land on branch `s4-relock-mode-matrix` in a linked worktree, so the primary checkout stays on `main`. Each cell is launched twice, back to back. Pull uses the YAML before `bump_final_slot.py` advances it. S4A constrained is already at `run_number: 3` because run 1 and run 2 are the 2026-10-13 catalog-50m matrix; those folders stay on disk and are not launched again. S4A unconstrained and S4B are at `run_number: 1`. Results land in `experiments/results/final results/`. One analysis guide is written per scenario. The three VMs stay RUNNING.
+**Architecture:** The fifteen YAMLs under `experiments/configs/final_configs/4/` are already the locked cells on `main` at `e26f05c`. The campaign commits land on branch `s4-relock-mode-matrix` in a linked worktree, so the primary checkout stays on `main`. Each cell is launched twice, back to back. Pull uses the YAML before `bump_final_slot.py` advances it. S4A constrained is already at `run_number: 3` because run 1 and run 2 are the 2026-10-13 catalog-50m matrix; those folders stay on disk and are not launched again. S4A unconstrained and S4B are at `run_number: 1`. Results land in `experiments/results/final results/`. One analysis guide is written per scenario. The three VMs stay RUNNING through the holds. Task 9 stops them, pushes `s4-relock-mode-matrix`, and merges that branch into local `main`.
 
 **Tech Stack:** `experiments/run_scenario.py`, `experiments/pull_results.py`, `experiments/analysis_score.py`, `experiments/bump_final_slot.py`, `experiments/s3s4_mode_matrix_gate.py`, PowerShell, `ssh`, `gcloud`. No controller changes. Those two helpers already exist; do not recreate them.
 
 ## Global Constraints
 
-- Branch is `s4-relock-mode-matrix`, created from `main` at `e26f05c` (`Merge pull request #8 from Sagi154/runs-analysis`). All campaign commands run in `c:\Users\sagi1\Projects\Workshop\.worktrees\s4-relock-mode-matrix`. The primary checkout stays on `main`. Do not merge. Do not push.
+- Branch is `s4-relock-mode-matrix`, created from `main` at `e26f05c` (`Merge pull request #8 from Sagi154/runs-analysis`). All campaign commands run in `c:\Users\sagi1\Projects\Workshop\.worktrees\s4-relock-mode-matrix`. The primary checkout stays on `main` until Task 9. Do not merge and do not push before Task 9. Task 9 stops the three VMs, commits anything still uncommitted on `s4-relock-mode-matrix`, pushes that branch, and merges it into local `main`. Do not push `main`.
 - Thirty holds, 600 s each, `spawn_rate` 50. Wall clock is about 7–8 hours (about 12 minutes of startup plus load, then a 120 s cool-off, plus scoring). One hold at a time.
 - Scenario order: S4A constrained, S4A unconstrained, S4B. Cell order inside each scenario: `rg_only_normal`, `both_normal`, `tf_only`, `rg_only_burst`, `both_burst`. Two launches of one cell, then the next cell.
 - Locked RetryGuard values, already in the YAMLs: `retry_metric` `edge_rpr`, `sample_interval_seconds` 1, `interval_samples` 20, `rejection_threshold` 0.2, `retries_threshold` 0.4, `climb_rpr_1_to_2` 0.16, `climb_rpr_2_to_3` 0.32, `climb_interval_seconds` 10, `reenable_rejection` 0.25. Burst adds `burst_rpr` 2.0, `burst_window_seconds` 5, `burst_min_first_attempts` 20. Normal mode omits those three keys.
@@ -20,9 +20,10 @@
 - Leave `experiments/configs/scenario_*.yaml` and the S1, S2, and S3 files under `final_configs/` at their current slots. Do not run `experiments/make_final_configs.py`. Do not use `run_all_scenarios.py`.
 - A failed collector gate keeps its folder. Replay that launch once from a copy under `experiments/configs/replays/` whose `log_folder` has an `_r2` suffix. Then bump the canonical file once. Do not replay a second time. A finished hold with zero `ON→OFF` lines still passes. Toggle count is recorded and is not a gate.
 - A throttle **FLAG** (any `fetch failed` WARNING, or any API over 30 s with no fresh threshold or admitted read) is written in the run log. It does not fail the collector gate and does not trigger a replay. Goodput, P95, rejection, and retry numbers stay valid. Cap and admitted-rate numbers from a flagged hold are not used as measured.
+- **INVALID is for a broken run, not for a surprising result.** A hold is INVALID only when the run itself failed: wrong config or CPU limits, a collector or RetryGuard that did not run, Locust rows outside 540–580, a TopFull-off hold whose proxy reported caps, or a route `timeout`. These never make a hold INVALID and never start a replay: TopFull not capping any API (`live5s_caps=0` with `topfull_rl_ran=yes`), catalog `replica_count` 0 samples (record `catalog_not_ready=N`), a throttle FLAG, or no retry toggles. The runner now clears `proxy/rate_config` before each proxy start, aborts before Locust if the proxy limits are not all 10000, and widens the catalog probe (timeout 5 s, 6 failures) while the catalog CPU is constrained.
 - Cool-off is 120 s, starting when `run_scenario.py` exits. Pull, the gate, and scoring of that one folder happen during the wait. Checkout and recommendations stay up. `restart_before_hold` stays absent.
 - SSH host aliases only (`topfull-master`, `topfull-worker-1`, `topfull-load`), Linux user `idozacharia`, project `project-76deda76-55f1-42d2-abb`, zone `us-central1-a`. The `networks-workshop` project stays stopped. Do not hardcode a public IP.
-- Paper-C1 replica pin for the whole campaign: frontend HPA min=max=4, `productcatalogservice-hpa` min=max=1, frontend sidecar `sidecar.istio.io/proxyCPU=90m`, `proxyCPULimit` unset. Restore once at the end to frontend HPA min 1 / max 4, catalog HPA min 1 / max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. Leave the three VMs RUNNING.
+- Paper-C1 replica pin for the whole campaign: frontend HPA min=max=4, `productcatalogservice-hpa` min=max=1, frontend sidecar `sidecar.istio.io/proxyCPU=90m`, `proxyCPULimit` unset. Restore once at the end to frontend HPA min 1 / max 4, catalog HPA min 1 / max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset. Leave the three VMs RUNNING until Task 9, which stops them after that restore.
 - PowerShell eats backslashes inside `ssh "..."` JSON. Send `kubectl patch` and `kubectl annotate` as a bash script on stdin (`bash -s`).
 - Commands run from `c:\Users\sagi1\Projects\Workshop\.worktrees\s4-relock-mode-matrix`.
 
@@ -33,7 +34,7 @@
 - Create on the branch, first commit: this plan, copied into the worktree if `e26f05c` does not contain it.
 - Create during the runs: `docs/superpowers/plans/2026-10-13-s4-relock-mode-matrix-run-log.md` — one line per launch, including a failed launch and its single replay.
 - Create after each scenario's pulls: `Guides and Info/2026-10-13-s4a-constrained-relock-abc.md`, `Guides and Info/2026-10-13-s4a-unconstrained-relock-abc.md`, `Guides and Info/2026-10-13-s4b-relock-abc.md`.
-- Modify after the VMs are confirmed still RUNNING: `STATUS.md` (one Done bullet; next-free slots) and `AGENTS.md` §4 (replace the three Latest lines).
+- Modify while the VMs are still RUNNING: `STATUS.md` (one Done bullet; next-free slots) and `AGENTS.md` §4 (replace the three Latest lines). Task 9 replaces the "still RUNNING" clause in those two files after the stop.
 - Create only if a gate fails: `experiments/configs/replays/<log_folder>_r2.yaml`.
 
 `run_scenario.py` `final_results_local_dir` sends a config to `experiments/results/final results/<scenario>_<normal|burst>/<variant>/<log_folder>/`. Both S4A variants use `S4A_topology_position` (`scenario_name: topology_position_A`); `log_folder` tells them apart. S4B uses `S4B_topology_position`. Mode is `burst` only when RetryGuard is on and `burst_rpr` is set. TopFull-only is `normal`.
@@ -389,9 +390,9 @@ The printed pull destination is the folder in the table. `pull_results.py` also 
 - `locust_rows` is 540–580.
 - `start_missing=none` for `normal` and `burst20`. For `tf`, `start_missing=n/a` and there is no `retryguard.log`. `missing=retryguard.log` is a fail on `normal` and `burst20` only.
 - `patch_fail=no`.
-- `frontend_4` equals its denominator, and the denominator is at least 1. `catalog_1` equals its denominator. A catalog denominator of 0 is allowed. A catalog sample whose `replica_count` is not 1 is a fail.
+- `frontend_4` equals its denominator, and the denominator is at least 1. A catalog denominator of 0 is allowed. A catalog sample with `replica_count` 0 is a Not Ready flap (the pod is up and pinned at its CPU limit). Record the gate's `catalog_not_ready=N` in the run log. It is not a gate and never starts a replay. A `replica_count` above 1 is still a fail.
 - TF `off`: `live5s_caps=0` and `other=0`. A live 0 is an empty read.
-- TF `on`: `live5s_caps` is at least 1.
+- TF `on`: `topfull_rl_ran=yes`. `live5s_caps` is recorded and may be 0. A hold where TopFull never capped an API is a valid result, not a failure: unconstrained holds are the reference for the constrained ones and TopFull is not expected to act in them.
 - No `missing=` line.
 
 `burst_observe` is recorded. It is not a gate. A burst hold can pass with `burst_observe=no`.
@@ -594,9 +595,9 @@ Pass when all of these hold. Catalog CPU during the hold is 800 m. The replica g
 - `locust_rows` is 540–580.
 - `start_missing=none` for `normal` and `burst20`. For `tf`, `start_missing=n/a`. `missing=retryguard.log` fails `normal` and `burst20` only.
 - `patch_fail=no`.
-- `frontend_4` equals its denominator, and the denominator is at least 1. `catalog_1` equals its denominator. A catalog denominator of 0 is allowed. A catalog sample whose `replica_count` is not 1 is a fail.
+- `frontend_4` equals its denominator, and the denominator is at least 1. A catalog denominator of 0 is allowed. A catalog sample with `replica_count` 0 is a Not Ready flap (the pod is up and pinned at its CPU limit). Record the gate's `catalog_not_ready=N` in the run log. It is not a gate and never starts a replay. A `replica_count` above 1 is still a fail.
 - TF `off`: `live5s_caps=0` and `other=0`. A live 0 is an empty read.
-- TF `on`: `live5s_caps` is at least 1.
+- TF `on`: `topfull_rl_ran=yes`. `live5s_caps` is recorded and may be 0. A hold where TopFull never capped an API is a valid result, not a failure: unconstrained holds are the reference for the constrained ones and TopFull is not expected to act in them.
 - No `missing=` line.
 - `burst_observe` is recorded and is not a gate.
 - `throttle FLAG` is recorded and is not a gate. No `fetch failed` line, and no API over 30 s without a fresh read, is `throttle clean`.
@@ -746,9 +747,9 @@ Pass when all of these hold. Email CPU during the hold is 50 m. Catalog stays at
 - `locust_rows` is 540–580.
 - `start_missing=none` for `normal` and `burst20`. For `tf`, `start_missing=n/a`. `missing=retryguard.log` fails `normal` and `burst20` only.
 - `patch_fail=no`.
-- `frontend_4` equals its denominator, and the denominator is at least 1. `catalog_1` equals its denominator. A catalog denominator of 0 is allowed. A catalog sample whose `replica_count` is not 1 is a fail.
+- `frontend_4` equals its denominator, and the denominator is at least 1. A catalog denominator of 0 is allowed. A catalog sample with `replica_count` 0 is a Not Ready flap (the pod is up and pinned at its CPU limit). Record the gate's `catalog_not_ready=N` in the run log. It is not a gate and never starts a replay. A `replica_count` above 1 is still a fail.
 - TF `off`: `live5s_caps=0` and `other=0`. A live 0 is an empty read.
-- TF `on`: `live5s_caps` is at least 1.
+- TF `on`: `topfull_rl_ran=yes`. `live5s_caps` is recorded and may be 0. A hold where TopFull never capped an API is a valid result, not a failure: unconstrained holds are the reference for the constrained ones and TopFull is not expected to act in them.
 - No `missing=` line.
 - `burst_observe` is recorded and is not a gate.
 - `throttle FLAG` is recorded and is not a gate.
@@ -830,7 +831,7 @@ Add a replay path if one was created. Do not push.
 
 **Interfaces:**
 - Consumes: the cluster left pinned by Task 3, and a finished hold 30.
-- Produces: frontend HPA min 1 / max 4, catalog HPA min 1 / max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset, checkout 800 m, catalog 800 m, email 120 m, frontend app 1150 m. The three VMs stay `RUNNING`.
+- Produces: frontend HPA min 1 / max 4, catalog HPA min 1 / max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset, checkout 800 m, catalog 800 m, email 120 m, frontend app 1150 m. The three VMs are still `RUNNING`. Task 9 stops them.
 
 - [ ] **Step 1: Stop leftover writers**
 
@@ -867,13 +868,13 @@ kubectl get deployment frontend checkoutservice productcatalogservice emailservi
 
 Expected: frontend HPA min 1 / max 4, catalog HPA min 1 / max 2, sidecar annotation `100m` with `proxyCPULimit` absent, app CPU limits frontend `1150m`, checkout `800m`, catalog `800m`, email `120m`. The runner restores Paper-C1 after each hold. If a limit is still off that table, patch that deployment's server container requests and limits to the Paper-C1 value and wait for its rollout.
 
-- [ ] **Step 3: Leave the VMs RUNNING**
+- [ ] **Step 3: Confirm the VMs are still RUNNING**
 
 ```powershell
 gcloud compute instances list --project=project-76deda76-55f1-42d2-abb --format="table(name,status,networkInterfaces[0].accessConfigs[0].natIP)"
 ```
 
-Expected: `topfull-master`, `topfull-worker-1`, and `topfull-load` are `RUNNING`. Do not stop them.
+Expected: `topfull-master`, `topfull-worker-1`, and `topfull-load` are `RUNNING`. Do not stop them here. Task 9 stops them after the STATUS commit.
 
 ---
 
@@ -931,13 +932,13 @@ Change these three trailing numbers and leave every other slot line as it is:
 
 - [ ] **Step 3: Append one Done bullet and replace the three Latest lines**
 
-Append one bullet under Done in `STATUS.md`. Name the thirty `log_folder` values, the PASS and INVALID counts copied from the run log, any throttle FLAG holds, and the paths of the run log and the three guides. Say constrained YAMLs were left at run 5, unconstrained and S4B YAMLs at run 3, S1–S3 final_configs were not moved, the cluster was restored to frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset, checkout 800 m, catalog 800 m, email 120 m, and the three VMs were left RUNNING.
+Append one bullet under Done in `STATUS.md`. Name the thirty `log_folder` values, the PASS and INVALID counts copied from the run log, any throttle FLAG holds, and the paths of the run log and the three guides. Say constrained YAMLs were left at run 5, unconstrained and S4B YAMLs at run 3, S1–S3 final_configs were not moved, the cluster was restored to frontend HPA 1–4, catalog HPA max 2, sidecar `proxyCPU=100m`, `proxyCPULimit` unset, checkout 800 m, catalog 800 m, email 120 m, and the three VMs were still RUNNING. Task 9 replaces that clause after it stops them.
 
 Replace the three Latest lines in `AGENTS.md` §4. Do not append a fourth. The three lines are:
 
 1. This matrix: branch `s4-relock-mode-matrix` from `e26f05c`, thirty holds, S4A constrained catalog 100 m on mix 50/20/50/600/5 in `run3` and `run4`, S4A unconstrained catalog 800 m on that mix in `run1` and `run2`, S4B email 50 m on mix 175/30/70/90/5 in `run1` and `run2`. Next free slots: constrained run 5, unconstrained run 3, S4B run 3.
 2. The PASS, INVALID, and throttle FLAG counts copied from `docs/superpowers/plans/2026-10-13-s4-relock-mode-matrix-run-log.md`, plus the three guide paths.
-3. The restored cluster and the three VMs left RUNNING.
+3. The restored cluster and the three VMs still RUNNING. Task 9 replaces that clause after it stops them.
 
 Keep the Still open list. Add one sentence there that this matrix is the locked S4A/S4B set under `final results/`, and that the catalog-50m mode matrix and `campaign_48/` S4A/S4B are not comparable.
 
@@ -956,4 +957,73 @@ git rev-parse --abbrev-ref HEAD
 git merge-base --is-ancestor e26f05c HEAD; if ($LASTEXITCODE -eq 0) { "FROM_MAIN" } else { "NOT_FROM_MAIN" }
 ```
 
-Expected: branch `s4-relock-mode-matrix`, working tree clean, and `FROM_MAIN`. Do not push. Do not check this branch out in the primary checkout.
+Expected: branch `s4-relock-mode-matrix`, working tree clean, and `FROM_MAIN`. Do not push in this task. Do not check this branch out in the primary checkout. Task 9 pushes and merges.
+
+---
+
+### Task 9: Stop the VMs, push, and merge into local main
+
+**Files:**
+- Modify: the "still RUNNING" clause in the `STATUS.md` Done bullet and in `AGENTS.md` §4 Latest line 3
+
+**Interfaces:**
+- Consumes: a finished Task 8. Branch `s4-relock-mode-matrix` contains every campaign commit. The HPA restore from Task 7 is already done.
+- Produces: the three VMs `TERMINATED`, `origin/s4-relock-mode-matrix` matching this branch, and local `main` in the primary checkout containing the merge. `main` is not pushed.
+
+- [ ] **Step 1: Commit anything still uncommitted on the branch**
+
+Run from the worktree:
+
+```powershell
+git branch --show-current
+git status --short
+```
+
+Expected: branch `s4-relock-mode-matrix`. A clean status means go to Step 2. If the status lists campaign files (the run log, a guide, the fifteen S4 YAMLs, a `final_4a_*` or `final_4b_*` folder, a replay YAML, `STATUS.md`, or `AGENTS.md`), commit those files with a message that names what was left out. Do not commit unrelated files. Do not add the catalog-50m `run1` and `run2` folders. Any other dirty path means stop.
+
+- [ ] **Step 2: Stop the three VMs**
+
+```powershell
+gcloud compute instances stop topfull-master topfull-worker-1 topfull-load --zone=us-central1-a --project=project-76deda76-55f1-42d2-abb
+gcloud compute instances list --project=project-76deda76-55f1-42d2-abb --format="table(name,status)"
+```
+
+Expected: `topfull-master`, `topfull-worker-1`, and `topfull-load` are `TERMINATED`. Pass `--project` so a leftover `networks-workshop` config cannot stop the original VMs. Do not start those originals. Do not stop any other instance.
+
+- [ ] **Step 3: Record the stop, then confirm the branch is fully committed**
+
+In the `STATUS.md` Done bullet and in `AGENTS.md` §4 Latest line 3, replace the clause that says the three VMs were still RUNNING. The replacement says the three VMs were stopped (`topfull-master`, `topfull-worker-1`, `topfull-load` `TERMINATED`).
+
+```powershell
+git add STATUS.md AGENTS.md
+git commit -m @"
+Record that the S4 relock VMs were stopped.
+
+The three campaign VMs are TERMINATED after the HPA restore.
+"@
+git status --short
+```
+
+Expected: `git status --short` prints nothing. If it prints anything, commit the remaining campaign files or stop. Do not push a dirty tree.
+
+- [ ] **Step 4: Push the branch**
+
+```powershell
+git push -u origin HEAD
+git status -sb
+```
+
+Expected: `s4-relock-mode-matrix` tracks `origin/s4-relock-mode-matrix` and the short status has no `ahead`. Do not push `main`. Do not force-push.
+
+- [ ] **Step 5: Merge into local main**
+
+Run from the primary checkout `c:\Users\sagi1\Projects\Workshop`, not from the worktree:
+
+```powershell
+git branch --show-current
+git status --short
+git merge s4-relock-mode-matrix
+git log -1 --oneline
+```
+
+Expected: the current branch is `main` before the merge, and after it `HEAD` is the merge of `s4-relock-mode-matrix`. Do not check `s4-relock-mode-matrix` out in the primary checkout. If `git status --short` lists uncommitted files, do not stash them, do not discard them, and do not add them. Merge only when those files do not overlap the branch. If the merge would touch them, stop and report. Do not push `main`.

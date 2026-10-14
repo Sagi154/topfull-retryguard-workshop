@@ -499,8 +499,15 @@ def cpu_request_fraction_from_cfg(cfg: dict) -> float:
     )
 
 
-def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
-    """Patch Boutique Deployments to the paper CPU limit/request table."""
+def reconcile_paper_cpu_limits(
+    cfg: dict, wait: bool = True, restore_default_probes: bool = False
+) -> None:
+    """Patch Boutique Deployments to the paper CPU limit/request table.
+
+    The catalog readiness/liveness probe is made tolerant while the config
+    constrains the catalog CPU, and put back to the manifest default when
+    ``restore_default_probes`` is set (the end-of-run reconcile).
+    """
     banner("Reconciling CPU limits to paper quotas")
     master = cfg["infra"]["master_ssh_host"]
     request_fraction = cpu_request_fraction_from_cfg(cfg)
@@ -517,13 +524,21 @@ def reconcile_paper_cpu_limits(cfg: dict, wait: bool = True) -> None:
         )
         container = topfull_cpu_quotas.container_name_for(dep)
         step(f"{dep}: limits.cpu={lim} requests.cpu={req} (container={container})")
+        container_patch = {"name": container, "resources": {
+            "limits": {"cpu": lim},
+            "requests": {"cpu": req},
+        }}
+        if dep == topfull_cpu_quotas.PROBE_SERVICE:
+            probe = topfull_cpu_quotas.probe_settings_for(
+                cfg.get("scale_constraints") or [],
+                restore=restore_default_probes,
+            )
+            container_patch["readinessProbe"] = dict(probe)
+            container_patch["livenessProbe"] = dict(probe)
+            step(f"{dep}: probe timeoutSeconds={probe['timeoutSeconds']} "
+                 f"failureThreshold={probe['failureThreshold']}")
         patch = json.dumps({
-            "spec": {"template": {"spec": {"containers": [
-                {"name": container, "resources": {
-                    "limits": {"cpu": lim},
-                    "requests": {"cpu": req},
-                }}
-            ]}}}
+            "spec": {"template": {"spec": {"containers": [container_patch]}}}
         })
         ssh(master, f"kubectl patch deployment {dep} -n default -p '{patch}'",
             check=False)
@@ -657,6 +672,107 @@ def kill_stale_master_processes(cfg: dict) -> None:
         "tmux kill-server 2>/dev/null; "
         "sleep 2; true",
         check=False)
+    clear_proxy_rate_config(cfg)
+
+
+# --------------------------------------------------------------------------- #
+#  Proxy limits must start uncapped
+# --------------------------------------------------------------------------- #
+
+PROXY_UNCAPPED_RPS = 10000.0
+
+
+def rate_config_dir(src: str) -> str:
+    """Directory the proxy reads cap files from (global_config proxy_dir)."""
+    return f"{src}/proxy/rate_config"
+
+
+def clear_proxy_rate_config(cfg: dict) -> None:
+    """Remove leftover cap files so a new proxy cannot inherit a past hold's caps."""
+    master = cfg["infra"]["master_ssh_host"]
+    src = cfg["infra"]["topfull_src_path"]
+    ssh(master, f"rm -f {rate_config_dir(src)}/* 2>/dev/null; true", check=False)
+    step("Cleared proxy rate_config (no leftover caps)")
+
+
+def parse_proxy_thresholds(text: str) -> dict:
+    """Parse the proxy's `/thresholds` body: `api=10000.0/api=10000.0/`."""
+    out = {}
+    for part in (text or "").strip().split("/"):
+        if "=" not in part:
+            continue
+        name, _, value = part.partition("=")
+        try:
+            out[name.strip()] = float(value)
+        except ValueError:
+            continue
+    return out
+
+
+def proxy_cap_problems(thresholds: dict) -> list:
+    """Empty list when every API is uncapped at 10000; otherwise what is wrong."""
+    if not thresholds:
+        return ["no thresholds returned by the proxy"]
+    return [
+        f"{name}={value:g}"
+        for name, value in sorted(thresholds.items())
+        if value != PROXY_UNCAPPED_RPS
+    ]
+
+
+def read_proxy_thresholds(master: str, src: str) -> dict:
+    """Same request the throttle collector makes.
+
+    The admin endpoint answers only to a *proxied* GET: loopback is the HTTP
+    proxy, and the URL is `proxy_url` from master's global_config.json.
+    """
+    script = (
+        f"U=$(python3 -c \"import json;print(json.load(open('{src}/global_config.json'))"
+        "['proxy_url'].rstrip('/'))\"); "
+        "P=$(python3 -c \"import sys;from urllib.parse import urlparse;"
+        "print(urlparse(sys.argv[1]).port or 8090)\" \"$U\"); "
+        "env -u no_proxy -u NO_PROXY curl -s --max-time 5 "
+        "-x http://127.0.0.1:$P \"$U/thresholds\""
+    )
+    return parse_proxy_thresholds(ssh(master, script, check=False).stdout or "")
+
+
+def ensure_proxy_uncapped(master: str, src: str, restart_proxy) -> None:
+    """Abort before Locust unless every proxy limit starts at 10000.
+
+    A dirty proxy is restarted twice (with the cap files cleared) before the
+    run is aborted. The throttle collector reported a previous TopFull hold's
+    caps on TopFull-off holds; this stops that at the start of the hold, not
+    after a 10-minute run.
+    """
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        thresholds = {}
+        for _ in range(3):
+            thresholds = read_proxy_thresholds(master, src)
+            if thresholds:
+                break
+            time.sleep(2)
+        problems = proxy_cap_problems(thresholds)
+        if not problems:
+            step("Proxy limits verified at 10000 for all APIs [OK]")
+            return
+        print(f"[WARN] Proxy not uncapped (attempt {attempt}/{max_attempts}): "
+              + ", ".join(problems))
+        diag = ssh(
+            master,
+            f"ls -la {rate_config_dir(src)} 2>&1 | head -8; "
+            "pgrep -fa 'deploy_rl.py|ray::|raylet' | cut -c1-110 | head -8; true",
+            check=False,
+        ).stdout or ""
+        print(diag.rstrip())
+        if attempt == max_attempts:
+            raise RuntimeError(
+                "Proxy limits are not 10000 after "
+                f"{max_attempts} attempts: {', '.join(problems)}"
+            )
+        step("Restarting the proxy with rate_config cleared")
+        restart_proxy()
 
 
 def start_master_stack(cfg: dict, proxy_ready: threading.Event | None = None):
@@ -699,10 +815,22 @@ def _start_master_stack_after_kill(master, src, venv, rl_enabled, proxy_ready):
     write_remote_script(master, "/tmp/rg_proxy.sh", proxy_script)
     write_remote_script(master, "/tmp/rg_mc.sh", mc_script)
 
+    def restart_proxy():
+        ssh(master,
+            "pkill -9 -f '[p]roxy_online_boutique' 2>/dev/null; "
+            "tmux kill-session -t proxy 2>/dev/null; "
+            f"rm -f {rate_config_dir(src)}/* 2>/dev/null; sleep 1; "
+            "tmux new-session -d -s proxy /tmp/rg_proxy.sh",
+            check=False)
+        wait_with_progress(5, "proxy init")
+
     # Start proxy (always — Locust routes through :8090 regardless of RL)
+    ssh(master, f"rm -f {rate_config_dir(src)}/* 2>/dev/null; true", check=False)
     ssh(master, "tmux new-session -d -s proxy /tmp/rg_proxy.sh")
     step("Started: Go proxy (tmux session: proxy)")
     wait_with_progress(5, "proxy init")
+    # Before RL starts: a fresh proxy must be uncapped, whatever the last hold left.
+    ensure_proxy_uncapped(master, src, restart_proxy)
     if proxy_ready is not None:
         proxy_ready.set()
 
@@ -732,6 +860,11 @@ def _start_master_stack_after_kill(master, src, venv, rl_enabled, proxy_ready):
     ssh(master, "tmux new-session -d -s metrics /tmp/rg_mc.sh")
     step("Started: metric_collector.py (tmux session: metrics)")
     wait_with_progress(5, "metric_collector init")
+
+    if not rl_enabled:
+        # With TopFull off nothing may cap an API, so check again just before
+        # Locust in case something applied caps after the first check.
+        ensure_proxy_uncapped(master, src, restart_proxy)
 
 
 # --------------------------------------------------------------------------- #
@@ -1638,7 +1771,7 @@ def run(config_path: str):
         if restore_records:
             restore_constraints(cfg, restore_records)
         # Always return to paper CPU limits (not pre-run dirty blobs).
-        reconcile_paper_cpu_limits(cfg, wait=False)
+        reconcile_paper_cpu_limits(cfg, wait=False, restore_default_probes=True)
 
         restore_virtualservice_retries(cfg)
 
