@@ -327,5 +327,46 @@ class TestLegendDrivesPanels(BrowserCase):
         self.assertGreater(height, 40)
 
 
+class TestLinkedZoom(BrowserCase):
+    def x_range(self, panel: int):
+        return self.page.evaluate(
+            "(i) => document.getElementById('panel-' + i).layout.xaxis.range", panel)
+
+    def test_panels_start_on_the_longest_runs_span(self):
+        self.assertEqual(list(self.x_range(0)), [0, 600])
+        self.assertEqual(list(self.x_range(1)), [0, 600])
+
+    def test_x_zoom_on_one_panel_moves_the_others(self):
+        self.page.evaluate(
+            "() => Plotly.relayout(document.getElementById('panel-0'), {'xaxis.range': [10, 40]})")
+        self.wait("() => { const r = document.getElementById('panel-1').layout.xaxis.range;"
+                  " return r && r[0] === 10 && r[1] === 40; }")
+
+    def test_y_zoom_on_one_panel_moves_the_others(self):
+        self.click_legend("Goodput", title=False)
+        self.wait("() => { const r = document.getElementById('panel-0').layout.yaxis.range;"
+                  " return r && Math.abs(r[1] - 94.5) < 0.01; }")
+        self.page.evaluate(
+            "() => Plotly.relayout(document.getElementById('panel-1'), {'yaxis.range': [0, 50]})")
+        self.wait("() => { const r = document.getElementById('panel-0').layout.yaxis.range;"
+                  " return r && r[0] === 0 && r[1] === 50; }")
+
+    def test_autorange_reset_returns_every_panel_to_the_pinned_x_and_shared_y(self):
+        self.click_legend("Goodput", title=False)
+        self.wait("() => { const r = document.getElementById('panel-0').layout.yaxis.range;"
+                  " return r && Math.abs(r[1] - 94.5) < 0.01; }")
+        self.page.evaluate(
+            "() => Plotly.relayout(document.getElementById('panel-0'), {'xaxis.range': [10, 40]})")
+        self.wait("() => document.getElementById('panel-1').layout.xaxis.range[0] === 10")
+        self.page.evaluate(
+            "() => Plotly.relayout(document.getElementById('panel-1'),"
+            " {'xaxis.autorange': true, 'yaxis.autorange': true})")
+        self.wait("() => { const a = document.getElementById('panel-0').layout.xaxis.range;"
+                  " const b = document.getElementById('panel-1').layout.xaxis.range;"
+                  " return a[0] === 0 && a[1] === 600 && b[0] === 0 && b[1] === 600; }")
+        self.wait("() => { const r = document.getElementById('panel-1').layout.yaxis.range;"
+                  " return r && Math.abs(r[1] - 94.5) < 0.01; }")
+
+
 if __name__ == "__main__":
     unittest.main()

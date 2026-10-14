@@ -387,6 +387,35 @@ PAGE_JS = r"""
 
     legend.on('plotly_afterplot', function () { keepTitles(); fitLegend(); });
     new MutationObserver(keepTitles).observe(legend, {subtree: true, attributes: true, attributeFilter: ['style']});
+    // Zoom and pan are mirrored between panels. busy stops a panel echoing a
+    // change it just received; apply() sets it too, since it relayouts every panel.
+    panels.forEach(function (panel) {
+      panel.on('plotly_relayout', function (event) {
+        if (busy) return;
+        var update = {};
+        var reset = false;
+        Object.keys(event).forEach(function (name) {
+          var axis = /^(yaxis\d*)\.range(\[\d\])?$/.exec(name);
+          if (/^xaxis\.range(\[\d\])?$/.test(name)) {
+            update['xaxis.range'] = panel.layout.xaxis.range.slice();
+          } else if (name === 'xaxis.autorange' && event[name]) {
+            update['xaxis.range'] = X_PIN.slice();
+            reset = true;
+          } else if (axis) {
+            update[axis[1] + '.range'] = panel.layout[axis[1]].range.slice();
+          } else if (/^yaxis\d*\.autorange$/.test(name) && event[name]) {
+            reset = true;
+          }
+        });
+        if (reset) Object.assign(update, yRanges(legendState()));
+        if (!Object.keys(update).length) return;
+        // A reset also has to fix the panel that was clicked, which autoranged itself.
+        var targets = reset ? panels : panels.filter(function (other) { return other !== panel; });
+        busy = true;
+        Promise.all(targets.map(function (other) { return Plotly.relayout(other, update); }))
+          .then(function () { busy = false; });
+      });
+    });
     keepTitles();
     fitLegend();
     setTimeout(fitLegend, 0);
