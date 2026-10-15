@@ -130,6 +130,27 @@ class TestNormalize(unittest.TestCase):
         for fig in figs:
             self.assertEqual(list(fig.layout.xaxis.domain), [0, multi_graphs_tool.PLOT_DOMAIN_END])
 
+    def test_per_api_names_do_not_take_a_palette_slot(self):
+        figs = [synthetic([
+            ("locust", "Goodput", [1.0]),
+            ("locust", "RPS", [1.0]),
+            ("locust", "getproduct Goodput", [1.0]),
+            ("locust", "getproduct RPS", [1.0]),
+            ("p95", "Latency95", [5.0]),
+            ("p95", "getproduct P95", [5.0]),
+            ("rejection", "checkoutservice", [0.1]),
+        ], 10)]
+        union = multi_graphs_tool.series_union(figs)
+        colors = multi_graphs_tool.assign_colors(figs, union)
+        self.assertEqual(colors[("locust", "Goodput")], multi_graphs_tool.PALETTE[0])
+        self.assertEqual(colors[("locust", "RPS")], multi_graphs_tool.PALETTE[1])
+        self.assertEqual(colors[("p95", "Latency95")], multi_graphs_tool.PALETTE[2])
+        self.assertEqual(colors[("rejection", "checkoutservice")], multi_graphs_tool.PALETTE[3])
+        api = graphs_tool.API_LINE_COLOR["getproduct"]
+        self.assertEqual(colors[("locust", "getproduct Goodput")], api)
+        self.assertEqual(colors[("locust", "getproduct RPS")], api)
+        self.assertEqual(colors[("p95", "getproduct P95")], api)
+
 
 class TestLegendFigure(unittest.TestCase):
     def test_legend_lists_the_union_off_except_events(self):

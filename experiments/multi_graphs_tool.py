@@ -120,14 +120,24 @@ def assign_colors(figs: list[go.Figure], union: dict) -> dict[tuple[str, str], s
 
     Plotly colours by trace position, and runs have different trace sets, so the
     default would give the same series different colours in different panels.
-    Event lines keep the colour graphs_tool gave them.
+    Event lines keep the colour graphs_tool gave them. A per-API Locust line
+    uses that API's colour and does not consume a palette slot, so Goodput, RPS,
+    Latency95, and every later series keep the slot they had before those lines
+    existed.
     """
     colors = {}
-    for index, (key, trace) in enumerate(union.items()):
-        if key[0] == graphs_tool.EVENT_GROUP:
+    index = 0
+    for key, trace in union.items():
+        group, name = key
+        if group == graphs_tool.EVENT_GROUP:
             colors[key] = trace.line.color
-        else:
-            colors[key] = PALETTE[index % len(PALETTE)]
+            continue
+        api = graphs_tool.api_of(name)
+        if api is not None:
+            colors[key] = graphs_tool.API_LINE_COLOR[api]
+            continue
+        colors[key] = PALETTE[index % len(PALETTE)]
+        index += 1
     for fig in figs:
         for trace in fig.data:
             trace.line.color = colors[(trace.legendgroup, trace.name)]
