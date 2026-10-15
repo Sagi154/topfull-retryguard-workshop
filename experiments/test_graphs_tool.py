@@ -142,6 +142,81 @@ class TestLineSpecs(unittest.TestCase):
         self.assertIs(every["detect.emailservice.overload_ticks_cum"][3], True)
 
 
+class TestPerApiLines(unittest.TestCase):
+    def view(self):
+        base = {
+            "locust.total.Goodput": [10.0, 12.0],
+            "locust.total.RPS": [11.0, 13.0],
+            "locust.total.Latency95": [40.0, 50.0],
+            "locust.getproduct.Goodput": [8.0, 9.0],
+            "locust.getproduct.RPS": [8.0, 9.0],
+            "locust.getproduct.Latency95": [30.0, 35.0],
+            "locust.emptycart.Goodput": [0.0, 0.0],
+            "locust.emptycart.RPS": [0.0, 0.0],
+            "locust.emptycart.Latency95": [0.0, 0.0],
+            "locust.getcart.Latency99": [0.0, 0.0],
+        }
+        return pd.DataFrame(base)
+
+    def test_specs_keep_totals_then_append_each_api(self):
+        specs = graphs_tool.line_specs(self.view())
+        locust = [(column, name, visible) for key, column, name, visible in specs if key == "locust"]
+        p95 = [(column, name, visible) for key, column, name, visible in specs if key == "p95"]
+        self.assertEqual(locust[:2], [
+            ("locust.total.Goodput", "Goodput", True),
+            ("locust.total.RPS", "RPS", True),
+        ])
+        self.assertEqual(locust[2:], [
+            ("locust.getproduct.Goodput", "getproduct Goodput", True),
+            ("locust.emptycart.Goodput", "emptycart Goodput", True),
+            ("locust.getproduct.RPS", "getproduct RPS", True),
+            ("locust.emptycart.RPS", "emptycart RPS", True),
+        ])
+        self.assertEqual(p95, [
+            ("locust.total.Latency95", "Latency95", True),
+            ("locust.getproduct.Latency95", "getproduct P95", True),
+            ("locust.emptycart.Latency95", "emptycart P95", True),
+        ])
+        self.assertNotIn("locust.getcart.Latency99", [spec[1] for spec in specs])
+
+    def test_totals_stay_ahead_of_the_new_traces(self):
+        specs = graphs_tool.line_specs(self.view())
+        names = [spec[2] for spec in specs]
+        self.assertLess(names.index("Latency95"), names.index("getproduct Goodput"))
+        self.assertLess(names.index("RPS"), names.index("getproduct Goodput"))
+
+    def test_a_zero_api_is_still_listed_and_quiet_rules_stay(self):
+        view = self.view()
+        view["inbound.cartservice.rejection"] = [0.0, 0.0]
+        quiet = {spec[1]: spec for spec in graphs_tool.line_specs(view)}
+        self.assertEqual(quiet["locust.emptycart.Goodput"][3], True)
+        self.assertEqual(quiet["inbound.cartservice.rejection"][3], "legendonly")
+
+    def test_timeline_panels_stay_totals_only(self):
+        panels = run_timeline.panel_columns(self.view())
+        self.assertEqual(panels["locust"], ["locust.total.Goodput", "locust.total.RPS"])
+        self.assertEqual(panels["p95"], ["locust.total.Latency95"])
+
+    def test_style_line_colours_an_api_and_dashes_only_its_rps(self):
+        self.assertIsNone(graphs_tool.api_of("Goodput"))
+        self.assertIsNone(graphs_tool.api_of("Latency95"))
+        self.assertIsNone(graphs_tool.api_of("RPS"))
+        self.assertEqual(graphs_tool.api_of("getproduct Goodput"), "getproduct")
+        goodput = graphs_tool.style_line("getproduct Goodput", step=False, width=1.2)
+        rps = graphs_tool.style_line("getproduct RPS", step=False, width=1.4)
+        p95 = graphs_tool.style_line("getproduct P95", step=False, width=1.2)
+        total = graphs_tool.style_line("Goodput", step=False, width=1.2)
+        self.assertEqual(goodput["color"], graphs_tool.API_LINE_COLOR["getproduct"])
+        self.assertEqual(rps["color"], goodput["color"])
+        self.assertEqual(p95["color"], goodput["color"])
+        self.assertNotIn("dash", goodput)
+        self.assertNotIn("dash", p95)
+        self.assertEqual(rps["dash"], "dash")
+        self.assertEqual(rps["width"], 1.4)
+        self.assertNotIn("color", total)
+        self.assertNotIn("dash", total)
+
+
 from test_hold_clock import E, iso, make_run  # noqa: E402
 
 

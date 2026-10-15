@@ -21,6 +21,7 @@ from plotly.subplots import make_subplots
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import analysis_score  # noqa: E402
 import hold_clock  # noqa: E402
 import run_timeline  # noqa: E402
 import topfull_cpu_quotas  # noqa: E402
@@ -146,6 +147,48 @@ def trace_name(key: str, column: str, limits: dict[str, int] | None = None) -> s
     return service
 
 
+API_LINE_COLOR = {
+    "getproduct": "#1f77b4",
+    "postcheckout": "#ff7f0e",
+    "getcart": "#2ca02c",
+    "postcart": "#d62728",
+    "emptycart": "#9467bd",
+}
+
+
+def api_of(name: str) -> str | None:
+    api, _, label = name.rpartition(" ")
+    if api in analysis_score.APIS and label in ("Goodput", "RPS", "P95"):
+        return api
+    return None
+
+
+def per_api_specs(view: pd.DataFrame) -> list[tuple[str, str, str, bool]]:
+    """Goodput, then RPS, then P95, one line per API file that is on the view."""
+    specs = []
+    for key, column_name, label in (
+        ("locust", "Goodput", "Goodput"),
+        ("locust", "RPS", "RPS"),
+        ("p95", "Latency95", "P95"),
+    ):
+        for api in analysis_score.APIS:
+            column = f"locust.{api}.{column_name}"
+            if column in view.columns:
+                specs.append((key, column, f"{api} {label}", True))
+    return specs
+
+
+def style_line(name: str, step: bool, width: float) -> dict:
+    line = {"width": width, "shape": "hv"} if step else {"width": width}
+    api = api_of(name)
+    if api is None:
+        return line
+    line["color"] = API_LINE_COLOR[api]
+    if name.endswith(" RPS"):
+        line["dash"] = "dash"
+    return line
+
+
 def line_specs(
     view: pd.DataFrame,
     show_all: bool = False,
@@ -158,6 +201,7 @@ def line_specs(
         for column in every[key]:
             visible = True if show_all or column in default[key] else "legendonly"
             specs.append((key, column, trace_name(key, column, limits), visible))
+    specs.extend(per_api_specs(view))
     return specs
 
 
@@ -271,7 +315,7 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
     for key, column, name, visible in line_specs(view, show_all, limits):
         step = key in STEP_KEYS
         x, y = plot_points(view[column], step=step)
-        line = {"width": 1.2, "shape": "hv"} if step else {"width": 1.2}
+        line = style_line(name, step, 1.2)
         fig.add_trace(
             go.Scatter(x=x, y=y, mode="lines", name=name, visible=visible,
                        line=line, legendgroup=key,
@@ -383,7 +427,7 @@ def compare_figure(run_dir: Path) -> go.Figure:
         step = key in STEP_KEYS
         x, y = plot_points(series_of(view, column), step=step)
         unit = UNIT[key]
-        line = {"width": 1.4, "shape": "hv"} if step else {"width": 1.4}
+        line = style_line(name, step, 1.4)
         fig.add_trace(go.Scatter(
             x=list(x), y=list(y), mode="lines", name=name, visible="legendonly",
             line=line, legendgroup=key, meta=unit, yaxis=trace_yaxis(unit),
