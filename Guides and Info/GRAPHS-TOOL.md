@@ -1,8 +1,8 @@
 # graphs_tool — what the page shows
 
-One hold, one HTML page, on the hold clock. Use it for every analysis of a single run: zoom, hover, and turn lines on or off. It is not a report figure. The committed `timeline.png` from `run_timeline.py` stays the static record.
+One hold, one HTML page, on the hold clock. Use it for every analysis of a single run: zoom, hover, and turn lines on or off. It is not a report figure. The committed `timeline.png` from `run_timeline.py` stays the static record, and it stays totals only.
 
-Checked against `s2_burst20_rgtf1` on 2026-10-14. Build record: [2026-10-13-interactive-run-explorer-design.md](../docs/superpowers/specs/2026-10-13-interactive-run-explorer-design.md).
+Checked against `s2_burst20_rgtf1` on 2026-10-14. Build record: [2026-10-13-interactive-run-explorer-design.md](../docs/superpowers/specs/2026-10-13-interactive-run-explorer-design.md). Per-API Locust lines added 2026-10-15: [2026-10-15-per-api-locust-graphs.md](../docs/superpowers/plans/2026-10-15-per-api-locust-graphs.md).
 
 ## What it is and how to run it
 
@@ -16,7 +16,7 @@ The page is `experiments/explore_out/<run folder name>.html`. It is git-ignored,
 
 The run folder is one hold under `experiments/results/final results/` (S1–S4). `campaign_48/`, `august_38/`, S5, and S6 are out of scope.
 
-`--all` draws every service and every RetryGuard edge on the stacked panels. Without it, a line that never leaves zero stays in the legend only, so a quiet edge does not flatten the axis.
+`--all` draws every service and every RetryGuard edge on the stacked panels. Without it, a mesh, retry, or overload line that never leaves zero stays in the legend only, so a quiet edge does not flatten the axis. Per-API Locust lines are outside that rule: an API file that exists is drawn on the stacked page even when every value is 0.
 
 ## Page layout
 
@@ -48,7 +48,7 @@ How the fit works, and why a Locust row is not "second i": [2026-10-13-hold-cloc
 | 8 | Attempts | Heatmap. Row = edge, colour = attempts 0–3 | `retryguard.log` `OBSERVE` | attempts | every controlled edge, when RetryGuard ran |
 | 9 | CPU | App-container CPU | `resource_usage.csv` | millicores | every Boutique service except `__master_node__` |
 
-**Per-API Locust lines.** The five entry APIs are `getproduct`, `postcheckout`, `getcart`, `postcart`, `emptycart`. Legend names are `getproduct Goodput`, `getproduct RPS`, and `getproduct P95`, and the same shape for the other four. The total lines stay `Goodput`, `RPS`, and `Latency95`. `Latency95` is the unweighted mean of the five API P95s. `getproduct P95` is that API's own percentile. One colour belongs to one API, and that API's RPS line is dashed. An API whose CSV is missing has no line. Latency99 is not drawn.
+**Per-API Locust lines.** The five entry APIs are `getproduct`, `postcheckout`, `getcart`, `postcart`, `emptycart`. Legend names are `getproduct Goodput`, `getproduct RPS`, and `getproduct P95`, and the same shape for the other four. The total lines stay `Goodput`, `RPS`, and `Latency95`. `Latency95` is the unweighted mean of the five API P95s. `getproduct P95` is that API's own percentile. One colour belongs to one API on both pages, and that API's RPS line is dashed. Goodput and P95 for that API are solid. An API whose CSV is missing has no line. `Latency99` is not drawn. On the stacked page these lines start on. On the comparison chart and on the multi page they start off, and the section title turns them on with the totals.
 
 A line going up means more of that quantity at that second. On panels 5 and 7 the line is a step: it stays flat until the next poll, then jumps by what that poll added. It does not fall. On the other line panels a rise is a rate or a reading, and it can fall.
 
@@ -132,6 +132,7 @@ Edge codes follow RetryGuard's controlled-edge order. Service codes follow the o
 | Question | Look at |
 |---|---|
 | Did the shop keep completing work, and at what latency? | Goodput / RPS, P95 |
+| Which entry API completed work, and at what latency? | That API's Goodput, RPS, and P95 on the first two panels |
 | Did shoppers see failures the mesh did not? | Rejection: dashed SLO-miss against the solid service lines |
 | Did retries pile up before a shed? | Cumulative retries, with the red `E<n> burst` or `E<n> normal` line |
 | Was the shed a rate spike or a slow climb? | Retries per request at the same line |
@@ -149,6 +150,8 @@ python experiments/multi_graphs_tool.py "<run_dir>" "<run_dir>" ["<run_dir>" ...
 Two or more holds from `experiments/results/final results/` (S1–S4). The page is `experiments/explore_out/multi_<run names>.html` (git-ignored, offline). Built from [2026-10-14-multi-graphs-tool-design.md](../docs/superpowers/specs/2026-10-14-multi-graphs-tool-design.md).
 
 Top to bottom: one comparison panel per run (the run label sits above it), then one legend, then the E/V code key. The legend is the only control. A click on a legend item or a section title changes every panel, so all panels always show the same metrics. Everything starts off except the RetryGuard event lines.
+
+The Goodput / RPS and P95 sections list each entry API as well as the totals: `getproduct Goodput`, `getproduct RPS`, `getproduct P95`, and the same three names for `postcheckout`, `getcart`, `postcart`, and `emptycart`. One colour belongs to one API in every panel. That API's RPS line is dashed. A run whose `{api}.csv` is missing has no trace of that name; turning the name on shows "none in this run" on that panel.
 
 - **x** is linked. Zoom, pan, or the range slider (under the last panel) on one panel moves all of them. t = 0 is each run's own hold clock, and every panel shows the longest run's span, so a shorter run has empty space on the right.
 - **y** is shared per unit. The range is 0 to 1.05 times the largest visible value in any panel, so equal heights mean equal values across runs. Turning on a line that peaks high in one run rescales all panels. A manual y range on one panel is copied to the others.
