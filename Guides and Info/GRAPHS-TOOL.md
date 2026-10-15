@@ -152,7 +152,9 @@ Top to bottom: one comparison panel per run (the run label sits above it), then 
 - **y** is shared per unit. The range is 0 to 1.05 times the largest visible value in any panel, so equal heights mean equal values across runs. Turning on a line that peaks high in one run rescales all panels. A manual y range on one panel is copied to the others.
 - **Names are the same in every panel.** CPU lines carry the service name only; the limit is in the hover (`… of 1150m`). The same series has the same colour in every panel.
 - **"none in this run"** above a panel means a line you turned on does not exist in that run (for example RetryGuard edges on a `tf_only` run). It is not a zero.
-- Each panel draws its own run's RetryGuard events and names. Hover over a name for the detail.
+- Each panel draws its own run's RetryGuard events and names. Hover over a name for the detail. A run with no `retryguard.log`, such as a `tf_only` hold, has no event lines. That is by design, not a drawing fault, and "none in this run" does not list events.
+- **The plot edge is fixed.** Every panel's plot ends at the same x. A right-hand unit axis (ms, fraction, retries/request, millicores, retries, ticks) takes the next free lane to the right of it when its first line is turned on, so adding a metric does not shift the plot left.
+- **The selector does not scroll.** Plotly's legend slides its rows on a mouse wheel. The page blocks that, so scrolling over the selector scrolls the page and the group titles stay in place.
 
 Not in this page: the nine stacked panels, `--all`, S5/S6/`campaign_48/`/`august_38/`.
 
