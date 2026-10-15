@@ -1,0 +1,1860 @@
+2026-10-15T13:18:42Z  Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+2026-10-15T13:18:42Z  Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+2026-10-15T13:18:42Z  See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+2026-10-15T13:18:55Z  /home/idozacharia/TopFull/venv/lib/python3.8/site-packages/google/auth/__init__.py:52: FutureWarning: You are using a Python version 3.8 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+2026-10-15T13:18:55Z    warnings.warn(eol_message.format("3.8"), FutureWarning)
+2026-10-15T13:18:55Z  /home/idozacharia/TopFull/venv/lib/python3.8/site-packages/google/oauth2/__init__.py:38: FutureWarning: You are using a Python version 3.8 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+2026-10-15T13:18:55Z    warnings.warn(eol_message.format("3.8"), FutureWarning)
+2026-10-15T13:18:55Z  /home/idozacharia/TopFull/venv/lib/python3.8/site-packages/google/auth/crypt/es.py:21: CryptographyDeprecationWarning: Python 3.8 is no longer supported by the Python core team and support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.8.
+2026-10-15T13:18:55Z    import cryptography.exceptions
+2026-10-15T13:19:00Z  2026-10-15 13:19:00,319	INFO worker.py:1509 -- Started a local Ray instance. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+2026-10-15T13:19:01Z  2026-10-15 13:19:01,358	INFO tensorboardx.py:42 -- pip install "ray[tune]" to see TensorBoard files.
+2026-10-15T13:19:01Z  2026-10-15 13:19:01,358	WARNING unified.py:54 -- Could not instantiate TBXLogger: cannot import name 'builder' from 'google.protobuf.internal' (/home/idozacharia/TopFull/venv/lib/python3.8/site-packages/google/protobuf/internal/__init__.py).
+2026-10-15T13:19:01Z  2026-10-15 13:19:01,360	INFO algorithm.py:1871 -- Your framework setting is 'tf', meaning you are using static-graph mode. Set framework='tf2' to enable eager execution with tf2.x. You may also then want to set eager_tracing=True in order to reach similar execution speed as with static-graph mode.
+2026-10-15T13:19:01Z  2026-10-15 13:19:01,360	INFO ppo.py:378 -- In multi-agent mode, policies will be optimized sequentially by the multi-GPU optimizer. Consider setting simple_optimizer=True if this doesn't work for you.
+2026-10-15T13:19:01Z  2026-10-15 13:19:01,362	INFO algorithm.py:351 -- Current log_level is WARN. For more information, set 'log_level': 'INFO' / 'DEBUG' or use the -v and -vv flags.
+2026-10-15T13:19:01Z  /home/idozacharia/TopFull/venv/lib/python3.8/site-packages/ray/_private/ray_option_utils.py:266: DeprecationWarning: Setting 'object_store_memory' for actors is deprecated since it doesn't actually reserve the required object store memory. Use object spilling that's enabled by default (https://docs.ray.io/en/releases-2.0.0/ray-core/objects/object-spilling.html) instead to bypass the object store memory size limitation.
+2026-10-15T13:19:01Z    warnings.warn(
+2026-10-15T13:19:01Z  [2m[36m(pid=20949)[0m Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+2026-10-15T13:19:01Z  [2m[36m(pid=20949)[0m Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+2026-10-15T13:19:01Z  [2m[36m(pid=20949)[0m See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+2026-10-15T13:19:04Z  [2m[36m(RolloutWorker pid=20949)[0m /home/idozacharia/TopFull/venv/lib/python3.8/site-packages/gym/spaces/box.py:84: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+2026-10-15T13:19:04Z  [2m[36m(RolloutWorker pid=20949)[0m   logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+2026-10-15T13:19:04Z  [2m[36m(RolloutWorker pid=20949)[0m 2026-10-15 13:19:04,812	WARNING env.py:142 -- Your env doesn't have a .spec.max_episode_steps attribute. This is fine if you have set 'horizon' in your config dictionary, or `soft_horizon`. However, if you haven't, 'horizon' will default to infinity, and your environment will not be reset.
+2026-10-15T13:19:07Z  2026-10-15 13:19:07,436	WARNING util.py:65 -- Install gputil for GPU system monitoring.
+2026-10-15T13:19:07Z  2026-10-15 13:19:07,534	INFO trainable.py:668 -- Restored on 10.128.0.3 from checkpoint: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/checkpoint_000701
+2026-10-15T13:19:07Z  2026-10-15 13:19:07,534	INFO trainable.py:677 -- Current state after restoring: {'_iteration': 701, '_timesteps_total': None, '_time_total': 4156.153457164764, '_episodes_total': 54980}
+2026-10-15T13:19:09Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 24.0, 'emailservice': 35.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 19.0}
+2026-10-15T13:19:09Z  []
+2026-10-15T13:19:09Z  No overloaded services
+2026-10-15T13:19:11Z  {'frontend': 0, 'productcatalogservice': 30.0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 19.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 19.0}
+2026-10-15T13:19:11Z  []
+2026-10-15T13:19:11Z  No overloaded services
+2026-10-15T13:19:13Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 29.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:13Z  []
+2026-10-15T13:19:13Z  No overloaded services
+2026-10-15T13:19:15Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 19.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-15T13:19:15Z  []
+2026-10-15T13:19:15Z  No overloaded services
+2026-10-15T13:19:17Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:17Z  []
+2026-10-15T13:19:17Z  No overloaded services
+2026-10-15T13:19:19Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 25.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:19Z  []
+2026-10-15T13:19:19Z  No overloaded services
+2026-10-15T13:19:21Z  {'frontend': 0, 'productcatalogservice': 32.0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 26.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:21Z  []
+2026-10-15T13:19:21Z  No overloaded services
+2026-10-15T13:19:23Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 26.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 17.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:23Z  []
+2026-10-15T13:19:23Z  No overloaded services
+2026-10-15T13:19:25Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 32.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 12.0}
+2026-10-15T13:19:25Z  []
+2026-10-15T13:19:25Z  No overloaded services
+2026-10-15T13:19:27Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:27Z  []
+2026-10-15T13:19:27Z  No overloaded services
+2026-10-15T13:19:29Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 38.0, 'emailservice': 40.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:29Z  []
+2026-10-15T13:19:29Z  No overloaded services
+2026-10-15T13:19:31Z  {'frontend': 0, 'productcatalogservice': 24.0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 19.0}
+2026-10-15T13:19:31Z  []
+2026-10-15T13:19:31Z  No overloaded services
+2026-10-15T13:19:33Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 39.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 30.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:33Z  []
+2026-10-15T13:19:33Z  No overloaded services
+2026-10-15T13:19:35Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 13.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 11.0}
+2026-10-15T13:19:35Z  []
+2026-10-15T13:19:35Z  No overloaded services
+2026-10-15T13:19:37Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:37Z  []
+2026-10-15T13:19:37Z  No overloaded services
+2026-10-15T13:19:39Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 29.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:39Z  []
+2026-10-15T13:19:39Z  No overloaded services
+2026-10-15T13:19:41Z  {'frontend': 0, 'productcatalogservice': 25.0, 'checkoutservice': 42.0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 33.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 20.0}
+2026-10-15T13:19:41Z  []
+2026-10-15T13:19:41Z  No overloaded services
+2026-10-15T13:19:43Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 26.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 21.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:43Z  []
+2026-10-15T13:19:43Z  No overloaded services
+2026-10-15T13:19:45Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 23.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 19.0}
+2026-10-15T13:19:45Z  []
+2026-10-15T13:19:45Z  No overloaded services
+2026-10-15T13:19:47Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:47Z  []
+2026-10-15T13:19:47Z  No overloaded services
+2026-10-15T13:19:49Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 25.0, 'emailservice': 24.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:49Z  []
+2026-10-15T13:19:49Z  No overloaded services
+2026-10-15T13:19:51Z  {'frontend': 0, 'productcatalogservice': 23.0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:51Z  []
+2026-10-15T13:19:51Z  No overloaded services
+2026-10-15T13:19:53Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 21.0, 'recommendationservice': 24.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:53Z  []
+2026-10-15T13:19:53Z  No overloaded services
+2026-10-15T13:19:55Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:19:55Z  []
+2026-10-15T13:19:55Z  No overloaded services
+2026-10-15T13:19:57Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:57Z  []
+2026-10-15T13:19:57Z  No overloaded services
+2026-10-15T13:19:59Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 25.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:19:59Z  []
+2026-10-15T13:19:59Z  No overloaded services
+2026-10-15T13:20:01Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 22.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:20:01Z  []
+2026-10-15T13:20:01Z  No overloaded services
+2026-10-15T13:20:03Z  {'frontend': 0, 'productcatalogservice': 31.0, 'checkoutservice': 22.0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 36.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:20:03Z  []
+2026-10-15T13:20:03Z  No overloaded services
+2026-10-15T13:20:05Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 25.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 14.0}
+2026-10-15T13:20:05Z  []
+2026-10-15T13:20:05Z  No overloaded services
+2026-10-15T13:20:07Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:20:07Z  []
+2026-10-15T13:20:07Z  No overloaded services
+2026-10-15T13:20:09Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 26.0, 'emailservice': 27.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 20.0}
+2026-10-15T13:20:09Z  []
+2026-10-15T13:20:09Z  No overloaded services
+2026-10-15T13:20:11Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 21.0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 17.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:20:11Z  []
+2026-10-15T13:20:11Z  No overloaded services
+2026-10-15T13:20:13Z  {'frontend': 0, 'productcatalogservice': 15.0, 'checkoutservice': 0, 'recommendationservice': 24.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:20:13Z  []
+2026-10-15T13:20:13Z  No overloaded services
+2026-10-15T13:20:15Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 31.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 13.0}
+2026-10-15T13:20:15Z  []
+2026-10-15T13:20:15Z  No overloaded services
+2026-10-15T13:20:17Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:20:17Z  []
+2026-10-15T13:20:17Z  No overloaded services
+2026-10-15T13:20:19Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:20:19Z  []
+2026-10-15T13:20:19Z  No overloaded services
+2026-10-15T13:20:21Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 26.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:20:21Z  []
+2026-10-15T13:20:21Z  No overloaded services
+2026-10-15T13:20:23Z  {'frontend': 0, 'productcatalogservice': 4.0, 'checkoutservice': 0, 'recommendationservice': 28.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:20:23Z  []
+2026-10-15T13:20:23Z  No overloaded services
+2026-10-15T13:20:25Z  {'frontend': 35.0, 'productcatalogservice': 49.0, 'checkoutservice': 69.0, 'recommendationservice': 43.0, 'emailservice': 7.0, 'adservice': 0, 'cartservice': 81.0, 'currencyservice': 33.0, 'paymentservice': 0, 'shippingservice': 22.0}
+2026-10-15T13:20:25Z  []
+2026-10-15T13:20:25Z  No overloaded services
+2026-10-15T13:20:27Z  {'frontend': 78.25, 'productcatalogservice': 94.0, 'checkoutservice': 156.0, 'recommendationservice': 78.0, 'emailservice': 11.0, 'adservice': 0, 'cartservice': 94.0, 'currencyservice': 112.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:20:27Z  []
+2026-10-15T13:20:27Z  No overloaded services
+2026-10-15T13:20:29Z  {'frontend': 97.0, 'productcatalogservice': 155.0, 'checkoutservice': 250.0, 'recommendationservice': 147.0, 'emailservice': 39.0, 'adservice': 0, 'cartservice': 172.0, 'currencyservice': 142.0, 'paymentservice': 0, 'shippingservice': 48.0}
+2026-10-15T13:20:29Z  []
+2026-10-15T13:20:29Z  No overloaded services
+2026-10-15T13:20:31Z  {'frontend': 131.25, 'productcatalogservice': 187.0, 'checkoutservice': 384.0, 'recommendationservice': 188.0, 'emailservice': 27.0, 'adservice': 0, 'cartservice': 176.0, 'currencyservice': 150.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:20:31Z  []
+2026-10-15T13:20:31Z  No overloaded services
+2026-10-15T13:20:33Z  {'frontend': 185.5, 'productcatalogservice': 275.0, 'checkoutservice': 461.0, 'recommendationservice': 302.0, 'emailservice': 39.0, 'adservice': 0, 'cartservice': 177.0, 'currencyservice': 233.0, 'paymentservice': 0, 'shippingservice': 38.0}
+2026-10-15T13:20:33Z  []
+2026-10-15T13:20:33Z  No overloaded services
+2026-10-15T13:20:35Z  {'frontend': 213.75, 'productcatalogservice': 343.0, 'checkoutservice': 486.0, 'recommendationservice': 323.0, 'emailservice': 85.0, 'adservice': 0, 'cartservice': 207.0, 'currencyservice': 319.0, 'paymentservice': 0, 'shippingservice': 71.0}
+2026-10-15T13:20:35Z  []
+2026-10-15T13:20:35Z  No overloaded services
+2026-10-15T13:20:37Z  {'frontend': 208.75, 'productcatalogservice': 356.0, 'checkoutservice': 530.0, 'recommendationservice': 322.0, 'emailservice': 60.0, 'adservice': 0, 'cartservice': 239.0, 'currencyservice': 285.0, 'paymentservice': 0, 'shippingservice': 61.0}
+2026-10-15T13:20:37Z  []
+2026-10-15T13:20:37Z  No overloaded services
+2026-10-15T13:20:39Z  {'frontend': 237.25, 'productcatalogservice': 409.0, 'checkoutservice': 693.0, 'recommendationservice': 432.0, 'emailservice': 88.0, 'adservice': 0, 'cartservice': 292.0, 'currencyservice': 345.0, 'paymentservice': 0, 'shippingservice': 67.0}
+2026-10-15T13:20:39Z  ['checkoutservice']
+2026-10-15T13:20:39Z  ['postcheckout']
+2026-10-15T13:20:39Z  number of valid agent
+2026-10-15T13:20:39Z  0
+2026-10-15T13:20:39Z  postcheckout: 24.0
+2026-10-15T13:20:39Z  Start agent with target API ['postcheckout']
+2026-10-15T13:20:40Z  ['postcheckout'] running
+2026-10-15T13:20:41Z  {'frontend': 264.5, 'productcatalogservice': 403.0, 'checkoutservice': 651.0, 'recommendationservice': 415.0, 'emailservice': 66.0, 'adservice': 0, 'cartservice': 224.0, 'currencyservice': 341.0, 'paymentservice': 0, 'shippingservice': 94.0}
+2026-10-15T13:20:41Z  ['checkoutservice']
+2026-10-15T13:20:41Z  {'frontend': 264.5, 'productcatalogservice': 452.0, 'checkoutservice': 651.0, 'recommendationservice': 415.0, 'emailservice': 66.0, 'adservice': 0, 'cartservice': 224.0, 'currencyservice': 341.0, 'paymentservice': 0, 'shippingservice': 94.0}
+2026-10-15T13:20:41Z  ['checkoutservice']
+2026-10-15T13:20:41Z  [('postcheckout', 1, 0)]
+2026-10-15T13:20:41Z  Wrong action, leftover: 2.999295425415035
+2026-10-15T13:20:41Z  postcheckout: 30.800000000000004
+2026-10-15T13:20:41Z  ['checkoutservice']
+2026-10-15T13:20:41Z  {'frontend': 247.0, 'productcatalogservice': 452.0, 'checkoutservice': 669.0, 'recommendationservice': 415.0, 'emailservice': 66.0, 'adservice': 0, 'cartservice': 224.0, 'currencyservice': 357.0, 'paymentservice': 0, 'shippingservice': 78.0}
+2026-10-15T13:20:41Z  ['checkoutservice']
+2026-10-15T13:20:41Z  ['postcheckout']
+2026-10-15T13:20:41Z  number of valid agent
+2026-10-15T13:20:41Z  1
+2026-10-15T13:20:42Z  ['postcheckout'] running
+2026-10-15T13:20:42Z  {'frontend': 237.75, 'productcatalogservice': 448.0, 'checkoutservice': 669.0, 'recommendationservice': 499.0, 'emailservice': 77.0, 'adservice': 0, 'cartservice': 317.0, 'currencyservice': 357.0, 'paymentservice': 0, 'shippingservice': 75.0}
+2026-10-15T13:20:42Z  ['checkoutservice']
+2026-10-15T13:20:42Z  postcheckout: 10000
+2026-10-15T13:20:42Z  All APIs clean
+2026-10-15T13:20:43Z  {'frontend': 289.25, 'productcatalogservice': 440.0, 'checkoutservice': 692.0, 'recommendationservice': 549.0, 'emailservice': 84.0, 'adservice': 0, 'cartservice': 317.0, 'currencyservice': 408.0, 'paymentservice': 0, 'shippingservice': 80.0}
+2026-10-15T13:20:43Z  ['checkoutservice']
+2026-10-15T13:20:43Z  ['postcheckout']
+2026-10-15T13:20:43Z  number of valid agent
+2026-10-15T13:20:43Z  0
+2026-10-15T13:20:44Z  postcheckout: 32.0
+2026-10-15T13:20:44Z  Start agent with target API ['postcheckout']
+2026-10-15T13:20:45Z  ['postcheckout'] running
+2026-10-15T13:20:45Z  {'frontend': 295.0, 'productcatalogservice': 460.0, 'checkoutservice': 692.0, 'recommendationservice': 549.0, 'emailservice': 84.0, 'adservice': 0, 'cartservice': 273.0, 'currencyservice': 417.0, 'paymentservice': 0, 'shippingservice': 80.0}
+2026-10-15T13:20:45Z  ['checkoutservice']
+2026-10-15T13:20:45Z  {'frontend': 295.0, 'productcatalogservice': 460.0, 'checkoutservice': 692.0, 'recommendationservice': 549.0, 'emailservice': 84.0, 'adservice': 0, 'cartservice': 273.0, 'currencyservice': 417.0, 'paymentservice': 0, 'shippingservice': 80.0}
+2026-10-15T13:20:45Z  ['checkoutservice']
+2026-10-15T13:20:45Z  [('postcheckout', 1, 0)]
+2026-10-15T13:20:45Z  Wrong action, leftover: 5.443939208984375
+2026-10-15T13:20:45Z  postcheckout: 38.5
+2026-10-15T13:20:45Z  ['checkoutservice']
+2026-10-15T13:20:46Z  {'frontend': 328.75, 'productcatalogservice': 460.0, 'checkoutservice': 757.0, 'recommendationservice': 550.0, 'emailservice': 97.0, 'adservice': 0, 'cartservice': 273.0, 'currencyservice': 355.0, 'paymentservice': 0, 'shippingservice': 97.0}
+2026-10-15T13:20:46Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:46Z  ['postcheckout']
+2026-10-15T13:20:46Z  number of valid agent
+2026-10-15T13:20:46Z  1
+2026-10-15T13:20:46Z  ['postcheckout']
+2026-10-15T13:20:46Z  number of valid agent
+2026-10-15T13:20:46Z  1
+2026-10-15T13:20:46Z  ['postcheckout'] running
+2026-10-15T13:20:46Z  {'frontend': 328.75, 'productcatalogservice': 467.0, 'checkoutservice': 672.0, 'recommendationservice': 544.0, 'emailservice': 91.0, 'adservice': 0, 'cartservice': 273.0, 'currencyservice': 355.0, 'paymentservice': 0, 'shippingservice': 98.0}
+2026-10-15T13:20:46Z  ['checkoutservice']
+2026-10-15T13:20:46Z  postcheckout: 10000
+2026-10-15T13:20:46Z  All APIs clean
+2026-10-15T13:20:48Z  {'frontend': 306.25, 'productcatalogservice': 472.0, 'checkoutservice': 770.0, 'recommendationservice': 604.0, 'emailservice': 90.0, 'adservice': 0, 'cartservice': 292.0, 'currencyservice': 365.0, 'paymentservice': 0, 'shippingservice': 79.0}
+2026-10-15T13:20:48Z  ['checkoutservice']
+2026-10-15T13:20:48Z  ['postcheckout']
+2026-10-15T13:20:48Z  number of valid agent
+2026-10-15T13:20:48Z  0
+2026-10-15T13:20:48Z  postcheckout: 41.0
+2026-10-15T13:20:48Z  Start agent with target API ['postcheckout']
+2026-10-15T13:20:49Z  ['postcheckout'] running
+2026-10-15T13:20:49Z  {'frontend': 329.25, 'productcatalogservice': 446.0, 'checkoutservice': 770.0, 'recommendationservice': 604.0, 'emailservice': 123.0, 'adservice': 0, 'cartservice': 296.0, 'currencyservice': 376.0, 'paymentservice': 0, 'shippingservice': 81.0}
+2026-10-15T13:20:49Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:49Z  {'frontend': 329.25, 'productcatalogservice': 446.0, 'checkoutservice': 770.0, 'recommendationservice': 604.0, 'emailservice': 123.0, 'adservice': 0, 'cartservice': 296.0, 'currencyservice': 376.0, 'paymentservice': 0, 'shippingservice': 81.0}
+2026-10-15T13:20:49Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:49Z  [('postcheckout', 1, 0)]
+2026-10-15T13:20:49Z  Wrong action, leftover: 0.9471544504165621
+2026-10-15T13:20:49Z  postcheckout: 46.2
+2026-10-15T13:20:49Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:50Z  {'frontend': 345.0, 'productcatalogservice': 446.0, 'checkoutservice': 767.0, 'recommendationservice': 663.0, 'emailservice': 123.0, 'adservice': 0, 'cartservice': 296.0, 'currencyservice': 389.0, 'paymentservice': 0, 'shippingservice': 144.0}
+2026-10-15T13:20:50Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:50Z  ['postcheckout']
+2026-10-15T13:20:50Z  number of valid agent
+2026-10-15T13:20:50Z  1
+2026-10-15T13:20:50Z  ['postcheckout']
+2026-10-15T13:20:50Z  number of valid agent
+2026-10-15T13:20:50Z  1
+2026-10-15T13:20:50Z  ['postcheckout'] running
+2026-10-15T13:20:50Z  {'frontend': 332.25, 'productcatalogservice': 446.0, 'checkoutservice': 767.0, 'recommendationservice': 685.0, 'emailservice': 108.0, 'adservice': 0, 'cartservice': 296.0, 'currencyservice': 389.0, 'paymentservice': 0, 'shippingservice': 144.0}
+2026-10-15T13:20:50Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:50Z  postcheckout: 10000
+2026-10-15T13:20:51Z  All APIs clean
+2026-10-15T13:20:52Z  {'frontend': 345.75, 'productcatalogservice': 486.0, 'checkoutservice': 766.0, 'recommendationservice': 686.0, 'emailservice': 109.0, 'adservice': 0, 'cartservice': 324.0, 'currencyservice': 479.0, 'paymentservice': 0, 'shippingservice': 113.0}
+2026-10-15T13:20:52Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:52Z  ['postcheckout']
+2026-10-15T13:20:52Z  number of valid agent
+2026-10-15T13:20:52Z  0
+2026-10-15T13:20:52Z  postcheckout: 48.0
+2026-10-15T13:20:52Z  Start agent with target API ['postcheckout']
+2026-10-15T13:20:52Z  ['postcheckout']
+2026-10-15T13:20:52Z  number of valid agent
+2026-10-15T13:20:52Z  1
+2026-10-15T13:20:53Z  ['postcheckout'] running
+2026-10-15T13:20:53Z  {'frontend': 357.0, 'productcatalogservice': 486.0, 'checkoutservice': 740.0, 'recommendationservice': 756.0, 'emailservice': 109.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 452.0, 'paymentservice': 0, 'shippingservice': 91.0}
+2026-10-15T13:20:53Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:53Z  {'frontend': 357.0, 'productcatalogservice': 486.0, 'checkoutservice': 740.0, 'recommendationservice': 756.0, 'emailservice': 109.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 452.0, 'paymentservice': 0, 'shippingservice': 91.0}
+2026-10-15T13:20:53Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:53Z  [('postcheckout', 1, 0)]
+2026-10-15T13:20:53Z  postcheckout: 52.7184476852417
+2026-10-15T13:20:53Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:54Z  {'frontend': 369.5, 'productcatalogservice': 463.0, 'checkoutservice': 740.0, 'recommendationservice': 756.0, 'emailservice': 111.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 452.0, 'paymentservice': 0, 'shippingservice': 105.0}
+2026-10-15T13:20:54Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:54Z  ['postcheckout']
+2026-10-15T13:20:54Z  number of valid agent
+2026-10-15T13:20:54Z  1
+2026-10-15T13:20:54Z  ['postcheckout']
+2026-10-15T13:20:54Z  number of valid agent
+2026-10-15T13:20:54Z  1
+2026-10-15T13:20:54Z  ['postcheckout'] running
+2026-10-15T13:20:55Z  {'frontend': 348.0, 'productcatalogservice': 463.0, 'checkoutservice': 814.0, 'recommendationservice': 819.0, 'emailservice': 111.0, 'adservice': 0, 'cartservice': 382.0, 'currencyservice': 466.0, 'paymentservice': 0, 'shippingservice': 121.0}
+2026-10-15T13:20:55Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:20:55Z  postcheckout: 10000
+2026-10-15T13:20:55Z  All APIs clean
+2026-10-15T13:20:56Z  {'frontend': 354.25, 'productcatalogservice': 425.0, 'checkoutservice': 777.0, 'recommendationservice': 695.0, 'emailservice': 56.0, 'adservice': 0, 'cartservice': 389.0, 'currencyservice': 466.0, 'paymentservice': 0, 'shippingservice': 121.0}
+2026-10-15T13:20:56Z  ['checkoutservice']
+2026-10-15T13:20:56Z  ['postcheckout']
+2026-10-15T13:20:56Z  number of valid agent
+2026-10-15T13:20:56Z  0
+2026-10-15T13:20:56Z  postcheckout: 39.0
+2026-10-15T13:20:56Z  Start agent with target API ['postcheckout']
+2026-10-15T13:20:57Z  ['postcheckout'] running
+2026-10-15T13:20:57Z  {'frontend': 339.5, 'productcatalogservice': 482.0, 'checkoutservice': 788.0, 'recommendationservice': 771.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 351.0, 'currencyservice': 466.0, 'paymentservice': 0, 'shippingservice': 114.0}
+2026-10-15T13:20:57Z  ['checkoutservice']
+2026-10-15T13:20:57Z  {'frontend': 339.5, 'productcatalogservice': 482.0, 'checkoutservice': 788.0, 'recommendationservice': 771.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 351.0, 'currencyservice': 466.0, 'paymentservice': 0, 'shippingservice': 114.0}
+2026-10-15T13:20:57Z  ['checkoutservice']
+2026-10-15T13:20:57Z  [('postcheckout', 1, 0)]
+2026-10-15T13:20:57Z  postcheckout: 24.10937011241913
+2026-10-15T13:20:58Z  ['checkoutservice']
+2026-10-15T13:20:58Z  {'frontend': 343.5, 'productcatalogservice': 465.0, 'checkoutservice': 788.0, 'recommendationservice': 739.0, 'emailservice': 10.0, 'adservice': 0, 'cartservice': 398.0, 'currencyservice': 429.0, 'paymentservice': 0, 'shippingservice': 104.0}
+2026-10-15T13:20:58Z  ['checkoutservice']
+2026-10-15T13:20:58Z  ['postcheckout']
+2026-10-15T13:20:58Z  number of valid agent
+2026-10-15T13:20:58Z  1
+2026-10-15T13:20:59Z  ['postcheckout'] running
+2026-10-15T13:20:59Z  {'frontend': 355.25, 'productcatalogservice': 465.0, 'checkoutservice': 788.0, 'recommendationservice': 739.0, 'emailservice': 39.0, 'adservice': 0, 'cartservice': 398.0, 'currencyservice': 429.0, 'paymentservice': 0, 'shippingservice': 147.0}
+2026-10-15T13:20:59Z  ['checkoutservice']
+2026-10-15T13:20:59Z  {'frontend': 355.25, 'productcatalogservice': 465.0, 'checkoutservice': 788.0, 'recommendationservice': 739.0, 'emailservice': 39.0, 'adservice': 0, 'cartservice': 398.0, 'currencyservice': 429.0, 'paymentservice': 0, 'shippingservice': 147.0}
+2026-10-15T13:20:59Z  ['checkoutservice']
+2026-10-15T13:20:59Z  [('postcheckout', 1, 0)]
+2026-10-15T13:20:59Z  postcheckout: 14.893756403127671
+2026-10-15T13:20:59Z  ['checkoutservice']
+2026-10-15T13:21:00Z  ['postcheckout'] running
+2026-10-15T13:21:00Z  {'frontend': 356.5, 'productcatalogservice': 399.0, 'checkoutservice': 770.0, 'recommendationservice': 817.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 433.0, 'currencyservice': 445.0, 'paymentservice': 0, 'shippingservice': 103.0}
+2026-10-15T13:21:00Z  ['checkoutservice']
+2026-10-15T13:21:00Z  {'frontend': 356.5, 'productcatalogservice': 399.0, 'checkoutservice': 770.0, 'recommendationservice': 817.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 433.0, 'currencyservice': 445.0, 'paymentservice': 0, 'shippingservice': 103.0}
+2026-10-15T13:21:00Z  ['checkoutservice']
+2026-10-15T13:21:00Z  [('postcheckout', 1, 0)]
+2026-10-15T13:21:00Z  postcheckout: 10
+2026-10-15T13:21:00Z  {'frontend': 356.5, 'productcatalogservice': 399.0, 'checkoutservice': 770.0, 'recommendationservice': 817.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 433.0, 'currencyservice': 445.0, 'paymentservice': 0, 'shippingservice': 103.0}
+2026-10-15T13:21:00Z  ['checkoutservice']
+2026-10-15T13:21:00Z  ['postcheckout']
+2026-10-15T13:21:00Z  number of valid agent
+2026-10-15T13:21:00Z  1
+2026-10-15T13:21:00Z  ['checkoutservice']
+2026-10-15T13:21:01Z  ['postcheckout'] running
+2026-10-15T13:21:02Z  {'frontend': 370.5, 'productcatalogservice': 473.0, 'checkoutservice': 661.0, 'recommendationservice': 817.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 323.0, 'currencyservice': 477.0, 'paymentservice': 0, 'shippingservice': 101.0}
+2026-10-15T13:21:02Z  ['checkoutservice']
+2026-10-15T13:21:02Z  {'frontend': 370.5, 'productcatalogservice': 473.0, 'checkoutservice': 661.0, 'recommendationservice': 817.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 323.0, 'currencyservice': 477.0, 'paymentservice': 0, 'shippingservice': 101.0}
+2026-10-15T13:21:02Z  ['checkoutservice']
+2026-10-15T13:21:02Z  [('postcheckout', 1, 0)]
+2026-10-15T13:21:02Z  postcheckout: 10
+2026-10-15T13:21:02Z  ['checkoutservice']
+2026-10-15T13:21:02Z  {'frontend': 382.0, 'productcatalogservice': 477.0, 'checkoutservice': 661.0, 'recommendationservice': 801.0, 'emailservice': 58.0, 'adservice': 0, 'cartservice': 340.0, 'currencyservice': 445.0, 'paymentservice': 0, 'shippingservice': 101.0}
+2026-10-15T13:21:02Z  ['checkoutservice']
+2026-10-15T13:21:02Z  ['postcheckout']
+2026-10-15T13:21:02Z  number of valid agent
+2026-10-15T13:21:02Z  1
+2026-10-15T13:21:03Z  ['postcheckout'] running
+2026-10-15T13:21:03Z  {'frontend': 406.0, 'productcatalogservice': 523.0, 'checkoutservice': 286.0, 'recommendationservice': 857.0, 'emailservice': 58.0, 'adservice': 0, 'cartservice': 340.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 54.0}
+2026-10-15T13:21:03Z  []
+2026-10-15T13:21:03Z  {'frontend': 406.0, 'productcatalogservice': 523.0, 'checkoutservice': 286.0, 'recommendationservice': 857.0, 'emailservice': 58.0, 'adservice': 0, 'cartservice': 340.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 54.0}
+2026-10-15T13:21:03Z  []
+2026-10-15T13:21:03Z  [('postcheckout', 0, 0)]
+2026-10-15T13:21:03Z  postcheckout: 14.058052897453308
+2026-10-15T13:21:03Z  []
+2026-10-15T13:21:04Z  ['postcheckout'] running
+2026-10-15T13:21:04Z  {'frontend': 405.0, 'productcatalogservice': 523.0, 'checkoutservice': 294.0, 'recommendationservice': 857.0, 'emailservice': 56.0, 'adservice': 0, 'cartservice': 345.0, 'currencyservice': 503.0, 'paymentservice': 0, 'shippingservice': 56.0}
+2026-10-15T13:21:04Z  []
+2026-10-15T13:21:04Z  {'frontend': 405.0, 'productcatalogservice': 523.0, 'checkoutservice': 294.0, 'recommendationservice': 857.0, 'emailservice': 56.0, 'adservice': 0, 'cartservice': 345.0, 'currencyservice': 503.0, 'paymentservice': 0, 'shippingservice': 56.0}
+2026-10-15T13:21:04Z  []
+2026-10-15T13:21:04Z  [('postcheckout', 0, 0)]
+2026-10-15T13:21:04Z  postcheckout: 17.859048574887204
+2026-10-15T13:21:04Z  {'frontend': 405.0, 'productcatalogservice': 523.0, 'checkoutservice': 294.0, 'recommendationservice': 857.0, 'emailservice': 56.0, 'adservice': 0, 'cartservice': 345.0, 'currencyservice': 503.0, 'paymentservice': 0, 'shippingservice': 56.0}
+2026-10-15T13:21:04Z  []
+2026-10-15T13:21:04Z  No overloaded services
+2026-10-15T13:21:04Z  []
+2026-10-15T13:21:05Z  ['postcheckout'] running
+2026-10-15T13:21:06Z  {'frontend': 406.75, 'productcatalogservice': 472.0, 'checkoutservice': 342.0, 'recommendationservice': 808.0, 'emailservice': 34.0, 'adservice': 0, 'cartservice': 366.0, 'currencyservice': 408.0, 'paymentservice': 0, 'shippingservice': 87.0}
+2026-10-15T13:21:06Z  []
+2026-10-15T13:21:06Z  {'frontend': 406.75, 'productcatalogservice': 472.0, 'checkoutservice': 342.0, 'recommendationservice': 808.0, 'emailservice': 34.0, 'adservice': 0, 'cartservice': 366.0, 'currencyservice': 408.0, 'paymentservice': 0, 'shippingservice': 87.0}
+2026-10-15T13:21:06Z  []
+2026-10-15T13:21:06Z  [('postcheckout', 0, 0)]
+2026-10-15T13:21:06Z  postcheckout: 19.93793556475593
+2026-10-15T13:21:06Z  []
+2026-10-15T13:21:06Z  {'frontend': 400.0, 'productcatalogservice': 472.0, 'checkoutservice': 342.0, 'recommendationservice': 818.0, 'emailservice': 34.0, 'adservice': 0, 'cartservice': 366.0, 'currencyservice': 408.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-15T13:21:06Z  []
+2026-10-15T13:21:06Z  No overloaded services
+2026-10-15T13:21:07Z  ['postcheckout'] running
+2026-10-15T13:21:07Z  {'frontend': 390.5, 'productcatalogservice': 474.0, 'checkoutservice': 424.0, 'recommendationservice': 818.0, 'emailservice': 42.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 463.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-15T13:21:07Z  []
+2026-10-15T13:21:07Z  {'frontend': 390.5, 'productcatalogservice': 474.0, 'checkoutservice': 424.0, 'recommendationservice': 818.0, 'emailservice': 42.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 463.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-15T13:21:07Z  []
+2026-10-15T13:21:07Z  [('postcheckout', 0, 0)]
+2026-10-15T13:21:07Z  postcheckout: 22.034542277635033
+2026-10-15T13:21:07Z  []
+2026-10-15T13:21:08Z  {'frontend': 389.75, 'productcatalogservice': 474.0, 'checkoutservice': 488.0, 'recommendationservice': 850.0, 'emailservice': 42.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 451.0, 'paymentservice': 0, 'shippingservice': 66.0}
+2026-10-15T13:21:08Z  []
+2026-10-15T13:21:08Z  No overloaded services
+2026-10-15T13:21:08Z  ['postcheckout'] running
+2026-10-15T13:21:09Z  {'frontend': 389.75, 'productcatalogservice': 474.0, 'checkoutservice': 488.0, 'recommendationservice': 850.0, 'emailservice': 42.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 451.0, 'paymentservice': 0, 'shippingservice': 66.0}
+2026-10-15T13:21:09Z  []
+2026-10-15T13:21:09Z  {'frontend': 389.75, 'productcatalogservice': 474.0, 'checkoutservice': 488.0, 'recommendationservice': 850.0, 'emailservice': 42.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 451.0, 'paymentservice': 0, 'shippingservice': 66.0}
+2026-10-15T13:21:09Z  []
+2026-10-15T13:21:09Z  [('postcheckout', 0, 0)]
+2026-10-15T13:21:09Z  postcheckout: 24.67080860298971
+2026-10-15T13:21:09Z  []
+2026-10-15T13:21:10Z  ['postcheckout'] running
+2026-10-15T13:21:10Z  {'frontend': 375.75, 'productcatalogservice': 470.0, 'checkoutservice': 414.0, 'recommendationservice': 776.0, 'emailservice': 59.0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 480.0, 'paymentservice': 0, 'shippingservice': 94.0}
+2026-10-15T13:21:10Z  []
+2026-10-15T13:21:10Z  {'frontend': 375.75, 'productcatalogservice': 470.0, 'checkoutservice': 414.0, 'recommendationservice': 776.0, 'emailservice': 59.0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 480.0, 'paymentservice': 0, 'shippingservice': 94.0}
+2026-10-15T13:21:10Z  []
+2026-10-15T13:21:10Z  [('postcheckout', 0, 0)]
+2026-10-15T13:21:10Z  postcheckout: 27.209773718463794
+2026-10-15T13:21:10Z  []
+2026-10-15T13:21:10Z  {'frontend': 378.0, 'productcatalogservice': 475.0, 'checkoutservice': 408.0, 'recommendationservice': 776.0, 'emailservice': 59.0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 480.0, 'paymentservice': 0, 'shippingservice': 94.0}
+2026-10-15T13:21:10Z  []
+2026-10-15T13:21:10Z  No overloaded services
+2026-10-15T13:21:11Z  ['postcheckout'] running
+2026-10-15T13:21:11Z  {'frontend': 339.5, 'productcatalogservice': 475.0, 'checkoutservice': 296.0, 'recommendationservice': 952.0, 'emailservice': 39.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:21:11Z  ['recommendationservice']
+2026-10-15T13:21:11Z  {'frontend': 339.5, 'productcatalogservice': 475.0, 'checkoutservice': 296.0, 'recommendationservice': 952.0, 'emailservice': 39.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:21:11Z  ['recommendationservice']
+2026-10-15T13:21:11Z  [('postcheckout', 3, 0)]
+2026-10-15T13:21:11Z  postcheckout: 20.733049484443875
+2026-10-15T13:21:12Z  ['recommendationservice']
+2026-10-15T13:21:12Z  {'frontend': 288.5, 'productcatalogservice': 376.0, 'checkoutservice': 296.0, 'recommendationservice': 1135.0, 'emailservice': 25.0, 'adservice': 0, 'cartservice': 314.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:21:12Z  ['recommendationservice']
+2026-10-15T13:21:12Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:12Z  number of valid agent
+2026-10-15T13:21:12Z  1
+2026-10-15T13:21:12Z  getproduct: 210.0
+2026-10-15T13:21:12Z  getcart: 82.0
+2026-10-15T13:21:14Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:14Z  {'frontend': 242.0, 'productcatalogservice': 322.0, 'checkoutservice': 40.0, 'recommendationservice': 1142.0, 'emailservice': 4.0, 'adservice': 0, 'cartservice': 363.0, 'currencyservice': 248.0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-15T13:21:14Z  ['recommendationservice']
+2026-10-15T13:21:14Z  {'frontend': 242.0, 'productcatalogservice': 322.0, 'checkoutservice': 40.0, 'recommendationservice': 1142.0, 'emailservice': 4.0, 'adservice': 0, 'cartservice': 363.0, 'currencyservice': 248.0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-15T13:21:14Z  ['recommendationservice']
+2026-10-15T13:21:14Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:14Z  postcheckout: 18.167102052286552
+2026-10-15T13:21:14Z  getproduct: 207.43405256784268
+2026-10-15T13:21:14Z  getcart: 79.43405256784268
+2026-10-15T13:21:14Z  ['recommendationservice']
+2026-10-15T13:21:15Z  {'frontend': 234.0, 'productcatalogservice': 322.0, 'checkoutservice': 40.0, 'recommendationservice': 1142.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 363.0, 'currencyservice': 321.0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-15T13:21:15Z  ['recommendationservice']
+2026-10-15T13:21:15Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:15Z  number of valid agent
+2026-10-15T13:21:15Z  1
+2026-10-15T13:21:15Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:15Z  {'frontend': 246.0, 'productcatalogservice': 328.0, 'checkoutservice': 45.0, 'recommendationservice': 1142.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 383.0, 'currencyservice': 321.0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-15T13:21:15Z  ['recommendationservice']
+2026-10-15T13:21:15Z  {'frontend': 246.0, 'productcatalogservice': 328.0, 'checkoutservice': 45.0, 'recommendationservice': 1142.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 383.0, 'currencyservice': 321.0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-15T13:21:15Z  ['recommendationservice']
+2026-10-15T13:21:15Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:15Z  postcheckout: 15.87410623760206
+2026-10-15T13:21:15Z  getproduct: 205.14105675315818
+2026-10-15T13:21:15Z  getcart: 77.1410567531582
+2026-10-15T13:21:15Z  ['recommendationservice']
+2026-10-15T13:21:16Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:17Z  {'frontend': 233.5, 'productcatalogservice': 328.0, 'checkoutservice': 16.0, 'recommendationservice': 1145.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 268.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:21:17Z  ['recommendationservice']
+2026-10-15T13:21:17Z  {'frontend': 233.5, 'productcatalogservice': 328.0, 'checkoutservice': 16.0, 'recommendationservice': 1145.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 268.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:21:17Z  ['recommendationservice']
+2026-10-15T13:21:17Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:17Z  {'frontend': 233.5, 'productcatalogservice': 328.0, 'checkoutservice': 16.0, 'recommendationservice': 1145.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 268.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:21:17Z  ['recommendationservice']
+2026-10-15T13:21:17Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:17Z  number of valid agent
+2026-10-15T13:21:17Z  1
+2026-10-15T13:21:17Z  postcheckout: 13.863581523604374
+2026-10-15T13:21:17Z  getproduct: 203.1305320391605
+2026-10-15T13:21:17Z  getcart: 75.13053203916051
+2026-10-15T13:21:17Z  ['recommendationservice']
+2026-10-15T13:21:18Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:18Z  {'frontend': 233.0, 'productcatalogservice': 314.0, 'checkoutservice': 14.0, 'recommendationservice': 1145.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:18Z  ['recommendationservice']
+2026-10-15T13:21:18Z  {'frontend': 233.0, 'productcatalogservice': 314.0, 'checkoutservice': 14.0, 'recommendationservice': 1145.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:18Z  ['recommendationservice']
+2026-10-15T13:21:18Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:18Z  postcheckout: 12.096907430150186
+2026-10-15T13:21:18Z  getproduct: 201.36385794570631
+2026-10-15T13:21:18Z  getcart: 73.36385794570633
+2026-10-15T13:21:18Z  ['recommendationservice']
+2026-10-15T13:21:19Z  {'frontend': 221.5, 'productcatalogservice': 305.0, 'checkoutservice': 14.0, 'recommendationservice': 1147.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 277.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:19Z  ['recommendationservice']
+2026-10-15T13:21:19Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:19Z  number of valid agent
+2026-10-15T13:21:19Z  1
+2026-10-15T13:21:19Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:19Z  {'frontend': 242.25, 'productcatalogservice': 305.0, 'checkoutservice': 14.0, 'recommendationservice': 1147.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 277.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:19Z  ['recommendationservice']
+2026-10-15T13:21:19Z  {'frontend': 242.25, 'productcatalogservice': 305.0, 'checkoutservice': 14.0, 'recommendationservice': 1147.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 277.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:19Z  ['recommendationservice']
+2026-10-15T13:21:19Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:19Z  postcheckout: 10.570235526717118
+2026-10-15T13:21:19Z  getproduct: 199.83718604227326
+2026-10-15T13:21:19Z  getcart: 71.83718604227326
+2026-10-15T13:21:20Z  ['recommendationservice']
+2026-10-15T13:21:21Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:21Z  {'frontend': 247.75, 'productcatalogservice': 324.0, 'checkoutservice': 55.0, 'recommendationservice': 1144.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 292.0, 'paymentservice': 0, 'shippingservice': 43.0}
+2026-10-15T13:21:21Z  ['recommendationservice']
+2026-10-15T13:21:21Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:21Z  number of valid agent
+2026-10-15T13:21:21Z  1
+2026-10-15T13:21:21Z  {'frontend': 254.25, 'productcatalogservice': 324.0, 'checkoutservice': 55.0, 'recommendationservice': 1144.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 292.0, 'paymentservice': 0, 'shippingservice': 43.0}
+2026-10-15T13:21:21Z  ['recommendationservice']
+2026-10-15T13:21:21Z  {'frontend': 254.25, 'productcatalogservice': 324.0, 'checkoutservice': 55.0, 'recommendationservice': 1144.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 292.0, 'paymentservice': 0, 'shippingservice': 43.0}
+2026-10-15T13:21:21Z  ['recommendationservice']
+2026-10-15T13:21:21Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:21Z  postcheckout: 10
+2026-10-15T13:21:21Z  getproduct: 198.4844337213558
+2026-10-15T13:21:21Z  getcart: 70.48443372135581
+2026-10-15T13:21:21Z  ['recommendationservice']
+2026-10-15T13:21:22Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:22Z  {'frontend': 226.5, 'productcatalogservice': 341.0, 'checkoutservice': 35.0, 'recommendationservice': 1144.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 386.0, 'currencyservice': 302.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:22Z  ['recommendationservice']
+2026-10-15T13:21:22Z  {'frontend': 226.5, 'productcatalogservice': 341.0, 'checkoutservice': 35.0, 'recommendationservice': 1144.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 386.0, 'currencyservice': 302.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:22Z  ['recommendationservice']
+2026-10-15T13:21:22Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:22Z  postcheckout: 10
+2026-10-15T13:21:22Z  getproduct: 197.21248997335852
+2026-10-15T13:21:22Z  getcart: 69.21248997335853
+2026-10-15T13:21:22Z  ['recommendationservice']
+2026-10-15T13:21:23Z  {'frontend': 226.5, 'productcatalogservice': 308.0, 'checkoutservice': 35.0, 'recommendationservice': 1144.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 386.0, 'currencyservice': 302.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:23Z  ['recommendationservice']
+2026-10-15T13:21:23Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:23Z  number of valid agent
+2026-10-15T13:21:23Z  1
+2026-10-15T13:21:23Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:24Z  {'frontend': 237.75, 'productcatalogservice': 308.0, 'checkoutservice': 35.0, 'recommendationservice': 1140.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 355.0, 'currencyservice': 285.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:24Z  ['recommendationservice']
+2026-10-15T13:21:24Z  {'frontend': 237.75, 'productcatalogservice': 308.0, 'checkoutservice': 35.0, 'recommendationservice': 1140.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 355.0, 'currencyservice': 285.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:24Z  ['recommendationservice']
+2026-10-15T13:21:24Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:24Z  postcheckout: 10
+2026-10-15T13:21:24Z  getproduct: 195.9592914887788
+2026-10-15T13:21:24Z  getcart: 67.9592914887788
+2026-10-15T13:21:24Z  ['recommendationservice']
+2026-10-15T13:21:25Z  {'frontend': 225.25, 'productcatalogservice': 320.0, 'checkoutservice': 25.0, 'recommendationservice': 1152.0, 'emailservice': 36.0, 'adservice': 0, 'cartservice': 372.0, 'currencyservice': 268.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:25Z  ['recommendationservice']
+2026-10-15T13:21:25Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:25Z  number of valid agent
+2026-10-15T13:21:25Z  1
+2026-10-15T13:21:25Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:25Z  {'frontend': 228.25, 'productcatalogservice': 320.0, 'checkoutservice': 25.0, 'recommendationservice': 1152.0, 'emailservice': 36.0, 'adservice': 0, 'cartservice': 372.0, 'currencyservice': 268.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:25Z  ['recommendationservice']
+2026-10-15T13:21:25Z  {'frontend': 228.25, 'productcatalogservice': 320.0, 'checkoutservice': 25.0, 'recommendationservice': 1152.0, 'emailservice': 36.0, 'adservice': 0, 'cartservice': 372.0, 'currencyservice': 268.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:25Z  ['recommendationservice']
+2026-10-15T13:21:25Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:25Z  postcheckout: 10
+2026-10-15T13:21:25Z  getproduct: 194.67148942833364
+2026-10-15T13:21:25Z  getcart: 66.67148942833366
+2026-10-15T13:21:25Z  ['recommendationservice']
+2026-10-15T13:21:26Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:26Z  {'frontend': 237.25, 'productcatalogservice': 298.0, 'checkoutservice': 15.0, 'recommendationservice': 1147.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 305.0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-15T13:21:26Z  ['recommendationservice']
+2026-10-15T13:21:26Z  {'frontend': 237.25, 'productcatalogservice': 298.0, 'checkoutservice': 15.0, 'recommendationservice': 1147.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 305.0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-15T13:21:26Z  ['recommendationservice']
+2026-10-15T13:21:26Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:27Z  postcheckout: 10
+2026-10-15T13:21:27Z  getproduct: 193.41104520445288
+2026-10-15T13:21:27Z  getcart: 65.41104520445289
+2026-10-15T13:21:27Z  ['recommendationservice']
+2026-10-15T13:21:27Z  {'frontend': 237.25, 'productcatalogservice': 298.0, 'checkoutservice': 15.0, 'recommendationservice': 1147.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 305.0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-15T13:21:27Z  ['recommendationservice']
+2026-10-15T13:21:27Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:27Z  number of valid agent
+2026-10-15T13:21:27Z  1
+2026-10-15T13:21:28Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:28Z  {'frontend': 215.25, 'productcatalogservice': 312.0, 'checkoutservice': 15.0, 'recommendationservice': 1146.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 411.0, 'currencyservice': 298.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:28Z  ['recommendationservice']
+2026-10-15T13:21:28Z  {'frontend': 215.25, 'productcatalogservice': 312.0, 'checkoutservice': 15.0, 'recommendationservice': 1146.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 411.0, 'currencyservice': 298.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:28Z  ['recommendationservice']
+2026-10-15T13:21:28Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:28Z  postcheckout: 10
+2026-10-15T13:21:28Z  getproduct: 192.12324582621673
+2026-10-15T13:21:28Z  getcart: 64.12324582621676
+2026-10-15T13:21:28Z  ['recommendationservice']
+2026-10-15T13:21:29Z  {'frontend': 229.75, 'productcatalogservice': 312.0, 'checkoutservice': 15.0, 'recommendationservice': 1146.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 411.0, 'currencyservice': 298.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:29Z  ['recommendationservice']
+2026-10-15T13:21:29Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:29Z  number of valid agent
+2026-10-15T13:21:29Z  1
+2026-10-15T13:21:29Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:29Z  {'frontend': 273.5, 'productcatalogservice': 324.0, 'checkoutservice': 15.0, 'recommendationservice': 1147.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 395.0, 'currencyservice': 276.0, 'paymentservice': 0, 'shippingservice': 20.0}
+2026-10-15T13:21:29Z  ['recommendationservice']
+2026-10-15T13:21:29Z  {'frontend': 273.5, 'productcatalogservice': 324.0, 'checkoutservice': 15.0, 'recommendationservice': 1147.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 395.0, 'currencyservice': 276.0, 'paymentservice': 0, 'shippingservice': 20.0}
+2026-10-15T13:21:29Z  ['recommendationservice']
+2026-10-15T13:21:29Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:29Z  postcheckout: 10
+2026-10-15T13:21:29Z  getproduct: 190.87120516186178
+2026-10-15T13:21:29Z  getcart: 62.8712051618618
+2026-10-15T13:21:29Z  ['recommendationservice']
+2026-10-15T13:21:30Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:31Z  {'frontend': 220.75, 'productcatalogservice': 324.0, 'checkoutservice': 15.0, 'recommendationservice': 1158.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 395.0, 'currencyservice': 276.0, 'paymentservice': 0, 'shippingservice': 20.0}
+2026-10-15T13:21:31Z  ['recommendationservice']
+2026-10-15T13:21:31Z  {'frontend': 220.75, 'productcatalogservice': 324.0, 'checkoutservice': 15.0, 'recommendationservice': 1158.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 395.0, 'currencyservice': 276.0, 'paymentservice': 0, 'shippingservice': 20.0}
+2026-10-15T13:21:31Z  ['recommendationservice']
+2026-10-15T13:21:31Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:31Z  postcheckout: 10
+2026-10-15T13:21:31Z  getproduct: 189.57840684140942
+2026-10-15T13:21:31Z  getcart: 61.57840684140943
+2026-10-15T13:21:31Z  ['recommendationservice']
+2026-10-15T13:21:31Z  {'frontend': 220.75, 'productcatalogservice': 324.0, 'checkoutservice': 15.0, 'recommendationservice': 1158.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 376.0, 'currencyservice': 276.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:31Z  ['recommendationservice']
+2026-10-15T13:21:31Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:31Z  number of valid agent
+2026-10-15T13:21:31Z  1
+2026-10-15T13:21:32Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:32Z  {'frontend': 239.75, 'productcatalogservice': 312.0, 'checkoutservice': 41.0, 'recommendationservice': 1158.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 392.0, 'currencyservice': 290.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:32Z  ['recommendationservice']
+2026-10-15T13:21:32Z  {'frontend': 239.75, 'productcatalogservice': 312.0, 'checkoutservice': 41.0, 'recommendationservice': 1158.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 392.0, 'currencyservice': 290.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:32Z  ['recommendationservice']
+2026-10-15T13:21:32Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:32Z  postcheckout: 10
+2026-10-15T13:21:32Z  getproduct: 188.31023517335674
+2026-10-15T13:21:32Z  getcart: 60.31023517335676
+2026-10-15T13:21:32Z  ['recommendationservice']
+2026-10-15T13:21:33Z  {'frontend': 225.0, 'productcatalogservice': 312.0, 'checkoutservice': 41.0, 'recommendationservice': 1148.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 392.0, 'currencyservice': 343.0, 'paymentservice': 0, 'shippingservice': 4.0}
+2026-10-15T13:21:33Z  ['recommendationservice']
+2026-10-15T13:21:33Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:33Z  number of valid agent
+2026-10-15T13:21:33Z  1
+2026-10-15T13:21:33Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:33Z  {'frontend': 222.75, 'productcatalogservice': 312.0, 'checkoutservice': 18.0, 'recommendationservice': 1147.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 343.0, 'paymentservice': 0, 'shippingservice': 4.0}
+2026-10-15T13:21:33Z  ['recommendationservice']
+2026-10-15T13:21:33Z  {'frontend': 222.75, 'productcatalogservice': 312.0, 'checkoutservice': 18.0, 'recommendationservice': 1147.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 343.0, 'paymentservice': 0, 'shippingservice': 4.0}
+2026-10-15T13:21:33Z  ['recommendationservice']
+2026-10-15T13:21:33Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:33Z  postcheckout: 10
+2026-10-15T13:21:33Z  getproduct: 187.02893548295123
+2026-10-15T13:21:33Z  getcart: 59.02893548295123
+2026-10-15T13:21:34Z  ['recommendationservice']
+2026-10-15T13:21:35Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:35Z  {'frontend': 244.25, 'productcatalogservice': 315.0, 'checkoutservice': 18.0, 'recommendationservice': 1147.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 384.0, 'currencyservice': 269.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:21:35Z  ['recommendationservice']
+2026-10-15T13:21:35Z  {'frontend': 244.25, 'productcatalogservice': 315.0, 'checkoutservice': 18.0, 'recommendationservice': 1147.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 384.0, 'currencyservice': 269.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:21:35Z  ['recommendationservice']
+2026-10-15T13:21:35Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:35Z  postcheckout: 10
+2026-10-15T13:21:35Z  {'frontend': 244.25, 'productcatalogservice': 315.0, 'checkoutservice': 18.0, 'recommendationservice': 1147.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 384.0, 'currencyservice': 269.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:21:35Z  ['recommendationservice']
+2026-10-15T13:21:35Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:35Z  number of valid agent
+2026-10-15T13:21:35Z  1
+2026-10-15T13:21:35Z  getproduct: 185.77402286812884
+2026-10-15T13:21:35Z  getcart: 57.774022868128846
+2026-10-15T13:21:35Z  ['recommendationservice']
+2026-10-15T13:21:36Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:36Z  {'frontend': 235.5, 'productcatalogservice': 317.0, 'checkoutservice': 0, 'recommendationservice': 1158.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 374.0, 'currencyservice': 296.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:36Z  ['recommendationservice']
+2026-10-15T13:21:36Z  {'frontend': 235.5, 'productcatalogservice': 317.0, 'checkoutservice': 0, 'recommendationservice': 1158.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 374.0, 'currencyservice': 296.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:36Z  ['recommendationservice']
+2026-10-15T13:21:36Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:36Z  postcheckout: 10
+2026-10-15T13:21:36Z  getproduct: 184.5051052479468
+2026-10-15T13:21:36Z  getcart: 56.50510524794681
+2026-10-15T13:21:36Z  ['recommendationservice']
+2026-10-15T13:21:37Z  {'frontend': 231.75, 'productcatalogservice': 303.0, 'checkoutservice': 0, 'recommendationservice': 1158.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 374.0, 'currencyservice': 296.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:37Z  ['recommendationservice']
+2026-10-15T13:21:37Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:37Z  number of valid agent
+2026-10-15T13:21:37Z  1
+2026-10-15T13:21:37Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:38Z  {'frontend': 225.25, 'productcatalogservice': 303.0, 'checkoutservice': 0, 'recommendationservice': 1158.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 374.0, 'currencyservice': 296.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:38Z  ['recommendationservice']
+2026-10-15T13:21:38Z  {'frontend': 225.25, 'productcatalogservice': 303.0, 'checkoutservice': 0, 'recommendationservice': 1158.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 374.0, 'currencyservice': 296.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:38Z  ['recommendationservice']
+2026-10-15T13:21:38Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:38Z  postcheckout: 10
+2026-10-15T13:21:38Z  getproduct: 183.21015271629116
+2026-10-15T13:21:38Z  getcart: 55.21015271629118
+2026-10-15T13:21:38Z  ['recommendationservice']
+2026-10-15T13:21:39Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:39Z  {'frontend': 238.0, 'productcatalogservice': 310.0, 'checkoutservice': 0, 'recommendationservice': 1143.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 350.0, 'currencyservice': 275.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:39Z  ['recommendationservice']
+2026-10-15T13:21:39Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:39Z  number of valid agent
+2026-10-15T13:21:39Z  1
+2026-10-15T13:21:39Z  {'frontend': 238.0, 'productcatalogservice': 310.0, 'checkoutservice': 0, 'recommendationservice': 1162.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 394.0, 'currencyservice': 275.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:21:39Z  ['recommendationservice']
+2026-10-15T13:21:39Z  {'frontend': 238.0, 'productcatalogservice': 310.0, 'checkoutservice': 0, 'recommendationservice': 1162.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 394.0, 'currencyservice': 275.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:21:39Z  ['recommendationservice']
+2026-10-15T13:21:39Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:39Z  postcheckout: 10
+2026-10-15T13:21:39Z  getproduct: 181.96545633758328
+2026-10-15T13:21:39Z  getcart: 53.96545633758329
+2026-10-15T13:21:39Z  ['recommendationservice']
+2026-10-15T13:21:40Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:40Z  {'frontend': 217.5, 'productcatalogservice': 346.0, 'checkoutservice': 19.0, 'recommendationservice': 1162.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 350.0, 'currencyservice': 283.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:21:40Z  ['recommendationservice']
+2026-10-15T13:21:40Z  {'frontend': 217.5, 'productcatalogservice': 346.0, 'checkoutservice': 19.0, 'recommendationservice': 1162.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 350.0, 'currencyservice': 283.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:21:40Z  ['recommendationservice']
+2026-10-15T13:21:40Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:40Z  postcheckout: 10
+2026-10-15T13:21:40Z  getproduct: 180.69921854223034
+2026-10-15T13:21:40Z  getcart: 52.699218542230355
+2026-10-15T13:21:41Z  ['recommendationservice']
+2026-10-15T13:21:41Z  {'frontend': 210.0, 'productcatalogservice': 346.0, 'checkoutservice': 19.0, 'recommendationservice': 1144.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 350.0, 'currencyservice': 283.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:41Z  ['recommendationservice']
+2026-10-15T13:21:41Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:41Z  number of valid agent
+2026-10-15T13:21:41Z  1
+2026-10-15T13:21:42Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:42Z  {'frontend': 215.75, 'productcatalogservice': 327.0, 'checkoutservice': 24.0, 'recommendationservice': 1144.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 376.0, 'currencyservice': 294.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:42Z  ['recommendationservice']
+2026-10-15T13:21:42Z  {'frontend': 215.75, 'productcatalogservice': 327.0, 'checkoutservice': 24.0, 'recommendationservice': 1144.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 376.0, 'currencyservice': 294.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:42Z  ['recommendationservice']
+2026-10-15T13:21:42Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:42Z  postcheckout: 10
+2026-10-15T13:21:42Z  getproduct: 179.42062798227093
+2026-10-15T13:21:42Z  getcart: 51.42062798227094
+2026-10-15T13:21:42Z  ['recommendationservice']
+2026-10-15T13:21:43Z  {'frontend': 225.25, 'productcatalogservice': 282.0, 'checkoutservice': 0, 'recommendationservice': 1171.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 405.0, 'currencyservice': 290.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:43Z  ['recommendationservice']
+2026-10-15T13:21:43Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:43Z  number of valid agent
+2026-10-15T13:21:43Z  1
+2026-10-15T13:21:43Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:43Z  {'frontend': 235.0, 'productcatalogservice': 282.0, 'checkoutservice': 0, 'recommendationservice': 1171.0, 'emailservice': 23.0, 'adservice': 0, 'cartservice': 405.0, 'currencyservice': 290.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:43Z  ['recommendationservice']
+2026-10-15T13:21:43Z  {'frontend': 235.0, 'productcatalogservice': 282.0, 'checkoutservice': 0, 'recommendationservice': 1171.0, 'emailservice': 23.0, 'adservice': 0, 'cartservice': 405.0, 'currencyservice': 290.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:43Z  ['recommendationservice']
+2026-10-15T13:21:43Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:43Z  postcheckout: 10
+2026-10-15T13:21:43Z  getproduct: 178.1631019024573
+2026-10-15T13:21:43Z  getcart: 50.163101902457306
+2026-10-15T13:21:43Z  ['recommendationservice']
+2026-10-15T13:21:44Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:45Z  {'frontend': 257.5, 'productcatalogservice': 330.0, 'checkoutservice': 16.0, 'recommendationservice': 1128.0, 'emailservice': 23.0, 'adservice': 0, 'cartservice': 392.0, 'currencyservice': 290.0, 'paymentservice': 0, 'shippingservice': 14.0}
+2026-10-15T13:21:45Z  ['recommendationservice']
+2026-10-15T13:21:45Z  {'frontend': 257.5, 'productcatalogservice': 330.0, 'checkoutservice': 16.0, 'recommendationservice': 1128.0, 'emailservice': 23.0, 'adservice': 0, 'cartservice': 392.0, 'currencyservice': 290.0, 'paymentservice': 0, 'shippingservice': 14.0}
+2026-10-15T13:21:45Z  ['recommendationservice']
+2026-10-15T13:21:45Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:45Z  postcheckout: 10
+2026-10-15T13:21:45Z  getproduct: 176.9048408973736
+2026-10-15T13:21:45Z  getcart: 48.90484089737359
+2026-10-15T13:21:45Z  ['recommendationservice']
+2026-10-15T13:21:45Z  {'frontend': 229.25, 'productcatalogservice': 330.0, 'checkoutservice': 16.0, 'recommendationservice': 1128.0, 'emailservice': 4.0, 'adservice': 0, 'cartservice': 392.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:45Z  ['recommendationservice']
+2026-10-15T13:21:45Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:45Z  number of valid agent
+2026-10-15T13:21:45Z  1
+2026-10-15T13:21:46Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:46Z  {'frontend': 218.25, 'productcatalogservice': 316.0, 'checkoutservice': 0, 'recommendationservice': 1145.0, 'emailservice': 4.0, 'adservice': 0, 'cartservice': 367.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:46Z  ['recommendationservice']
+2026-10-15T13:21:46Z  {'frontend': 218.25, 'productcatalogservice': 316.0, 'checkoutservice': 0, 'recommendationservice': 1145.0, 'emailservice': 4.0, 'adservice': 0, 'cartservice': 367.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:46Z  ['recommendationservice']
+2026-10-15T13:21:46Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:46Z  postcheckout: 10
+2026-10-15T13:21:46Z  getproduct: 175.63047282979113
+2026-10-15T13:21:46Z  getcart: 47.63047282979114
+2026-10-15T13:21:46Z  ['recommendationservice']
+2026-10-15T13:21:47Z  {'frontend': 244.0, 'productcatalogservice': 316.0, 'checkoutservice': 0, 'recommendationservice': 1145.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 367.0, 'currencyservice': 291.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:47Z  ['recommendationservice']
+2026-10-15T13:21:47Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:47Z  number of valid agent
+2026-10-15T13:21:47Z  1
+2026-10-15T13:21:47Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:47Z  {'frontend': 247.5, 'productcatalogservice': 311.0, 'checkoutservice': 0, 'recommendationservice': 1150.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 359.0, 'currencyservice': 291.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:47Z  ['recommendationservice']
+2026-10-15T13:21:47Z  {'frontend': 247.5, 'productcatalogservice': 311.0, 'checkoutservice': 0, 'recommendationservice': 1150.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 359.0, 'currencyservice': 291.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:47Z  ['recommendationservice']
+2026-10-15T13:21:47Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:48Z  postcheckout: 10
+2026-10-15T13:21:48Z  getproduct: 174.383924435429
+2026-10-15T13:21:48Z  getcart: 46.38392443542901
+2026-10-15T13:21:48Z  ['recommendationservice']
+2026-10-15T13:21:49Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:49Z  {'frontend': 249.75, 'productcatalogservice': 311.0, 'checkoutservice': 0, 'recommendationservice': 1147.0, 'emailservice': 18.0, 'adservice': 0, 'cartservice': 399.0, 'currencyservice': 324.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:49Z  ['recommendationservice']
+2026-10-15T13:21:49Z  {'frontend': 249.75, 'productcatalogservice': 311.0, 'checkoutservice': 0, 'recommendationservice': 1147.0, 'emailservice': 18.0, 'adservice': 0, 'cartservice': 399.0, 'currencyservice': 324.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:49Z  ['recommendationservice']
+2026-10-15T13:21:49Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:49Z  number of valid agent
+2026-10-15T13:21:49Z  1
+2026-10-15T13:21:49Z  {'frontend': 249.75, 'productcatalogservice': 311.0, 'checkoutservice': 0, 'recommendationservice': 1147.0, 'emailservice': 18.0, 'adservice': 0, 'cartservice': 399.0, 'currencyservice': 324.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:49Z  ['recommendationservice']
+2026-10-15T13:21:49Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:49Z  postcheckout: 10
+2026-10-15T13:21:49Z  getproduct: 173.0992679107708
+2026-10-15T13:21:49Z  getcart: 45.099267910770806
+2026-10-15T13:21:49Z  ['recommendationservice']
+2026-10-15T13:21:50Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:50Z  {'frontend': 248.25, 'productcatalogservice': 303.0, 'checkoutservice': 0, 'recommendationservice': 1164.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:50Z  ['recommendationservice']
+2026-10-15T13:21:50Z  {'frontend': 248.25, 'productcatalogservice': 303.0, 'checkoutservice': 0, 'recommendationservice': 1164.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:50Z  ['recommendationservice']
+2026-10-15T13:21:50Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:50Z  postcheckout: 10
+2026-10-15T13:21:50Z  getproduct: 171.84139155432803
+2026-10-15T13:21:50Z  getcart: 43.841391554328034
+2026-10-15T13:21:50Z  ['recommendationservice']
+2026-10-15T13:21:51Z  {'frontend': 248.25, 'productcatalogservice': 343.0, 'checkoutservice': 0, 'recommendationservice': 1129.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:51Z  ['recommendationservice']
+2026-10-15T13:21:51Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:51Z  number of valid agent
+2026-10-15T13:21:51Z  1
+2026-10-15T13:21:51Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:52Z  {'frontend': 251.75, 'productcatalogservice': 343.0, 'checkoutservice': 29.0, 'recommendationservice': 1129.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 313.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:52Z  ['recommendationservice']
+2026-10-15T13:21:52Z  {'frontend': 251.75, 'productcatalogservice': 343.0, 'checkoutservice': 29.0, 'recommendationservice': 1129.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 313.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:52Z  ['recommendationservice']
+2026-10-15T13:21:52Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:52Z  postcheckout: 10
+2026-10-15T13:21:52Z  getproduct: 170.58476490860406
+2026-10-15T13:21:52Z  getcart: 42.58476490860406
+2026-10-15T13:21:52Z  ['recommendationservice']
+2026-10-15T13:21:53Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:53Z  {'frontend': 231.0, 'productcatalogservice': 316.0, 'checkoutservice': 0, 'recommendationservice': 1149.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 432.0, 'currencyservice': 313.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:53Z  ['recommendationservice']
+2026-10-15T13:21:53Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:53Z  number of valid agent
+2026-10-15T13:21:53Z  1
+2026-10-15T13:21:53Z  {'frontend': 227.75, 'productcatalogservice': 316.0, 'checkoutservice': 0, 'recommendationservice': 1149.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 432.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:53Z  ['recommendationservice']
+2026-10-15T13:21:53Z  {'frontend': 227.75, 'productcatalogservice': 316.0, 'checkoutservice': 0, 'recommendationservice': 1149.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 432.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:53Z  ['recommendationservice']
+2026-10-15T13:21:53Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:53Z  postcheckout: 10
+2026-10-15T13:21:53Z  getproduct: 169.31586626256728
+2026-10-15T13:21:53Z  getcart: 41.315866262567276
+2026-10-15T13:21:53Z  ['recommendationservice']
+2026-10-15T13:21:54Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:54Z  {'frontend': 253.25, 'productcatalogservice': 314.0, 'checkoutservice': 0, 'recommendationservice': 1145.0, 'emailservice': 23.0, 'adservice': 0, 'cartservice': 391.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:54Z  ['recommendationservice']
+2026-10-15T13:21:54Z  {'frontend': 253.25, 'productcatalogservice': 314.0, 'checkoutservice': 0, 'recommendationservice': 1145.0, 'emailservice': 23.0, 'adservice': 0, 'cartservice': 391.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:54Z  ['recommendationservice']
+2026-10-15T13:21:54Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:54Z  postcheckout: 10
+2026-10-15T13:21:55Z  getproduct: 168.0637603311263
+2026-10-15T13:21:55Z  getcart: 40.06376033112629
+2026-10-15T13:21:55Z  ['recommendationservice']
+2026-10-15T13:21:55Z  {'frontend': 248.75, 'productcatalogservice': 314.0, 'checkoutservice': 0, 'recommendationservice': 1145.0, 'emailservice': 23.0, 'adservice': 0, 'cartservice': 391.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:55Z  ['recommendationservice']
+2026-10-15T13:21:55Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:55Z  number of valid agent
+2026-10-15T13:21:55Z  1
+2026-10-15T13:21:56Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:56Z  {'frontend': 248.75, 'productcatalogservice': 308.0, 'checkoutservice': 0, 'recommendationservice': 1145.0, 'emailservice': 23.0, 'adservice': 0, 'cartservice': 419.0, 'currencyservice': 286.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:21:56Z  ['recommendationservice']
+2026-10-15T13:21:56Z  {'frontend': 248.75, 'productcatalogservice': 308.0, 'checkoutservice': 0, 'recommendationservice': 1145.0, 'emailservice': 23.0, 'adservice': 0, 'cartservice': 419.0, 'currencyservice': 286.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:21:56Z  ['recommendationservice']
+2026-10-15T13:21:56Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:56Z  postcheckout: 10
+2026-10-15T13:21:56Z  getproduct: 166.81090735480413
+2026-10-15T13:21:56Z  getcart: 38.810907354804115
+2026-10-15T13:21:56Z  ['recommendationservice']
+2026-10-15T13:21:57Z  {'frontend': 239.25, 'productcatalogservice': 328.0, 'checkoutservice': 0, 'recommendationservice': 1153.0, 'emailservice': 4.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 296.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:21:57Z  ['recommendationservice']
+2026-10-15T13:21:57Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:57Z  number of valid agent
+2026-10-15T13:21:57Z  1
+2026-10-15T13:21:57Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:57Z  {'frontend': 220.75, 'productcatalogservice': 328.0, 'checkoutservice': 60.0, 'recommendationservice': 1153.0, 'emailservice': 4.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 296.0, 'paymentservice': 0, 'shippingservice': 3.0}
+2026-10-15T13:21:57Z  ['recommendationservice']
+2026-10-15T13:21:57Z  {'frontend': 220.75, 'productcatalogservice': 328.0, 'checkoutservice': 60.0, 'recommendationservice': 1153.0, 'emailservice': 4.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 296.0, 'paymentservice': 0, 'shippingservice': 3.0}
+2026-10-15T13:21:57Z  ['recommendationservice']
+2026-10-15T13:21:57Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:57Z  postcheckout: 10
+2026-10-15T13:21:57Z  getproduct: 165.55692000275081
+2026-10-15T13:21:57Z  getcart: 37.55692000275079
+2026-10-15T13:21:57Z  ['recommendationservice']
+2026-10-15T13:21:58Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:21:59Z  {'frontend': 236.75, 'productcatalogservice': 313.0, 'checkoutservice': 0, 'recommendationservice': 1139.0, 'emailservice': 34.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 285.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:59Z  ['recommendationservice']
+2026-10-15T13:21:59Z  {'frontend': 236.75, 'productcatalogservice': 313.0, 'checkoutservice': 0, 'recommendationservice': 1139.0, 'emailservice': 34.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 285.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:59Z  ['recommendationservice']
+2026-10-15T13:21:59Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:21:59Z  postcheckout: 10
+2026-10-15T13:21:59Z  getproduct: 164.2825188545905
+2026-10-15T13:21:59Z  getcart: 36.28251885459049
+2026-10-15T13:21:59Z  ['recommendationservice']
+2026-10-15T13:21:59Z  {'frontend': 235.75, 'productcatalogservice': 313.0, 'checkoutservice': 0, 'recommendationservice': 1139.0, 'emailservice': 34.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 285.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:21:59Z  ['recommendationservice']
+2026-10-15T13:21:59Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:21:59Z  number of valid agent
+2026-10-15T13:21:59Z  1
+2026-10-15T13:22:00Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:00Z  {'frontend': 232.25, 'productcatalogservice': 328.0, 'checkoutservice': 19.0, 'recommendationservice': 1149.0, 'emailservice': 34.0, 'adservice': 0, 'cartservice': 393.0, 'currencyservice': 252.0, 'paymentservice': 0, 'shippingservice': 27.0}
+2026-10-15T13:22:00Z  ['recommendationservice']
+2026-10-15T13:22:00Z  {'frontend': 232.25, 'productcatalogservice': 328.0, 'checkoutservice': 19.0, 'recommendationservice': 1149.0, 'emailservice': 34.0, 'adservice': 0, 'cartservice': 393.0, 'currencyservice': 252.0, 'paymentservice': 0, 'shippingservice': 27.0}
+2026-10-15T13:22:00Z  ['recommendationservice']
+2026-10-15T13:22:00Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:00Z  postcheckout: 10
+2026-10-15T13:22:00Z  getproduct: 163.00060166006512
+2026-10-15T13:22:00Z  getcart: 35.000601660065094
+2026-10-15T13:22:00Z  ['recommendationservice']
+2026-10-15T13:22:01Z  {'frontend': 211.25, 'productcatalogservice': 346.0, 'checkoutservice': 74.0, 'recommendationservice': 1149.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 252.0, 'paymentservice': 0, 'shippingservice': 27.0}
+2026-10-15T13:22:01Z  ['recommendationservice']
+2026-10-15T13:22:01Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:01Z  number of valid agent
+2026-10-15T13:22:01Z  1
+2026-10-15T13:22:01Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:01Z  {'frontend': 210.75, 'productcatalogservice': 346.0, 'checkoutservice': 74.0, 'recommendationservice': 1149.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 252.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:01Z  ['recommendationservice']
+2026-10-15T13:22:01Z  {'frontend': 210.75, 'productcatalogservice': 346.0, 'checkoutservice': 74.0, 'recommendationservice': 1149.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 252.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:01Z  ['recommendationservice']
+2026-10-15T13:22:01Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:01Z  postcheckout: 10
+2026-10-15T13:22:01Z  getproduct: 161.742357443623
+2026-10-15T13:22:02Z  getcart: 33.742357443622986
+2026-10-15T13:22:02Z  ['recommendationservice']
+2026-10-15T13:22:03Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:03Z  {'frontend': 242.5, 'productcatalogservice': 329.0, 'checkoutservice': 25.0, 'recommendationservice': 1157.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 408.0, 'currencyservice': 295.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:03Z  ['recommendationservice']
+2026-10-15T13:22:03Z  {'frontend': 242.5, 'productcatalogservice': 329.0, 'checkoutservice': 25.0, 'recommendationservice': 1157.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 408.0, 'currencyservice': 295.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:03Z  ['recommendationservice']
+2026-10-15T13:22:03Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:03Z  postcheckout: 10
+2026-10-15T13:22:03Z  getproduct: 160.47456039076275
+2026-10-15T13:22:03Z  getcart: 32.474560390762726
+2026-10-15T13:22:03Z  {'frontend': 242.5, 'productcatalogservice': 329.0, 'checkoutservice': 25.0, 'recommendationservice': 1157.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 408.0, 'currencyservice': 295.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:03Z  ['recommendationservice']
+2026-10-15T13:22:03Z  ['recommendationservice']
+2026-10-15T13:22:03Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:03Z  number of valid agent
+2026-10-15T13:22:03Z  1
+2026-10-15T13:22:04Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:04Z  {'frontend': 226.5, 'productcatalogservice': 324.0, 'checkoutservice': 0, 'recommendationservice': 1142.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 350.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 11.0}
+2026-10-15T13:22:04Z  ['recommendationservice']
+2026-10-15T13:22:04Z  {'frontend': 226.5, 'productcatalogservice': 324.0, 'checkoutservice': 0, 'recommendationservice': 1142.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 350.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 11.0}
+2026-10-15T13:22:04Z  ['recommendationservice']
+2026-10-15T13:22:04Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:04Z  postcheckout: 10
+2026-10-15T13:22:04Z  getproduct: 159.20649561370638
+2026-10-15T13:22:04Z  getcart: 31.20649561370635
+2026-10-15T13:22:04Z  ['recommendationservice']
+2026-10-15T13:22:05Z  {'frontend': 236.0, 'productcatalogservice': 314.0, 'checkoutservice': 0, 'recommendationservice': 1142.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 350.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 11.0}
+2026-10-15T13:22:05Z  ['recommendationservice']
+2026-10-15T13:22:05Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:05Z  number of valid agent
+2026-10-15T13:22:05Z  1
+2026-10-15T13:22:05Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:06Z  {'frontend': 233.75, 'productcatalogservice': 314.0, 'checkoutservice': 0, 'recommendationservice': 1142.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 11.0}
+2026-10-15T13:22:06Z  ['recommendationservice']
+2026-10-15T13:22:06Z  {'frontend': 233.75, 'productcatalogservice': 314.0, 'checkoutservice': 0, 'recommendationservice': 1142.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 11.0}
+2026-10-15T13:22:06Z  ['recommendationservice']
+2026-10-15T13:22:06Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:06Z  postcheckout: 10
+2026-10-15T13:22:06Z  getproduct: 157.9144552656534
+2026-10-15T13:22:06Z  getcart: 29.91445526565337
+2026-10-15T13:22:06Z  ['recommendationservice']
+2026-10-15T13:22:07Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:07Z  {'frontend': 224.75, 'productcatalogservice': 344.0, 'checkoutservice': 0, 'recommendationservice': 1150.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 337.0, 'currencyservice': 265.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:07Z  ['recommendationservice']
+2026-10-15T13:22:07Z  {'frontend': 224.75, 'productcatalogservice': 344.0, 'checkoutservice': 0, 'recommendationservice': 1150.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 337.0, 'currencyservice': 265.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:07Z  ['recommendationservice']
+2026-10-15T13:22:07Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:07Z  {'frontend': 224.75, 'productcatalogservice': 344.0, 'checkoutservice': 0, 'recommendationservice': 1150.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 337.0, 'currencyservice': 265.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:07Z  ['recommendationservice']
+2026-10-15T13:22:07Z  postcheckout: 10
+2026-10-15T13:22:07Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:07Z  number of valid agent
+2026-10-15T13:22:07Z  1
+2026-10-15T13:22:07Z  getproduct: 156.64491557166207
+2026-10-15T13:22:07Z  getcart: 28.644915571662025
+2026-10-15T13:22:07Z  ['recommendationservice']
+2026-10-15T13:22:08Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:08Z  {'frontend': 192.5, 'productcatalogservice': 351.0, 'checkoutservice': 16.0, 'recommendationservice': 1149.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 319.0, 'currencyservice': 270.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:08Z  ['recommendationservice']
+2026-10-15T13:22:08Z  {'frontend': 192.5, 'productcatalogservice': 351.0, 'checkoutservice': 16.0, 'recommendationservice': 1149.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 319.0, 'currencyservice': 270.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:08Z  ['recommendationservice']
+2026-10-15T13:22:08Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:08Z  postcheckout: 10
+2026-10-15T13:22:09Z  getproduct: 155.37480844145247
+2026-10-15T13:22:09Z  getcart: 27.37480844145242
+2026-10-15T13:22:09Z  ['recommendationservice']
+2026-10-15T13:22:09Z  {'frontend': 191.25, 'productcatalogservice': 351.0, 'checkoutservice': 16.0, 'recommendationservice': 1153.0, 'emailservice': 33.0, 'adservice': 0, 'cartservice': 319.0, 'currencyservice': 270.0, 'paymentservice': 0, 'shippingservice': 3.0}
+2026-10-15T13:22:09Z  ['recommendationservice']
+2026-10-15T13:22:09Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:09Z  number of valid agent
+2026-10-15T13:22:09Z  1
+2026-10-15T13:22:10Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:10Z  {'frontend': 199.75, 'productcatalogservice': 336.0, 'checkoutservice': 16.0, 'recommendationservice': 1153.0, 'emailservice': 33.0, 'adservice': 0, 'cartservice': 334.0, 'currencyservice': 228.0, 'paymentservice': 0, 'shippingservice': 3.0}
+2026-10-15T13:22:10Z  ['recommendationservice']
+2026-10-15T13:22:10Z  {'frontend': 219.0, 'productcatalogservice': 336.0, 'checkoutservice': 14.0, 'recommendationservice': 1153.0, 'emailservice': 33.0, 'adservice': 0, 'cartservice': 334.0, 'currencyservice': 228.0, 'paymentservice': 0, 'shippingservice': 29.0}
+2026-10-15T13:22:10Z  ['recommendationservice']
+2026-10-15T13:22:10Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:10Z  postcheckout: 10
+2026-10-15T13:22:10Z  getproduct: 154.09633391186821
+2026-10-15T13:22:10Z  getcart: 26.09633391186817
+2026-10-15T13:22:10Z  ['recommendationservice']
+2026-10-15T13:22:11Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:11Z  {'frontend': 234.75, 'productcatalogservice': 383.0, 'checkoutservice': 62.0, 'recommendationservice': 1147.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 334.0, 'currencyservice': 267.0, 'paymentservice': 0, 'shippingservice': 29.0}
+2026-10-15T13:22:11Z  ['recommendationservice']
+2026-10-15T13:22:11Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:11Z  number of valid agent
+2026-10-15T13:22:11Z  1
+2026-10-15T13:22:11Z  {'frontend': 234.25, 'productcatalogservice': 383.0, 'checkoutservice': 62.0, 'recommendationservice': 1147.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 334.0, 'currencyservice': 267.0, 'paymentservice': 0, 'shippingservice': 29.0}
+2026-10-15T13:22:11Z  ['recommendationservice']
+2026-10-15T13:22:11Z  {'frontend': 234.25, 'productcatalogservice': 383.0, 'checkoutservice': 62.0, 'recommendationservice': 1147.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 334.0, 'currencyservice': 267.0, 'paymentservice': 0, 'shippingservice': 29.0}
+2026-10-15T13:22:11Z  ['recommendationservice']
+2026-10-15T13:22:11Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:11Z  postcheckout: 10
+2026-10-15T13:22:11Z  getproduct: 152.83796303555596
+2026-10-15T13:22:11Z  getcart: 24.837963035555916
+2026-10-15T13:22:11Z  ['recommendationservice']
+2026-10-15T13:22:12Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:13Z  {'frontend': 214.75, 'productcatalogservice': 327.0, 'checkoutservice': 28.0, 'recommendationservice': 1154.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 261.0, 'paymentservice': 0, 'shippingservice': 3.0}
+2026-10-15T13:22:13Z  ['recommendationservice']
+2026-10-15T13:22:13Z  {'frontend': 214.75, 'productcatalogservice': 327.0, 'checkoutservice': 28.0, 'recommendationservice': 1154.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 261.0, 'paymentservice': 0, 'shippingservice': 3.0}
+2026-10-15T13:22:13Z  ['recommendationservice']
+2026-10-15T13:22:13Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:13Z  postcheckout: 10
+2026-10-15T13:22:13Z  getproduct: 151.57105131035277
+2026-10-15T13:22:13Z  getcart: 23.57105131035272
+2026-10-15T13:22:13Z  ['recommendationservice']
+2026-10-15T13:22:13Z  {'frontend': 203.0, 'productcatalogservice': 327.0, 'checkoutservice': 28.0, 'recommendationservice': 1154.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 368.0, 'currencyservice': 261.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:13Z  ['recommendationservice']
+2026-10-15T13:22:13Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:13Z  number of valid agent
+2026-10-15T13:22:13Z  1
+2026-10-15T13:22:14Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:14Z  {'frontend': 203.0, 'productcatalogservice': 327.0, 'checkoutservice': 0, 'recommendationservice': 1146.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 368.0, 'currencyservice': 256.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:14Z  ['recommendationservice']
+2026-10-15T13:22:14Z  {'frontend': 203.0, 'productcatalogservice': 327.0, 'checkoutservice': 0, 'recommendationservice': 1146.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 368.0, 'currencyservice': 256.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:14Z  ['recommendationservice']
+2026-10-15T13:22:14Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:14Z  postcheckout: 10
+2026-10-15T13:22:14Z  getproduct: 150.31333052203286
+2026-10-15T13:22:14Z  getcart: 22.313330522032814
+2026-10-15T13:22:14Z  ['recommendationservice']
+2026-10-15T13:22:15Z  {'frontend': 230.75, 'productcatalogservice': 338.0, 'checkoutservice': 0, 'recommendationservice': 1156.0, 'emailservice': 28.0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 256.0, 'paymentservice': 0, 'shippingservice': 23.0}
+2026-10-15T13:22:15Z  ['recommendationservice']
+2026-10-15T13:22:15Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:15Z  number of valid agent
+2026-10-15T13:22:15Z  1
+2026-10-15T13:22:15Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:15Z  {'frontend': 230.75, 'productcatalogservice': 369.0, 'checkoutservice': 0, 'recommendationservice': 1156.0, 'emailservice': 28.0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 272.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:15Z  ['recommendationservice']
+2026-10-15T13:22:15Z  {'frontend': 230.75, 'productcatalogservice': 369.0, 'checkoutservice': 0, 'recommendationservice': 1156.0, 'emailservice': 28.0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 272.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:15Z  ['recommendationservice']
+2026-10-15T13:22:15Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:15Z  postcheckout: 10
+2026-10-15T13:22:15Z  getproduct: 149.05860317831466
+2026-10-15T13:22:15Z  getcart: 21.058603178314602
+2026-10-15T13:22:16Z  ['recommendationservice']
+2026-10-15T13:22:17Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:17Z  {'frontend': 225.0, 'productcatalogservice': 369.0, 'checkoutservice': 0, 'recommendationservice': 1148.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 272.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:17Z  ['recommendationservice']
+2026-10-15T13:22:17Z  {'frontend': 225.0, 'productcatalogservice': 369.0, 'checkoutservice': 0, 'recommendationservice': 1148.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 272.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:17Z  ['recommendationservice']
+2026-10-15T13:22:17Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:17Z  postcheckout: 10
+2026-10-15T13:22:17Z  getproduct: 147.7752223917368
+2026-10-15T13:22:17Z  getcart: 19.77522239173674
+2026-10-15T13:22:17Z  ['recommendationservice']
+2026-10-15T13:22:17Z  {'frontend': 226.75, 'productcatalogservice': 330.0, 'checkoutservice': 0, 'recommendationservice': 1148.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 225.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:17Z  ['recommendationservice']
+2026-10-15T13:22:17Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:17Z  number of valid agent
+2026-10-15T13:22:17Z  1
+2026-10-15T13:22:18Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:18Z  {'frontend': 209.5, 'productcatalogservice': 330.0, 'checkoutservice': 0, 'recommendationservice': 1149.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 335.0, 'currencyservice': 225.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:18Z  ['recommendationservice']
+2026-10-15T13:22:18Z  {'frontend': 209.5, 'productcatalogservice': 330.0, 'checkoutservice': 0, 'recommendationservice': 1149.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 335.0, 'currencyservice': 225.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:18Z  ['recommendationservice']
+2026-10-15T13:22:18Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:18Z  postcheckout: 10
+2026-10-15T13:22:18Z  getproduct: 146.51370409215718
+2026-10-15T13:22:18Z  getcart: 18.51370409215712
+2026-10-15T13:22:18Z  ['recommendationservice']
+2026-10-15T13:22:19Z  {'frontend': 233.0, 'productcatalogservice': 358.0, 'checkoutservice': 14.0, 'recommendationservice': 1149.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 335.0, 'currencyservice': 271.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:19Z  ['recommendationservice']
+2026-10-15T13:22:19Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:19Z  number of valid agent
+2026-10-15T13:22:19Z  1
+2026-10-15T13:22:19Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:19Z  {'frontend': 224.25, 'productcatalogservice': 358.0, 'checkoutservice': 14.0, 'recommendationservice': 1149.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 335.0, 'currencyservice': 271.0, 'paymentservice': 0, 'shippingservice': 35.0}
+2026-10-15T13:22:19Z  ['recommendationservice']
+2026-10-15T13:22:19Z  {'frontend': 224.25, 'productcatalogservice': 358.0, 'checkoutservice': 14.0, 'recommendationservice': 1149.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 335.0, 'currencyservice': 271.0, 'paymentservice': 0, 'shippingservice': 35.0}
+2026-10-15T13:22:19Z  ['recommendationservice']
+2026-10-15T13:22:19Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:19Z  postcheckout: 10
+2026-10-15T13:22:20Z  getproduct: 145.23264043614498
+2026-10-15T13:22:20Z  getcart: 17.2326404361449
+2026-10-15T13:22:20Z  ['recommendationservice']
+2026-10-15T13:22:21Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:21Z  {'frontend': 202.5, 'productcatalogservice': 341.0, 'checkoutservice': 39.0, 'recommendationservice': 1143.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 250.0, 'paymentservice': 0, 'shippingservice': 35.0}
+2026-10-15T13:22:21Z  ['recommendationservice']
+2026-10-15T13:22:21Z  {'frontend': 202.5, 'productcatalogservice': 341.0, 'checkoutservice': 39.0, 'recommendationservice': 1143.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 250.0, 'paymentservice': 0, 'shippingservice': 35.0}
+2026-10-15T13:22:21Z  ['recommendationservice']
+2026-10-15T13:22:21Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:21Z  postcheckout: 10
+2026-10-15T13:22:21Z  getproduct: 143.97423141286006
+2026-10-15T13:22:21Z  getcart: 15.97423141285999
+2026-10-15T13:22:21Z  ['recommendationservice']
+2026-10-15T13:22:21Z  {'frontend': 202.5, 'productcatalogservice': 341.0, 'checkoutservice': 29.0, 'recommendationservice': 1143.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 250.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:21Z  ['recommendationservice']
+2026-10-15T13:22:21Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:21Z  number of valid agent
+2026-10-15T13:22:21Z  1
+2026-10-15T13:22:22Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:22Z  {'frontend': 199.75, 'productcatalogservice': 358.0, 'checkoutservice': 29.0, 'recommendationservice': 1152.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 385.0, 'currencyservice': 266.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:22Z  ['recommendationservice']
+2026-10-15T13:22:22Z  {'frontend': 199.75, 'productcatalogservice': 358.0, 'checkoutservice': 29.0, 'recommendationservice': 1152.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 385.0, 'currencyservice': 266.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:22Z  ['recommendationservice']
+2026-10-15T13:22:22Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:22Z  postcheckout: 10
+2026-10-15T13:22:22Z  getproduct: 142.69965830529958
+2026-10-15T13:22:22Z  getcart: 14.699658305299513
+2026-10-15T13:22:22Z  ['recommendationservice']
+2026-10-15T13:22:23Z  {'frontend': 217.5, 'productcatalogservice': 332.0, 'checkoutservice': 29.0, 'recommendationservice': 1149.0, 'emailservice': 7.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 266.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:23Z  ['recommendationservice']
+2026-10-15T13:22:23Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:23Z  number of valid agent
+2026-10-15T13:22:23Z  1
+2026-10-15T13:22:23Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:24Z  {'frontend': 217.25, 'productcatalogservice': 332.0, 'checkoutservice': 29.0, 'recommendationservice': 1149.0, 'emailservice': 7.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 248.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:24Z  ['recommendationservice']
+2026-10-15T13:22:24Z  {'frontend': 217.25, 'productcatalogservice': 332.0, 'checkoutservice': 29.0, 'recommendationservice': 1149.0, 'emailservice': 7.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 248.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:24Z  ['recommendationservice']
+2026-10-15T13:22:24Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:24Z  postcheckout: 10
+2026-10-15T13:22:24Z  getproduct: 141.44003682419887
+2026-10-15T13:22:24Z  getcart: 13.440036824198796
+2026-10-15T13:22:24Z  ['recommendationservice']
+2026-10-15T13:22:25Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:25Z  {'frontend': 217.0, 'productcatalogservice': 332.0, 'checkoutservice': 43.0, 'recommendationservice': 1150.0, 'emailservice': 31.0, 'adservice': 0, 'cartservice': 389.0, 'currencyservice': 257.0, 'paymentservice': 0, 'shippingservice': 15.0}
+2026-10-15T13:22:25Z  ['recommendationservice']
+2026-10-15T13:22:25Z  {'frontend': 217.0, 'productcatalogservice': 332.0, 'checkoutservice': 43.0, 'recommendationservice': 1150.0, 'emailservice': 31.0, 'adservice': 0, 'cartservice': 389.0, 'currencyservice': 257.0, 'paymentservice': 0, 'shippingservice': 15.0}
+2026-10-15T13:22:25Z  ['recommendationservice']
+2026-10-15T13:22:25Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:25Z  postcheckout: 10
+2026-10-15T13:22:25Z  getproduct: 140.1566150097572
+2026-10-15T13:22:25Z  getcart: 12.156615009757115
+2026-10-15T13:22:25Z  ['recommendationservice']
+2026-10-15T13:22:25Z  {'frontend': 217.0, 'productcatalogservice': 334.0, 'checkoutservice': 43.0, 'recommendationservice': 1150.0, 'emailservice': 31.0, 'adservice': 0, 'cartservice': 389.0, 'currencyservice': 257.0, 'paymentservice': 0, 'shippingservice': 15.0}
+2026-10-15T13:22:25Z  ['recommendationservice']
+2026-10-15T13:22:25Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:25Z  number of valid agent
+2026-10-15T13:22:25Z  1
+2026-10-15T13:22:26Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:26Z  {'frontend': 206.5, 'productcatalogservice': 362.0, 'checkoutservice': 0, 'recommendationservice': 1149.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 358.0, 'currencyservice': 257.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:26Z  ['recommendationservice']
+2026-10-15T13:22:26Z  {'frontend': 206.5, 'productcatalogservice': 362.0, 'checkoutservice': 0, 'recommendationservice': 1149.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 358.0, 'currencyservice': 257.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:26Z  ['recommendationservice']
+2026-10-15T13:22:26Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:26Z  postcheckout: 10
+2026-10-15T13:22:26Z  getproduct: 138.88331654752523
+2026-10-15T13:22:26Z  getcart: 10.88331654752516
+2026-10-15T13:22:27Z  ['recommendationservice']
+2026-10-15T13:22:27Z  {'frontend': 221.0, 'productcatalogservice': 362.0, 'checkoutservice': 0, 'recommendationservice': 1173.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 358.0, 'currencyservice': 248.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-15T13:22:27Z  ['recommendationservice']
+2026-10-15T13:22:27Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:27Z  number of valid agent
+2026-10-15T13:22:27Z  1
+2026-10-15T13:22:28Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:28Z  {'frontend': 221.0, 'productcatalogservice': 362.0, 'checkoutservice': 0, 'recommendationservice': 1173.0, 'emailservice': 8.0, 'adservice': 0, 'cartservice': 358.0, 'currencyservice': 248.0, 'paymentservice': 0, 'shippingservice': 8.0}
+2026-10-15T13:22:28Z  ['recommendationservice']
+2026-10-15T13:22:28Z  {'frontend': 221.0, 'productcatalogservice': 362.0, 'checkoutservice': 0, 'recommendationservice': 1173.0, 'emailservice': 8.0, 'adservice': 0, 'cartservice': 358.0, 'currencyservice': 248.0, 'paymentservice': 0, 'shippingservice': 8.0}
+2026-10-15T13:22:28Z  ['recommendationservice']
+2026-10-15T13:22:28Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:28Z  postcheckout: 10
+2026-10-15T13:22:28Z  getproduct: 137.61256340230733
+2026-10-15T13:22:28Z  getcart: 10
+2026-10-15T13:22:28Z  ['recommendationservice']
+2026-10-15T13:22:29Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:29Z  {'frontend': 242.5, 'productcatalogservice': 362.0, 'checkoutservice': 96.0, 'recommendationservice': 1135.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 359.0, 'currencyservice': 288.0, 'paymentservice': 0, 'shippingservice': 8.0}
+2026-10-15T13:22:29Z  ['recommendationservice']
+2026-10-15T13:22:29Z  {'frontend': 242.5, 'productcatalogservice': 362.0, 'checkoutservice': 96.0, 'recommendationservice': 1135.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 359.0, 'currencyservice': 288.0, 'paymentservice': 0, 'shippingservice': 8.0}
+2026-10-15T13:22:29Z  ['recommendationservice']
+2026-10-15T13:22:29Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:29Z  postcheckout: 10
+2026-10-15T13:22:29Z  getproduct: 136.31673249686986
+2026-10-15T13:22:29Z  getcart: 10
+2026-10-15T13:22:29Z  {'frontend': 242.5, 'productcatalogservice': 362.0, 'checkoutservice': 96.0, 'recommendationservice': 1135.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 359.0, 'currencyservice': 288.0, 'paymentservice': 0, 'shippingservice': 8.0}
+2026-10-15T13:22:29Z  ['recommendationservice']
+2026-10-15T13:22:29Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:29Z  number of valid agent
+2026-10-15T13:22:29Z  1
+2026-10-15T13:22:29Z  ['recommendationservice']
+2026-10-15T13:22:30Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:30Z  {'frontend': 253.0, 'productcatalogservice': 416.0, 'checkoutservice': 96.0, 'recommendationservice': 1135.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 346.0, 'currencyservice': 262.0, 'paymentservice': 0, 'shippingservice': 24.0}
+2026-10-15T13:22:30Z  ['recommendationservice']
+2026-10-15T13:22:30Z  {'frontend': 253.0, 'productcatalogservice': 416.0, 'checkoutservice': 96.0, 'recommendationservice': 1135.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 346.0, 'currencyservice': 262.0, 'paymentservice': 0, 'shippingservice': 24.0}
+2026-10-15T13:22:30Z  ['recommendationservice']
+2026-10-15T13:22:30Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:30Z  postcheckout: 10
+2026-10-15T13:22:31Z  getproduct: 135.0482276388529
+2026-10-15T13:22:31Z  getcart: 10
+2026-10-15T13:22:31Z  ['recommendationservice']
+2026-10-15T13:22:31Z  {'frontend': 294.25, 'productcatalogservice': 500.0, 'checkoutservice': 281.0, 'recommendationservice': 1054.0, 'emailservice': 29.0, 'adservice': 0, 'cartservice': 416.0, 'currencyservice': 316.0, 'paymentservice': 0, 'shippingservice': 36.0}
+2026-10-15T13:22:31Z  ['recommendationservice']
+2026-10-15T13:22:31Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:31Z  number of valid agent
+2026-10-15T13:22:31Z  1
+2026-10-15T13:22:32Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:32Z  {'frontend': 348.5, 'productcatalogservice': 500.0, 'checkoutservice': 281.0, 'recommendationservice': 1054.0, 'emailservice': 29.0, 'adservice': 0, 'cartservice': 416.0, 'currencyservice': 316.0, 'paymentservice': 0, 'shippingservice': 35.0}
+2026-10-15T13:22:32Z  ['recommendationservice']
+2026-10-15T13:22:32Z  {'frontend': 348.5, 'productcatalogservice': 500.0, 'checkoutservice': 281.0, 'recommendationservice': 1054.0, 'emailservice': 29.0, 'adservice': 0, 'cartservice': 416.0, 'currencyservice': 316.0, 'paymentservice': 0, 'shippingservice': 35.0}
+2026-10-15T13:22:32Z  ['recommendationservice']
+2026-10-15T13:22:32Z  [('postcheckout', 3, 0), ('getproduct', 3, 0), ('getcart', 3, 0)]
+2026-10-15T13:22:32Z  postcheckout: 10
+2026-10-15T13:22:32Z  getproduct: 134.03601937577358
+2026-10-15T13:22:32Z  getcart: 10
+2026-10-15T13:22:32Z  ['recommendationservice']
+2026-10-15T13:22:33Z  ['postcheckout', 'getproduct', 'getcart'] running
+2026-10-15T13:22:33Z  {'frontend': 364.5, 'productcatalogservice': 523.0, 'checkoutservice': 429.0, 'recommendationservice': 761.0, 'emailservice': 54.0, 'adservice': 0, 'cartservice': 380.0, 'currencyservice': 313.0, 'paymentservice': 0, 'shippingservice': 35.0}
+2026-10-15T13:22:33Z  []
+2026-10-15T13:22:33Z  Disaggregate!
+2026-10-15T13:22:33Z  Start agent with target API []
+2026-10-15T13:22:33Z  postcheckout: 10
+2026-10-15T13:22:34Z  Start agent with target API []
+2026-10-15T13:22:34Z  getproduct: 134.03601937577358
+2026-10-15T13:22:34Z  Start agent with target API []
+2026-10-15T13:22:34Z  getcart: 10
+2026-10-15T13:22:34Z  ['postcheckout'] running
+2026-10-15T13:22:35Z  ['getproduct'] running
+2026-10-15T13:22:35Z  Start agent with target API []
+2026-10-15T13:22:35Z  {'frontend': 314.75, 'productcatalogservice': 499.0, 'checkoutservice': 279.0, 'recommendationservice': 451.0, 'emailservice': 31.0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 288.0, 'paymentservice': 0, 'shippingservice': 38.0}
+2026-10-15T13:22:35Z  []
+2026-10-15T13:22:35Z  No overloaded services
+2026-10-15T13:22:35Z  ['getcart'] running
+2026-10-15T13:22:36Z  {'frontend': 329.0, 'productcatalogservice': 499.0, 'checkoutservice': 274.0, 'recommendationservice': 489.0, 'emailservice': 31.0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 38.0}
+2026-10-15T13:22:36Z  []
+2026-10-15T13:22:36Z  {'frontend': 329.0, 'productcatalogservice': 499.0, 'checkoutservice': 274.0, 'recommendationservice': 489.0, 'emailservice': 31.0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 38.0}
+2026-10-15T13:22:36Z  []
+2026-10-15T13:22:36Z  [('postcheckout', 0, 0)]
+2026-10-15T13:22:36Z  postcheckout: 14.087693095207214
+2026-10-15T13:22:36Z  []
+2026-10-15T13:22:36Z  {'frontend': 346.75, 'productcatalogservice': 504.0, 'checkoutservice': 274.0, 'recommendationservice': 489.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 38.0}
+2026-10-15T13:22:36Z  []
+2026-10-15T13:22:36Z  {'frontend': 346.75, 'productcatalogservice': 504.0, 'checkoutservice': 274.0, 'recommendationservice': 489.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 38.0}
+2026-10-15T13:22:36Z  []
+2026-10-15T13:22:36Z  [('getproduct', 0, 0)]
+2026-10-15T13:22:36Z  [] running
+2026-10-15T13:22:36Z  getproduct: 188.80874163373483
+2026-10-15T13:22:36Z  []
+2026-10-15T13:22:36Z  {'frontend': 346.75, 'productcatalogservice': 504.0, 'checkoutservice': 274.0, 'recommendationservice': 431.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 370.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 38.0}
+2026-10-15T13:22:36Z  []
+2026-10-15T13:22:36Z  {'frontend': 346.75, 'productcatalogservice': 504.0, 'checkoutservice': 274.0, 'recommendationservice': 431.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 370.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 38.0}
+2026-10-15T13:22:36Z  []
+2026-10-15T13:22:36Z  [('getcart', 0, 0)]
+2026-10-15T13:22:37Z  getcart: 14.131667613983154
+2026-10-15T13:22:37Z  []
+2026-10-15T13:22:37Z  ['postcheckout'] running
+2026-10-15T13:22:37Z  zero threshold
+2026-10-15T13:22:37Z  ['getproduct'] running
+2026-10-15T13:22:37Z  {'frontend': 328.5, 'productcatalogservice': 487.0, 'checkoutservice': 334.0, 'recommendationservice': 431.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 370.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 31.0}
+2026-10-15T13:22:37Z  []
+2026-10-15T13:22:37Z  No overloaded services
+2026-10-15T13:22:38Z  {'frontend': 325.25, 'productcatalogservice': 487.0, 'checkoutservice': 334.0, 'recommendationservice': 674.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 370.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 37.0}
+2026-10-15T13:22:38Z  []
+2026-10-15T13:22:38Z  {'frontend': 325.25, 'productcatalogservice': 487.0, 'checkoutservice': 334.0, 'recommendationservice': 674.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 370.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 37.0}
+2026-10-15T13:22:38Z  []
+2026-10-15T13:22:38Z  [('postcheckout', 0, 0)]
+2026-10-15T13:22:38Z  ['getcart'] running
+2026-10-15T13:22:38Z  postcheckout: 19.678943955850876
+2026-10-15T13:22:38Z  []
+2026-10-15T13:22:38Z  {'frontend': 325.25, 'productcatalogservice': 487.0, 'checkoutservice': 334.0, 'recommendationservice': 674.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 37.0}
+2026-10-15T13:22:38Z  []
+2026-10-15T13:22:38Z  {'frontend': 325.25, 'productcatalogservice': 487.0, 'checkoutservice': 334.0, 'recommendationservice': 674.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 37.0}
+2026-10-15T13:22:38Z  []
+2026-10-15T13:22:38Z  [('getproduct', 0, 0)]
+2026-10-15T13:22:38Z  getproduct: 262.2254853208954
+2026-10-15T13:22:38Z  []
+2026-10-15T13:22:38Z  {'frontend': 325.25, 'productcatalogservice': 509.0, 'checkoutservice': 360.0, 'recommendationservice': 674.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 37.0}
+2026-10-15T13:22:38Z  []
+2026-10-15T13:22:38Z  {'frontend': 325.25, 'productcatalogservice': 509.0, 'checkoutservice': 360.0, 'recommendationservice': 674.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 37.0}
+2026-10-15T13:22:38Z  []
+2026-10-15T13:22:38Z  [('getcart', 0, 0)]
+2026-10-15T13:22:39Z  getcart: 19.83465915683496
+2026-10-15T13:22:39Z  []
+2026-10-15T13:22:39Z  ['postcheckout'] running
+2026-10-15T13:22:39Z  {'frontend': 399.0, 'productcatalogservice': 509.0, 'checkoutservice': 360.0, 'recommendationservice': 679.0, 'emailservice': 65.0, 'adservice': 0, 'cartservice': 418.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 37.0}
+2026-10-15T13:22:39Z  []
+2026-10-15T13:22:39Z  {'frontend': 399.0, 'productcatalogservice': 509.0, 'checkoutservice': 360.0, 'recommendationservice': 679.0, 'emailservice': 65.0, 'adservice': 0, 'cartservice': 418.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 37.0}
+2026-10-15T13:22:39Z  []
+2026-10-15T13:22:39Z  [('postcheckout', 0, 0)]
+2026-10-15T13:22:39Z  postcheckout: 26.966909542585107
+2026-10-15T13:22:39Z  ['getproduct'] running
+2026-10-15T13:22:39Z  {'frontend': 375.25, 'productcatalogservice': 509.0, 'checkoutservice': 450.0, 'recommendationservice': 679.0, 'emailservice': 65.0, 'adservice': 0, 'cartservice': 418.0, 'currencyservice': 371.0, 'paymentservice': 0, 'shippingservice': 37.0}
+2026-10-15T13:22:39Z  []
+2026-10-15T13:22:39Z  No overloaded services
+2026-10-15T13:22:39Z  []
+2026-10-15T13:22:40Z  {'frontend': 375.25, 'productcatalogservice': 509.0, 'checkoutservice': 450.0, 'recommendationservice': 679.0, 'emailservice': 65.0, 'adservice': 0, 'cartservice': 418.0, 'currencyservice': 371.0, 'paymentservice': 0, 'shippingservice': 61.0}
+2026-10-15T13:22:40Z  []
+2026-10-15T13:22:40Z  {'frontend': 375.25, 'productcatalogservice': 509.0, 'checkoutservice': 450.0, 'recommendationservice': 679.0, 'emailservice': 65.0, 'adservice': 0, 'cartservice': 418.0, 'currencyservice': 371.0, 'paymentservice': 0, 'shippingservice': 61.0}
+2026-10-15T13:22:40Z  []
+2026-10-15T13:22:40Z  [('getproduct', 0, 0)]
+2026-10-15T13:22:40Z  Wrong action, leftover: 56.626971996453335
+2026-10-15T13:22:40Z  ['getcart'] running
+2026-10-15T13:22:40Z  getproduct: 302.5
+2026-10-15T13:22:40Z  []
+2026-10-15T13:22:40Z  {'frontend': 375.25, 'productcatalogservice': 484.0, 'checkoutservice': 425.0, 'recommendationservice': 679.0, 'emailservice': 43.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 61.0}
+2026-10-15T13:22:40Z  []
+2026-10-15T13:22:40Z  {'frontend': 375.25, 'productcatalogservice': 484.0, 'checkoutservice': 425.0, 'recommendationservice': 679.0, 'emailservice': 43.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 61.0}
+2026-10-15T13:22:40Z  []
+2026-10-15T13:22:40Z  [('getcart', 0, 0)]
+2026-10-15T13:22:40Z  getcart: 27.622017072376025
+2026-10-15T13:22:40Z  ['postcheckout'] running
+2026-10-15T13:22:41Z  []
+2026-10-15T13:22:41Z  {'frontend': 377.0, 'productcatalogservice': 484.0, 'checkoutservice': 425.0, 'recommendationservice': 731.0, 'emailservice': 43.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 61.0}
+2026-10-15T13:22:41Z  []
+2026-10-15T13:22:41Z  {'frontend': 377.0, 'productcatalogservice': 484.0, 'checkoutservice': 425.0, 'recommendationservice': 731.0, 'emailservice': 43.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 61.0}
+2026-10-15T13:22:41Z  []
+2026-10-15T13:22:41Z  [('postcheckout', 0, 0)]
+2026-10-15T13:22:41Z  postcheckout: 35.60001249331793
+2026-10-15T13:22:41Z  []
+2026-10-15T13:22:41Z  ['getproduct'] running
+2026-10-15T13:22:41Z  {'frontend': 383.25, 'productcatalogservice': 484.0, 'checkoutservice': 575.0, 'recommendationservice': 731.0, 'emailservice': 57.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 51.0}
+2026-10-15T13:22:41Z  []
+2026-10-15T13:22:41Z  getproduct: 10000
+2026-10-15T13:22:41Z  {'frontend': 383.25, 'productcatalogservice': 484.0, 'checkoutservice': 575.0, 'recommendationservice': 731.0, 'emailservice': 57.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 51.0}
+2026-10-15T13:22:41Z  []
+2026-10-15T13:22:41Z  No overloaded services
+2026-10-15T13:22:42Z  ['getcart'] running
+2026-10-15T13:22:42Z  All APIs clean
+2026-10-15T13:22:42Z  {'frontend': 389.5, 'productcatalogservice': 482.0, 'checkoutservice': 575.0, 'recommendationservice': 792.0, 'emailservice': 57.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 455.0, 'paymentservice': 0, 'shippingservice': 51.0}
+2026-10-15T13:22:42Z  []
+2026-10-15T13:22:42Z  {'frontend': 389.5, 'productcatalogservice': 482.0, 'checkoutservice': 575.0, 'recommendationservice': 792.0, 'emailservice': 57.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 455.0, 'paymentservice': 0, 'shippingservice': 51.0}
+2026-10-15T13:22:42Z  []
+2026-10-15T13:22:42Z  [('getcart', 0, 0)]
+2026-10-15T13:22:42Z  getcart: 37.00094340943481
+2026-10-15T13:22:42Z  ['postcheckout'] running
+2026-10-15T13:22:42Z  []
+2026-10-15T13:22:42Z  {'frontend': 389.5, 'productcatalogservice': 482.0, 'checkoutservice': 575.0, 'recommendationservice': 792.0, 'emailservice': 57.0, 'adservice': 0, 'cartservice': 430.0, 'currencyservice': 455.0, 'paymentservice': 0, 'shippingservice': 69.0}
+2026-10-15T13:22:42Z  []
+2026-10-15T13:22:42Z  {'frontend': 389.5, 'productcatalogservice': 482.0, 'checkoutservice': 575.0, 'recommendationservice': 792.0, 'emailservice': 57.0, 'adservice': 0, 'cartservice': 430.0, 'currencyservice': 455.0, 'paymentservice': 0, 'shippingservice': 69.0}
+2026-10-15T13:22:42Z  []
+2026-10-15T13:22:42Z  [('postcheckout', 0, 0)]
+2026-10-15T13:22:43Z  postcheckout: 42.963183054650955
+2026-10-15T13:22:43Z  []
+2026-10-15T13:22:43Z  ['getcart'] running
+2026-10-15T13:22:43Z  {'frontend': 371.75, 'productcatalogservice': 454.0, 'checkoutservice': 627.0, 'recommendationservice': 786.0, 'emailservice': 72.0, 'adservice': 0, 'cartservice': 430.0, 'currencyservice': 452.0, 'paymentservice': 0, 'shippingservice': 69.0}
+2026-10-15T13:22:43Z  []
+2026-10-15T13:22:43Z  {'frontend': 371.75, 'productcatalogservice': 454.0, 'checkoutservice': 627.0, 'recommendationservice': 786.0, 'emailservice': 72.0, 'adservice': 0, 'cartservice': 430.0, 'currencyservice': 452.0, 'paymentservice': 0, 'shippingservice': 69.0}
+2026-10-15T13:22:43Z  []
+2026-10-15T13:22:43Z  [('getcart', 0, 0)]
+2026-10-15T13:22:43Z  getcart: 40.85089306029155
+2026-10-15T13:22:43Z  {'frontend': 371.75, 'productcatalogservice': 454.0, 'checkoutservice': 627.0, 'recommendationservice': 786.0, 'emailservice': 72.0, 'adservice': 0, 'cartservice': 430.0, 'currencyservice': 452.0, 'paymentservice': 0, 'shippingservice': 69.0}
+2026-10-15T13:22:43Z  []
+2026-10-15T13:22:43Z  No overloaded services
+2026-10-15T13:22:44Z  []
+2026-10-15T13:22:44Z  ['postcheckout'] running
+2026-10-15T13:22:44Z  {'frontend': 387.5, 'productcatalogservice': 454.0, 'checkoutservice': 627.0, 'recommendationservice': 786.0, 'emailservice': 72.0, 'adservice': 0, 'cartservice': 411.0, 'currencyservice': 452.0, 'paymentservice': 0, 'shippingservice': 65.0}
+2026-10-15T13:22:44Z  []
+2026-10-15T13:22:44Z  {'frontend': 387.5, 'productcatalogservice': 454.0, 'checkoutservice': 627.0, 'recommendationservice': 786.0, 'emailservice': 72.0, 'adservice': 0, 'cartservice': 411.0, 'currencyservice': 452.0, 'paymentservice': 0, 'shippingservice': 65.0}
+2026-10-15T13:22:44Z  []
+2026-10-15T13:22:44Z  [('postcheckout', 0, 0)]
+2026-10-15T13:22:44Z  postcheckout: 45.12450269779827
+2026-10-15T13:22:44Z  []
+2026-10-15T13:22:45Z  ['getcart'] running
+2026-10-15T13:22:45Z  {'frontend': 387.5, 'productcatalogservice': 462.0, 'checkoutservice': 627.0, 'recommendationservice': 819.0, 'emailservice': 103.0, 'adservice': 0, 'cartservice': 411.0, 'currencyservice': 501.0, 'paymentservice': 0, 'shippingservice': 97.0}
+2026-10-15T13:22:45Z  ['emailservice']
+2026-10-15T13:22:45Z  {'frontend': 387.5, 'productcatalogservice': 462.0, 'checkoutservice': 627.0, 'recommendationservice': 819.0, 'emailservice': 103.0, 'adservice': 0, 'cartservice': 411.0, 'currencyservice': 501.0, 'paymentservice': 0, 'shippingservice': 97.0}
+2026-10-15T13:22:45Z  ['emailservice']
+2026-10-15T13:22:45Z  [('getcart', 100, 0)]
+2026-10-15T13:22:45Z  getcart: 43.537905883381754
+2026-10-15T13:22:45Z  ['emailservice']['postcheckout'] running
+2026-10-15T13:22:45Z  
+2026-10-15T13:22:45Z  {'frontend': 381.25, 'productcatalogservice': 462.0, 'checkoutservice': 600.0, 'recommendationservice': 819.0, 'emailservice': 103.0, 'adservice': 0, 'cartservice': 411.0, 'currencyservice': 501.0, 'paymentservice': 0, 'shippingservice': 97.0}
+2026-10-15T13:22:45Z  ['emailservice']
+2026-10-15T13:22:45Z  {'frontend': 381.25, 'productcatalogservice': 462.0, 'checkoutservice': 600.0, 'recommendationservice': 819.0, 'emailservice': 103.0, 'adservice': 0, 'cartservice': 411.0, 'currencyservice': 501.0, 'paymentservice': 0, 'shippingservice': 97.0}
+2026-10-15T13:22:45Z  ['emailservice']
+2026-10-15T13:22:45Z  [('postcheckout', 1, 0)]
+2026-10-15T13:22:45Z  postcheckout: 42.08100619967608
+2026-10-15T13:22:45Z  {'frontend': 381.25, 'productcatalogservice': 462.0, 'checkoutservice': 600.0, 'recommendationservice': 819.0, 'emailservice': 103.0, 'adservice': 0, 'cartservice': 411.0, 'currencyservice': 501.0, 'paymentservice': 0, 'shippingservice': 97.0}
+2026-10-15T13:22:45Z  ['emailservice']
+2026-10-15T13:22:45Z  ['postcheckout']
+2026-10-15T13:22:45Z  number of valid agent
+2026-10-15T13:22:45Z  1
+2026-10-15T13:22:46Z  ['emailservice']
+2026-10-15T13:22:46Z  ['getcart'] running
+2026-10-15T13:22:46Z  {'frontend': 365.0, 'productcatalogservice': 377.0, 'checkoutservice': 287.0, 'recommendationservice': 970.0, 'emailservice': 103.0, 'adservice': 0, 'cartservice': 387.0, 'currencyservice': 501.0, 'paymentservice': 0, 'shippingservice': 30.0}
+2026-10-15T13:22:46Z  ['recommendationservice', 'emailservice']
+2026-10-15T13:22:46Z  {'frontend': 365.0, 'productcatalogservice': 377.0, 'checkoutservice': 287.0, 'recommendationservice': 970.0, 'emailservice': 103.0, 'adservice': 0, 'cartservice': 387.0, 'currencyservice': 501.0, 'paymentservice': 0, 'shippingservice': 30.0}
+2026-10-15T13:22:46Z  ['recommendationservice', 'emailservice']
+2026-10-15T13:22:46Z  [('getcart', 3, 0)]
+2026-10-15T13:22:46Z  getcart: 37.46982576935268
+2026-10-15T13:22:46Z  ['recommendationservice', 'emailservice']
+2026-10-15T13:22:47Z  ['postcheckout'] running
+2026-10-15T13:22:47Z  {'frontend': 282.5, 'productcatalogservice': 377.0, 'checkoutservice': 287.0, 'recommendationservice': 970.0, 'emailservice': 36.0, 'adservice': 0, 'cartservice': 387.0, 'currencyservice': 299.0, 'paymentservice': 0, 'shippingservice': 30.0}
+2026-10-15T13:22:47Z  ['recommendationservice']
+2026-10-15T13:22:47Z  {'frontend': 282.5, 'productcatalogservice': 377.0, 'checkoutservice': 287.0, 'recommendationservice': 970.0, 'emailservice': 36.0, 'adservice': 0, 'cartservice': 387.0, 'currencyservice': 299.0, 'paymentservice': 0, 'shippingservice': 30.0}
+2026-10-15T13:22:47Z  ['recommendationservice']
+2026-10-15T13:22:47Z  [('postcheckout', 3, 0)]
+2026-10-15T13:22:47Z  postcheckout: 26.34314702420886
+2026-10-15T13:22:47Z  ['recommendationservice']
+2026-10-15T13:22:47Z  ['getcart'] running
+2026-10-15T13:22:48Z  {'frontend': 227.25, 'productcatalogservice': 377.0, 'checkoutservice': 287.0, 'recommendationservice': 1114.0, 'emailservice': 36.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 299.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:22:48Z  ['recommendationservice']
+2026-10-15T13:22:48Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:48Z  number of valid agent
+2026-10-15T13:22:48Z  2
+2026-10-15T13:22:48Z  getcart: 37.46982576935268
+2026-10-15T13:22:48Z  getproduct: 189.0
+2026-10-15T13:22:48Z  {'frontend': 247.0, 'productcatalogservice': 377.0, 'checkoutservice': 287.0, 'recommendationservice': 1114.0, 'emailservice': 15.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 299.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:22:48Z  ['recommendationservice']
+2026-10-15T13:22:48Z  {'frontend': 247.0, 'productcatalogservice': 377.0, 'checkoutservice': 287.0, 'recommendationservice': 1114.0, 'emailservice': 15.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 299.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:22:48Z  ['recommendationservice']
+2026-10-15T13:22:48Z  [('getcart', 3, 0)]
+2026-10-15T13:22:48Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:22:48Z  getcart: 23.374051760897782
+2026-10-15T13:22:48Z  ['recommendationservice']
+2026-10-15T13:22:48Z  {'frontend': 265.5, 'productcatalogservice': 377.0, 'checkoutservice': 280.0, 'recommendationservice': 1114.0, 'emailservice': 15.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 309.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:22:48Z  ['recommendationservice']
+2026-10-15T13:22:48Z  {'frontend': 265.5, 'productcatalogservice': 377.0, 'checkoutservice': 280.0, 'recommendationservice': 1114.0, 'emailservice': 15.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 309.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:22:48Z  ['recommendationservice']
+2026-10-15T13:22:48Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:22:48Z  postcheckout: 23.010711432947872
+2026-10-15T13:22:48Z  getcart: 34.13739017809169
+2026-10-15T13:22:48Z  getproduct: 185.667564408739
+2026-10-15T13:22:48Z  ['recommendationservice']
+2026-10-15T13:22:49Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:22:50Z  {'frontend': 247.25, 'productcatalogservice': 306.0, 'checkoutservice': 280.0, 'recommendationservice': 1132.0, 'emailservice': 58.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 303.0, 'paymentservice': 0, 'shippingservice': 51.0}
+2026-10-15T13:22:50Z  ['recommendationservice']
+2026-10-15T13:22:50Z  {'frontend': 247.25, 'productcatalogservice': 306.0, 'checkoutservice': 280.0, 'recommendationservice': 1132.0, 'emailservice': 58.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 303.0, 'paymentservice': 0, 'shippingservice': 51.0}
+2026-10-15T13:22:50Z  ['recommendationservice']
+2026-10-15T13:22:50Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:22:50Z  postcheckout: 20.095268147732206
+2026-10-15T13:22:50Z  getcart: 31.221946892876026
+2026-10-15T13:22:50Z  getproduct: 182.75212112352332
+2026-10-15T13:22:50Z  ['recommendationservice']
+2026-10-15T13:22:50Z  {'frontend': 248.0, 'productcatalogservice': 306.0, 'checkoutservice': 60.0, 'recommendationservice': 1132.0, 'emailservice': 58.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 303.0, 'paymentservice': 0, 'shippingservice': 51.0}
+2026-10-15T13:22:50Z  ['recommendationservice']
+2026-10-15T13:22:50Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:50Z  number of valid agent
+2026-10-15T13:22:50Z  1
+2026-10-15T13:22:51Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:22:51Z  {'frontend': 282.25, 'productcatalogservice': 377.0, 'checkoutservice': 60.0, 'recommendationservice': 1096.0, 'emailservice': 13.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 244.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:22:51Z  ['recommendationservice']
+2026-10-15T13:22:51Z  {'frontend': 282.25, 'productcatalogservice': 377.0, 'checkoutservice': 60.0, 'recommendationservice': 1096.0, 'emailservice': 13.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 244.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:22:51Z  ['recommendationservice']
+2026-10-15T13:22:51Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:22:51Z  postcheckout: 17.51104618212965
+2026-10-15T13:22:51Z  getcart: 28.63772492727347
+2026-10-15T13:22:51Z  getproduct: 180.16789915792077
+2026-10-15T13:22:51Z  ['recommendationservice']
+2026-10-15T13:22:52Z  {'frontend': 253.0, 'productcatalogservice': 377.0, 'checkoutservice': 200.0, 'recommendationservice': 1129.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 244.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:22:52Z  ['recommendationservice']
+2026-10-15T13:22:52Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:52Z  number of valid agent
+2026-10-15T13:22:52Z  1
+2026-10-15T13:22:52Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:22:52Z  {'frontend': 260.5, 'productcatalogservice': 380.0, 'checkoutservice': 200.0, 'recommendationservice': 1129.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 369.0, 'currencyservice': 345.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:22:52Z  ['recommendationservice']
+2026-10-15T13:22:52Z  {'frontend': 260.5, 'productcatalogservice': 380.0, 'checkoutservice': 200.0, 'recommendationservice': 1129.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 369.0, 'currencyservice': 345.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:22:52Z  ['recommendationservice']
+2026-10-15T13:22:52Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:22:52Z  postcheckout: 15.29325503772067
+2026-10-15T13:22:52Z  getcart: 26.41993378286449
+2026-10-15T13:22:52Z  getproduct: 177.9501080135118
+2026-10-15T13:22:53Z  ['recommendationservice']
+2026-10-15T13:22:54Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:22:54Z  {'frontend': 251.25, 'productcatalogservice': 362.0, 'checkoutservice': 262.0, 'recommendationservice': 1135.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 389.0, 'currencyservice': 306.0, 'paymentservice': 0, 'shippingservice': 25.0}
+2026-10-15T13:22:54Z  ['recommendationservice']
+2026-10-15T13:22:54Z  {'frontend': 251.25, 'productcatalogservice': 362.0, 'checkoutservice': 262.0, 'recommendationservice': 1135.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 389.0, 'currencyservice': 306.0, 'paymentservice': 0, 'shippingservice': 25.0}
+2026-10-15T13:22:54Z  ['recommendationservice']
+2026-10-15T13:22:54Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:22:54Z  postcheckout: 13.326361476967847
+2026-10-15T13:22:54Z  getcart: 24.453040222111667
+2026-10-15T13:22:54Z  getproduct: 175.98321445275897
+2026-10-15T13:22:54Z  ['recommendationservice']
+2026-10-15T13:22:54Z  {'frontend': 260.25, 'productcatalogservice': 362.0, 'checkoutservice': 262.0, 'recommendationservice': 1135.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 389.0, 'currencyservice': 306.0, 'paymentservice': 0, 'shippingservice': 25.0}
+2026-10-15T13:22:54Z  ['recommendationservice']
+2026-10-15T13:22:54Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:54Z  number of valid agent
+2026-10-15T13:22:54Z  1
+2026-10-15T13:22:55Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:22:55Z  {'frontend': 295.25, 'productcatalogservice': 362.0, 'checkoutservice': 223.0, 'recommendationservice': 1080.0, 'emailservice': 50.0, 'adservice': 0, 'cartservice': 386.0, 'currencyservice': 324.0, 'paymentservice': 0, 'shippingservice': 31.0}
+2026-10-15T13:22:55Z  ['recommendationservice']
+2026-10-15T13:22:55Z  {'frontend': 295.25, 'productcatalogservice': 362.0, 'checkoutservice': 223.0, 'recommendationservice': 1080.0, 'emailservice': 50.0, 'adservice': 0, 'cartservice': 386.0, 'currencyservice': 324.0, 'paymentservice': 0, 'shippingservice': 31.0}
+2026-10-15T13:22:55Z  ['recommendationservice']
+2026-10-15T13:22:55Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:22:55Z  postcheckout: 11.634709681818725
+2026-10-15T13:22:55Z  getcart: 22.761388426962544
+2026-10-15T13:22:55Z  getproduct: 174.29156265760986
+2026-10-15T13:22:55Z  ['recommendationservice']
+2026-10-15T13:22:56Z  {'frontend': 270.5, 'productcatalogservice': 374.0, 'checkoutservice': 173.0, 'recommendationservice': 1080.0, 'emailservice': 16.0, 'adservice': 0, 'cartservice': 386.0, 'currencyservice': 324.0, 'paymentservice': 0, 'shippingservice': 17.0}
+2026-10-15T13:22:56Z  ['recommendationservice']
+2026-10-15T13:22:56Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:56Z  number of valid agent
+2026-10-15T13:22:56Z  1
+2026-10-15T13:22:56Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:22:56Z  {'frontend': 270.5, 'productcatalogservice': 374.0, 'checkoutservice': 173.0, 'recommendationservice': 1080.0, 'emailservice': 16.0, 'adservice': 0, 'cartservice': 405.0, 'currencyservice': 324.0, 'paymentservice': 0, 'shippingservice': 17.0}
+2026-10-15T13:22:56Z  ['recommendationservice']
+2026-10-15T13:22:56Z  {'frontend': 270.5, 'productcatalogservice': 374.0, 'checkoutservice': 173.0, 'recommendationservice': 1080.0, 'emailservice': 16.0, 'adservice': 0, 'cartservice': 405.0, 'currencyservice': 324.0, 'paymentservice': 0, 'shippingservice': 17.0}
+2026-10-15T13:22:56Z  ['recommendationservice']
+2026-10-15T13:22:56Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:22:56Z  postcheckout: 10.164124867076923
+2026-10-15T13:22:56Z  getcart: 21.290803612220742
+2026-10-15T13:22:56Z  getproduct: 172.82097784286805
+2026-10-15T13:22:57Z  ['recommendationservice']
+2026-10-15T13:22:58Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:22:58Z  {'frontend': 286.75, 'productcatalogservice': 419.0, 'checkoutservice': 155.0, 'recommendationservice': 1146.0, 'emailservice': 13.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 245.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:22:58Z  ['recommendationservice']
+2026-10-15T13:22:58Z  {'frontend': 286.75, 'productcatalogservice': 419.0, 'checkoutservice': 155.0, 'recommendationservice': 1146.0, 'emailservice': 13.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 245.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:22:58Z  ['recommendationservice']
+2026-10-15T13:22:58Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:22:58Z  postcheckout: 10
+2026-10-15T13:22:58Z  getcart: 19.975917285999323
+2026-10-15T13:22:58Z  getproduct: 171.50609151664662
+2026-10-15T13:22:58Z  ['recommendationservice']
+2026-10-15T13:22:58Z  {'frontend': 286.75, 'productcatalogservice': 419.0, 'checkoutservice': 155.0, 'recommendationservice': 1146.0, 'emailservice': 13.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 245.0, 'paymentservice': 0, 'shippingservice': 21.0}
+2026-10-15T13:22:58Z  ['recommendationservice']
+2026-10-15T13:22:58Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:22:58Z  number of valid agent
+2026-10-15T13:22:58Z  1
+2026-10-15T13:22:59Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:22:59Z  {'frontend': 273.0, 'productcatalogservice': 371.0, 'checkoutservice': 118.0, 'recommendationservice': 1146.0, 'emailservice': 35.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 14.0}
+2026-10-15T13:22:59Z  ['recommendationservice']
+2026-10-15T13:22:59Z  {'frontend': 273.0, 'productcatalogservice': 371.0, 'checkoutservice': 118.0, 'recommendationservice': 1146.0, 'emailservice': 35.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 14.0}
+2026-10-15T13:22:59Z  ['recommendationservice']
+2026-10-15T13:22:59Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:22:59Z  postcheckout: 10
+2026-10-15T13:22:59Z  getcart: 18.720330741326674
+2026-10-15T13:22:59Z  getproduct: 170.25050497197398
+2026-10-15T13:22:59Z  ['recommendationservice']
+2026-10-15T13:23:00Z  {'frontend': 223.75, 'productcatalogservice': 357.0, 'checkoutservice': 44.0, 'recommendationservice': 1143.0, 'emailservice': 35.0, 'adservice': 0, 'cartservice': 376.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 40.0}
+2026-10-15T13:23:00Z  ['recommendationservice']
+2026-10-15T13:23:00Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:23:00Z  number of valid agent
+2026-10-15T13:23:00Z  1
+2026-10-15T13:23:00Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:00Z  {'frontend': 223.75, 'productcatalogservice': 357.0, 'checkoutservice': 44.0, 'recommendationservice': 1143.0, 'emailservice': 35.0, 'adservice': 0, 'cartservice': 376.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 40.0}
+2026-10-15T13:23:00Z  ['recommendationservice']
+2026-10-15T13:23:00Z  {'frontend': 223.75, 'productcatalogservice': 357.0, 'checkoutservice': 44.0, 'recommendationservice': 1143.0, 'emailservice': 35.0, 'adservice': 0, 'cartservice': 376.0, 'currencyservice': 284.0, 'paymentservice': 0, 'shippingservice': 40.0}
+2026-10-15T13:23:00Z  ['recommendationservice']
+2026-10-15T13:23:00Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:23:00Z  postcheckout: 10
+2026-10-15T13:23:00Z  getcart: 17.45801731578575
+2026-10-15T13:23:00Z  getproduct: 168.98819154643306
+2026-10-15T13:23:01Z  ['recommendationservice']
+2026-10-15T13:23:02Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:02Z  {'frontend': 256.0, 'productcatalogservice': 417.0, 'checkoutservice': 180.0, 'recommendationservice': 1121.0, 'emailservice': 7.0, 'adservice': 0, 'cartservice': 416.0, 'currencyservice': 291.0, 'paymentservice': 0, 'shippingservice': 15.0}
+2026-10-15T13:23:02Z  ['recommendationservice']
+2026-10-15T13:23:02Z  {'frontend': 256.0, 'productcatalogservice': 417.0, 'checkoutservice': 180.0, 'recommendationservice': 1121.0, 'emailservice': 14.0, 'adservice': 0, 'cartservice': 416.0, 'currencyservice': 277.0, 'paymentservice': 0, 'shippingservice': 15.0}
+2026-10-15T13:23:02Z  ['recommendationservice']
+2026-10-15T13:23:02Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:23:02Z  postcheckout: 10
+2026-10-15T13:23:02Z  getcart: 16.2035058402227
+2026-10-15T13:23:02Z  getproduct: 167.73368007087
+2026-10-15T13:23:02Z  ['recommendationservice']
+2026-10-15T13:23:02Z  {'frontend': 256.0, 'productcatalogservice': 417.0, 'checkoutservice': 180.0, 'recommendationservice': 1121.0, 'emailservice': 14.0, 'adservice': 0, 'cartservice': 416.0, 'currencyservice': 277.0, 'paymentservice': 0, 'shippingservice': 15.0}
+2026-10-15T13:23:02Z  ['recommendationservice']
+2026-10-15T13:23:02Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:23:02Z  number of valid agent
+2026-10-15T13:23:02Z  1
+2026-10-15T13:23:03Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:03Z  {'frontend': 263.5, 'productcatalogservice': 414.0, 'checkoutservice': 95.0, 'recommendationservice': 1125.0, 'emailservice': 14.0, 'adservice': 0, 'cartservice': 391.0, 'currencyservice': 277.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:23:03Z  ['recommendationservice']
+2026-10-15T13:23:03Z  {'frontend': 263.5, 'productcatalogservice': 414.0, 'checkoutservice': 95.0, 'recommendationservice': 1125.0, 'emailservice': 14.0, 'adservice': 0, 'cartservice': 391.0, 'currencyservice': 277.0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-15T13:23:03Z  ['recommendationservice']
+2026-10-15T13:23:03Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:23:03Z  postcheckout: 10
+2026-10-15T13:23:03Z  getcart: 14.960958606323265
+2026-10-15T13:23:03Z  getproduct: 166.49113283697056
+2026-10-15T13:23:03Z  ['recommendationservice']
+2026-10-15T13:23:04Z  {'frontend': 248.0, 'productcatalogservice': 414.0, 'checkoutservice': 95.0, 'recommendationservice': 1145.0, 'emailservice': 32.0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 259.0, 'paymentservice': 0, 'shippingservice': 16.0}
+2026-10-15T13:23:04Z  ['recommendationservice']
+2026-10-15T13:23:04Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:23:04Z  number of valid agent
+2026-10-15T13:23:04Z  1
+2026-10-15T13:23:04Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:05Z  {'frontend': 248.0, 'productcatalogservice': 356.0, 'checkoutservice': 63.0, 'recommendationservice': 1145.0, 'emailservice': 32.0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 259.0, 'paymentservice': 0, 'shippingservice': 16.0}
+2026-10-15T13:23:05Z  ['recommendationservice']
+2026-10-15T13:23:05Z  {'frontend': 248.0, 'productcatalogservice': 356.0, 'checkoutservice': 63.0, 'recommendationservice': 1145.0, 'emailservice': 32.0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 259.0, 'paymentservice': 0, 'shippingservice': 16.0}
+2026-10-15T13:23:05Z  ['recommendationservice']
+2026-10-15T13:23:05Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:23:05Z  postcheckout: 10
+2026-10-15T13:23:05Z  getcart: 13.67358550063835
+2026-10-15T13:23:05Z  getproduct: 165.20375973128566
+2026-10-15T13:23:05Z  ['recommendationservice']
+2026-10-15T13:23:06Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:06Z  {'frontend': 211.0, 'productcatalogservice': 358.0, 'checkoutservice': 90.0, 'recommendationservice': 1153.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 262.0, 'paymentservice': 0, 'shippingservice': 5.0}
+2026-10-15T13:23:06Z  ['recommendationservice']
+2026-10-15T13:23:06Z  {'frontend': 211.0, 'productcatalogservice': 358.0, 'checkoutservice': 90.0, 'recommendationservice': 1153.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 262.0, 'paymentservice': 0, 'shippingservice': 5.0}
+2026-10-15T13:23:06Z  ['recommendationservice']
+2026-10-15T13:23:06Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:23:06Z  postcheckout: 10
+2026-10-15T13:23:06Z  getcart: 12.401189750751518
+2026-10-15T13:23:06Z  getproduct: 163.93136398139882
+2026-10-15T13:23:06Z  {'frontend': 207.25, 'productcatalogservice': 358.0, 'checkoutservice': 90.0, 'recommendationservice': 1115.0, 'emailservice': 3.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 262.0, 'paymentservice': 0, 'shippingservice': 5.0}
+2026-10-15T13:23:06Z  ['recommendationservice']
+2026-10-15T13:23:06Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:23:06Z  number of valid agent
+2026-10-15T13:23:06Z  1
+2026-10-15T13:23:06Z  ['recommendationservice']
+2026-10-15T13:23:07Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:07Z  {'frontend': 235.75, 'productcatalogservice': 401.0, 'checkoutservice': 90.0, 'recommendationservice': 1115.0, 'emailservice': 11.0, 'adservice': 0, 'cartservice': 327.0, 'currencyservice': 251.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:23:07Z  ['recommendationservice']
+2026-10-15T13:23:07Z  {'frontend': 235.75, 'productcatalogservice': 401.0, 'checkoutservice': 90.0, 'recommendationservice': 1115.0, 'emailservice': 11.0, 'adservice': 0, 'cartservice': 327.0, 'currencyservice': 251.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:23:07Z  ['recommendationservice']
+2026-10-15T13:23:07Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:23:07Z  postcheckout: 10
+2026-10-15T13:23:07Z  getcart: 11.140731619120302
+2026-10-15T13:23:07Z  getproduct: 162.6709058497676
+2026-10-15T13:23:07Z  ['recommendationservice']
+2026-10-15T13:23:08Z  {'frontend': 264.0, 'productcatalogservice': 401.0, 'checkoutservice': 138.0, 'recommendationservice': 1107.0, 'emailservice': 11.0, 'adservice': 0, 'cartservice': 327.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:23:08Z  ['recommendationservice']
+2026-10-15T13:23:08Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:23:08Z  number of valid agent
+2026-10-15T13:23:08Z  1
+2026-10-15T13:23:09Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:09Z  {'frontend': 268.0, 'productcatalogservice': 401.0, 'checkoutservice': 138.0, 'recommendationservice': 1107.0, 'emailservice': 40.0, 'adservice': 0, 'cartservice': 366.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 14.0}
+2026-10-15T13:23:09Z  ['recommendationservice']
+2026-10-15T13:23:09Z  {'frontend': 268.0, 'productcatalogservice': 401.0, 'checkoutservice': 138.0, 'recommendationservice': 1107.0, 'emailservice': 40.0, 'adservice': 0, 'cartservice': 366.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 14.0}
+2026-10-15T13:23:09Z  ['recommendationservice']
+2026-10-15T13:23:09Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:23:09Z  postcheckout: 10
+2026-10-15T13:23:09Z  getcart: 10
+2026-10-15T13:23:09Z  getproduct: 161.3973299279142
+2026-10-15T13:23:09Z  ['recommendationservice']
+2026-10-15T13:23:10Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:10Z  {'frontend': 285.75, 'productcatalogservice': 477.0, 'checkoutservice': 175.0, 'recommendationservice': 1094.0, 'emailservice': 16.0, 'adservice': 0, 'cartservice': 374.0, 'currencyservice': 312.0, 'paymentservice': 0, 'shippingservice': 53.0}
+2026-10-15T13:23:10Z  ['recommendationservice']
+2026-10-15T13:23:10Z  {'frontend': 285.75, 'productcatalogservice': 477.0, 'checkoutservice': 175.0, 'recommendationservice': 1094.0, 'emailservice': 16.0, 'adservice': 0, 'cartservice': 374.0, 'currencyservice': 312.0, 'paymentservice': 0, 'shippingservice': 53.0}
+2026-10-15T13:23:10Z  ['recommendationservice']
+2026-10-15T13:23:10Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:23:10Z  {'frontend': 285.75, 'productcatalogservice': 477.0, 'checkoutservice': 175.0, 'recommendationservice': 1094.0, 'emailservice': 16.0, 'adservice': 0, 'cartservice': 374.0, 'currencyservice': 312.0, 'paymentservice': 0, 'shippingservice': 53.0}
+2026-10-15T13:23:10Z  ['recommendationservice']
+2026-10-15T13:23:10Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:23:10Z  number of valid agent
+2026-10-15T13:23:10Z  1
+2026-10-15T13:23:10Z  postcheckout: 10
+2026-10-15T13:23:10Z  getcart: 10
+2026-10-15T13:23:10Z  getproduct: 160.14251744889503
+2026-10-15T13:23:10Z  ['recommendationservice']
+2026-10-15T13:23:11Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:11Z  {'frontend': 328.0, 'productcatalogservice': 509.0, 'checkoutservice': 191.0, 'recommendationservice': 1003.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 405.0, 'currencyservice': 331.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:23:11Z  ['recommendationservice']
+2026-10-15T13:23:11Z  {'frontend': 328.0, 'productcatalogservice': 509.0, 'checkoutservice': 191.0, 'recommendationservice': 1003.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 405.0, 'currencyservice': 331.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-15T13:23:11Z  ['recommendationservice']
+2026-10-15T13:23:11Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:23:11Z  postcheckout: 10
+2026-10-15T13:23:11Z  getcart: 10
+2026-10-15T13:23:11Z  getproduct: 158.92183806641188
+2026-10-15T13:23:12Z  ['recommendationservice']
+2026-10-15T13:23:12Z  {'frontend': 330.75, 'productcatalogservice': 509.0, 'checkoutservice': 191.0, 'recommendationservice': 1003.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 405.0, 'currencyservice': 331.0, 'paymentservice': 0, 'shippingservice': 24.0}
+2026-10-15T13:23:12Z  ['recommendationservice']
+2026-10-15T13:23:12Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:23:12Z  number of valid agent
+2026-10-15T13:23:12Z  1
+2026-10-15T13:23:13Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:13Z  {'frontend': 330.75, 'productcatalogservice': 496.0, 'checkoutservice': 313.0, 'recommendationservice': 1027.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 405.0, 'currencyservice': 333.0, 'paymentservice': 0, 'shippingservice': 24.0}
+2026-10-15T13:23:13Z  ['recommendationservice']
+2026-10-15T13:23:13Z  {'frontend': 330.75, 'productcatalogservice': 496.0, 'checkoutservice': 313.0, 'recommendationservice': 1027.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 405.0, 'currencyservice': 333.0, 'paymentservice': 0, 'shippingservice': 24.0}
+2026-10-15T13:23:13Z  ['recommendationservice']
+2026-10-15T13:23:13Z  [('postcheckout', 3, 0), ('getcart', 3, 0), ('getproduct', 3, 0)]
+2026-10-15T13:23:13Z  postcheckout: 10
+2026-10-15T13:23:13Z  getcart: 10
+2026-10-15T13:23:13Z  getproduct: 157.83102170768666
+2026-10-15T13:23:13Z  ['recommendationservice']
+2026-10-15T13:23:14Z  ['postcheckout', 'getcart', 'getproduct'] running
+2026-10-15T13:23:14Z  {'frontend': 382.75, 'productcatalogservice': 496.0, 'checkoutservice': 370.0, 'recommendationservice': 1027.0, 'emailservice': 42.0, 'adservice': 0, 'cartservice': 390.0, 'currencyservice': 311.0, 'paymentservice': 0, 'shippingservice': 34.0}
+2026-10-15T13:23:14Z  ['recommendationservice']
+2026-10-15T13:23:14Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:23:14Z  number of valid agent
+2026-10-15T13:23:14Z  1
+2026-10-15T13:23:14Z  {'frontend': 382.75, 'productcatalogservice': 508.0, 'checkoutservice': 370.0, 'recommendationservice': 622.0, 'emailservice': 32.0, 'adservice': 0, 'cartservice': 390.0, 'currencyservice': 311.0, 'paymentservice': 0, 'shippingservice': 34.0}
+2026-10-15T13:23:14Z  []
+2026-10-15T13:23:16Z  Disaggregate!
+2026-10-15T13:23:16Z  Start agent with target API []
+2026-10-15T13:23:16Z  postcheckout: 10
+2026-10-15T13:23:17Z  Start agent with target API []
+2026-10-15T13:23:17Z  getcart: 10
+2026-10-15T13:23:17Z  Start agent with target API []
+2026-10-15T13:23:17Z  getproduct: 157.83102170768666
+2026-10-15T13:23:17Z  ['postcheckout'] running
+2026-10-15T13:23:18Z  ['getcart'] running
+2026-10-15T13:23:18Z  Start agent with target API []
+2026-10-15T13:23:18Z  {'frontend': 333.75, 'productcatalogservice': 512.0, 'checkoutservice': 281.0, 'recommendationservice': 441.0, 'emailservice': 25.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 295.0, 'paymentservice': 0, 'shippingservice': 25.0}
+2026-10-15T13:23:18Z  []
+2026-10-15T13:23:18Z  No overloaded services
+2026-10-15T13:23:18Z  ['getproduct'] running
+2026-10-15T13:23:18Z  {'frontend': 336.0, 'productcatalogservice': 500.0, 'checkoutservice': 281.0, 'recommendationservice': 505.0, 'emailservice': 25.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 295.0, 'paymentservice': 0, 'shippingservice': 25.0}
+2026-10-15T13:23:18Z  []
+2026-10-15T13:23:18Z  {'frontend': 336.0, 'productcatalogservice': 500.0, 'checkoutservice': 281.0, 'recommendationservice': 505.0, 'emailservice': 25.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 295.0, 'paymentservice': 0, 'shippingservice': 25.0}
+2026-10-15T13:23:18Z  []
+2026-10-15T13:23:18Z  [('postcheckout', 0, 0)]
+2026-10-15T13:23:18Z  postcheckout: 14.097872376441956
+2026-10-15T13:23:19Z  []
+2026-10-15T13:23:19Z  {'frontend': 344.25, 'productcatalogservice': 500.0, 'checkoutservice': 281.0, 'recommendationservice': 505.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 295.0, 'paymentservice': 0, 'shippingservice': 25.0}
+2026-10-15T13:23:19Z  []
+2026-10-15T13:23:19Z  {'frontend': 344.25, 'productcatalogservice': 500.0, 'checkoutservice': 281.0, 'recommendationservice': 505.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 295.0, 'paymentservice': 0, 'shippingservice': 25.0}
+2026-10-15T13:23:19Z  []
+2026-10-15T13:23:19Z  [('getcart', 0, 0)]
+2026-10-15T13:23:19Z  [] running
+2026-10-15T13:23:19Z  getcart: 14.090030789375305
+2026-10-15T13:23:19Z  []
+2026-10-15T13:23:19Z  {'frontend': 333.0, 'productcatalogservice': 500.0, 'checkoutservice': 297.0, 'recommendationservice': 505.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 305.0, 'paymentservice': 0, 'shippingservice': 26.0}
+2026-10-15T13:23:19Z  []
+2026-10-15T13:23:19Z  {'frontend': 338.25, 'productcatalogservice': 486.0, 'checkoutservice': 297.0, 'recommendationservice': 505.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 305.0, 'paymentservice': 0, 'shippingservice': 26.0}
+2026-10-15T13:23:19Z  []
+2026-10-15T13:23:19Z  [('getproduct', 0, 0)]
+2026-10-15T13:23:19Z  getproduct: 223.2932786625912
+2026-10-15T13:23:20Z  []
+2026-10-15T13:23:20Z  ['postcheckout'] running
+2026-10-15T13:23:20Z  {'frontend': 349.25, 'productcatalogservice': 486.0, 'checkoutservice': 335.0, 'recommendationservice': 499.0, 'emailservice': 27.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 300.0, 'paymentservice': 0, 'shippingservice': 68.0}
+2026-10-15T13:23:20Z  []['getcart'] running
+2026-10-15T13:23:20Z  
+2026-10-15T13:23:20Z  No overloaded services
+2026-10-15T13:23:20Z  zero threshold
+2026-10-15T13:23:21Z  ['getproduct'] running
+2026-10-15T13:23:21Z  {'frontend': 338.75, 'productcatalogservice': 554.0, 'checkoutservice': 335.0, 'recommendationservice': 499.0, 'emailservice': 27.0, 'adservice': 0, 'cartservice': 390.0, 'currencyservice': 381.0, 'paymentservice': 0, 'shippingservice': 68.0}
+2026-10-15T13:23:21Z  []
+2026-10-15T13:23:21Z  {'frontend': 338.75, 'productcatalogservice': 554.0, 'checkoutservice': 335.0, 'recommendationservice': 499.0, 'emailservice': 27.0, 'adservice': 0, 'cartservice': 390.0, 'currencyservice': 381.0, 'paymentservice': 0, 'shippingservice': 68.0}
+2026-10-15T13:23:21Z  []
+2026-10-15T13:23:21Z  [('postcheckout', 0, 0)]
+2026-10-15T13:23:21Z  postcheckout: 19.747568419868955
+2026-10-15T13:23:21Z  []
+2026-10-15T13:23:21Z  {'frontend': 338.75, 'productcatalogservice': 554.0, 'checkoutservice': 335.0, 'recommendationservice': 499.0, 'emailservice': 29.0, 'adservice': 0, 'cartservice': 390.0, 'currencyservice': 381.0, 'paymentservice': 0, 'shippingservice': 31.0}
+2026-10-15T13:23:21Z  []
+2026-10-15T13:23:21Z  {'frontend': 338.75, 'productcatalogservice': 554.0, 'checkoutservice': 335.0, 'recommendationservice': 499.0, 'emailservice': 29.0, 'adservice': 0, 'cartservice': 390.0, 'currencyservice': 381.0, 'paymentservice': 0, 'shippingservice': 31.0}
+2026-10-15T13:23:21Z  []
+2026-10-15T13:23:21Z  [('getcart', 0, 0)]
+2026-10-15T13:23:21Z  getcart: 19.838223232428938
+2026-10-15T13:23:22Z  {'frontend': 359.5, 'productcatalogservice': 530.0, 'checkoutservice': 369.0, 'recommendationservice': 499.0, 'emailservice': 29.0, 'adservice': 0, 'cartservice': 390.0, 'currencyservice': 381.0, 'paymentservice': 0, 'shippingservice': 31.0}
+2026-10-15T13:23:22Z  []
+2026-10-15T13:23:22Z  {'frontend': 359.5, 'productcatalogservice': 530.0, 'checkoutservice': 369.0, 'recommendationservice': 499.0, 'emailservice': 29.0, 'adservice': 0, 'cartservice': 390.0, 'currencyservice': 381.0, 'paymentservice': 0, 'shippingservice': 31.0}
+2026-10-15T13:23:22Z  []
+2026-10-15T13:23:22Z  [('getproduct', 0, 0)]
+2026-10-15T13:23:22Z  Wrong action, leftover: 9.00471369131155
+2026-10-15T13:23:22Z  []getproduct: 302.5
+2026-10-15T13:23:22Z  
+2026-10-15T13:23:22Z  []
+2026-10-15T13:23:22Z  {'frontend': 345.0, 'productcatalogservice': 530.0, 'checkoutservice': 369.0, 'recommendationservice': 646.0, 'emailservice': 29.0, 'adservice': 0, 'cartservice': 436.0, 'currencyservice': 381.0, 'paymentservice': 0, 'shippingservice': 31.0}
+2026-10-15T13:23:22Z  []
+2026-10-15T13:23:22Z  No overloaded services
+2026-10-15T13:23:22Z  ['postcheckout'] running
+2026-10-15T13:23:23Z  ['getcart'] running
+2026-10-15T13:23:23Z  {'frontend': 367.0, 'productcatalogservice': 506.0, 'checkoutservice': 430.0, 'recommendationservice': 646.0, 'emailservice': 40.0, 'adservice': 0, 'cartservice': 436.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 31.0}
+2026-10-15T13:23:23Z  []
+2026-10-15T13:23:23Z  {'frontend': 367.0, 'productcatalogservice': 506.0, 'checkoutservice': 430.0, 'recommendationservice': 646.0, 'emailservice': 40.0, 'adservice': 0, 'cartservice': 436.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 31.0}
+2026-10-15T13:23:23Z  []
+2026-10-15T13:23:23Z  [('postcheckout', 0, 0)]
+2026-10-15T13:23:23Z  postcheckout: 27.17449126155369
+2026-10-15T13:23:23Z  ['getproduct'] running
+2026-10-15T13:23:23Z  []
+2026-10-15T13:23:23Z  {'frontend': 384.5, 'productcatalogservice': 506.0, 'checkoutservice': 430.0, 'recommendationservice': 646.0, 'emailservice': 40.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:23:23Z  []
+2026-10-15T13:23:23Z  {'frontend': 384.5, 'productcatalogservice': 506.0, 'checkoutservice': 430.0, 'recommendationservice': 646.0, 'emailservice': 40.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:23:23Z  []
+2026-10-15T13:23:23Z  [('getcart', 0, 0)]
+2026-10-15T13:23:23Z  getcart: 27.50551561579387
+2026-10-15T13:23:24Z  []
+2026-10-15T13:23:24Z  {'frontend': 406.25, 'productcatalogservice': 506.0, 'checkoutservice': 430.0, 'recommendationservice': 796.0, 'emailservice': 40.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:23:24Z  []
+2026-10-15T13:23:24Z  {'frontend': 406.25, 'productcatalogservice': 506.0, 'checkoutservice': 430.0, 'recommendationservice': 796.0, 'emailservice': 40.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:23:24Z  []
+2026-10-15T13:23:24Z  [('getproduct', 0, 0)]
+2026-10-15T13:23:24Z  Wrong action, leftover: 111.0260234773159
+2026-10-15T13:23:24Z  getproduct: 302.5
+2026-10-15T13:23:24Z  []
+2026-10-15T13:23:24Z  ['postcheckout'] running
+2026-10-15T13:23:24Z  {'frontend': 405.25, 'productcatalogservice': 506.0, 'checkoutservice': 508.0, 'recommendationservice': 796.0, 'emailservice': 78.0, 'adservice': 0, 'cartservice': 401.0, 'currencyservice': 425.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:23:24Z  []
+2026-10-15T13:23:24Z  No overloaded services
+2026-10-15T13:23:24Z  {'frontend': 415.25, 'productcatalogservice': 479.0, 'checkoutservice': 508.0, 'recommendationservice': 796.0, 'emailservice': 78.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 434.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:23:24Z  []
+2026-10-15T13:23:24Z  {'frontend': 415.25, 'productcatalogservice': 479.0, 'checkoutservice': 508.0, 'recommendationservice': 796.0, 'emailservice': 78.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 434.0, 'paymentservice': 0, 'shippingservice': 46.0}
+2026-10-15T13:23:24Z  []
+2026-10-15T13:23:24Z  [('postcheckout', 0, 0)]
+2026-10-15T13:23:25Z  postcheckout: 33.53384936626931
+2026-10-15T13:23:25Z  ['getcart'] running
+2026-10-15T13:23:25Z  []
+2026-10-15T13:23:25Z  ['getproduct'] running
+2026-10-15T13:23:25Z  {'frontend': 394.75, 'productcatalogservice': 479.0, 'checkoutservice': 508.0, 'recommendationservice': 834.0, 'emailservice': 64.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 434.0, 'paymentservice': 0, 'shippingservice': 70.0}
+2026-10-15T13:23:25Z  []
+2026-10-15T13:23:25Z  {'frontend': 394.75, 'productcatalogservice': 479.0, 'checkoutservice': 508.0, 'recommendationservice': 834.0, 'emailservice': 64.0, 'adservice': 0, 'cartservice': 415.0, 'currencyservice': 434.0, 'paymentservice': 0, 'shippingservice': 70.0}
+2026-10-15T13:23:25Z  []
+2026-10-15T13:23:25Z  [('getcart', 0, 0)]
+2026-10-15T13:23:25Z  getcart: 36.61906569310719
+2026-10-15T13:23:25Z  []
+2026-10-15T13:23:26Z  {'frontend': 394.75, 'productcatalogservice': 463.0, 'checkoutservice': 508.0, 'recommendationservice': 834.0, 'emailservice': 64.0, 'adservice': 0, 'cartservice': 422.0, 'currencyservice': 434.0, 'paymentservice': 0, 'shippingservice': 70.0}
+2026-10-15T13:23:26Z  []
+2026-10-15T13:23:26Z  getproduct: 10000
+2026-10-15T13:23:26Z  ['postcheckout'] running
+2026-10-15T13:23:26Z  All APIs clean
+2026-10-15T13:23:26Z  {'frontend': 399.25, 'productcatalogservice': 463.0, 'checkoutservice': 614.0, 'recommendationservice': 834.0, 'emailservice': 64.0, 'adservice': 0, 'cartservice': 422.0, 'currencyservice': 446.0, 'paymentservice': 0, 'shippingservice': 70.0}
+2026-10-15T13:23:26Z  []
+2026-10-15T13:23:26Z  {'frontend': 402.5, 'productcatalogservice': 463.0, 'checkoutservice': 614.0, 'recommendationservice': 834.0, 'emailservice': 71.0, 'adservice': 0, 'cartservice': 422.0, 'currencyservice': 446.0, 'paymentservice': 0, 'shippingservice': 70.0}
+2026-10-15T13:23:26Z  []
+2026-10-15T13:23:26Z  [('postcheckout', 0, 0)]
+2026-10-15T13:23:26Z  postcheckout: 44.6508618908468
+2026-10-15T13:23:26Z  {'frontend': 402.5, 'productcatalogservice': 463.0, 'checkoutservice': 614.0, 'recommendationservice': 834.0, 'emailservice': 71.0, 'adservice': 0, 'cartservice': 422.0, 'currencyservice': 446.0, 'paymentservice': 0, 'shippingservice': 70.0}
+2026-10-15T13:23:26Z  []
+2026-10-15T13:23:26Z  No overloaded services
+2026-10-15T13:23:26Z  ['getcart'] running
+2026-10-15T13:23:26Z  []
+2026-10-15T13:23:27Z  {'frontend': 402.5, 'productcatalogservice': 463.0, 'checkoutservice': 614.0, 'recommendationservice': 831.0, 'emailservice': 71.0, 'adservice': 0, 'cartservice': 422.0, 'currencyservice': 446.0, 'paymentservice': 0, 'shippingservice': 70.0}
+2026-10-15T13:23:27Z  []
+2026-10-15T13:23:27Z  {'frontend': 402.5, 'productcatalogservice': 463.0, 'checkoutservice': 614.0, 'recommendationservice': 831.0, 'emailservice': 71.0, 'adservice': 0, 'cartservice': 422.0, 'currencyservice': 446.0, 'paymentservice': 0, 'shippingservice': 70.0}
+2026-10-15T13:23:27Z  []
+2026-10-15T13:23:27Z  [('getcart', 0, 0)]
+2026-10-15T13:23:27Z  getcart: 49.87077116480511
+2026-10-15T13:23:27Z  []
+2026-10-15T13:23:27Z  ['postcheckout'] running
+2026-10-15T13:23:28Z  {'frontend': 386.75, 'productcatalogservice': 502.0, 'checkoutservice': 642.0, 'recommendationservice': 831.0, 'emailservice': 71.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 468.0, 'paymentservice': 0, 'shippingservice': 74.0}
+2026-10-15T13:23:28Z  ['checkoutservice']
+2026-10-15T13:23:28Z  {'frontend': 388.0, 'productcatalogservice': 502.0, 'checkoutservice': 642.0, 'recommendationservice': 860.0, 'emailservice': 71.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 468.0, 'paymentservice': 0, 'shippingservice': 74.0}
+2026-10-15T13:23:28Z  ['checkoutservice']
+2026-10-15T13:23:28Z  [('postcheckout', 1, 0)]
+2026-10-15T13:23:28Z  postcheckout: 59.269797542927016
+2026-10-15T13:23:28Z  ['getcart'] running
+2026-10-15T13:23:28Z  ['checkoutservice']
+2026-10-15T13:23:28Z  {'frontend': 388.0, 'productcatalogservice': 502.0, 'checkoutservice': 642.0, 'recommendationservice': 860.0, 'emailservice': 76.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 468.0, 'paymentservice': 0, 'shippingservice': 74.0}
+2026-10-15T13:23:28Z  ['checkoutservice']
+2026-10-15T13:23:28Z  {'frontend': 388.0, 'productcatalogservice': 502.0, 'checkoutservice': 642.0, 'recommendationservice': 860.0, 'emailservice': 76.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 468.0, 'paymentservice': 0, 'shippingservice': 96.0}
+2026-10-15T13:23:28Z  ['checkoutservice']
+2026-10-15T13:23:28Z  [('getcart', 100, 0)]
+2026-10-15T13:23:28Z  getcart: 67.90186819045603
+2026-10-15T13:23:28Z  {'frontend': 394.5, 'productcatalogservice': 502.0, 'checkoutservice': 642.0, 'recommendationservice': 860.0, 'emailservice': 76.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 468.0, 'paymentservice': 0, 'shippingservice': 96.0}
+2026-10-15T13:23:28Z  ['checkoutservice']
+2026-10-15T13:23:28Z  ['postcheckout']
+2026-10-15T13:23:28Z  number of valid agent
+2026-10-15T13:23:28Z  1
+2026-10-15T13:23:28Z  ['checkoutservice']
+2026-10-15T13:23:29Z  ['postcheckout'] running
+2026-10-15T13:23:29Z  {'frontend': 395.75, 'productcatalogservice': 445.0, 'checkoutservice': 756.0, 'recommendationservice': 766.0, 'emailservice': 108.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 486.0, 'paymentservice': 0, 'shippingservice': 96.0}
+2026-10-15T13:23:29Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:23:29Z  {'frontend': 395.75, 'productcatalogservice': 445.0, 'checkoutservice': 756.0, 'recommendationservice': 766.0, 'emailservice': 108.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 486.0, 'paymentservice': 0, 'shippingservice': 96.0}
+2026-10-15T13:23:29Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:23:29Z  [('postcheckout', 1, 0)]
+2026-10-15T13:23:29Z  postcheckout: 67.51779889541706
+2026-10-15T13:23:29Z  ['getcart'] running
+2026-10-15T13:23:29Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:23:30Z  {'frontend': 395.75, 'productcatalogservice': 459.0, 'checkoutservice': 780.0, 'recommendationservice': 766.0, 'emailservice': 108.0, 'adservice': 0, 'cartservice': 412.0, 'currencyservice': 486.0, 'paymentservice': 0, 'shippingservice': 96.0}
+2026-10-15T13:23:30Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:23:30Z  {'frontend': 395.75, 'productcatalogservice': 459.0, 'checkoutservice': 780.0, 'recommendationservice': 766.0, 'emailservice': 108.0, 'adservice': 0, 'cartservice': 412.0, 'currencyservice': 486.0, 'paymentservice': 0, 'shippingservice': 96.0}
+2026-10-15T13:23:30Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:23:30Z  [('getcart', 100, 0)]
+2026-10-15T13:23:30Z  getcart: 74.26847373939117
+2026-10-15T13:23:30Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:23:30Z  {'frontend': 374.75, 'productcatalogservice': 459.0, 'checkoutservice': 780.0, 'recommendationservice': 842.0, 'emailservice': 108.0, 'adservice': 0, 'cartservice': 412.0, 'currencyservice': 465.0, 'paymentservice': 0, 'shippingservice': 113.0}
+2026-10-15T13:23:30Z  ['checkoutservice', 'emailservice']
+2026-10-15T13:23:30Z  ['postcheckout']
+2026-10-15T13:23:30Z  number of valid agent
+2026-10-15T13:23:30Z  1
+2026-10-15T13:23:30Z  ['postcheckout']
+2026-10-15T13:23:30Z  number of valid agent
+2026-10-15T13:23:30Z  1
+2026-10-15T13:23:30Z  ['postcheckout'] running
+2026-10-15T13:23:31Z  {'frontend': 388.0, 'productcatalogservice': 459.0, 'checkoutservice': 689.0, 'recommendationservice': 842.0, 'emailservice': 86.0, 'adservice': 0, 'cartservice': 428.0, 'currencyservice': 488.0, 'paymentservice': 0, 'shippingservice': 113.0}
+2026-10-15T13:23:31Z  ['checkoutservice']
+2026-10-15T13:23:31Z  {'frontend': 388.0, 'productcatalogservice': 459.0, 'checkoutservice': 689.0, 'recommendationservice': 842.0, 'emailservice': 86.0, 'adservice': 0, 'cartservice': 428.0, 'currencyservice': 488.0, 'paymentservice': 0, 'shippingservice': 113.0}
+2026-10-15T13:23:31Z  ['checkoutservice']
+2026-10-15T13:23:31Z  [('postcheckout', 1, 0)]
+2026-10-15T13:23:31Z  postcheckout: 60.98936615201552
+2026-10-15T13:23:31Z  ['getcart'] running
+2026-10-15T13:23:31Z  ['checkoutservice']
+2026-10-15T13:23:31Z  {'frontend': 388.0, 'productcatalogservice': 458.0, 'checkoutservice': 689.0, 'recommendationservice': 842.0, 'emailservice': 86.0, 'adservice': 0, 'cartservice': 428.0, 'currencyservice': 488.0, 'paymentservice': 0, 'shippingservice': 113.0}
+2026-10-15T13:23:31Z  ['checkoutservice']
+2026-10-15T13:23:31Z  {'frontend': 388.0, 'productcatalogservice': 458.0, 'checkoutservice': 689.0, 'recommendationservice': 842.0, 'emailservice': 86.0, 'adservice': 0, 'cartservice': 428.0, 'currencyservice': 488.0, 'paymentservice': 0, 'shippingservice': 113.0}
+2026-10-15T13:23:31Z  ['checkoutservice']
+2026-10-15T13:23:31Z  [('getcart', 100, 0)]
+2026-10-15T13:23:31Z  getcart: 75.87590489169321
+2026-10-15T13:23:31Z  ['checkoutservice']
+2026-10-15T13:23:32Z  ['postcheckout'] running
+2026-10-15T13:23:32Z  ['getcart'] running
+2026-10-15T13:23:32Z  {'frontend': 301.75, 'productcatalogservice': 333.0, 'checkoutservice': 337.0, 'recommendationservice': 1005.0, 'emailservice': 44.0, 'adservice': 0, 'cartservice': 314.0, 'currencyservice': 488.0, 'paymentservice': 0, 'shippingservice': 57.0}
+2026-10-15T13:23:32Z  ['recommendationservice']
+2026-10-15T13:30:34Z  ['postcheckout', 'getproduct', 'getcart']
+2026-10-15T13:30:34Z  number of valid agent
+2026-10-15T13:30:34Z  2
+2026-10-15T13:30:34Z  getcart: 75.87590489169321
+2026-10-15T13:30:35Z  getproduct: 105.0
+2026-10-15T13:30:35Z  Exception in thread Thread-24400:
+2026-10-15T13:30:35Z  Traceback (most recent call last):
+2026-10-15T13:30:35Z    File "/usr/lib/python3.8/threading.py", line 932, in _bootstrap_inner
+2026-10-15T13:30:35Z      self.run()
+2026-10-15T13:30:35Z    File "/usr/lib/python3.8/threading.py", line 870, in run
+2026-10-15T13:30:35Z  Exception in thread Thread-24356:
+2026-10-15T13:30:35Z  Traceback (most recent call last):
+2026-10-15T13:30:35Z    File "/usr/lib/python3.8/threading.py", line 932, in _bootstrap_inner
+2026-10-15T13:30:35Z      self.run()    
+2026-10-15T13:30:35Z    File "/usr/lib/python3.8/threading.py", line 870, in run
+2026-10-15T13:30:35Z  self._target(*self._args, **self._kwargs)    
+2026-10-15T13:30:35Z    File "deploy_rl.py", line 78, in run_agent
+2026-10-15T13:30:35Z  self._target(*self._args, **self._kwargs)
+2026-10-15T13:30:35Z    File "deploy_rl.py", line 78, in run_agent
+2026-10-15T13:30:35Z      agent.run()
+2026-10-15T13:30:35Z    File "deploy_rl.py", line 121, in run
+2026-10-15T13:30:35Z          agent.run()api_rps, api_fail, api_latency = metric[api]
+2026-10-15T13:30:35Z  
+2026-10-15T13:30:35Z    File "deploy_rl.py", line 121, in run
+2026-10-15T13:30:35Z  KeyError: 'getcart'
+2026-10-15T13:30:35Z      api_rps, api_fail, api_latency = metric[api]
+2026-10-15T13:30:35Z  KeyError: 'postcheckout'
+2026-10-15T13:30:36Z  *** SIGTERM received at time=1792071036 on cpu 3 ***
+2026-10-15T13:30:36Z  PC: @     0x7f3893ac91eb  (unknown)  select
+2026-10-15T13:30:36Z      @     0x7f38939f7090  (unknown)  (unknown)
+2026-10-15T13:30:36Z  [2026-10-15 13:30:36,263 E 18813 18813] logging.cc:361: *** SIGTERM received at time=1792071036 on cpu 3 ***
+2026-10-15T13:30:36Z  [2026-10-15 13:30:36,263 E 18813 18813] logging.cc:361: PC: @     0x7f3893ac91eb  (unknown)  select
+2026-10-15T13:30:36Z  [2026-10-15 13:30:36,263 E 18813 18813] logging.cc:361:     @     0x7f38939f7090  (unknown)  (unknown)
