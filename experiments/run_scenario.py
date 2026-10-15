@@ -36,6 +36,7 @@ from pathlib import Path
 from datetime import datetime
 
 import topfull_cpu_quotas
+import topfull_cap_floor
 
 TOPFULL_PROXY_LOG = "topfull_proxy.log"
 TOPFULL_RL_LOG = "topfull_rl.log"
@@ -132,6 +133,18 @@ def write_remote_json(host: str, remote_path: str, data: dict):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False,
                                      newline="\n") as f:
         f.write(content)
+        tmp = f.name
+    try:
+        scp_to(tmp, host, remote_path)
+    finally:
+        os.unlink(tmp)
+
+
+def write_remote_text(host: str, remote_path: str, content: str) -> None:
+    """Write a text file to a remote host with LF line endings."""
+    payload = content.replace("\r\n", "\n").replace("\r", "\n")
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as f:
+        f.write(payload.encode("utf-8"))
         tmp = f.name
     try:
         scp_to(tmp, host, remote_path)
@@ -656,6 +669,29 @@ def ensure_detector_quota_overlay(cfg: dict) -> None:
     write_remote_script(master, "/tmp/rg_patch_quota_overlay.py", patcher)
     ssh(master, "python3 /tmp/rg_patch_quota_overlay.py")
     step(f"Patched {path} with {marker}")
+
+
+def ensure_cap_floor(cfg: dict) -> None:
+    """
+    Let every API's admission cap be 0 on the live TopFull tree. Idempotent.
+    """
+    master = cfg["infra"]["master_ssh_host"]
+    src = cfg["infra"]["topfull_src_path"]
+    targets = [
+        (f"{src}/overload_detection.py", topfull_cap_floor.patch_overload_detection),
+        (f"{src}/deploy_rl.py", topfull_cap_floor.patch_deploy_rl),
+        (f"{src}/proxy/proxy_online_boutique.go", topfull_cap_floor.patch_proxy_burst),
+    ]
+    for remote, patcher in targets:
+        result = ssh(master, f"cat {remote}")
+        original = (result.stdout or "").replace("\r\n", "\n").replace("\r", "\n")
+        patched = patcher(original)
+        if patched == original:
+            step(f"cap floor already in {remote}")
+            continue
+        ssh(master, f"cp -n {remote} {remote}.bak.cap-floor", check=False)
+        write_remote_text(master, remote, patched)
+        step(f"Patched {remote} for cap floor 0")
 
 
 def restore_constraints(cfg: dict, restore_records: list):
@@ -1870,6 +1906,7 @@ def run(config_path: str):
         verify_live_cpu_limits(cfg, capacity)
         effective_quotas = write_run_quotas_json(cfg)
         ensure_detector_quota_overlay(cfg)
+        ensure_cap_floor(cfg)
 
         apply_per_try_timeout(cfg)
         restart_before_hold(cfg)

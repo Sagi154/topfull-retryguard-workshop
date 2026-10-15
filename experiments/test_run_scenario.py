@@ -2062,5 +2062,47 @@ class TestOverlappedStartup(unittest.TestCase):
         self.assertLess(fd, locust)
 
 
+class TestCapFloor(unittest.TestCase):
+    def test_patches_three_files_then_skips_them(self):
+        import topfull_cap_floor as floor
+        src = "/home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src"
+        cfg = {"infra": {"master_ssh_host": "topfull-master", "topfull_src_path": src}}
+        repo = Path(__file__).resolve().parents[1] / "TopFull" / "TopFull_master" / "online_boutique_scripts" / "src"
+        files = {
+            f"{src}/overload_detection.py": (repo / "overload_detection.py").read_text(encoding="utf-8"),
+            f"{src}/deploy_rl.py": (repo / "deploy_rl.py").read_text(encoding="utf-8"),
+            f"{src}/proxy/proxy_online_boutique.go": (repo / "proxy" / "proxy_online_boutique.go").read_text(encoding="utf-8"),
+        }
+        written = {}
+        backups = []
+
+        def fake_ssh(host, cmd, check=True):
+            self.assertEqual(host, "topfull-master")
+            if cmd.startswith("cat "):
+                path = cmd[len("cat "):]
+                return SimpleNamespace(stdout=files[path], returncode=0)
+            if cmd.startswith("cp -n "):
+                backups.append(cmd)
+                return SimpleNamespace(stdout="", returncode=0)
+            raise AssertionError(cmd)
+
+        def fake_write(host, remote_path, content):
+            written[remote_path] = content
+            files[remote_path] = content
+
+        with mock.patch.object(run_scenario, "ssh", fake_ssh), \
+             mock.patch.object(run_scenario, "write_remote_text", fake_write), \
+             mock.patch.object(run_scenario, "step", lambda *a, **k: None):
+            run_scenario.ensure_cap_floor(cfg)
+            self.assertEqual(set(written), set(files))
+            self.assertIn(floor.overload_floor_new(), written[f"{src}/overload_detection.py"])
+            self.assertIn(floor.deploy_rl_zero_block(), written[f"{src}/deploy_rl.py"])
+            self.assertIn(floor.proxy_burst_new(), written[f"{src}/proxy/proxy_online_boutique.go"])
+            self.assertEqual(len(backups), 3)
+            written.clear()
+            run_scenario.ensure_cap_floor(cfg)
+            self.assertEqual(written, {})
+
+
 if __name__ == "__main__":
     unittest.main()
