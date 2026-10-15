@@ -92,3 +92,9 @@ Shared y per unit means equal heights are equal values across panels. Rebuild th
 ## Related
 
 [2026-10-14-s2-mode-matrix-abc.md](2026-10-14-s2-mode-matrix-abc.md) (full scorer tables), [GRAPHS-TOOL.md](GRAPHS-TOOL.md), [ANALYSIS-TEMPLATE.md](ANALYSIS-TEMPLATE.md), [2026-10-13-controller-vs-scorer-rejection.md](2026-10-13-controller-vs-scorer-rejection.md).
+
+## Throttle flag addendum (2026-10-15 audit)
+
+- `final_s2_both_burst_run1` is FLAGGED (196 fetch warnings; longest no-fresh threshold read 494 s, longest no-fresh admitted read 494 s). Its cap and admitted-rate numbers are carried, not measured; filter them on `threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.
+- `final_s2_both_burst_run2` is FLAGGED (224 fetch warnings; longest no-fresh threshold read 565 s, longest no-fresh admitted read 565 s). Its cap and admitted-rate numbers are carried, not measured; filter them on `threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.
+- `final_s2_tf_only_run2` is FLAGGED (110 fetch warnings; longest no-fresh threshold read 280 s, longest no-fresh admitted read 280 s). Its cap and admitted-rate numbers are carried, not measured; filter them on `threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.

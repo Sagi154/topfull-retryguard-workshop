@@ -174,5 +174,43 @@ class TestStatusLines(unittest.TestCase):
         self.assertEqual(throttle_flags.apply_status(STATUS_TEXT, clean), STATUS_TEXT)
 
 
+class TestGuideScan(unittest.TestCase):
+    def scan(self, files):
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, text in files.items():
+                (Path(tmp) / name).write_text(text, encoding="utf-8")
+            flags = [hold("hold_a", on=True), hold("hold_b", on=False), hold("hold_c", flagged=False)]
+            return throttle_flags.scan_guides(flags, Path(tmp))
+
+    def test_a_guide_that_names_the_flag_has_nothing_missing(self):
+        rows = self.scan({"g1.md": "## Throttle data quality\n\n| hold_a | **FLAGGED** | 5 |\n"})
+        self.assertEqual(len(rows), 1)
+        self.assertEqual([h.name for h in rows[0].named], ["hold_a"])
+        self.assertEqual(rows[0].missing, ())
+        self.assertTrue(rows[0].has_section)
+
+    def test_a_guide_that_only_mentions_the_hold_is_missing_it(self):
+        rows = self.scan({"g2.md": "Columns: hold_a, hold_b.\n"})
+        self.assertEqual([h.name for h in rows[0].missing], ["hold_a", "hold_b"])
+        self.assertFalse(rows[0].has_section)
+
+    def test_clean_holds_and_unrelated_guides_are_ignored(self):
+        rows = self.scan({"g3.md": "hold_c only.\n", "g4.md": "nothing here\n"})
+        self.assertEqual(rows, [])
+
+    def test_note_has_the_item_17_facts_and_the_off_variant_wording(self):
+        on = throttle_flags.guide_note(hold("hold_a", on=True, warnings=196, tgap=494, agap=494))
+        self.assertIn("`hold_a` is FLAGGED", on)
+        self.assertIn("carried, not measured", on)
+        self.assertIn("Goodput, P95, rejection, and retry numbers", on)
+        off = throttle_flags.guide_note(hold("hold_b", on=False))
+        self.assertIn("no admission cap to lose", off)
+
+    def test_markdown_lists_every_guide_with_counts(self):
+        rows = self.scan({"g2.md": "Columns: hold_a, hold_b.\n"})
+        text = throttle_flags.guides_markdown(rows)
+        self.assertIn("| g2.md | 2 | 1 | 0 | `hold_a`, `hold_b` |", text)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -54,3 +54,10 @@ The S2 `tf_only` and `both_burst` holds before this (run1, run2) were TopFull on
 ## 7. Related
 
 [METRICS-GATHERED.md](METRICS-GATHERED.md), [TOPFULL-THROTTLE-METRICS.md](TOPFULL-THROTTLE-METRICS.md), [2026-10-14-s2-mode-matrix-abc.md](2026-10-14-s2-mode-matrix-abc.md), [2026-10-15-s2-controller-activation-analysis.md](2026-10-15-s2-controller-activation-analysis.md).
+
+## Throttle flag addendum (2026-10-15 audit)
+
+- `final_s2_both_burst_run2` is FLAGGED (224 fetch warnings; longest no-fresh threshold read 565 s, longest no-fresh admitted read 565 s). Its cap and admitted-rate numbers are carried, not measured; filter them on `threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.
+- `final_s2_both_burst_run3` is FLAGGED (224 fetch warnings; longest no-fresh threshold read 563 s, longest no-fresh admitted read 563 s). Its cap and admitted-rate numbers are carried, not measured; filter them on `threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.
+- `final_s2_tf_only_run2` is FLAGGED (110 fetch warnings; longest no-fresh threshold read 280 s, longest no-fresh admitted read 280 s). Its cap and admitted-rate numbers are carried, not measured; filter them on `threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.
+- `final_s2_tf_only_run3` is FLAGGED (168 fetch warnings; longest no-fresh threshold read 424 s, longest no-fresh admitted read 425 s). Its cap and admitted-rate numbers are carried, not measured; filter them on `threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.

@@ -194,6 +194,77 @@ def write_status(path: Path, flags: list[HoldFlag]) -> bool:
     return True
 
 
+@dataclass(frozen=True)
+class GuideRow:
+    guide: str
+    mentioned: tuple
+    named: tuple
+    has_section: bool
+
+    @property
+    def missing(self) -> tuple:
+        named = {h.name for h in self.named}
+        return tuple(h for h in self.mentioned if h.name not in named)
+
+
+def scan_guides(flags: list[HoldFlag], guides_dir: Path) -> list[GuideRow]:
+    skip = {AUDIT_PATH.name, RERUN_PATH.name}
+    flagged = [h for h in flags if h.flagged]
+    rows = []
+    for path in sorted(Path(guides_dir).glob("*.md")):
+        if path.name in skip:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        lines = text.splitlines()
+        mentioned, named = [], []
+        for h in flagged:
+            pattern = name_pattern(h.name)
+            hits = [line for line in lines if pattern.search(line)]
+            if not hits:
+                continue
+            mentioned.append(h)
+            if any("FLAGGED" in line for line in hits):
+                named.append(h)
+        if mentioned:
+            rows.append(GuideRow(path.name, tuple(mentioned), tuple(named),
+                                 "Throttle data quality" in text))
+    return rows
+
+
+def guides_markdown(rows: list[GuideRow]) -> str:
+    out = [
+        "| Guide | Flagged holds mentioned | TopFull on | Named FLAGGED | Missing |",
+        "| --- | ---: | ---: | ---: | --- |",
+    ]
+    for row in rows:
+        missing = ", ".join(f"`{h.name}`" for h in row.missing) or "none"
+        on = sum(1 for h in row.mentioned if h.topfull_on)
+        out.append(f"| {row.guide} | {len(row.mentioned)} | {on} | {len(row.named)} | {missing} |")
+    return "\n".join(out)
+
+
+def guide_note(h: HoldFlag) -> str:
+    """One paste-ready sentence per ANALYSIS-TEMPLATE.md item 17."""
+    facts = (
+        f"{_warnings_text(h)}; longest no-fresh threshold read {h.threshold_gap_s:.0f} s, "
+        f"longest no-fresh admitted read {h.admitted_gap_s:.0f} s"
+    )
+    if h.topfull_on:
+        handling = (
+            "Its cap and admitted-rate numbers are carried, not measured; filter them on "
+            "`threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured."
+        )
+    else:
+        handling = (
+            "That hold has TopFull off, so it is N/A: TopFull off and is not a flag. "
+            "It has no admission cap to lose."
+        )
+    return (
+        f"`{h.name}` is {label(h)} ({facts}). {handling} "
+        f"Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid."
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -201,6 +272,7 @@ def main(argv: list[str] | None = None) -> int:
         p = sub.add_parser(name)
         p.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     sub.choices["status"].add_argument("--write", action="store_true")
+    sub.choices["guides"].add_argument("--notes", action="store_true")
     args = parser.parse_args(argv)
     flags = scan(args.root)
     if args.cmd == "audit":
@@ -217,6 +289,17 @@ def main(argv: list[str] | None = None) -> int:
             for line in new.split("\n"):
                 if line not in before:
                     print(line + "\n")
+        return 0
+    if args.cmd == "guides":
+        rows = scan_guides(flags, GUIDES_DIR)
+        print(guides_markdown(rows))
+        if args.notes:
+            for row in rows:
+                if not row.missing:
+                    continue
+                print(f"\n### {row.guide}\n")
+                for h in row.missing:
+                    print(f"- {guide_note(h)}")
         return 0
     return 0
 

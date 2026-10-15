@@ -466,3 +466,9 @@ A live read has `threshold_fresh=1` and threshold above 0. 10000 is no cap. A li
 - [ADR 0007](../docs/adr/0007-burst-mode-sliding-aggregate.md)
 - Earlier normal-mode both-on pair, not a column in this table: `study6_s2_normal_rgtf1_rep1` and `study6_s2_normal_rgtf1_rep2`, in [2026-10-12-s2-burst-matrix-abc.md](2026-10-12-s2-burst-matrix-abc.md)
 - Run log: [2026-10-12-s2-normal-rgtf1-x3-run-log.md](../docs/superpowers/plans/2026-10-12-s2-normal-rgtf1-x3-run-log.md)
+
+## Throttle flag addendum (2026-10-15 audit)
+
+- `study6_s2_normal_rgtf1_rep1` is FLAGGED (204 fetch warnings; longest no-fresh threshold read 513 s, longest no-fresh admitted read 513 s). Its cap and admitted-rate numbers are carried, not measured; filter them on `threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.
+- `study6_s2_normal_rgtf1_rep2` is FLAGGED (218 fetch warnings; longest no-fresh threshold read 5 s, longest no-fresh admitted read 550 s). Its cap and admitted-rate numbers are carried, not measured; filter them on `threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.
+- `study7_s2_normal_rgtf1_rep1` is FLAGGED (40 fetch warnings; longest no-fresh threshold read 5 s, longest no-fresh admitted read 105 s). Its cap and admitted-rate numbers are carried, not measured; filter them on `threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.
