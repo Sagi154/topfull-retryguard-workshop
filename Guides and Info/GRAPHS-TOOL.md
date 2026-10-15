@@ -38,8 +38,8 @@ How the fit works, and why a Locust row is not "second i": [2026-10-13-hold-cloc
 
 | # | Panel | What a point is | Source | Unit | Shown by default |
 |---|---|---|---|---|---|
-| 1 | Goodput / RPS | Locust goodput and offered RPS | `total.csv` `Goodput`, `RPS` | req/s | both, when the file has them |
-| 2 | P95 | Shopper-visible latency | `total.csv` `Latency95` | ms | the P95 line |
+| 1 | Goodput / RPS | Locust goodput and offered RPS. Totals, then each entry API. | `total.csv` and `{api}.csv` columns `Goodput`, `RPS` | req/s | totals and each API whose file is present |
+| 2 | P95 | Shopper-visible latency. The total, then each entry API. | `total.csv` and `{api}.csv` column `Latency95` | ms | the total line and each API whose file is present |
 | 3 | Rejection | Solid: controller rejection per service. Dashed black: Locust SLO-miss | `service_inbound.csv`; SLO-miss is `Fail/RPS` from `total.csv` | fraction | services with any rejection above 0 |
 | 4 | Retries per request | `Δretry / (Δtotal − Δretry)` on one caller→callee edge | `service_edges.csv` | retries/request | RetryGuard edges with any retry increase |
 | 5 | Cumulative retries | Running sum of positive `retry` increases since the first mesh poll | `service_edges.csv` `retry` | retries | same edges as panel 4 |
@@ -47,6 +47,8 @@ How the fit works, and why a Locust row is not "second i": [2026-10-13-hold-cloc
 | 7 | Overload ticks | Running count of detector polls with `overloaded=1` | `topfull_detect.csv` | ticks | services with at least one such poll |
 | 8 | Attempts | Heatmap. Row = edge, colour = attempts 0–3 | `retryguard.log` `OBSERVE` | attempts | every controlled edge, when RetryGuard ran |
 | 9 | CPU | App-container CPU | `resource_usage.csv` | millicores | every Boutique service except `__master_node__` |
+
+**Per-API Locust lines.** The five entry APIs are `getproduct`, `postcheckout`, `getcart`, `postcart`, `emptycart`. Legend names are `getproduct Goodput`, `getproduct RPS`, and `getproduct P95`, and the same shape for the other four. The total lines stay `Goodput`, `RPS`, and `Latency95`. `Latency95` is the unweighted mean of the five API P95s. `getproduct P95` is that API's own percentile. One colour belongs to one API, and that API's RPS line is dashed. An API whose CSV is missing has no line. Latency99 is not drawn.
 
 A line going up means more of that quantity at that second. On panels 5 and 7 the line is a step: it stays flat until the next poll, then jumps by what that poll added. It does not fall. On the other line panels a rise is a rate or a reading, and it can fall.
 
@@ -70,8 +72,8 @@ Same series as the line panels, overlaid. Nothing is on until you turn it on.
 
 | Unit | Axis | Series |
 |---|---|---|
-| req/s | left, always there | Goodput, RPS, TopFull cap |
-| ms | right, while a P95 line is on | P95 |
+| req/s | left, always there | Goodput, RPS, each API Goodput, each API RPS, TopFull cap |
+| ms | right, while a P95 line is on | Latency95, each API P95 |
 | fraction | right | Rejection, Locust SLO-miss |
 | retries/request | right | Retries per request |
 | millicores | right | CPU |
