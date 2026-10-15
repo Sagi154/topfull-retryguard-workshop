@@ -218,5 +218,57 @@ class TestGuideScan(unittest.TestCase):
         self.assertEqual(rows, [])
 
 
+class TestRerunList(unittest.TestCase):
+    def flags(self):
+        return [
+            hold("final_s2_both_burst_run1", on=True, tgap=494, agap=494, tpct=69.1, apct=69.1),
+            hold("final_s2_both_burst_run2", on=True, flagged=False),
+            hold("study6_s2_normal_rgtf1_rep1", on=True, tgap=5, agap=300, tpct=0.0, apct=60.0,
+                 mode="normal"),
+            hold("final_s2_rg_only_burst_run2", on=False),
+        ]
+
+    def test_numbers_affected_follows_which_reads_went_stale(self):
+        both = throttle_flags.numbers_affected(self.flags()[0])
+        self.assertIn("TopFull cap lines", both)
+        self.assertIn("admitted req/s", both)
+        admitted_only = throttle_flags.numbers_affected(self.flags()[2])
+        self.assertNotIn("TopFull cap lines", admitted_only)
+        self.assertIn("admitted req/s", admitted_only)
+        none = throttle_flags.numbers_affected(hold("x", tgap=5, agap=5))
+        self.assertIn("fetch warnings only", none)
+
+    def test_cell_key_strips_the_run_suffix_and_skips_study_folders(self):
+        self.assertEqual(throttle_flags.cell_key(hold("final_4a_constrained_both_burst_run3_r2")),
+                         "final_4a_constrained_both_burst")
+        self.assertIsNone(throttle_flags.cell_key(hold("study6_s2_normal_rgtf1_rep1")))
+
+    def test_only_topfull_on_flags_get_a_row(self):
+        text = throttle_flags.rerun_markdown(self.flags())
+        self.assertIn("`final_s2_both_burst_run1`", text)
+        self.assertIn("`study6_s2_normal_rgtf1_rep1`", text)
+        self.assertNotIn("final_s2_rg_only_burst_run2", text)
+        self.assertNotIn("final_s2_both_burst_run2", text)
+        self.assertNotIn("Pending", text)
+        self.assertNotIn(throttle_flags.TF_OFF_LABEL, text)
+
+    def test_locked_set_and_cell_counts_and_blank_decision(self):
+        text = throttle_flags.rerun_markdown(self.flags())
+        row = next(l for l in text.splitlines() if l.startswith("| `final_s2_both_burst_run1`"))
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        self.assertEqual(cells[1], "yes")
+        self.assertEqual(cells[6], "1 clean / 1 flagged")
+        self.assertEqual(cells[7], "")
+        study = next(l for l in text.splitlines() if l.startswith("| `study6_s2_normal_rgtf1_rep1`"))
+        study_cells = [c.strip() for c in study.strip("|").split("|")]
+        self.assertEqual(study_cells[1], "no")
+        self.assertEqual(study_cells[6], "n/a")
+
+    def test_scenarios_are_grouped_in_order(self):
+        text = throttle_flags.rerun_markdown(self.flags())
+        self.assertIn("### S2", text)
+        self.assertNotIn("## Pending", text)
+
+
 if __name__ == "__main__":
     unittest.main()
