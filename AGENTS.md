@@ -38,7 +38,7 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   mentor_charts.py / mentor_charts_data.py / mentor_charts_plots.py ← regenerate mentor-update PNGs from `campaign_48/` (`python experiments/mentor_charts.py`)
   graphs_tool.py ← **graphs_tool.** Every analysis of one `final results/` run starts here. Goodput / RPS and P95 include each entry API as well as the totals. What the page shows: [GRAPHS-TOOL.md](Guides%20and%20Info/GRAPHS-TOOL.md). Command: §3 "Where to find metrics"
   multi_graphs_tool.py ← **multi_graphs_tool.** Two or more `final results/` runs as stacked comparison panels under one shared legend, including those per-API lines. See [GRAPHS-TOOL.md](Guides%20and%20Info/GRAPHS-TOOL.md) "multi_graphs_tool". Command: `python experiments/multi_graphs_tool.py "<run_dir>" "<run_dir>"`
-  throttle_stale.py  ← stale stretches of a hold's `topfull_throttle.csv` (no fresh threshold read for longer than 10 s). Nothing imports it yet.
+  throttle_stale.py  ← stale stretches of a hold's `topfull_throttle.csv` (no fresh threshold read for longer than 10 s). graphs_tool imports it and draws the stretches.
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
   results/           ← local results only (master still uses a flat `/home/idozacharia/experiments/results/`)
