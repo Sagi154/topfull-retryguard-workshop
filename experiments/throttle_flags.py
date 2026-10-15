@@ -242,6 +242,35 @@ def guides_markdown(rows: list[GuideRow]) -> str:
     return "\n".join(out)
 
 
+def _on_handling(h: HoldFlag) -> str:
+    """Carry only the series whose gap is over the stale limit. The other series is measured."""
+    stale = analysis_score.THROTTLE_STALE_S
+    cap_carried = h.threshold_gap_s > stale
+    admitted_carried = h.admitted_gap_s > stale
+    if not cap_carried and not admitted_carried:
+        return "Fetch warnings only; no number is lost."
+    clauses = []
+    filters = []
+    if cap_carried:
+        clauses.append("the cap is carried, not measured")
+        filters.append("`threshold_fresh==1`")
+    else:
+        clauses.append("the cap is measured")
+    if admitted_carried:
+        clauses.append("admitted req/s is carried, not measured")
+        filters.append("`admitted_fresh==1`")
+    else:
+        clauses.append("admitted req/s is measured")
+    body = clauses[0][0].upper() + clauses[0][1:] + "; " + clauses[1]
+    if len(filters) == 2:
+        filt = f"{filters[0]} and {filters[1]}"
+        pronoun = "them"
+    else:
+        filt = filters[0]
+        pronoun = "it"
+    return f"{body}; filter {pronoun} on {filt} and do not quote {pronoun} as measured."
+
+
 def guide_note(h: HoldFlag) -> str:
     """One paste-ready sentence per ANALYSIS-TEMPLATE.md item 17."""
     facts = (
@@ -249,10 +278,7 @@ def guide_note(h: HoldFlag) -> str:
         f"longest no-fresh admitted read {h.admitted_gap_s:.0f} s"
     )
     if h.topfull_on:
-        handling = (
-            "Its cap and admitted-rate numbers are carried, not measured; filter them on "
-            "`threshold_fresh==1` / `admitted_fresh==1` and do not quote them as measured."
-        )
+        handling = _on_handling(h)
     else:
         handling = (
             "That hold has TopFull off, so it is N/A: TopFull off and is not a flag. "
