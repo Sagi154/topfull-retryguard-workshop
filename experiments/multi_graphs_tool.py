@@ -123,14 +123,18 @@ def assign_colors(figs: list[go.Figure], union: dict) -> dict[tuple[str, str], s
     Event lines keep the colour graphs_tool gave them. A per-API Locust line
     uses that API's colour and does not consume a palette slot, so Goodput, RPS,
     Latency95, and every later series keep the slot they had before those lines
-    existed.
+    existed. A stale line keeps its fresh line's colour and does not consume a slot.
     """
     colors = {}
+    stale_keys = []
     index = 0
     for key, trace in union.items():
         group, name = key
         if group == graphs_tool.EVENT_GROUP:
             colors[key] = trace.line.color
+            continue
+        if name.endswith(graphs_tool.STALE_SUFFIX):
+            stale_keys.append((index, key))
             continue
         api = graphs_tool.api_of(name)
         if api is not None:
@@ -138,6 +142,10 @@ def assign_colors(figs: list[go.Figure], union: dict) -> dict[tuple[str, str], s
             continue
         colors[key] = PALETTE[index % len(PALETTE)]
         index += 1
+    # A stale line is its fresh line's carried values, so it keeps that colour.
+    for stale_index, key in stale_keys:
+        fresh = (key[0], key[1][: -len(graphs_tool.STALE_SUFFIX)])
+        colors[key] = colors.get(fresh, PALETTE[stale_index % len(PALETTE)])
     for fig in figs:
         for trace in fig.data:
             trace.line.color = colors[(trace.legendgroup, trace.name)]
@@ -151,7 +159,8 @@ def legend_figure(union: dict, colors: dict) -> go.Figure:
         fig.add_trace(go.Scatter(
             x=[None], y=[None], mode="lines", name=name,
             visible=True if group == graphs_tool.EVENT_GROUP else "legendonly",
-            line={"width": 2, "color": colors[(group, name)]},
+            line={"width": 2, "color": colors[(group, name)],
+                  "dash": "dash" if name.endswith(graphs_tool.STALE_SUFFIX) else "solid"},
             legendgroup=group, meta=trace.meta,
             legendgrouptitle={"text": trace.legendgrouptitle.text, "font": {"color": "black"}},
         ))

@@ -636,5 +636,41 @@ class TestLinkedZoom(BrowserCase):
                   " return r && Math.abs(r[1] - 94.5) < 0.01; }")
 
 
+class TestStaleSeries(unittest.TestCase):
+    def stale_figs(self):
+        both = synthetic([("caps", "getproduct", [1.0]), ("caps", "getproduct (stale)", [2.0])], 100)
+        both.data[1].line.dash = "dash"
+        fresh_only = synthetic([("caps", "getproduct", [1.0])], 100)
+        return [fresh_only, both]
+
+    def test_stale_series_takes_the_colour_of_its_fresh_line(self):
+        figs = self.stale_figs()
+        union = multi_graphs_tool.series_union(figs)
+        colors = multi_graphs_tool.assign_colors(figs, union)
+        self.assertEqual(colors[("caps", "getproduct (stale)")], colors[("caps", "getproduct")])
+        stale = next(t for t in figs[1].data if t.name == "getproduct (stale)")
+        self.assertEqual(stale.line.color, colors[("caps", "getproduct")])
+        self.assertEqual(stale.line.dash, "dash")
+
+    def test_colour_is_shared_even_when_the_stale_line_is_seen_first(self):
+        stale_first = synthetic([("caps", "getproduct (stale)", [2.0])], 100)
+        fresh_second = synthetic([("caps", "getproduct", [1.0])], 100)
+        figs = [stale_first, fresh_second]
+        union = multi_graphs_tool.series_union(figs)
+        colors = multi_graphs_tool.assign_colors(figs, union)
+        self.assertEqual(colors[("caps", "getproduct (stale)")], colors[("caps", "getproduct")])
+
+    def test_legend_draws_the_stale_entry_dashed_and_the_rest_solid(self):
+        figs = self.stale_figs()
+        union = multi_graphs_tool.series_union(figs)
+        colors = multi_graphs_tool.assign_colors(figs, union)
+        legend = multi_graphs_tool.legend_figure(union, colors)
+        by_name = {t.name: t for t in legend.data}
+        self.assertEqual(by_name["getproduct (stale)"].line.dash, "dash")
+        self.assertEqual(by_name["getproduct"].line.dash, "solid")
+        self.assertEqual(by_name["getproduct (stale)"].visible, "legendonly")
+        self.assertEqual(by_name["getproduct (stale)"].legendgroup, "caps")
+
+
 if __name__ == "__main__":
     unittest.main()
