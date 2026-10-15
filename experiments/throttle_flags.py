@@ -8,8 +8,8 @@
 The flag rule is analysis_score.throttle_quality, with one extra gate: a TopFull-off
 variant (`rg_only`, `both_off`) is never flagged. A TopFull-on hold is flagged when the
 collector log has any `fetch failed` WARNING, or any API goes longer than
-analysis_score.THROTTLE_STALE_S (10 s after Task 9; 30 s until that task lands) with no
-fresh threshold or admitted read. A missing or empty topfull_throttle.csv is not a flag.
+analysis_score.THROTTLE_STALE_S (10 s) with no fresh threshold or admitted
+read. A missing or empty topfull_throttle.csv is not a flag.
 Nothing here edits a run folder.
 """
 from __future__ import annotations
@@ -95,10 +95,8 @@ def scan_hold(root: Path, run_dir: Path) -> HoldFlag:
     scenario_dir, variant, name = run_dir.relative_to(root).parts
     rows = analysis_score._rows(run_dir / "topfull_throttle.csv")
     topfull_on = variant in TOPFULL_ON_VARIANTS
-    # Do not pass topfull_on into throttle_quality here. That parameter arrives in
-    # Task 9. Until then the scorer still flags a TopFull-off hold, and this AND
-    # is what keeps those holds out of flagged.
-    quality = analysis_score.throttle_quality(rows, run_dir / "topfull_throttle_collector.log")
+    quality = analysis_score.throttle_quality(
+        rows, run_dir / "topfull_throttle_collector.log", topfull_on=topfull_on)
     return HoldFlag(
         path="/".join((scenario_dir, variant, name)),
         scenario=scenario_dir.split("_", 1)[0],

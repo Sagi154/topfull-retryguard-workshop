@@ -48,7 +48,7 @@ REJECTION_BOLD = 30
 OVERLOAD_BOLD = 0.5
 PASSTHROUGH = 10000
 GAP_S = 1.5
-THROTTLE_STALE_S = 30
+THROTTLE_STALE_S = 10
 
 SERVICES = (
     "frontend",
@@ -519,12 +519,34 @@ def _longest_gap(stamps: list[datetime], fresh: list[bool]) -> float | None:
     return max(worst, (stamps[-1] - last).total_seconds())
 
 
-def throttle_quality(rows: list[dict], log_path: Path) -> dict:
+def topfull_enabled(run_dir: Path) -> bool:
+    """True unless run_manifest.json says topfull_rl.enabled is false.
+
+    A missing file, a read error, or a body that is not JSON means on.
+    """
+    path = Path(run_dir) / "run_manifest.json"
+    if not path.is_file():
+        return True
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return True
+    if not isinstance(data, dict):
+        return True
+    block = data.get("topfull_rl")
+    if not isinstance(block, dict):
+        return True
+    return bool(block.get("enabled", True))
+
+
+def throttle_quality(rows: list[dict], log_path: Path, topfull_on: bool = True) -> dict:
     """How trustworthy topfull_throttle.csv is for this hold.
 
     Live reads of the TopFull proxy (/thresholds, /stats) normally land every 5 s.
-    A hold is flagged when topfull_throttle_collector.log has any fetch WARNING, or when
-    any API goes longer than THROTTLE_STALE_S without a fresh threshold or admitted read.
+    A TopFull-on hold is flagged when topfull_throttle_collector.log has any fetch
+    WARNING, or when any API goes longer than THROTTLE_STALE_S without a fresh
+    threshold or admitted read. A TopFull-off hold is never flagged. Warnings and
+    gaps are still reported.
     """
     warnings = 0
     first_warning = None
@@ -547,14 +569,15 @@ def throttle_quality(rows: list[dict], log_path: Path) -> dict:
             if gap is not None and (gaps[key] is None or gap > gaps[key]):
                 gaps[key] = gap
     worst = max([g for g in gaps.values() if g is not None], default=None)
-    flagged = warnings > 0 or (worst is not None and worst > THROTTLE_STALE_S)
+    would_flag = warnings > 0 or (worst is not None and worst > THROTTLE_STALE_S)
     return {
         "has_csv": bool(rows),
         "warnings": warnings,
         "first_warning": first_warning,
         "threshold_gap_s": gaps["threshold_fresh"],
         "admitted_gap_s": gaps["admitted_fresh"],
-        "flagged": flagged,
+        "topfull_on": bool(topfull_on),
+        "flagged": bool(would_flag and topfull_on),
     }
 
 
@@ -742,7 +765,8 @@ def score_run(run_dir: Path) -> dict:
         "transitions": log["transitions"],
         "caps": live_caps(throttle_rows),
         "throttle_quality": throttle_quality(
-            throttle_rows, run_dir / "topfull_throttle_collector.log"
+            throttle_rows, run_dir / "topfull_throttle_collector.log",
+            topfull_on=topfull_enabled(run_dir),
         ),
         "gate": mesh_gate(inbound_rows),
     }
@@ -1176,11 +1200,12 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
     lines.append("## Throttle data quality")
     lines.append("")
     lines.append(
-        f"Live reads of the TopFull proxy normally land every 5 s. A hold is **FLAGGED** when "
-        f"`topfull_throttle_collector.log` has any `fetch failed` WARNING, or when an API goes "
-        f"longer than {THROTTLE_STALE_S} s without a fresh threshold or admitted read. Cap and "
-        f"admitted-rate numbers on a flagged hold are carried values; filter on `*_fresh==1` or "
-        f"drop the hold from those numbers. Goodput, P95 and rejection do not use this file."
+        f"Live reads of the TopFull proxy normally land every 5 s. A hold is **FLAGGED** only "
+        f"when TopFull is on and `topfull_throttle_collector.log` has any `fetch failed` WARNING, "
+        f"or an API goes longer than {THROTTLE_STALE_S} s without a fresh threshold or admitted "
+        f"read. A TopFull-off hold (`rg_only`, `both_off`) is `N/A: TopFull off`, not a flag. "
+        f"Cap and admitted-rate numbers on a flagged hold are carried values; filter on "
+        f"`*_fresh==1`. The rows stay in the file. Goodput, P95 and rejection do not use this file."
     )
     lines.append("")
     lines.append(
@@ -1193,7 +1218,12 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
         if not q["has_csv"]:
             lines.append(f"| {label} | no topfull_throttle.csv | — | — | — | — |")
             continue
-        status = "**FLAGGED**" if q["flagged"] else "ok"
+        if not q.get("topfull_on", True):
+            status = "N/A: TopFull off"
+        elif q["flagged"]:
+            status = "**FLAGGED**"
+        else:
+            status = "ok"
         first = q["first_warning"][11:19] if q["first_warning"] else "—"
         lines.append(
             f"| {label} | {status} | {q['warnings']} | {first} | "

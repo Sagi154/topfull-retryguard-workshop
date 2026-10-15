@@ -334,3 +334,72 @@ class TestThrottleQuality(unittest.TestCase):
         self.assertTrue(q["flagged"])
         self.assertEqual(q["warnings"], 1)
         self.assertEqual(q["first_warning"], "2026-10-13T00:00:05Z")
+
+    def test_topfull_off_hold_is_not_flagged_but_still_reports_the_problem(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "topfull_throttle_collector.log"
+            log.write_text(
+                "2026-10-13T00:00:05Z  WARNING  stats fetch failed: timed out\n",
+                encoding="utf-8",
+            )
+            q = score.throttle_quality(self._rows(fresh_until=20), log, topfull_on=False)
+        self.assertFalse(q["flagged"])
+        self.assertFalse(q["topfull_on"])
+        self.assertEqual(q["warnings"], 1)
+        self.assertGreater(q["threshold_gap_s"], score.THROTTLE_STALE_S)
+
+    def test_topfull_on_is_the_default(self):
+        q = score.throttle_quality(self._rows(fresh_until=20), Path("missing.log"))
+        self.assertTrue(q["topfull_on"])
+
+    def test_topfull_enabled_reads_run_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            self.assertTrue(score.topfull_enabled(folder))  # no manifest
+            (folder / "run_manifest.json").write_text(
+                '{"topfull_rl": {"enabled": false}}', encoding="utf-8")
+            self.assertFalse(score.topfull_enabled(folder))
+            (folder / "run_manifest.json").write_text(
+                '{"topfull_rl": {"enabled": true}}', encoding="utf-8")
+            self.assertTrue(score.topfull_enabled(folder))
+            (folder / "run_manifest.json").write_text("not json", encoding="utf-8")
+            self.assertTrue(score.topfull_enabled(folder))
+
+    def test_ten_seconds_is_not_a_flag_and_eleven_is(self):
+        def rows(gap):
+            return [
+                {"timestamp": "2026-10-13T00:00:00Z", "api": "getproduct",
+                 "threshold_fresh": 1, "admitted_fresh": 1},
+                {"timestamp": f"2026-10-13T00:00:{gap:02d}Z", "api": "getproduct",
+                 "threshold_fresh": 1, "admitted_fresh": 1},
+            ]
+        ten = score.throttle_quality(rows(10), Path("missing.log"))
+        self.assertFalse(ten["flagged"])
+        self.assertEqual(ten["threshold_gap_s"], 10)
+        eleven = score.throttle_quality(rows(11), Path("missing.log"))
+        self.assertTrue(eleven["flagged"])
+        self.assertEqual(eleven["threshold_gap_s"], 11)
+
+    def test_stale_gap_matches_the_marker(self):
+        import throttle_stale
+        self.assertEqual(score.THROTTLE_STALE_S, 10)
+        self.assertEqual(throttle_stale.STALE_GAP_S, float(score.THROTTLE_STALE_S))
+
+    def test_rendered_table_says_na_for_a_topfull_off_hold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "final_s2_rg_only_burst_run9"
+            folder.mkdir()
+            (folder / "run_manifest.json").write_text(
+                '{"topfull_rl": {"enabled": false}}', encoding="utf-8")
+            (folder / "topfull_throttle_collector.log").write_text(
+                "2026-10-13T00:00:05Z  WARNING  stats fetch failed: timed out\n",
+                encoding="utf-8")
+            _write(
+                folder / "topfull_throttle.csv",
+                ["timestamp", "api", "threshold", "admitted_rps", "threshold_fresh", "admitted_fresh"],
+                [["2026-10-13T00:00:00Z", "getproduct", 10000, 0, 1, 1],
+                 ["2026-10-13T00:01:00Z", "getproduct", 10000, 0, 0, 0]],
+            )
+            text = score.render([score.score_run(folder)], ["9"])
+        self.assertIn("| 9 | N/A: TopFull off |", text)
+        self.assertNotIn("| 9 | **FLAGGED** |", text)
