@@ -1,0 +1,15 @@
+event,cell,goodput_before,goodput_after,retry_before,retry_after,p95_before,p95_after
+final_s2_rg_only_normal_run2 #1,rg_only_normal,360.95,517.55,253.65,0.0,1288.56,419.15
+final_s2_rg_only_burst_run1 #2,rg_only_burst,338.025,504.1,213.95,0.0,707.7099999999999,448.46999999999997
+final_s2_rg_only_burst_run1 #3,rg_only_burst,334.85,464.4,215.75,0.0,701.2700000000001,459.0400000000001
+final_s2_rg_only_burst_run1 #4,rg_only_burst,303.8,472.475,243.65,0.0,703.19,455.4200000000001
+final_s2_rg_only_burst_run1 #5,rg_only_burst,353.35,474.875,201.85,0.0,706.78,465.91999999999996
+final_s2_rg_only_burst_run1 #6,rg_only_burst,304.575,468.175,240.55,0.0,704.1600000000001,445.7
+final_s2_rg_only_burst_run2 #2,rg_only_burst,321.15,462.75,232.55,0.0,706.4399999999998,460.34000000000003
+final_s2_rg_only_burst_run2 #3,rg_only_burst,324.775,478.025,226.15,0.0,719.27,435.71999999999997
+final_s2_both_burst_run1 #1,both_burst,299.6,457.45,357.7,0.0,1042.07,419.39
+final_s2_both_burst_run1 #2,both_burst,447.85,311.925,55.45,0.0,487.85,442.28000000000003
+final_s2_both_burst_run1 #3,both_burst,306.25,411.05,227.05,0.0,701.78,452.0800000000001
+final_s2_both_burst_run2 #2,both_burst,348.4,517.975,219.25,0.0,835.9699999999999,285.65
+final_s2_both_burst_run2 #3,both_burst,352.725,519.625,235.3,0.0,1075.1599999999999,311.41
+final_s2_both_burst_run2 #4,both_burst,310.925,499.125,308.6,0.0,1046.32,388.22999999999996
