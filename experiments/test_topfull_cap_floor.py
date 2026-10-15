@@ -53,5 +53,43 @@ class TestFloorThreshold(unittest.TestCase):
         self.assertNotIn("SetBurst(int(newRate))", proxy)
 
 
+class TestPatchSources(unittest.TestCase):
+    SRC = ROOT / "TopFull" / "TopFull_master" / "online_boutique_scripts" / "src"
+
+    def test_overload_detection_floors_every_api_at_zero(self):
+        source = (self.SRC / "overload_detection.py").read_text(encoding="utf-8")
+        patched = floor.patch_overload_detection(source)
+        self.assertNotIn(floor.OVERLOAD_FLOOR_OLD, patched)
+        self.assertIn(floor.overload_floor_new(), patched)
+        self.assertEqual(floor.patch_overload_detection(patched), patched)
+
+    def test_deploy_rl_keeps_a_zero_cap(self):
+        source = (self.SRC / "deploy_rl.py").read_text(encoding="utf-8")
+        patched = floor.patch_deploy_rl(source)
+        self.assertNotIn(floor.DEPLOY_RL_ZERO_OLD, patched)
+        self.assertNotIn('print("zero threshold")', patched)
+        self.assertNotIn(floor.DEPLOY_RL_RATIO_OLD, patched)
+        self.assertIn(floor.deploy_rl_zero_block(), patched)
+        self.assertIn(floor.deploy_rl_ratio_block(), patched)
+        self.assertIn('print("All APIs clean")', patched)
+        self.assertEqual(floor.patch_deploy_rl(patched), patched)
+
+    def test_proxy_burst_allows_a_fraction_and_rejects_zero(self):
+        source = (self.SRC / "proxy" / "proxy_online_boutique.go").read_text(encoding="utf-8")
+        patched = floor.patch_proxy_burst(source)
+        self.assertNotIn(floor.PROXY_BURST_OLD, patched)
+        self.assertIn(floor.proxy_burst_new(), patched)
+        self.assertIn("SetBurst(int(newRateFloat))", patched)
+        self.assertEqual(floor.patch_proxy_burst(patched), patched)
+
+    def test_missing_site_aborts(self):
+        with self.assertRaises(RuntimeError):
+            floor.patch_overload_detection("no floor here\n")
+        with self.assertRaises(RuntimeError):
+            floor.patch_deploy_rl("no zero check\n")
+        with self.assertRaises(RuntimeError):
+            floor.patch_proxy_burst("package main\n")
+
+
 if __name__ == "__main__":
     unittest.main()

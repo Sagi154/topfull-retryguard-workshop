@@ -66,3 +66,33 @@ def proxy_burst_new() -> str:
         "\t\ttargetLimiter.SetBurst(burst)\n"
         '\t\tprintln("Apply threshold to ", api, " : ", newRate)\n'
     )
+
+
+def _replace_once(source: str, old: str, new: str, label: str) -> str:
+    if new in source:
+        return source
+    count = source.count(old)
+    if count != 1:
+        raise RuntimeError(f"{label}: expected 1 site, found {count}")
+    return source.replace(old, new, 1)
+
+
+def patch_overload_detection(source: str) -> str:
+    return _replace_once(
+        source, OVERLOAD_FLOOR_OLD, overload_floor_new(), "overload_detection floor"
+    )
+
+
+def patch_deploy_rl(source: str) -> str:
+    source = _replace_once(
+        source, DEPLOY_RL_ZERO_OLD, deploy_rl_zero_block(), "deploy_rl zero threshold"
+    )
+    return _replace_once(
+        source, DEPLOY_RL_RATIO_OLD, deploy_rl_ratio_block(), "deploy_rl goodput ratio"
+    )
+
+
+def patch_proxy_burst(source: str) -> str:
+    return _replace_once(
+        source, PROXY_BURST_OLD, proxy_burst_new(), "proxy changeLimitAbs burst"
+    )
