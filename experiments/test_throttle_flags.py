@@ -104,5 +104,75 @@ class TestLabels(unittest.TestCase):
         self.assertFalse(pattern.search("folder final_4a_x_run1_r2"))
 
 
+STATUS_TEXT = """# STATUS
+
+## Done
+
+- **Matrix A (2026-10-12)** — folders `hold_a` and `hold_b`, 600 s.
+- **Matrix B (2026-10-13)** — folder `hold_c`.
+
+## Next free slots
+
+- hold_a is also listed here and must not be touched.
+"""
+
+
+class TestStatusLines(unittest.TestCase):
+    def flags(self):
+        return [
+            hold("hold_a", on=True, warnings=196, tgap=494, agap=494, tpct=69.1, apct=69.1),
+            hold("hold_b", on=True, flagged=False),
+            hold("hold_c", on=False, flagged=False, warnings=0, tgap=55, agap=55, tpct=6.3, apct=6.3),
+            hold("hold_z", on=True, warnings=12, tgap=5, agap=300, tpct=0.0, apct=60.0),
+        ]
+
+    def test_sentence_names_flag_stale_time_and_topfull_state(self):
+        text = throttle_flags.status_sentence(self.flags()[0])
+        self.assertIn("`hold_a` FLAGGED", text)
+        self.assertIn("196 fetch warnings", text)
+        self.assertIn("threshold stale 494 s (69.1% of span)", text)
+        self.assertIn("admitted stale 494 s (69.1% of span)", text)
+
+    def test_gap_only_sentence_uses_the_10_s_rule(self):
+        text = throttle_flags.status_sentence(
+            hold("hold_gap", on=True, warnings=0, tgap=55, agap=55, tpct=6.3, apct=6.3))
+        self.assertIn("no fetch warnings, 10 s stale-gap rule only", text)
+
+    def test_a_topfull_off_hold_is_not_a_status_line(self):
+        out = throttle_flags.apply_status(STATUS_TEXT, self.flags())
+        # Matrix B already names `hold_c`. The generated sentence must not.
+        self.assertIn("folder `hold_c`.", out)
+        self.assertNotIn("`hold_c` FLAGGED", out)
+        self.assertNotIn("`hold_c` " + throttle_flags.TF_OFF_LABEL, out)
+        self.assertNotIn(throttle_flags.TF_OFF_LABEL, out)
+
+    def test_line_goes_on_the_bullet_that_names_the_hold(self):
+        out = throttle_flags.apply_status(STATUS_TEXT, self.flags())
+        bullets = [l for l in out.split("\n") if l.startswith("- **Matrix")]
+        self.assertIn(throttle_flags.AUDIT_TAG, bullets[0])
+        self.assertIn("`hold_a` FLAGGED", bullets[0])
+        self.assertNotIn("hold_b` FLAGGED", bullets[0])
+        self.assertNotIn(throttle_flags.AUDIT_TAG, bullets[1])
+
+    def test_unmatched_hold_goes_to_one_backfill_bullet_before_next_free_slots(self):
+        out = throttle_flags.apply_status(STATUS_TEXT, self.flags())
+        lines = out.split("\n")
+        backfill = [i for i, l in enumerate(lines) if l.startswith("- **Throttle flag backfill")]
+        self.assertEqual(len(backfill), 1)
+        self.assertIn("`hold_z` FLAGGED", lines[backfill[0]])
+        self.assertLess(backfill[0], lines.index("## Next free slots"))
+        self.assertEqual(lines[lines.index("## Next free slots") - 1], "")
+
+    def test_sections_after_done_are_untouched_and_apply_is_idempotent(self):
+        once = throttle_flags.apply_status(STATUS_TEXT, self.flags())
+        self.assertIn("- hold_a is also listed here and must not be touched.", once)
+        self.assertNotIn("hold_a` FLAGGED", once.split("## Next free slots")[1])
+        self.assertEqual(throttle_flags.apply_status(once, self.flags()), once)
+
+    def test_no_flagged_holds_leaves_the_text_alone(self):
+        clean = [hold("hold_a", flagged=False)]
+        self.assertEqual(throttle_flags.apply_status(STATUS_TEXT, clean), STATUS_TEXT)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -138,16 +138,85 @@ def audit_text(flags: list[HoldFlag]) -> str:
     return "\n".join(lines)
 
 
+def _warnings_text(h: HoldFlag) -> str:
+    if h.warnings:
+        return f"{h.warnings} fetch warnings"
+    return f"no fetch warnings, {throttle_stale.STALE_GAP_S:g} s stale-gap rule only"
+
+
+def status_sentence(h: HoldFlag) -> str:
+    return (
+        f"`{h.name}` {label(h)}: {_warnings_text(h)}; "
+        f"threshold stale {h.threshold_gap_s:.0f} s ({h.threshold_stale_pct:.1f}% of span), "
+        f"admitted stale {h.admitted_gap_s:.0f} s ({h.admitted_stale_pct:.1f}% of span)."
+    )
+
+
+def apply_status(text: str, flags: list[HoldFlag]) -> str:
+    """Append a throttle line to the Done bullet that names each flagged hold.
+
+    Works on LF text. Idempotent: returns the text unchanged once the audit tag is in it.
+    """
+    flagged = [h for h in flags if h.flagged]
+    if not flagged or AUDIT_TAG in text:
+        return text
+    lines = text.split("\n")
+    done = lines.index("## Done")
+    end = next(i for i in range(done + 1, len(lines)) if lines[i].startswith("## "))
+    per_bullet: dict[int, list[str]] = defaultdict(list)
+    unmatched: list[str] = []
+    for h in flagged:
+        pattern = name_pattern(h.name)
+        hit = next((i for i in range(done + 1, end)
+                    if lines[i].startswith("- ") and pattern.search(lines[i])), None)
+        if hit is None:
+            unmatched.append(status_sentence(h))
+        else:
+            per_bullet[hit].append(status_sentence(h))
+    for index, sentences in per_bullet.items():
+        lines[index] = f"{lines[index]} {AUDIT_TAG} {' '.join(sentences)}"
+    if unmatched:
+        at = end
+        while at > done + 1 and lines[at - 1] == "":
+            at -= 1
+        lines.insert(at, f"{BACKFILL_HEAD} {AUDIT_TAG} {' '.join(unmatched)}")
+    return "\n".join(lines)
+
+
+def write_status(path: Path, flags: list[HoldFlag]) -> bool:
+    """Rewrite STATUS.md keeping its line endings. Returns False when nothing changed."""
+    raw = Path(path).read_bytes().decode("utf-8")
+    eol = "\r\n" if "\r\n" in raw else "\n"
+    new = apply_status(raw.replace("\r\n", "\n"), flags)
+    if new == raw.replace("\r\n", "\n"):
+        return False
+    Path(path).write_bytes(new.replace("\n", eol).encode("utf-8"))
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name in ("audit", "status", "guides", "rerun"):
         p = sub.add_parser(name)
         p.add_argument("--root", type=Path, default=DEFAULT_ROOT)
+    sub.choices["status"].add_argument("--write", action="store_true")
     args = parser.parse_args(argv)
     flags = scan(args.root)
     if args.cmd == "audit":
         print(audit_text(flags))
+        return 0
+    if args.cmd == "status":
+        if args.write:
+            changed = write_status(STATUS_PATH, flags)
+            print("STATUS.md updated" if changed else "STATUS.md unchanged (already applied or no flags)")
+        else:
+            raw = STATUS_PATH.read_bytes().decode("utf-8").replace("\r\n", "\n")
+            new = apply_status(raw, flags)
+            before = set(raw.split("\n"))
+            for line in new.split("\n"):
+                if line not in before:
+                    print(line + "\n")
         return 0
     return 0
 
