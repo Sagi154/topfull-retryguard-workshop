@@ -58,7 +58,7 @@ A line going up means more of that quantity at that second. On panels 5 and 7 th
 
 **Rejection** uses the controller formula: `(Δ5xx + Δresets) / Δtotal`, plus `Δgrpc_4 + Δgrpc_14` on adservice, currencyservice, productcatalogservice, and recommendationservice. The dashed line is shopper-visible failure, `Fail/RPS` of the Locust total. They are different. S2 can show SLO-miss near 1 while mesh 5xx is 0. See [2026-10-13-controller-vs-scorer-rejection.md](2026-10-13-controller-vs-scorer-rejection.md).
 
-**TopFull cap.** A reading of 10000 means no cap and is not drawn. A fresh 0 is an empty read, not a cap of zero. The last usable cap is held for at most 6 s. If `analysis_score.py` flags the hold (`Throttle data quality`), do not read the cap line as measured. Goodput, P95, rejection, retries, and overload ticks do not use that file.
+**TopFull cap.** A reading of 10000 means no cap and is not drawn. A fresh 0 is an empty read, not a cap of zero. The last usable cap is held for at most 6 s as a solid line. If the collector then goes more than 10 s without a fresh threshold read (the same rule `analysis_score.py` uses to flag a TopFull-on hold in `Throttle data quality`; a TopFull-off hold is `N/A: TopFull off` and is not flagged), the cap panel shows the stretch as a **grey band labelled "no fresh cap read"**, and the cap the collector kept repeating is drawn as a **dashed line** named `<api> (stale)` in the same colour as that API's solid line. The dashed value is a carried number, not a measurement. Rows are not dropped; the band and the dashes are the only difference. A hold that is flagged only because admitted-rate reads went stale (threshold reads stayed fresh) shows no band, because the cap line itself is measured. A clean hold shows neither. Goodput, P95, rejection, retries, and overload ticks do not use that file.
 
 **Attempts.** Colour runs from red (0, retries off) through orange and yellow to green (3, full). A run with RetryGuard off says "RetryGuard off in this run" instead of the heatmap.
 
@@ -72,7 +72,7 @@ Same series as the line panels, overlaid. Nothing is on until you turn it on.
 
 | Unit | Axis | Series |
 |---|---|---|
-| req/s | left, always there | Goodput, RPS, each API Goodput, each API RPS, TopFull cap |
+| req/s | left, always there | Goodput, RPS, each API Goodput, each API RPS, TopFull cap, TopFull cap (stale) |
 | ms | right, while a P95 line is on | Latency95, each API P95 |
 | fraction | right | Rejection, Locust SLO-miss |
 | retries/request | right | Retries per request |
@@ -163,3 +163,4 @@ The Goodput / RPS and P95 sections list each entry API as well as the totals: `g
 
 Not in this page: the nine stacked panels, `--all`, S5/S6/`campaign_48/`/`august_38/`.
 
+**Stale caps in the comparison panels.** A flagged run's panel carries the same grey band and the same dashed `<api> (stale)` line. The shared legend lists `<api> (stale)` as its own entry under the cap group, drawn dashed, in the colour of `<api>`. It starts hidden like every other line. A run with no stale stretch has no such series, so turning the entry on shows the usual "this run lacks the series" note for that run. Use it to see at a glance which of the compared holds have measured caps and which have carried ones.
