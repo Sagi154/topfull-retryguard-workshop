@@ -1,0 +1,36 @@
+---
+description: After any work in this repo, update AGENTS.md and STATUS.md so later agents know what happened
+alwaysApply: true
+---
+
+# Keep AGENTS.md and STATUS.md current
+
+Later agents start from `AGENTS.md` and `STATUS.md`. If they are stale, the next agent repeats or contradicts earlier work.
+
+## When
+
+Before you give your final answer on any task that changed the repo, the cluster, or the data. That includes:
+
+- a hold or run (pulled, flagged, or not run)
+- code, config, or YAML changes (runner, collectors, RetryGuard, scenario configs)
+- a new or edited guide, spec, plan, ADR, or analysis
+- a decision, a bug found or fixed, or a change to live infra (HPA, sidecar CPU, VM state)
+- work that stopped partway (say what is left)
+
+Skip for pure Q&A with no file or infra changes.
+
+**No recursion.** Update both files once, at the end of the task, in a single pass. The edits to `AGENTS.md` and `STATUS.md` themselves never count as work that needs another update. If the task was only editing `AGENTS.md` or `STATUS.md` (for example, the user asked for a wording change), do not add a STATUS bullet about it unless the edit records a decision or a change in project state.
+
+## What to do
+
+1. Read [STATUS.md](../../STATUS.md) and [AGENTS.md](../../AGENTS.md) first, if you have not this session.
+2. **STATUS.md:** append one bullet under Done (date, what was done, result, link to the guide or run log). Update "Next free slots" if a YAML or `run_number` moved. Record flags, caveats, and anything left unrestored.
+3. **AGENTS.md:** replace the three "Latest" lines in §4 (do not append). Update "Still open" if something was closed or opened. Fix any other section the work made wrong (repo layout §2, guides table §3, scenarios §5, infra §7). Link to the detailed doc instead of duplicating it.
+4. Keep entries short, dated (absolute dates), and factual. State failures and unverified items as such.
+5. In your final answer, say that both files were updated and what changed.
+
+## Do not
+
+- Do not leave a hold, run, or infra change unrecorded.
+- Do not record success you did not verify.
+- Do not rewrite unrelated sections or delete older Done entries.

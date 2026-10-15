@@ -49,6 +49,7 @@ context/             ← papers/decks: RetryGuard.pdf, TopFull.pdf, Evaluating_R
 canvases/            ← interactive workplan canvas for Cursor (topfull-retryguard-workplan.canvas.tsx)
 infra/vm-ips.env     ← names, private IPs, and machine types for the live copy — public IPs are not stored, see §7
 .cursor/rules/topfull-ssh.mdc ← always-applied rule: SSH conventions for the 3 VMs
+.cursor/rules/update-agents-and-status.mdc ← always-applied rule: update this file and STATUS.md after repo, cluster, or data changes (`.cursor/` is gitignored; this file is force-tracked)
 scripts/             ← md_to_pdf.py, sync-canvas-to-cursor.ps1 (presentation/canvas tooling, not experiment-critical)
 ```
 
