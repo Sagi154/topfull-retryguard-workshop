@@ -17,6 +17,7 @@ from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
+import plotly.colors as plotly_colors
 from plotly.subplots import make_subplots
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -24,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import analysis_score  # noqa: E402
 import hold_clock  # noqa: E402
 import run_timeline  # noqa: E402
+import throttle_stale  # noqa: E402
 import topfull_cpu_quotas  # noqa: E402
 
 OUT_DIR = Path(__file__).resolve().parent / "explore_out"
@@ -300,6 +302,50 @@ def add_note(fig: go.Figure, row: int, text: str) -> None:
     )
 
 
+# A flagged hold's carried caps are drawn, not dropped: dashed, in the fresh line's
+# colour, with a grey band over the stretch that had no fresh read.
+STALE_SUFFIX = " (stale)"
+STALE_BAND_FILL = "rgba(128,128,128,0.18)"
+STALE_BAND_NAME = "throttle-stale"
+STALE_BAND_TEXT = "no fresh cap read"
+CAP_PALETTE = plotly_colors.qualitative.Dark24
+
+
+def cap_color(api: str) -> str:
+    """One fixed colour per entry API, so a fresh cap and its stale line match."""
+    order = list(analysis_score.APIS)
+    index = order.index(api) if api in order else len(order)
+    return CAP_PALETTE[index % len(CAP_PALETTE)]
+
+
+def stale_cap_traces(throttle_df: pd.DataFrame) -> list[go.Scatter]:
+    """One dashed trace per API that has a carried cap inside a stale stretch."""
+    traces = []
+    for api, (x, y) in throttle_stale.stale_cap_series(throttle_df).items():
+        traces.append(go.Scatter(
+            x=[float(v) for v in x], y=[float(v) for v in y], mode="lines",
+            name=api + STALE_SUFFIX, legendgroup="caps",
+            legendgrouptitle={"text": ylabel("caps"), "font": {"color": "black"}},
+            line={"width": 1.4, "dash": "dash", "color": cap_color(api)},
+            hovertemplate="%{y:.1f} (carried, not a fresh read)<extra>%{fullData.name}</extra>",
+        ))
+    return traces
+
+
+def stale_band_layout(bands, xref: str, yref: str) -> tuple[list[dict], list[dict]]:
+    """Grey rectangles and their labels, for one axis pair."""
+    shapes = [{
+        "type": "rect", "xref": xref, "yref": yref, "x0": lo, "x1": hi, "y0": 0, "y1": 1,
+        "fillcolor": STALE_BAND_FILL, "line": {"width": 0}, "layer": "below",
+        "name": STALE_BAND_NAME,
+    } for lo, hi in bands]
+    notes = [{
+        "x": lo, "xref": xref, "y": 1, "yref": yref, "xanchor": "left", "yanchor": "top",
+        "text": STALE_BAND_TEXT, "showarrow": False, "font": {"size": 9, "color": "gray"},
+    } for lo, _hi in bands]
+    return shapes, notes
+
+
 def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
     run_dir = Path(run_dir)
     clock = hold_clock.read_clock(run_dir)
@@ -316,6 +362,8 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
         step = key in STEP_KEYS
         x, y = plot_points(view[column], step=step)
         line = style_line(name, step, 1.2)
+        if key == "caps":
+            line["color"] = cap_color(name)
         fig.add_trace(
             go.Scatter(x=x, y=y, mode="lines", name=name, visible=visible,
                        line=line, legendgroup=key,
@@ -323,6 +371,11 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
             row=ROW[key], col=1,
         )
         used.add(key)
+
+    throttle_df = hold_clock.load_source(run_dir, "topfull_throttle", clock)
+    for trace in stale_cap_traces(throttle_df):
+        fig.add_trace(trace, row=ROW["caps"], col=1)
+        used.add("caps")
 
     slo = slo_miss(view)
     if slo is not None:
@@ -396,6 +449,13 @@ def build_figure(run_dir: Path, show_all: bool = False) -> go.Figure:
             x=escape_s, xref="x", y=0, yref="y domain", yanchor="bottom", xanchor="left",
             text="escape", showarrow=False, font={"size": 9},
         )
+    band_shapes, band_notes = stale_band_layout(
+        throttle_stale.stale_bands(throttle_df),
+        axis(ROW["caps"], "x"), f"{axis(ROW['caps'], 'y')} domain",
+    )
+    shapes.extend(band_shapes)
+    for note in band_notes:
+        fig.add_annotation(**note)
     fig.update_layout(shapes=shapes)
 
     for key, title in PANELS:
@@ -428,11 +488,23 @@ def compare_figure(run_dir: Path) -> go.Figure:
         x, y = plot_points(series_of(view, column), step=step)
         unit = UNIT[key]
         line = style_line(name, step, 1.4)
+        if key == "caps":
+            line["color"] = cap_color(name)
         fig.add_trace(go.Scatter(
             x=list(x), y=list(y), mode="lines", name=name, visible="legendonly",
             line=line, legendgroup=key, meta=unit, yaxis=trace_yaxis(unit),
             legendgrouptitle={"text": ylabel(key)},
         ))
+    throttle_df = hold_clock.load_source(run_dir, "topfull_throttle", clock)
+    for trace in stale_cap_traces(throttle_df):
+        trace.update(visible="legendonly", meta=UNIT["caps"], yaxis=trace_yaxis(UNIT["caps"]))
+        fig.add_trace(trace)
+    band_shapes, band_notes = stale_band_layout(
+        throttle_stale.stale_bands(throttle_df), "x", "y domain")
+    for shape in band_shapes:
+        fig.add_shape(**shape)
+    for note in band_notes:
+        fig.add_annotation(**note)
     # Event lines use a fixed 0–1 axis over the plot, so a shed stays full height
     # when a req/s line and a rejection line are on different scales.
     for step, x, y, _hover, color in event_series(events):

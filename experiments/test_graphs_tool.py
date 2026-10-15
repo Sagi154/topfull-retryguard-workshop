@@ -217,7 +217,7 @@ class TestPerApiLines(unittest.TestCase):
         self.assertNotIn("dash", total)
 
 
-from test_hold_clock import E, iso, make_run  # noqa: E402
+from test_hold_clock import E, iso, make_run, write_csv  # noqa: E402
 
 
 def render(run: Path) -> str:
@@ -449,6 +449,100 @@ class TestLegendClicks(unittest.TestCase):
             )
         except Exception:
             self.fail(f"after {what}: {self._state(page, graph_id, group)} != {expected}")
+
+
+THROTTLE_HEADER = ["timestamp", "api", "threshold", "admitted_rps",
+                   "threshold_fresh", "admitted_fresh"]
+
+
+def add_throttle(run: Path, fresh_until: int, total: int = 80, cap: float = 150.0) -> None:
+    """One API, one row a second from hold second ~0; fresh every 5 s up to fresh_until."""
+    rows = []
+    for s in range(total):
+        ok = int(s % 5 == 0 and s <= fresh_until)
+        rows.append([iso(E + 20 + s), "getproduct", cap, 10.0, ok, ok])
+    write_csv(run / "topfull_throttle.csv", THROTTLE_HEADER, rows)
+
+
+def named(fig, name):
+    return next((t for t in fig.data if t.name == name), None)
+
+
+def stale_bands(fig):
+    return [s for s in fig.layout.shapes if s.name == graphs_tool.STALE_BAND_NAME]
+
+
+class TestStaleCaps(unittest.TestCase):
+    def test_flagged_run_draws_the_stale_cap_dashed_in_the_same_colour(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = make_run(Path(tmp))
+            add_throttle(run, fresh_until=20)
+            fig = graphs_tool.build_figure(run)
+        fresh = named(fig, "getproduct")
+        stale = named(fig, "getproduct (stale)")
+        self.assertIsNotNone(fresh)
+        self.assertIsNotNone(stale)
+        self.assertIsNone(fresh.line.dash)
+        self.assertEqual(stale.line.dash, "dash")
+        self.assertEqual(stale.line.color, fresh.line.color)
+        self.assertEqual(stale.line.color, graphs_tool.cap_color("getproduct"))
+        self.assertEqual(stale.legendgroup, "caps")
+        self.assertEqual(stale.yaxis, graphs_tool.axis(graphs_tool.ROW["caps"], "y"))
+        self.assertTrue(all(v == 150.0 for v in stale.y))
+        # The dashed line starts where the solid carry stops, so the two never overlap.
+        self.assertGreater(min(stale.x), max(fresh.x))
+
+    def test_flagged_run_shades_the_stale_stretch_on_the_cap_panel_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = make_run(Path(tmp))
+            add_throttle(run, fresh_until=20)
+            fig = graphs_tool.build_figure(run)
+        bands = stale_bands(fig)
+        self.assertEqual(len(bands), 1)
+        self.assertEqual(bands[0].xref, graphs_tool.axis(graphs_tool.ROW["caps"], "x"))
+        self.assertEqual(bands[0].fillcolor, graphs_tool.STALE_BAND_FILL)
+        self.assertAlmostEqual(bands[0].x0, 20, delta=3)
+        self.assertAlmostEqual(bands[0].x1, 79, delta=3)
+        texts = [a.text for a in fig.layout.annotations]
+        self.assertIn(graphs_tool.STALE_BAND_TEXT, texts)
+
+    def test_clean_run_has_no_stale_trace_and_no_band(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = make_run(Path(tmp))
+            add_throttle(run, fresh_until=79)
+            fig = graphs_tool.build_figure(run)
+            compare = graphs_tool.compare_figure(run)
+        for figure in (fig, compare):
+            self.assertIsNotNone(named(figure, "getproduct"))
+            self.assertIsNone(named(figure, "getproduct (stale)"))
+            self.assertEqual(stale_bands(figure), [])
+
+    def test_run_without_a_throttle_file_is_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = make_run(Path(tmp))
+            fig = graphs_tool.build_figure(run)
+            compare = graphs_tool.compare_figure(run)
+        for figure in (fig, compare):
+            self.assertEqual([t.name for t in figure.data if t.name.endswith(graphs_tool.STALE_SUFFIX)], [])
+            self.assertEqual(stale_bands(figure), [])
+
+    def test_comparison_chart_has_a_legend_entry_that_starts_hidden(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = make_run(Path(tmp))
+            add_throttle(run, fresh_until=20)
+            fig = graphs_tool.compare_figure(run)
+            html_text = render(run)
+        stale = named(fig, "getproduct (stale)")
+        self.assertIsNotNone(stale)
+        self.assertEqual(stale.visible, "legendonly")
+        self.assertEqual(stale.meta, "req/s")
+        self.assertEqual(stale.yaxis, "y")
+        self.assertEqual(stale.line.dash, "dash")
+        self.assertEqual(stale.line.color, named(fig, "getproduct").line.color)
+        self.assertEqual(len(stale_bands(fig)), 1)
+        self.assertEqual(stale_bands(fig)[0].xref, "x")
+        self.assertIn("getproduct (stale)", html_text)
+        self.assertIn(graphs_tool.STALE_BAND_NAME, html_text)
 
 
 if __name__ == "__main__":
