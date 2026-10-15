@@ -37,6 +37,7 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   resource_usage_collector.py ← Layer 2: scrapes CPU/memory per service via kubelet stats/summary (deployed to master)
   mentor_charts.py / mentor_charts_data.py / mentor_charts_plots.py ← regenerate mentor-update PNGs from `campaign_48/` (`python experiments/mentor_charts.py`)
   graphs_tool.py ← **graphs_tool.** Every analysis of one `final results/` run starts here. What the page shows: [GRAPHS-TOOL.md](Guides%20and%20Info/GRAPHS-TOOL.md). Command: §3 "Where to find metrics"
+  multi_graphs_tool.py ← **multi_graphs_tool.** Two or more `final results/` runs as stacked comparison panels under one shared legend. See [GRAPHS-TOOL.md](Guides%20and%20Info/GRAPHS-TOOL.md) "multi_graphs_tool". Command: `python experiments/multi_graphs_tool.py "<run_dir>" "<run_dir>"`
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
   results/           ← local results only (master still uses a flat `/home/idozacharia/experiments/results/`)
@@ -99,6 +100,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 | What do we collect, and in which file/column? | [METRICS-GATHERED.md](Guides%20and%20Info/METRICS-GATHERED.md) (includes the derived-metrics table) |
 | How do I line up metrics in time / see a run second by second? | Static chart: `python experiments/run_timeline.py <run_dir>` → `timeline.png`; design in [2026-10-13-hold-clock-design.md](docs/superpowers/specs/2026-10-13-hold-clock-design.md) |
 | **graphs_tool** — analyse one run | For every analysis of one hold, run **graphs_tool**: `python experiments/graphs_tool.py "<run_dir>"`. It writes `experiments/explore_out/<run>.html` (git-ignored, works offline). One folder under `experiments/results/final results/` (S1–S4). What each panel and the comparison chart mean: [GRAPHS-TOOL.md](Guides%20and%20Info/GRAPHS-TOOL.md). `--all` shows quiet lines on the stacked panels. Needs `plotly` from `experiments/requirements.txt` |
+| **multi_graphs_tool** — compare 2+ runs | `python experiments/multi_graphs_tool.py "<run_dir>" "<run_dir>" ["<run_dir>" ...]`. One comparison panel per run, one shared legend, linked x, shared y per unit. Writes `experiments/explore_out/multi_<names>.html` (git-ignored). Use graphs_tool for the nine-panel view of one run |
 | Why do we collect each metric? | [METRICS-CATALOG.md](Guides%20and%20Info/METRICS-CATALOG.md) |
 | How is a run's output produced, pulled, verified? | [METRICS-COLLECTION-GUIDE.md](Guides%20and%20Info/METRICS-COLLECTION-GUIDE.md) |
 | Is a hold's TopFull cap / admitted data trustworthy? | The `Throttle data quality` table from `experiments/analysis_score.py`; rule in §6 "After every hold" |
