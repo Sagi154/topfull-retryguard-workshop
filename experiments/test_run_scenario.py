@@ -1586,6 +1586,67 @@ class TestStartMasterStackTopfullRl(unittest.TestCase):
         self.assertIn("/tmp/rg_rl.sh", self._script_paths(mock_write_script))
 
 
+class TestTopfullStdoutLogs(unittest.TestCase):
+    """Proxy and deploy_rl output is appended, stamped, to src/logs."""
+
+    SRC = "/home/idozacharia/TopFull/src"
+
+    def setUp(self):
+        patcher = mock.patch("run_scenario.ensure_proxy_uncapped")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _cfg(self, rl_enabled):
+        return {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "topfull_src_path": self.SRC,
+                "venv_activate": "/home/idozacharia/TopFull/venv/bin/activate",
+            },
+            "topfull_rl": {"enabled": rl_enabled},
+        }
+
+    def _script(self, mock_write_script, remote_path):
+        for c in mock_write_script.call_args_list:
+            if c.args[1] == remote_path:
+                return c.args[2]
+        self.fail(f"{remote_path} was not written")
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.ssh")
+    def test_proxy_output_goes_to_stamped_log(self, mock_ssh, mock_write_script, mock_wait):
+        mock_ssh.return_value = mock.Mock(stdout="", returncode=0)
+        run_scenario.start_master_stack(self._cfg(rl_enabled=False))
+        script = self._script(mock_write_script, "/tmp/rg_proxy.sh")
+        self.assertIn("export TZ=UTC\n", script)
+        self.assertIn(run_scenario.STAMP_LINES_BASH, script)
+        self.assertIn(
+            f"go run proxy_online_boutique.go 2>&1 | stamp >> {self.SRC}/logs/topfull_proxy.log\n",
+            script,
+        )
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.ssh")
+    def test_rl_output_goes_to_stamped_log(self, mock_ssh, mock_write_script, mock_wait):
+        mock_ssh.return_value = mock.Mock(stdout="12345 python3 deploy_rl.py", returncode=0)
+        run_scenario.start_master_stack(self._cfg(rl_enabled=True))
+        script = self._script(mock_write_script, "/tmp/rg_rl.sh")
+        self.assertIn("export TZ=UTC\n", script)
+        self.assertIn(run_scenario.STAMP_LINES_BASH, script)
+        self.assertIn(
+            f"python3 -u deploy_rl.py 2>&1 | stamp >> {self.SRC}/logs/topfull_rl.log\n",
+            script,
+        )
+
+    def test_stamp_function_shape(self):
+        self.assertEqual(run_scenario.TOPFULL_PROXY_LOG, "topfull_proxy.log")
+        self.assertEqual(run_scenario.TOPFULL_RL_LOG, "topfull_rl.log")
+        self.assertIn("stamp() {", run_scenario.STAMP_LINES_BASH)
+        self.assertIn("printf '%(%Y-%m-%dT%H:%M:%SZ)T  %s\\n' -1", run_scenario.STAMP_LINES_BASH)
+
+
 class TestVerifyLiveCpuLimits(unittest.TestCase):
     def _live(self, **over):
         import topfull_cpu_quotas as q

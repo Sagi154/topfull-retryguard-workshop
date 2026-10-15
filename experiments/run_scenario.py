@@ -37,6 +37,14 @@ from datetime import datetime
 
 import topfull_cpu_quotas
 
+TOPFULL_PROXY_LOG = "topfull_proxy.log"
+TOPFULL_RL_LOG = "topfull_rl.log"
+# Bash builtin printf %()T, no fork per line. Needs bash >= 4.2 and TZ=UTC.
+STAMP_LINES_BASH = (
+    "stamp() { while IFS= read -r line; do "
+    "printf '%(%Y-%m-%dT%H:%M:%SZ)T  %s\\n' -1 \"$line\"; done; }\n"
+)
+
 # --------------------------------------------------------------------------- #
 #  SSH / SCP helpers
 # --------------------------------------------------------------------------- #
@@ -800,10 +808,13 @@ def start_master_stack(cfg: dict, proxy_ready: threading.Event | None = None):
 
 def _start_master_stack_after_kill(master, src, venv, rl_enabled, proxy_ready):
     # Write start scripts (LF guaranteed by write_remote_script)
+    logs = f"{src}/logs"
     proxy_script = (
-        f"#!/bin/bash\n"
-        f"cd {src}/proxy\n"
-        f"go run proxy_online_boutique.go\n"
+        "#!/bin/bash\n"
+        "export TZ=UTC\n"
+        + STAMP_LINES_BASH
+        + f"cd {src}/proxy\n"
+        f"go run proxy_online_boutique.go 2>&1 | stamp >> {logs}/{TOPFULL_PROXY_LOG}\n"
     )
     mc_script = (
         f"#!/bin/bash\n"
@@ -836,10 +847,12 @@ def _start_master_stack_after_kill(master, src, venv, rl_enabled, proxy_ready):
 
     if rl_enabled:
         rl_script = (
-            f"#!/bin/bash\n"
-            f"source {venv}\n"
+            "#!/bin/bash\n"
+            "export TZ=UTC\n"
+            + STAMP_LINES_BASH
+            + f"source {venv}\n"
             f"cd {src}\n"
-            f"python3 deploy_rl.py\n"
+            f"python3 -u deploy_rl.py 2>&1 | stamp >> {logs}/{TOPFULL_RL_LOG}\n"
         )
         write_remote_script(master, "/tmp/rg_rl.sh", rl_script)
         ssh(master, "tmux new-session -d -s toprl /tmp/rg_rl.sh")
