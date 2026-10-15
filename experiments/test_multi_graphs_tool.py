@@ -400,9 +400,38 @@ class TestLegendDrivesPanels(BrowserCase):
         }""")
         self.assertNotIn("229, 236, 246", state["fill"])
         self.assertFalse(state["barShown"])
+        laid = self.page.evaluate("""() => {
+          const legend = document.getElementById('legend-graph')._fullLayout.legend;
+          const bar = document.querySelector('#legend-graph .scrollbar');
+          return {height: legend._height, max: legend._maxHeight,
+                  thumb: bar ? +bar.getAttribute('height') || 0 : 0};
+        }""")
+        self.assertLessEqual(laid["height"], laid["max"])
+        self.assertEqual(laid["thumb"], 0)
         self.assertGreater(state["bottom"], 0)
         self.assertGreater(state["fig"], state["bottom"])
         self.assertLess(state["fig"], state["bottom"] + 80)
+
+    def test_tall_selector_is_not_given_a_scrollbar(self):
+        series = [("rejection", f"svc{i}", [0.1, 0.2]) for i in range(30)]
+        fig_a = synthetic(series + [("locust", "Goodput", [1.0, 2.0])], 300)
+        fig_b = synthetic(series[:3], 600, events=("ON→OFF",))
+        out = Path(self.tmp.name) / "tall.html"
+        with mock.patch.object(graphs_tool, "compare_figure", side_effect=[fig_a, fig_b]):
+            multi_graphs_tool.write_page(
+                [Path("final/S2/both/run_a"), Path("final/S2/rg_only/run_b")], out)
+        self.page.goto(out.as_uri())
+        self.page.wait_for_selector("#legend-graph .legend .traces")
+        self.wait("() => document.getElementById('legend-graph').offsetHeight < 900")
+        laid = self.page.evaluate("""() => {
+          const legend = document.getElementById('legend-graph')._fullLayout.legend;
+          const bar = document.querySelector('#legend-graph .scrollbar');
+          const box = bar ? bar.getBoundingClientRect() : {width: 0, height: 0};
+          return {height: legend._height, max: legend._maxHeight,
+                  thumb: Math.round(box.height)};
+        }""")
+        self.assertLessEqual(laid["height"], laid["max"])
+        self.assertEqual(laid["thumb"], 0)
 
     def test_slider_stays_on_the_last_panel_and_a_click_hits_every_panel(self):
         self.wait("() => document.getElementById('legend-graph').offsetHeight < 900")

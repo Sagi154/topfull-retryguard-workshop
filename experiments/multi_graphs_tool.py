@@ -157,8 +157,11 @@ def legend_figure(union: dict, colors: dict) -> go.Figure:
         # the legend and reads as the chart's zoom bar.
         xaxis={"visible": False, "fixedrange": True, "rangeslider": {"visible": False}},
         yaxis={"visible": False, "fixedrange": True},
+        # Horizontal legends default to half the figure, and Plotly then adds its
+        # own scrollbar. A pixel max taller than any selector skips that.
         legend={"groupclick": "toggleitem", "tracegroupgap": 16, "orientation": "h",
                 "x": 0, "xanchor": "left", "y": 1, "yanchor": "top",
+                "maxheight": 4000,
                 "bgcolor": "rgba(0,0,0,0)",
                 "font": {"size": 11}, "grouptitlefont": {"color": "black"}},
     )

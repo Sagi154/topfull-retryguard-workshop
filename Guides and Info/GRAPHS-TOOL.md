@@ -154,7 +154,7 @@ Top to bottom: one comparison panel per run (the run label sits above it), then 
 - **"none in this run"** above a panel means a line you turned on does not exist in that run (for example RetryGuard edges on a `tf_only` run). It is not a zero.
 - Each panel draws its own run's RetryGuard events and names. Hover over a name for the detail. A run with no `retryguard.log`, such as a `tf_only` hold, has no event lines. That is by design, not a drawing fault, and "none in this run" does not list events.
 - **The plot edge is fixed.** Every panel's plot ends at the same x. A right-hand unit axis (ms, fraction, retries/request, millicores, retries, ticks) takes the next free lane to the right of it when its first line is turned on, so adding a metric does not shift the plot left.
-- **The selector does not scroll.** Plotly's legend slides its rows on a mouse wheel. The page blocks that, so scrolling over the selector scrolls the page and the group titles stay in place.
+- **The selector does not scroll, and it has no scrollbar of its own.** Plotly's legend slides its rows on a mouse wheel and, once the rows pass half the figure, draws a scrollbar. The page blocks the wheel and gives the selector the full height of its rows, so that bar is never created. Scrolling over the selector scrolls the page, and the group titles stay in place.
 
 Not in this page: the nine stacked panels, `--all`, S5/S6/`campaign_48/`/`august_38/`.
 
