@@ -163,6 +163,8 @@ timestamp, cluster_id, goodput_over_cap, p95_ms, slo_ms, action
 | **Admitted** RPS per Locust API | same file | Same. Filter `admitted_fresh==1` for a measured tick. |
 | Overloaded-service list / RL actions | stdout of tmux `toprl` (`deploy_rl.py`) | Printed, not a CSV. Layer B `overloaded` is the reconstructed detector bool, not this print. |
 
+**Cap floor.** The live TopFull write path floors every entry API at 0 req/s. The runner installs that rule into master's `overload_detection.py`, `deploy_rl.py`, and `proxy/proxy_online_boutique.go` before the proxy starts. A fresh threshold of 0 in `topfull_throttle.csv` (`threshold_fresh` 1) means that floor is in force: burst is 0, so the limiter rejects every request for that API. The graphs and `analysis_score.py` still treat a fresh 0 as an empty read and do not draw it. A rate written in (0, 1) uses a burst of 1 so the fractional cap can admit. Rate 0 keeps burst 0.
+
 Layers A and B are collected on new holds. `campaign_48/` and `august_38/` stay “`RPS` as proxy.” Layers C and D are not collected.
 
 ---

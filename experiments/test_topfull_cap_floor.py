@@ -52,6 +52,10 @@ class TestFloorThreshold(unittest.TestCase):
         self.assertIn("targetLimiter.SetBurst(burst)", proxy)
         self.assertNotIn("SetBurst(int(newRate))", proxy)
 
+    def test_guide_records_the_cap_floor(self):
+        text = (ROOT / "Guides and Info" / "TOPFULL-THROTTLE-METRICS.md").read_text(encoding="utf-8")
+        self.assertIn("floors every entry API at 0 req/s", text)
+
 
 class TestPatchSources(unittest.TestCase):
     SRC = ROOT / "TopFull" / "TopFull_master" / "online_boutique_scripts" / "src"
