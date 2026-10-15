@@ -211,6 +211,12 @@ class TestGuideScan(unittest.TestCase):
         text = throttle_flags.guides_markdown(rows)
         self.assertIn("| g2.md | 2 | 1 | 0 | `hold_a`, `hold_b` |", text)
 
+    def test_proxy_fd_evidence_note_is_not_scanned(self):
+        rows = self.scan({
+            "2026-10-15-proxy-fd-evidence-flagged-holds.md": "hold_a is mentioned here.\n",
+        })
+        self.assertEqual(rows, [])
+
 
 if __name__ == "__main__":
     unittest.main()

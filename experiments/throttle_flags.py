@@ -208,7 +208,8 @@ class GuideRow:
 
 
 def scan_guides(flags: list[HoldFlag], guides_dir: Path) -> list[GuideRow]:
-    skip = {AUDIT_PATH.name, RERUN_PATH.name}
+    # This evidence note rejects the standard "stay valid" sentence, so it is not a scenario write-up to annotate.
+    skip = {AUDIT_PATH.name, RERUN_PATH.name, "2026-10-15-proxy-fd-evidence-flagged-holds.md"}
     flagged = [h for h in flags if h.flagged]
     rows = []
     for path in sorted(Path(guides_dir).glob("*.md")):
