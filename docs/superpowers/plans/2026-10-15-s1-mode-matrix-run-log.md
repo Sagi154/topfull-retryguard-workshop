@@ -1,0 +1,16 @@
+# S1 mode matrix — run log
+
+One line per launch, including a failed launch and its single replay.
+
+`hold N | log_folder | PASS or INVALID | locust rows | note`
+
+hold 1 | final_s1_rg_only_normal_run1 | PASS | 287 | Paper-C1; checkout 800m; users 175/30/70/90/5; normal; TopFull off; toggles 0 (off 0, up 0, burst 0); frontend 4 on 89/89; catalog_1=89/89; catalog_not_ready=0; TF live5s_10000=415 live5s_caps=0 live5s_zero=0 other=0; topfull_rl_ran=no; throttle clean; VS attempts 3; START ok
+hold 2 | final_s1_rg_only_normal_run2 | PASS | 287 | Paper-C1; checkout 800m; users 175/30/70/90/5; normal; TopFull off; toggles 0 (off 0, up 0, burst 0); frontend_4=88/88 catalog_1=88/88 catalog_not_ready=0 live5s_10000=415 live5s_caps=0 live5s_zero=0 other=0 topfull_rl_ran=no; throttle clean; VS attempts 3; START ok
+hold 3 | final_s1_both_normal_run1 | PASS | 286 | Paper-C1; checkout 800m; users 175/30/70/90/5; normal; TopFull on; toggles 0 (off 0, up 0, burst 0); frontend_4=89/89 catalog_1=89/89 catalog_not_ready=0 live5s_10000=415 live5s_caps=0 live5s_zero=0 other=0 topfull_rl_ran=yes; throttle clean; VS attempts 3; START ok
+hold 4 | final_s1_both_normal_run2 | PASS | 287 | Paper-C1; checkout 800m; users 175/30/70/90/5; normal; TopFull on; toggles 0 (off 0, up 0, burst 0); frontend_4=89/89 catalog_1=89/89 catalog_not_ready=0 live5s_10000=415 live5s_caps=0 live5s_zero=0 other=0 topfull_rl_ran=yes; throttle clean; VS attempts 3; START ok
+hold 5 | final_s1_tf_only_run1 | PASS | 288 | Paper-C1; checkout 800m; users 175/30/70/90/5; tf; TopFull on; toggles n/a; frontend_4=84/84 catalog_1=84/84 catalog_not_ready=0 live5s_10000=390 live5s_caps=0 live5s_zero=0 other=0 topfull_rl_ran=yes; throttle clean; VS attempts 3; START ok
+hold 6 | final_s1_tf_only_run2 | PASS | 288 | Paper-C1; checkout 800m; users 175/30/70/90/5; tf; TopFull on; toggles n/a; frontend_4=84/84 catalog_1=84/84 catalog_not_ready=0 live5s_10000=390 live5s_caps=0 live5s_zero=0 other=0 topfull_rl_ran=yes; throttle clean; VS attempts 3; START ok
+hold 7 | final_s1_rg_only_burst_run1 | PASS | 288 | Paper-C1; checkout 800m; users 175/30/70/90/5; burst_rpr 2.0; TopFull off; toggles 0 (off 0, up 0, burst 0); frontend_4=88/88 catalog_1=88/88 catalog_not_ready=0 live5s_10000=410 live5s_caps=0 live5s_zero=0 other=0 topfull_rl_ran=no; throttle clean; VS attempts 3; START ok
+hold 8 | final_s1_rg_only_burst_run2 | PASS | 289 | Paper-C1; checkout 800m; users 175/30/70/90/5; burst_rpr 2.0; TopFull off; toggles 0 (off 0, up 0, burst 0); frontend_4=88/88 catalog_1=88/88 catalog_not_ready=0 live5s_10000=415 live5s_caps=0 live5s_zero=0 other=0 topfull_rl_ran=no; throttle clean; VS attempts 3; START ok
+hold 9 | final_s1_both_burst_run1 | PASS | 287 | Paper-C1; checkout 800m; users 175/30/70/90/5; burst_rpr 2.0; TopFull on; toggles 0 (off 0, up 0, burst 0); frontend_4=89/89 catalog_1=89/89 catalog_not_ready=0 live5s_10000=415 live5s_caps=0 live5s_zero=0 other=0 topfull_rl_ran=yes; throttle clean; VS attempts 3; START ok
+hold 10 | final_s1_both_burst_run2 | PASS | 287 | Paper-C1; checkout 800m; users 175/30/70/90/5; burst_rpr 2.0; TopFull on; toggles 0 (off 0, up 0, burst 0); frontend_4=90/90 catalog_1=90/90 catalog_not_ready=0 live5s_10000=415 live5s_caps=0 live5s_zero=0 other=0 topfull_rl_ran=yes; throttle clean; VS attempts 3; START ok

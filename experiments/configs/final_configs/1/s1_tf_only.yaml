@@ -18,7 +18,7 @@
 scenario_id: 1
 scenario_name: normal_operation
 condition: baseline            # baseline = RetryGuard OFF
-run_number: 1
+run_number: 3
 description: >
   Flat RPS well within cluster capacity. TopFull active, retries on (default),
   RetryGuard NOT running. Establishes the healthy-system reference point.
@@ -142,7 +142,7 @@ topfull_throttle_collector:
   poll_interval_seconds: 1
 
 # ── Output ───────────────────────────────────────────────────────────────────
-log_folder: final_s1_tf_only_run1
+log_folder: final_s1_tf_only_run3
 
 # ── Infrastructure ───────────────────────────────────────────────────────────
 # Matches infra/vm-ips.env. Override here if your setup differs.

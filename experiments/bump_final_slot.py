@@ -1,11 +1,11 @@
-"""Advance run_number and log_folder on one S2/S3/S4 final_configs YAML.
+"""Advance run_number and log_folder on one S1/S2/S3/S4 final_configs YAML.
 
-The campaign file stays the runner input. Rep 1 uses the run1 name already
-in the file. After that folder is pulled, bump to run2 and launch again.
-After rep 2 is pulled, bump to run3 so a later hold cannot reuse the name
-on master.
+The campaign file stays the runner input. The first launch of a file uses
+the run_number already in it. After that folder is pulled, bump once and
+launch again. After the second launch is pulled, bump once more so a later
+hold cannot reuse the name on master.
 
-    python experiments/bump_final_slot.py experiments/configs/final_configs/3/s3_rg_only_normal.yaml
+    python experiments/bump_final_slot.py experiments/configs/final_configs/1/s1_rg_only_normal.yaml
 """
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 ALLOWED_PREFIXES = (
+    "s1_",
     "s2_",
     "s3_",
     "4a_constrained_",
@@ -67,7 +68,7 @@ def bump_file(path: Path) -> int:
     if "final_configs" not in parts:
         raise SystemExit(f"refusing {path}: not under final_configs")
     if not any(path.name.startswith(prefix) for prefix in ALLOWED_PREFIXES):
-        raise SystemExit(f"refusing {path}: not an S2/S3/S4 campaign file")
+        raise SystemExit(f"refusing {path}: not an S1/S2/S3/S4 campaign file")
     original = path.read_bytes().decode("utf-8")
     updated = bump_text(original)
     with path.open("w", encoding="utf-8", newline="") as handle:
