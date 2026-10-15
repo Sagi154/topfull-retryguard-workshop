@@ -69,6 +69,7 @@ class TestPanelFigure(unittest.TestCase):
         goodput = next(trace for trace in fig.data if trace.name == "Goodput")
         self.assertIsNone(goodput.hovertemplate)
         self.assertEqual(fig.layout.height, multi_graphs_tool.PANEL_HEIGHT)
+        self.assertEqual(list(fig.layout.xaxis.domain), [0, multi_graphs_tool.PLOT_DOMAIN_END])
 
     def test_run_label_names_scenario_variant_and_run(self):
         label = multi_graphs_tool.run_label(Path("x/S2_sustained_overload_burst/both/s2_burst20_rgtf1"))
@@ -121,6 +122,14 @@ class TestNormalize(unittest.TestCase):
         self.assertEqual(figs[0].layout.xaxis.title.text, "")
         self.assertEqual(figs[1].layout.xaxis.title.text, multi_graphs_tool.HOLD_CLOCK_TITLE)
 
+    def test_slider_keeps_the_reserved_plot_edge(self):
+        figs = self.figs()
+        for fig in figs:
+            fig.update_layout(xaxis_domain=[0, multi_graphs_tool.PLOT_DOMAIN_END])
+        multi_graphs_tool.decorate_slider(figs)
+        for fig in figs:
+            self.assertEqual(list(fig.layout.xaxis.domain), [0, multi_graphs_tool.PLOT_DOMAIN_END])
+
 
 class TestLegendFigure(unittest.TestCase):
     def test_legend_lists_the_union_off_except_events(self):
@@ -141,6 +150,8 @@ class TestLegendFigure(unittest.TestCase):
         self.assertEqual(legend.layout.height, multi_graphs_tool.LEGEND_HEIGHT)
         self.assertFalse(legend.layout.xaxis.visible)
         self.assertIs(legend.layout.dragmode, False)
+        self.assertEqual(legend.layout.plot_bgcolor, "rgba(0,0,0,0)")
+        self.assertEqual(legend.layout.paper_bgcolor, "rgba(0,0,0,0)")
 
 
 from test_hold_clock import E, iso, make_run  # noqa: E402
@@ -333,10 +344,130 @@ class TestLegendDrivesPanels(BrowserCase):
         height = self.page.evaluate("() => document.getElementById('legend-graph').offsetHeight")
         self.assertGreater(height, 40)
 
+    def test_plot_stays_put_when_a_right_axis_turns_on(self):
+        before = self.page.evaluate("""() => {
+          const plot = document.querySelector('#panel-0 .nsewdrag').getBoundingClientRect();
+          return {x: plot.x, w: plot.width,
+                  domain: document.getElementById('panel-0').layout.xaxis.domain.slice()};
+        }""")
+        self.click_legend("checkoutservice", title=False)
+        self.wait("() => document.getElementById('panel-1').layout.yaxis3.visible === true")
+        after = self.page.evaluate("""() => {
+          const plot = document.querySelector('#panel-0 .nsewdrag').getBoundingClientRect();
+          return {x: plot.x, w: plot.width,
+                  domain: document.getElementById('panel-0').layout.xaxis.domain.slice()};
+        }""")
+        self.assertEqual(after["domain"], before["domain"])
+        self.assertEqual(after["domain"][1], multi_graphs_tool.PLOT_DOMAIN_END)
+        self.assertAlmostEqual(after["x"], before["x"], delta=1)
+        self.assertAlmostEqual(after["w"], before["w"], delta=1)
+        self.page.evaluate(
+            "() => document.getElementById('legend-graph').scrollIntoView({block: 'center'})")
+        self.click_legend("E3 frontend->checkoutservice", title=False)
+        self.wait("() => document.getElementById('panel-1').layout.yaxis4.visible === true")
+        later = self.page.evaluate("""() => {
+          const plot = document.querySelector('#panel-1 .nsewdrag').getBoundingClientRect();
+          return {x: plot.x, w: plot.width};
+        }""")
+        second = self.page.evaluate("""() => {
+          const plot = document.querySelector('#panel-0 .nsewdrag').getBoundingClientRect();
+          return {x: plot.x, w: plot.width};
+        }""")
+        self.assertAlmostEqual(later["x"], second["x"], delta=1)
+        self.assertAlmostEqual(later["w"], second["w"], delta=1)
+
+    def test_legend_matches_its_rows_without_a_scrollbar(self):
+        self.wait("() => document.getElementById('legend-graph').offsetHeight < 900")
+        state = self.page.evaluate("""() => {
+          const legend = document.getElementById('legend-graph');
+          const bg = legend.querySelector('.bg');
+          const bar = legend.querySelector('.scrollbar');
+          const box = legend.querySelector('.scrollbox');
+          let bottom = 0;
+          if (box) {
+            [...box.children].forEach(el => {
+              const b = el.getBBox();
+              const m = /translate\\(\\s*[-0-9.eE]+(?:\\s*,\\s*|\\s+)([-0-9.eE]+)\\s*\\)/.exec(
+                el.getAttribute('transform') || '');
+              const y = m ? +m[1] : 0;
+              bottom = Math.max(bottom, y + b.y + b.height);
+            });
+          }
+          const fill = bg ? getComputedStyle(bg).fill : '';
+          const barBox = bar ? bar.getBoundingClientRect() : null;
+          const barShown = !!(bar && getComputedStyle(bar).display !== 'none' && barBox.height > 2);
+          return {fig: legend.offsetHeight, bottom: bottom, fill: fill, barShown: barShown};
+        }""")
+        self.assertNotIn("229, 236, 246", state["fill"])
+        self.assertFalse(state["barShown"])
+        self.assertGreater(state["bottom"], 0)
+        self.assertGreater(state["fig"], state["bottom"])
+        self.assertLess(state["fig"], state["bottom"] + 80)
+
+    def test_slider_stays_on_the_last_panel_and_a_click_hits_every_panel(self):
+        self.wait("() => document.getElementById('legend-graph').offsetHeight < 900")
+        place = self.page.evaluate("""() => {
+          const legend = document.getElementById('legend-graph');
+          const slider = document.querySelector('.rangeslider-container');
+          const modebar = legend.querySelector('.modebar');
+          const sb = slider.getBoundingClientRect();
+          const lb = legend.getBoundingClientRect();
+          const shown = modebar && getComputedStyle(modebar).display !== 'none'
+            && modebar.getBoundingClientRect().height > 2;
+          return {
+            parent: slider.closest('.plotly-graph-div').id,
+            overlap: sb.bottom > lb.top + 2 && sb.top < lb.bottom,
+            gap: lb.top - sb.bottom,
+            modebar: !!shown,
+          };
+        }""")
+        self.assertEqual(place["parent"], "panel-1")
+        self.assertFalse(place["overlap"])
+        self.assertGreater(place["gap"], 8)
+        self.assertFalse(place["modebar"])
+        self.click_legend("Goodput / RPS (req/s)", title=True)
+        self.wait("() => document.getElementById('panel-1').data"
+                  ".filter(t => t.legendgroup === 'locust').every(t => t.visible === true)")
+        self.assertTrue(self.visible(0, "Goodput"))
+        self.assertTrue(self.visible(1, "Goodput"))
+        self.click_legend("Rejection", title=True)
+        self.wait("() => document.getElementById('panel-0').data"
+                  ".filter(t => t.name === 'checkoutservice').every(t => t.visible === true)")
+        self.assertTrue(self.visible(0, "checkoutservice"))
+        # The second click must not turn the first group back off on either panel.
+        self.assertTrue(self.visible(0, "Goodput"))
+        self.assertTrue(self.visible(1, "Goodput"))
+
+    def test_wheel_over_the_selector_does_not_scroll_its_rows(self):
+        self.page.set_viewport_size({"width": 280, "height": 900})
+        self.wait("() => document.getElementById('legend-graph').offsetHeight < 900")
+        before = self.page.evaluate("""() => {
+          const graph = document.getElementById('legend-graph');
+          graph.scrollIntoView({block: 'center'});
+          const box = graph.querySelector('.legend').getBoundingClientRect();
+          return {x: box.x + 30, y: box.y + 20, rows: document.querySelector(
+            '#legend-graph .scrollbox').getAttribute('transform') || ''};
+        }""")
+        # A reflow can leave the figure shorter than its rows for a moment. That is
+        # when Plotly lets the wheel slide the rows.
+        self.page.evaluate("""() => {
+          const graph = document.getElementById('legend-graph');
+          window.__fits = 99;
+          return Plotly.relayout(graph, {height: 120});
+        }""")
+        self.page.wait_for_timeout(300)
+        self.page.mouse.move(before["x"], before["y"])
+        self.page.mouse.wheel(0, 300)
+        self.page.wait_for_timeout(300)
+        after = self.page.evaluate("""() => ({
+          rows: document.querySelector('#legend-graph .scrollbox').getAttribute('transform') || '',
+          scrollY: document.getElementById('legend-graph')._fullLayout.legend._scrollY || 0})""")
+        self.assertEqual(after["scrollY"], 0)
+        self.assertEqual(after["rows"], before["rows"])
+
     def test_wrapped_legend_row_receives_the_click(self):
-        # 280px puts CPU or RetryGuard events on a second row that is still inside
-        # Plotly's legend clip and under .nsewdrag. At 400px that second row is
-        # clipped, so the click never reaches it.
+        # 280px puts CPU or RetryGuard events on a second row. At 400px that row
+        # used to fall outside Plotly's clip, so the click never reached it.
         fig_a = synthetic(
             [("locust", "Goodput", [10.0, 20.0, 30.0]),
              ("cpu", "catalogservice", [100.0, 200.0, 150.0])], 300)

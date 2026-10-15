@@ -1,4 +1,4 @@
-"""multi_graphs_tool: N holds as stacked comparison panels with one shared legend.
+﻿"""multi_graphs_tool: N holds as stacked comparison panels with one shared legend.
 
     python experiments/multi_graphs_tool.py <run_dir> <run_dir> [<run_dir> ...]
 
@@ -31,6 +31,11 @@ SLIDER_EXTRA = 70
 LEGEND_HEIGHT = 900
 # Room above the plot for the rotated event names.
 PANEL_MARGIN = {"t": 80, "r": 36, "b": 48, "l": 64}
+# Right-hand units, in the order their axes pack. The plot's right edge stays at
+# PLOT_DOMAIN_END so turning a unit on fills that lane instead of shoving the plot.
+RIGHT_AXIS_STEP = 0.07
+RIGHT_UNITS = ("ms", "fraction", "retries/request", "millicores", "retries", "ticks")
+PLOT_DOMAIN_END = round(1 - RIGHT_AXIS_STEP * len(RIGHT_UNITS), 2)
 GROUP_ORDER = list(graphs_tool.PANEL_KEYS) + [graphs_tool.EVENT_GROUP]
 CPU_LIMIT_SUFFIX = re.compile(r" \((\d+)\)$")
 PALETTE = plotly_colors.qualitative.Dark24 + plotly_colors.qualitative.Light24
@@ -62,7 +67,7 @@ def panel_figure(run_dir: Path) -> go.Figure:
         trace.name = base
     fig.update_layout(
         showlegend=False, height=PANEL_HEIGHT, margin=dict(PANEL_MARGIN),
-        xaxis_domain=[0, 0.97],
+        xaxis_domain=[0, PLOT_DOMAIN_END],
     )
     return fig
 
@@ -144,11 +149,17 @@ def legend_figure(union: dict, colors: dict) -> go.Figure:
         height=LEGEND_HEIGHT,
         # No plot to drag. The drag layer would sit on top of wrapped legend rows.
         dragmode=False,
+        # The figure is only a legend. The default plot fill is the blue rectangle.
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
         margin={"t": 4, "r": 36, "b": 4, "l": 64},
-        xaxis={"visible": False},
-        yaxis={"visible": False},
+        # This figure is only the selector. A rangeslider or mode bar here sits on
+        # the legend and reads as the chart's zoom bar.
+        xaxis={"visible": False, "fixedrange": True, "rangeslider": {"visible": False}},
+        yaxis={"visible": False, "fixedrange": True},
         legend={"groupclick": "toggleitem", "tracegroupgap": 16, "orientation": "h",
                 "x": 0, "xanchor": "left", "y": 1, "yanchor": "top",
+                "bgcolor": "rgba(0,0,0,0)",
                 "font": {"size": 11}, "grouptitlefont": {"color": "black"}},
     )
     return fig
@@ -158,6 +169,13 @@ PAGE_STYLE = """
 body { margin: 0; font-family: sans-serif; color: #222; }
 h3.run { margin: 14px 16px 0; font-size: 14px; }
 div.note { margin: 2px 16px 0; min-height: 15px; font-size: 12px; color: #777; }
+div.legend-gap { height: 20px; }
+#legend-graph .bg { fill: transparent !important; }
+#legend-graph .modebar { display: none !important; }
+#legend-graph .scrollbar { display: none !important; }
+/* Plotly clips the legend to the first row and hides the rest. The rows are
+   already laid out below it; the clip is what makes them disappear. */
+#legend-graph .scrollbox { clip-path: none !important; }
 """
 
 
@@ -197,7 +215,11 @@ def build_page(run_dirs: list[Path]) -> str:
             fig, full_html=False, include_plotlyjs=True if index == 0 else False,
             div_id=f"panel-{index}",
         ))
-    parts.append(pio.to_html(legend, full_html=False, include_plotlyjs=False, div_id="legend-graph"))
+    parts.append('<div class="legend-gap"></div>')
+    parts.append(pio.to_html(
+        legend, full_html=False, include_plotlyjs=False, div_id="legend-graph",
+        config={"displayModeBar": False, "responsive": True},
+    ))
     parts.append(graphs_tool.legend_html())
     title = html.escape(" vs ".join(run_dir.name for run_dir in run_dirs))
     return (
@@ -238,9 +260,11 @@ PAGE_JS = r"""
   var PANEL_IDS = __PANEL_IDS__;
   var AXIS = __AXIS__;
   var X_PIN = __X_PIN__;
-  // A unit's axis stays hidden until one of its lines is on. Visible units pack
-  // against the plot: the first on the right edge, the rest stepping outward.
-  var RIGHT = ['ms', 'fraction', 'retries/request', 'millicores', 'retries', 'ticks'];
+  // The plot's right edge is fixed. A unit's axis stays hidden until one of its
+  // lines is on, then it takes the next lane in the reserved strip.
+  var RIGHT = __RIGHT__;
+  var AXIS_STEP = __AXIS_STEP__;
+  var PLOT_END = __PLOT_END__;
   var EVENTS = 'events';
 
   function start() {
@@ -270,8 +294,7 @@ PAGE_JS = r"""
         if (trace.visible !== 'legendonly') shown[trace.meta] = true;
       });
       var active = RIGHT.filter(function (unit) { return shown[unit]; });
-      var edge = active.length ? 1 - 0.07 * active.length : 0.97;
-      var update = {'xaxis.domain[1]': Math.max(0.6, edge)};
+      var update = {};
       RIGHT.forEach(function (unit) {
         var name = AXIS[unit];
         var place = active.indexOf(unit);
@@ -279,7 +302,7 @@ PAGE_JS = r"""
         if (place !== -1) {
           update[name + '.anchor'] = 'free';
           update[name + '.side'] = 'right';
-          update[name + '.position'] = edge + 0.07 * place;
+          update[name + '.position'] = PLOT_END + AXIS_STEP * place;
         }
       });
       return update;
@@ -322,26 +345,40 @@ PAGE_JS = r"""
       });
     }
 
+    // Clicks queue. An older redraw must not finish after a newer one and leave
+    // one panel on the previous selection.
+    var tail = Promise.resolve();
     function apply() {
-      var state = legendState();
-      var shared = Object.assign({}, axisUpdate(), yRanges(state));
-      busy = true;
-      var jobs = panels.map(function (panel) {
-        var visible = panel.data.map(function (trace) { return state[key(trace)] ? true : 'legendonly'; });
-        var update = Object.assign({}, shared);
-        // The names on the event lines are annotations. They follow the legend.
-        update.annotations = (panel.layout.annotations || []).map(function (item) {
-          var k = EVENTS + '||' + item.name;
-          if (!Object.prototype.hasOwnProperty.call(state, k)) return item;
-          var copy = Object.assign({}, item);
-          copy.visible = state[k];
-          return copy;
+      var run = function () {
+        var state = legendState();
+        var shared = Object.assign({}, axisUpdate(), yRanges(state));
+        var last = panels[panels.length - 1];
+        busy = true;
+        var jobs = panels.map(function (panel) {
+          var visible = panel.data.map(function (trace) { return state[key(trace)] ? true : 'legendonly'; });
+          var update = Object.assign({}, shared);
+          // The names on the event lines are annotations. They follow the legend.
+          update.annotations = (panel.layout.annotations || []).map(function (item) {
+            var k = EVENTS + '||' + item.name;
+            if (!Object.prototype.hasOwnProperty.call(state, k)) return item;
+            var copy = Object.assign({}, item);
+            copy.visible = state[k];
+            return copy;
+          });
+          // A relayout that touches the axes drops the last panel's slider onto
+          // the selector unless the slider is pinned back onto that panel.
+          if (panel === last) {
+            update['xaxis.rangeslider.visible'] = true;
+            update['xaxis.rangeslider.thickness'] = 0.06;
+          }
+          return Plotly.restyle(panel, {visible: visible}).then(function () {
+            return Plotly.relayout(panel, update);
+          }).catch(function (err) { console.error(err); });
         });
-        return Plotly.restyle(panel, {visible: visible}).then(function () {
-          return Plotly.relayout(panel, update);
-        });
-      });
-      return Promise.all(jobs).then(function () { showNotes(state); }).finally(function () { busy = false; }).catch(function (err) { console.error(err); });
+        return Promise.all(jobs).then(function () { showNotes(state); }).finally(function () { busy = false; });
+      };
+      tail = tail.then(run, run);
+      return tail;
     }
 
     // Item click: toggle that one legend trace, then redraw the panels.
@@ -363,6 +400,7 @@ PAGE_JS = r"""
       if (!row || row.querySelector('.legendtoggle')) return;
       var group = titleOf[text.textContent];
       if (!group) return;
+      event.preventDefault();
       event.stopPropagation();
       var indices = [];
       legend.data.forEach(function (trace, index) { if (trace.legendgroup === group) indices.push(index); });
@@ -382,31 +420,64 @@ PAGE_JS = r"""
     }
 
     // The legend is a row of columns that wrap with the window. Size the figure
-    // to the legend so there is no empty band and Plotly never scrolls it.
-    // Plotly 7 clips the item row and leaves the drag layer on top of it when
-    // the figure is only 16px taller than the legend, so the pad is 32.
+    // to those columns. Measuring .legend returns the clipped scroll box, which
+    // is the blue plot, so the height comes from each group's own box.
     // The legend has no plot to drag, but Plotly still draws .nsewdrag over
     // wrapped rows and recreates that rect on every relayout.
     var lastHeight = 0;
+    var fits = 0;
     function releaseDrag() {
       legend.querySelectorAll('.nsewdrag').forEach(function (node) {
         node.style.pointerEvents = 'none';
       });
+      // A relayout puts the clip back. The stylesheet clears it; this covers the
+      // attribute Plotly writes onto the node.
+      legend.querySelectorAll('.scrollbox').forEach(function (node) {
+        node.style.clipPath = 'none';
+        node.removeAttribute('clip-path');
+      });
+    }
+    // Pixel bottom of every legend label, including a wrapped row. getBBox is in
+    // SVG units, so a pad added to it clips the next row after a click reflow.
+    function legendPixelBottom() {
+      var svg = legend.querySelector('svg');
+      if (!svg || !svg.createSVGPoint) return 0;
+      var point = svg.createSVGPoint();
+      var top = legend.getBoundingClientRect().top;
+      var bottom = 0;
+      // The whole row, not just the letters: the toggle rect sits under the text
+      // and a short figure clips the click.
+      legend.querySelectorAll('.legend .traces').forEach(function (node) {
+        var bounds = node.getBBox();
+        var matrix = node.getScreenCTM();
+        if (!matrix || !bounds.height) return;
+        point.x = bounds.x;
+        point.y = bounds.y + bounds.height;
+        bottom = Math.max(bottom, point.matrixTransform(matrix).y - top);
+      });
+      return bottom;
     }
     function fitLegend() {
-      var node = legend.querySelector('.legend');
-      if (!node) return;
-      var height = Math.ceil(node.getBoundingClientRect().height) + 32;
-      if (Math.abs(height - lastHeight) < 3) {
+      var content = legendPixelBottom();
+      if (!content) return;
+      var height = Math.ceil(content + 56);
+      // Each relayout fires afterplot. Stop once the figure matches the rows,
+      // and never keep growing: a pad taken from the figure itself does that.
+      if (fits > 4 || Math.abs(height - lastHeight) < 3) {
         releaseDrag();
         return;
       }
+      fits += 1;
       lastHeight = height;
       legend.parentElement.style.height = height + 'px';
       legend.style.height = height + 'px';
       Plotly.relayout(legend, {height: height}).then(releaseDrag);
     }
 
+    // Plotly scrolls the legend on a mouse wheel. Its scrollbar is hidden here, so
+    // scrolling the page over the selector slides the rows and cuts off the titles.
+    // Stop Plotly seeing the wheel; the page still scrolls.
+    legend.addEventListener('wheel', function (event) { event.stopImmediatePropagation(); }, true);
     legend.on('plotly_afterplot', function () { keepTitles(); releaseDrag(); fitLegend(); });
     new MutationObserver(keepTitles).observe(legend, {subtree: true, attributes: true, attributeFilter: ['style']});
     // Zoom and pan are mirrored between panels. busy stops a panel echoing a
@@ -445,6 +516,23 @@ PAGE_JS = r"""
     keepTitles();
     fitLegend();
     setTimeout(fitLegend, 0);
+    // Plotly keeps the legend's column breaks from the first draw. On a narrower
+    // window the later sections run off the right edge unless the legend is resized.
+    var pageWidth = window.innerWidth;
+    var resizeTimer = 0;
+    window.addEventListener('resize', function () {
+      if (window.innerWidth === pageWidth) return;
+      pageWidth = window.innerWidth;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () {
+        // Plots.resize leaves the legend's column breaks at the first width.
+        Plotly.relayout(legend, {width: legend.clientWidth}).then(function () {
+          lastHeight = 0;
+          fits = 0;
+          fitLegend();
+        });
+      }, 50);
+    });
     releaseDrag();
     showNotes(legendState());
   }
@@ -458,8 +546,11 @@ def page_script(panel_count: int, x_pin: list[float]) -> str:
     return (
         PAGE_JS
         .replace("__PANEL_IDS__", json.dumps([f"panel-{i}" for i in range(panel_count)]))
+        .replace("__AXIS_STEP__", json.dumps(RIGHT_AXIS_STEP))
         .replace("__AXIS__", json.dumps(graphs_tool.COMPARE_AXIS))
         .replace("__X_PIN__", json.dumps(x_pin))
+        .replace("__RIGHT__", json.dumps(list(RIGHT_UNITS)))
+        .replace("__PLOT_END__", json.dumps(PLOT_DOMAIN_END))
     )
 
 
