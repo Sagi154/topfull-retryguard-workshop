@@ -377,7 +377,7 @@ emailservice's detector max utilization is above 1 on every column, from 1.100 t
 
 ## Throttle data quality
 
-All ten scored holds are throttle clean: 0 fetch warnings, longest no-fresh threshold 5 s, and longest no-fresh admitted 5 s. No hold is **FLAGGED**. Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid.
+All ten scored holds are throttle clean: 0 fetch warnings, longest no-fresh threshold 5 s, and longest no-fresh admitted 5 s. No hold is **FLAGGED**. Goodput, P95, rejection, and retry numbers do not come from that file, but a proxy that ran out of file descriptors refuses new connections on every variant, so whether they are clean for this hold is decided by [2026-10-15-proxy-fd-evidence-flagged-holds.md](2026-10-15-proxy-fd-evidence-flagged-holds.md), not by this flag.
 
 | Hold | Status | Fetch warnings | First warning | Longest no-fresh threshold (s) | Longest no-fresh admitted (s) |
 | --- | --- | --- | --- | --- | --- |
