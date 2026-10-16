@@ -230,9 +230,10 @@ default. Genuine timeouts vs skips are in `topfull_throttle_collector.log`
 (`WARNING  …fetch failed` only on failures).
 
 When this cap is placed on the same 1 s clock as the other run metrics, a live
-`threshold` of **10000** is no cap and is left off the series. It is the
-proxy's passthrough sentinel, not a TopFull decision, and plotting it scales
-the axis to 10000. A live **0** is an empty read and is left off the same way.
+`threshold` of **9900 or more** is no cap and is left off the series. 10000 is
+the proxy's passthrough sentinel, not a TopFull decision, and the RL can step a
+little below it (9999.55, 9997.5) before a reset. Plotting any of these scales
+the axis to about 10000. A live **0** is an empty read and is left off the same way.
 The file still stores both numbers. Between live reads, keep the last usable
 cap for at most 6 s, which covers the default 5 s scrape. Do not carry it
 across a longer hole, and do not keep a repeated value after live reads stop.
@@ -325,7 +326,7 @@ When `retryguard.log` has no `START` line, the scorer falls back to shed bar 0.5
 | Inbound sojourn | `Δrq_time_sum_ms / Δrq_time_count`, milliseconds. | 13 |
 | Share above 500 ms | From the `le=500` bucket of `rq_time_buckets`. | 14 |
 | Locust goodput / fail rate / P95 | Mean of `Goodput`, `Fail/RPS`, and `Latency95` while `RPS > 0`, per API. | 9–11 |
-| Live throttle caps | `topfull_throttle.csv` rows with `threshold_fresh=1` and threshold above 0. 10000 is no cap. A live 0 is an empty read. Last usable cap is held for at most 6 s. | 17 |
+| Live throttle caps | `topfull_throttle.csv` rows with `threshold_fresh=1` and threshold above 0. 9900 and above is no cap. A live 0 is an empty read. Last usable cap is held for at most 6 s. | 17 |
 | Per-callee toggle stats | From the log: `ON→OFF` / `OFF→ON` counts, shed rpr, seconds to first shed, attempts after re-enable, time OFF, OFF-window rejection min/median, longest streak under `reenable_rejection`. A burst shed is tagged `b` and its value is the 5 s aggregate `ΣΔretry / ΣΔfirst`. | 8 |
 
 ---
