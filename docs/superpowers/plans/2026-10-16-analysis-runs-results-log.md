@@ -18,3 +18,4 @@ analysis_s3_rg_only_normal_run1 | exit ok | throttle N/A TopFull off | health ok
 analysis_s3_both_normal_run1 | exit ok | throttle ok | health ok | RG toggles: no transition lines
 analysis_s3_tf_only_run1 | exit ok | throttle ok | health ok | RG off
 analysis_s3_rg_only_burst_run1 | exit ok | throttle N/A TopFull off | health ok | RG toggles: frontend→checkout ON→OFF 1, burst 1
+analysis_s3_both_burst_run1 | exit ok | throttle ok | health ok | RG toggles: frontend→checkout ON→OFF 1, burst 1
