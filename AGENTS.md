@@ -122,7 +122,7 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S3 TopFull-only cap-floor hold `final_s3_tf_only_run5` (2026-10-16).** Floor `verdict=pass`, `saw_zero=no`: a `postcheckout` cap was written strictly below 10 (proxy min 1.190635 req/s). The regression check did not clear: `health: RL STALL`, so the hold is `not_clean` and the verification did not pass. Branch `cap-floor-0` stays unmerged. Plan: [2026-10-16-s3-tf-only-cap-floor-verify.md](docs/superpowers/plans/2026-10-16-s3-tf-only-cap-floor-verify.md).
+- **S3 TopFull-only cap-floor hold `final_s3_tf_only_run5` (2026-10-16).** Floor `verdict=pass`, `saw_zero=no`: a `postcheckout` cap was written strictly below 10 (proxy min 1.190635 req/s). The regression check did not clear: `health: RL STALL`, so the hold is `not_clean` and the verification did not pass. Branch `cap-floor-0` stays unmerged. The hold exposed RL caps of 9997–9999.9 right after a reset to 10000; the scorer and graphs now treat a threshold of 9900 or more as no cap (record: [STATUS.md](STATUS.md) Done). Plan: [2026-10-16-s3-tf-only-cap-floor-verify.md](docs/superpowers/plans/2026-10-16-s3-tf-only-cap-floor-verify.md).
 - **Next free slot.** `s3_tf_only.yaml` is run 6 (`final_s3_tf_only_run6`). The other four S3 YAMLs stay at 5. `final_s3_tf_only_run5` stays verification only until the user says otherwise. The locked S3 columns remain `final_s3_*_run3` and `final_s3_*_run4`.
 - **Cluster after the hold.** Checkout limit `800m` (the runner restored Paper-C1). Frontend HPA min 1 max 4, catalog HPA min 1 max 2, frontend `proxyCPU=100m`, `proxyCPULimit` unset. The three VMs were left RUNNING.
 
