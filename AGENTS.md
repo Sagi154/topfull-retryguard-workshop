@@ -127,7 +127,7 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 - **S4A constrained `analysis_4a_constrained_rg_only_normal_run1` was stopped (2026-10-16)** as Locust was starting. Not pulled, not committed. The slot is free. Live HPAs at the stop: frontend min 1 max 4 (1 replica), catalog min 1 max 2 (2 replicas). VMs left RUNNING. Checkout limit after S3 is `800m`.
 - **One flag in the 20 holds:** `analysis_s2_tf_only_run2` is `RL STALL` (one `RL_RPS_TIMEOUT` at 05:37:18Z). The other 19 scored `health: ok`. Throttle was `ok` on TopFull-on holds and `N/A: TopFull off` on RetryGuard-only holds.
 - **Next free slot.** `s3_tf_only.yaml` is run 6 (`final_s3_tf_only_run6`). The other four S3 YAMLs stay at 5. `final_s3_tf_only_run5` stays verification only until the user says otherwise. The locked S3 columns remain `final_s3_*_run3` and `final_s3_*_run4`.
-- **Cluster after the hold.** Checkout limit `800m` (the runner restored Paper-C1). Frontend HPA min 1 max 4, catalog HPA min 1 max 2, frontend `proxyCPU=100m`, `proxyCPULimit` unset. The three VMs were left RUNNING.
+- **Replica pin (2026-10-16).** Frontend HPA min=max=4, catalog HPA min=max=1, frontend `proxyCPU=90m`, `proxyCPULimit` unset. Applied on the cluster. This lock stays after every hold (§5). Checkout limit `800m`. The three VMs were left RUNNING.
 
 ### Still open
 
@@ -139,7 +139,7 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
 - The S4 relock mode matrix is the locked S4A/S4B set under `final results/`, and the catalog-50m mode matrix and `campaign_48/` S4A/S4B are not comparable.
-- Branch `analysis-runs-results` is unmerged. The 60-hold matrix is paused after 20 holds because frontend and catalog were not pinned. The user decides whether those 20 are kept and whether the pin is applied before any further hold.
+- Branch `analysis-runs-results` is unmerged. The 60-hold matrix is paused after 20 unpinned holds. The replica pin is now on the cluster (§5). The user decides whether those 20 are kept before any further hold.
 
 Read [STATUS.md](STATUS.md) before a new hold, a `run_number` bump, scoring an old folder, or deciding what is left. After a hold, append one bullet under Done there, update Next free slots, and replace Latest here.
 
@@ -175,7 +175,19 @@ Note: Scenarios 3/4 constrain via `method: cpu_limit` with absolute `cpu_limit_m
 
 ### Locked CPU table (Paper-C1)
 
-Paper-C1 is the default CPU table for every hold. [ADR 0009](docs/adr/0009-paper-c1-default-cpu-table.md) is its only source of truth; do not copy the values elsewhere. Each scenario YAML carries the full table in `scale_constraints`. A scenario that constrains a service (S3, S4A, S4B) writes the constrained value in that service's row and leaves the rest at the table value. If a YAML disagrees with the ADR on an unconstrained row, fix the YAML. `PAPER_CPU_LIMIT_MILLICORES` in `experiments/topfull_cpu_quotas.py` mirrors the ADR, and a test fails if they differ. On the VMs, every hold resets all eleven Deployments to the table before and after the run, then aborts before Locust starts if live limits differ from table + constraints. There is no opt-out: the old `paper_cpu_reconcile` key is removed from the runner and ignored in old YAMLs.
+Paper-C1 is the default CPU table for every hold. [ADR 0009](docs/adr/0009-paper-c1-default-cpu-table.md) is its only source of truth; do not copy the millicore values elsewhere. Each scenario YAML carries the full table in `scale_constraints`. A scenario that constrains a service (S3, S4A, S4B) writes the constrained value in that service's row and leaves the rest at the table value. If a YAML disagrees with the ADR on an unconstrained row, fix the YAML. `PAPER_CPU_LIMIT_MILLICORES` in `experiments/topfull_cpu_quotas.py` mirrors the ADR, and a test fails if they differ. On the VMs, every hold resets all eleven Deployments to the table before and after the run, then aborts before Locust starts if live limits differ from table + constraints. There is no opt-out: the old `paper_cpu_reconcile` key is removed from the runner and ignored in old YAMLs.
+
+### Locked replica pin
+
+This lock has the same rank as Paper-C1. It is the standing cluster state before a hold, during a hold, and after a hold.
+
+- `frontend-hpa`: `minReplicas` 4 and `maxReplicas` 4
+- `productcatalogservice-hpa`: `minReplicas` 1 and `maxReplicas` 1
+- Frontend pod template: `sidecar.istio.io/proxyCPU=90m`. Leave `sidecar.istio.io/proxyCPULimit` unset. 90m is the request that lets the fourth frontend pod schedule.
+
+The runner resets CPU limits and does not patch HPAs or this annotation. Before Locust, read the live HPAs and the frontend annotation. If any of the three differs from this lock, patch it back to this lock, then continue. A finished hold leaves this lock in place. `experiments/manifests/frontend-hpa.yaml` and `experiments/manifests/productcatalogservice-hpa.yaml` match it. ADR 0009 records the same pin in the replica column. [ADR 0005](docs/adr/0005-productcatalog-hpa-max-replicas-2.md) is a proposed design and is not this lock.
+
+A plan step that sets frontend HPA to min 1 / max 4, catalog HPA max to 2, or `proxyCPU` to 100m is obsolete. Leave this lock.
 
 ### Locked RetryGuard parameters
 
@@ -275,9 +287,7 @@ Full config schema, `scale_constraints` methods, and troubleshooting: [PHASE5-EX
   3. **`go` not on PATH for non-interactive shells** — `/usr/local/go/bin` was only added to `idozacharia`'s personal `~/.bashrc`, but `run_scenario.py` starts the proxy via a non-interactive shebang script (`tmux new-session -d ... /tmp/rg_proxy.sh`), which never sources `.bashrc` for *any* user (this would have silently broken the proxy step even for `idozacharia`). Fixed system-wide: `sudo ln -sf /usr/local/go/bin/go /usr/local/bin/go` (`/usr/local/bin` is in `/etc/environment`'s default `PATH`).
 
   Verified working end-to-end as `sagi1` after the fixes: `kubectl get nodes`, `go version`, write-tests on both directories, and `python3 -c "import ray, kubernetes"` inside `idozacharia`'s venv all succeed non-interactively.
-- **Frontend sidecar CPU.** Patch `spec.template.metadata.annotations` on the frontend Deployment (a Deployment-object `kubectl annotate` does not roll the pods). The app container stays the paper **1150m**. Ron left both annotations unset, which injects request **100m** / limit **2000m**. If `proxyCPU` is set and `proxyCPULimit` is absent, the sidecar gets that request and **no** CPU limit. A limit of 90m or 100m throttles Envoy and collapses storefront latency (runs 14–25).
-  - **Not pinned** (HPA min 1 / max 4): `sidecar.istio.io/proxyCPU=100m`. Leave `sidecar.istio.io/proxyCPULimit` unset.
-  - **Pinned at 4 replicas:** `sidecar.istio.io/proxyCPU=90m` only, so the fourth pod schedules (a 100m request leaves the node about 10m over allocatable). Leave `proxyCPULimit` unset. Restore the unpinned pair when the hold ends.
+- **Frontend sidecar CPU.** The standing request is the replica pin in §5: `sidecar.istio.io/proxyCPU=90m` on the frontend pod template, `proxyCPULimit` absent. Patch `spec.template.metadata.annotations` on the frontend Deployment (a Deployment-object `kubectl annotate` does not roll the pods). The app container stays the paper **1150m**. If `proxyCPU` is set and `proxyCPULimit` is absent, the sidecar gets that request and no CPU limit. A CPU limit on the sidecar throttles Envoy and collapses storefront latency (runs 14–25). A 100m request leaves the node about 10m over allocatable, so the fourth frontend pod does not schedule.
 - **Cost discipline:** stop the 3 VMs when not actively working: `gcloud compute instances stop topfull-master topfull-worker-1 topfull-load --zone=us-central1-a --project=project-76deda76-55f1-42d2-abb`. Don't stop them unless the user asks. Pass `--project` so a leftover `networks-workshop` gcloud config does not stop the originals.
 - **Known fixes already applied on master** (don't revert): dynamic cAdvisor IP lookup in `resource_collector.py`; Locust 2.x event API in `locust_online_boutique.py`; LF line endings + venv locust path in the create scripts; env-var-with-default user counts in create scripts; try/except wrapper in `metric_collector.py`. Full list in PHASE5-EXPERIMENTS-GUIDE.md §7. **Also (2026-08-07 readiness):** `retryguard.py` disable path omits the `retries` block (Istio rejects `attempts:0`). `run_scenario.py` copies `retryguard.py`, `envoy_retry_collector.py`, and `resource_usage_collector.py` from this repo onto master at the start of each run (plain `cp`, then `sudo cp` if the dest file is owned by another user). Do not skip that by launching those scripts by hand from a stale master copy. Master's `overload_detection.py` and `deploy_rl.py` carry the `RL_TIMEOUT_PATCH v1` patch (originals kept as `overload_detection.py.orig-20261016-002554` and `deploy_rl.py.orig-20261016-002554`), the runner aborts a TopFull-on hold without it, and the proxy now starts with its soft open-files limit raised to the hard limit.
 
