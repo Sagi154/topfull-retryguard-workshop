@@ -24,3 +24,5 @@ analysis_s3_rg_only_burst_run2 | exit ok | throttle N/A TopFull off | health ok 
 analysis_s3_tf_only_run2 | exit ok | throttle ok | health ok | RG off
 analysis_s3_both_normal_run2 | exit ok | throttle ok | health ok | RG toggles: no transition lines
 analysis_s3_rg_only_normal_run2 | exit ok | throttle N/A TopFull off | health ok | RG toggles: frontend→checkout ON→OFF 1
+
+Matrix paused 2026-10-16 after these 20 holds. Frontend HPA was min 1 max 4 and catalog HPA was max 2 on every hold, so replica counts moved. Paper-C1 pin (frontend held at 4, catalog HPA max 1) was not applied. `analysis_4a_constrained_rg_only_normal_run1` was stopped as Locust started and was not pulled.

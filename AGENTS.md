@@ -123,9 +123,9 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **Rule (2026-10-16): every new run is pulled to `experiments/results/analysis_runs_results/`**, not `final results/` (closed). The folder tree is on branch `analysis-runs-results` (`1f43cd61`). Not verified against a live hold.
-- **Analysis-runs plan (2026-10-16), in progress on branch `analysis-runs-results`.** 60 holds (S2, S3, S4A constrained, S4A unconstrained, S4B, then S1; 5 variants; 2 repeats). The folder tree and the 60 generated configs are committed locally. Holds have not started. The plan now requires a commit and a push after every finished task and every finished hold. Plan: [2026-10-16-analysis-runs-results.md](docs/superpowers/plans/2026-10-16-analysis-runs-results.md).
-- **S3 TopFull-only cap-floor hold `final_s3_tf_only_run5` (2026-10-16).** Floor `verdict=pass`, `saw_zero=no`: a `postcheckout` cap was written strictly below 10 (proxy min 1.190635 req/s). The regression check did not clear: `health: RL STALL`, so the hold is `not_clean` and the verification did not pass. Branch `cap-floor-0` stays unmerged. The hold exposed RL caps of 9997–9999.9 right after a reset to 10000; the scorer and graphs now treat a threshold of 9900 or more as no cap (record: [STATUS.md](STATUS.md) Done). Plan: [2026-10-16-s3-tf-only-cap-floor-verify.md](docs/superpowers/plans/2026-10-16-s3-tf-only-cap-floor-verify.md).
+- **Analysis-runs matrix paused (2026-10-16).** 20 holds (all of S2 and S3) were pulled and pushed on `analysis-runs-results`. Frontend HPA was min 1 max 4 and catalog HPA was max 2, so both replica counts moved on every hold. Paper-C1's pin (frontend held at 4, catalog HPA max 1, [ADR 0009](docs/adr/0009-paper-c1-default-cpu-table.md)) was not applied. `run_scenario.py` resets CPU limits and does not patch HPA. Log: [2026-10-16-analysis-runs-results-log.md](docs/superpowers/plans/2026-10-16-analysis-runs-results-log.md).
+- **S4A constrained `analysis_4a_constrained_rg_only_normal_run1` was stopped (2026-10-16)** as Locust was starting. Not pulled, not committed. The slot is free. Live HPAs at the stop: frontend min 1 max 4 (1 replica), catalog min 1 max 2 (2 replicas). VMs left RUNNING. Checkout limit after S3 is `800m`.
+- **One flag in the 20 holds:** `analysis_s2_tf_only_run2` is `RL STALL` (one `RL_RPS_TIMEOUT` at 05:37:18Z). The other 19 scored `health: ok`. Throttle was `ok` on TopFull-on holds and `N/A: TopFull off` on RetryGuard-only holds.
 - **Next free slot.** `s3_tf_only.yaml` is run 6 (`final_s3_tf_only_run6`). The other four S3 YAMLs stay at 5. `final_s3_tf_only_run5` stays verification only until the user says otherwise. The locked S3 columns remain `final_s3_*_run3` and `final_s3_*_run4`.
 - **Cluster after the hold.** Checkout limit `800m` (the runner restored Paper-C1). Frontend HPA min 1 max 4, catalog HPA min 1 max 2, frontend `proxyCPU=100m`, `proxyCPULimit` unset. The three VMs were left RUNNING.
 
@@ -139,7 +139,7 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
 - The S4 relock mode matrix is the locked S4A/S4B set under `final results/`, and the catalog-50m mode matrix and `campaign_48/` S4A/S4B are not comparable.
-- Branch `analysis-runs-results` is unmerged. The 60-hold matrix has not started. Commit and push after every finished task and every finished hold on that branch (user, 2026-10-16).
+- Branch `analysis-runs-results` is unmerged. The 60-hold matrix is paused after 20 holds because frontend and catalog were not pinned. The user decides whether those 20 are kept and whether the pin is applied before any further hold.
 
 Read [STATUS.md](STATUS.md) before a new hold, a `run_number` bump, scoring an old folder, or deciding what is left. After a hold, append one bullet under Done there, update Next free slots, and replace Latest here.
 
