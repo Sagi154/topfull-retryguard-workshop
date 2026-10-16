@@ -1,0 +1,3 @@
+2026-10-16T22:12:05Z  START  poll_interval=1s layer_a_poll_interval=5s
+2026-10-16T22:23:42Z  SHUTDOWN  signal=15
+2026-10-16T22:23:43Z  EXIT
