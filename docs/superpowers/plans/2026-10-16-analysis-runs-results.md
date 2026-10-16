@@ -11,6 +11,7 @@
 ## Global Constraints
 
 - All work happens on a new branch `analysis-runs-results`, cut from `main`, in a separate worktree at `.worktrees/analysis-runs-results` (`.worktrees/` is already git-ignored). Do not touch `main`'s working tree.
+- **Commit and push after every finished task and every finished run (user, 2026-10-16).** This is required. From the worktree, on `analysis-runs-results`: when a task's last step is done, commit that task's files and push with `git push -u origin HEAD`. When a hold finishes (P6), commit the pulled folder and the log line, then push that commit before the next hold starts. A push that does not exit 0 is not done: retry it. Do not start the next task or the next hold until the push succeeds. Push only this branch. Do not push `main`. A task that changes no files (Task 4) has no new commit; still push any commits that are not on the remote before the next task. A hold that aborted before finishing is not committed and not pushed (P3). Tasks 2 and 3 were committed locally before this rule; push them with the commit that adds this rule, before Task 4.
 - Use the locked configs in `experiments/configs/final_configs/` as the source. Do not edit them. Do not change load mixes, Paper-C1 CPU table, constrained rows, or the locked RetryGuard parameters (AGENTS.md section 5).
 - Results go to `experiments/results/analysis_runs_results/<scenario>_<normal|burst>/<variant>/<log_folder>/`. This holds for every new run in the project from 2026-10-16, not only this matrix. `final results/` and `campaign_48/` are closed and never a target.
 - SSH only through the aliases `topfull-master`, `topfull-worker-1`, `topfull-load`. Never hardcode IPs. SSH user stays `idozacharia`.
@@ -25,6 +26,7 @@
 1. **S2 and S3 are the locked scenarios as they are.** There is no "S2 constrained" or "S3 constrained" variant. S2 is plain Paper-C1; S3 carries its locked checkout 200m row. Only S4A has two forms (constrained and unconstrained).
 2. **TopFull-only runs once per repeat.** One `tf_only` YAML per scenario (mode folder `normal`). Five variants per scenario: `rg_only_normal`, `both_normal`, `tf_only`, `rg_only_burst`, `both_burst`.
 3. **Flag, never pause, never re-run a finished hold.** A flagged hold (throttle FLAGGED, PROXY FD, RL STALL) is recorded in the log and the matrix continues. The agent does not re-run any finished hold. A hold that aborted or failed before finishing may be re-run in the same slot (user, 2026-10-16). The user decides how to treat flags, and any re-run, after all 60 are done. The last S3 tf_only hold ended `not_clean` (`RL STALL`), so some flags are expected.
+4. **Commit and push after every finished task and every finished run.** Each task ends with a commit of that task's files and a `git push` of `analysis-runs-results`. Each finished hold ends the same way (P6), before the next hold. A failed push blocks the next task and the next hold.
 
 ## Run matrix (60 holds)
 
@@ -159,12 +161,15 @@ First occupant: the 60-hold analysis matrix (S1, S2, S3, S4A constrained, S4A un
 Plan: `docs/superpowers/plans/2026-10-16-analysis-runs-results.md`.
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Commit and push**
 
 ```powershell
 git add experiments/results/analysis_runs_results
 git commit --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>" -m "feat: add the analysis_runs_results folder tree"
+git push -u origin HEAD
 ```
+
+Expected: the push exits 0 and `origin/analysis-runs-results` contains this commit. Do not start Task 3 until it does.
 
 ---
 ### Task 3: Generate the 60 configs
@@ -374,12 +379,15 @@ python experiments/pull_results.py experiments/configs/analysis_runs/s4a_constra
 
 Expected: the `scp` destinations are `experiments/results/analysis_runs_results/S3_targeted_bottleneck_burst/both` and `.../S4A_topology_position_normal/tf_only`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Commit and push**
 
 ```powershell
 git add experiments/make_analysis_runs_configs.py experiments/test_make_analysis_runs_configs.py experiments/configs/analysis_runs
 git commit -m "feat: generate 60 analysis-run configs"
+git push -u origin HEAD
 ```
+
+Expected: the push exits 0. Do not start Task 4 until it does.
 
 ---
 
@@ -423,6 +431,16 @@ ssh topfull-master "ls /home/idozacharia/experiments/results | rg '^analysis_' |
 
 Expected: `none`. If any exist, stop and ask: the runner would overwrite them.
 
+- [ ] **Step 5: Push any commits that are not on the remote**
+
+Task 4 changes no files, so there is no new commit. The branch must still be pushed before Task 5:
+
+```powershell
+git push -u origin HEAD
+```
+
+Expected: the push exits 0. Do not start the first hold until it does.
+
 ---
 
 ### Task 5: Run the 60 holds (one block per scenario group)
@@ -463,14 +481,15 @@ python experiments/topfull_health.py "experiments/results/analysis_runs_results/
 
 Write one line into the working log `docs/superpowers/plans/2026-10-16-analysis-runs-results-log.md` (create it on the first hold, keep appending): `log_folder | exit ok/failed | throttle ok/FLAGGED (stale seconds) / N/A TopFull off | health ok/PROXY FD/RL STALL/not assessable | RG toggle counts`. Only `health: ok` and an unflagged throttle table is clean.
 
-- [ ] **P6: Commit the pulled folder** (one commit per hold keeps the branch bisectable):
+- [ ] **P6: Commit and push the pulled folder** (one commit per hold keeps the branch bisectable). Do not start the next hold until the push exits 0:
 
 ```powershell
 git add "experiments/results/analysis_runs_results" docs/superpowers/plans/2026-10-16-analysis-runs-results-log.md
 git commit -m "data: <log_folder> (<clean|flagged: reason>)"
+git push -u origin HEAD
 ```
 
-If the folder is large enough that git objects become a problem, stop and ask before continuing; do not add it to `.gitignore` on your own.
+If the folder is large enough that git objects become a problem, stop and ask before continuing; do not add it to `.gitignore` on your own. A push failure is the same kind of stop: fix it or report it, and do not launch the next hold.
 
 #### 5.1 S2 (group `s2`, 10 min each, 10 holds)
 
@@ -535,12 +554,15 @@ If `audit` accepts a root argument, run it on `experiments/results/analysis_runs
 
 Append to the log file a table of 60 rows with columns scenario, variant, run, clean/flagged, reason. Count clean vs flagged and list the flagged ones for the user's re-run decision.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Commit and push**
 
 ```powershell
 git add docs/superpowers/plans/2026-10-16-analysis-runs-results-log.md
 git commit -m "docs: summarise the 60 analysis-run holds"
+git push -u origin HEAD
 ```
+
+Expected: the push exits 0. Do not start Task 7 until it does.
 
 ---
 
@@ -557,12 +579,15 @@ Append one Done bullet: date range, "60 analysis-run holds (S1, S2, S3, S4A cons
 
 Replace the three "Latest" lines in section 4 (do not append). Add to section 2 repo layout: `analysis_runs_results/` (under `experiments/results/`), `configs/analysis_runs/`, `make_analysis_runs_configs.py`. Add the 60-hold matrix to the section 6 example. Update "Still open" with the branch `analysis-runs-results` (unmerged) and the flagged-hold re-run decision. State anything unverified as unverified.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Commit and push**
 
 ```powershell
 git add STATUS.md AGENTS.md
 git commit -m "docs: record the analysis-runs matrix in status and agents"
+git push -u origin HEAD
 ```
+
+Expected: the push exits 0 before the hand-back.
 
 - [ ] **Step 4: Hand back**
 
@@ -572,6 +597,6 @@ Do not merge `analysis-runs-results` into `main` and do not remove the worktree.
 
 ## Self-Review
 
-- **Spec coverage:** six groups x five variants x two repeats = 60 (Task 3 matrix, Task 5 blocks); results location `analysis_runs_results` with the structure of `final results/` is the first implementation task (Task 2, after the worktree is made in Task 1, which the user's "separate worktree" requirement needs first); new branch from `main` in a separate worktree is Task 1. The S2/S3 naming, one tf_only per repeat, and flag-only/no-re-run policy are recorded as user decisions.
+- **Spec coverage:** six groups x five variants x two repeats = 60 (Task 3 matrix, Task 5 blocks); results location `analysis_runs_results` with the structure of `final results/` is the first implementation task (Task 2, after the worktree is made in Task 1, which the user's "separate worktree" requirement needs first); new branch from `main` in a separate worktree is Task 1. The S2/S3 naming, one tf_only per repeat, and flag-only/no-re-run policy are recorded as user decisions. Commit and push after every finished task and every finished hold is a global constraint and decision 4 (user, 2026-10-16).
 - **Placeholders:** none; the `C` and `<...>` tokens in the hold procedure are per-hold substitutions with a worked example given.
 - **Name consistency:** `GROUPS`, `VARIANTS`, `REPEATS`, `build_text`, `generate`, `final_results_local_dir`, `local_results_dir` are used the same way in every task.
