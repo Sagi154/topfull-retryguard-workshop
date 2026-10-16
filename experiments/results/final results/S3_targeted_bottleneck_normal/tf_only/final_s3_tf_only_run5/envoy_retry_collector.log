@@ -1,0 +1,6 @@
+2026-10-16T01:44:49Z  START  poll_interval=1s services=11 transport=network_prometheus max_workers=4
+2026-10-16T01:45:56Z  IPS  service=frontend ips=192.168.148.81,192.168.148.111
+2026-10-16T01:46:12Z  IPS  service=productcatalogservice ips=192.168.148.78,192.168.148.105
+2026-10-16T01:46:26Z  IPS  service=frontend ips=192.168.148.81,192.168.148.111,192.168.148.90
+2026-10-16T01:55:31Z  SHUTDOWN  signal=15
+2026-10-16T01:55:31Z  EXIT
