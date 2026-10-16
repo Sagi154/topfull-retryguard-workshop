@@ -1717,8 +1717,8 @@ def scenario_dir_name(cfg: dict) -> str:
 
 
 # Project rule from 2026-10-16: every new hold is pulled here.
-# `final results/` and `campaign_48/` are closed and never a target.
-RESULTS_ROOT = "experiments/results/analysis_runs_results"
+# `final results/`, `campaign_48/`, and `analysis_runs_results/` are closed.
+RESULTS_ROOT = "experiments/results/final_runs_results"
 
 FINAL_RESULTS_SCENARIO_DIRS = {
     1: "S1_normal_operation",
@@ -1757,7 +1757,7 @@ def final_results_local_dir(cfg: dict) -> str:
 
 def local_results_dir(cfg: dict) -> str:
     """Local destination directory for a pulled run (trailing slash).
-    Every config goes to RESULTS_ROOT. final results and campaign_48 are closed."""
+    Every config goes to RESULTS_ROOT. final results, campaign_48, and analysis_runs_results are closed."""
     return final_results_local_dir(cfg)
 
 

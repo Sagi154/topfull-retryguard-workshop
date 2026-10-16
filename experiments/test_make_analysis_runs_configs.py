@@ -11,7 +11,7 @@ import run_scenario  # noqa: E402
 
 CONFIGS = Path(__file__).resolve().parent / "configs"
 OUT = CONFIGS / "analysis_runs"
-ROOT = "experiments/results/analysis_runs_results"
+ROOT = "experiments/results/final_runs_results"
 
 
 class TestBuildText(unittest.TestCase):
