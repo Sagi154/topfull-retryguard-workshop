@@ -13,3 +13,4 @@ Re-run of the 60-hold matrix into `experiments/results/final_runs_results/`. Rep
 - analysis_s2_both_burst_run2 | exit ok (re-run) | throttle ok | health ok | replicas frontend=4 catalog=1 | frontend→checkout ON→OFF 5, 1→2 4, 2→3 4; checkout OFF→ON 5; frontend→recommendations ON→OFF 11, 1→2 3; recommendations OFF→ON 10
 - analysis_s2_rg_only_burst_run2 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend→checkout ON→OFF 10, 1→2 4, 2→3 2; checkout OFF→ON 9; frontend→recommendations ON→OFF 8; recommendations OFF→ON 7
 - analysis_s2_tf_only_run2 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
+- analysis_s2_both_normal_run2 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | frontend→recommendations ON→OFF 1, 1→2 1, 2→3 1; recommendations OFF→ON 1
