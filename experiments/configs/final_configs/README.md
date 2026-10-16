@@ -2,7 +2,7 @@
 
 Copies of the locked S1–S4 scenario YAMLs. The originals under `experiments/configs/` stay where they are. S5 and S6 are not in this folder.
 
-New holds that are pulled into `experiments/results/final results/` use these files.
+New holds use these files and are pulled into `experiments/results/analysis_runs_results/` (rule from 2026-10-16; `final results/` is closed).
 
 Regenerate with `python experiments/make_final_configs.py`. That script only writes this tree.
 
@@ -33,7 +33,7 @@ S3 and 4A constrained are at `run_number: 3` (`log_folder` `..._run3`). The othe
 
 ## Where results go
 
-`run_scenario.py` and `pull_results.py` read the config and send every run to `experiments/results/final results/<scenario>_<normal|burst>/<variant>/<log_folder>/`. The `scp` line the runner prints at the end already has that path. `python experiments/pull_results.py <config>` pulls there. The `log_folder` name does not affect the destination. `campaign_48/` is never a target.
+`run_scenario.py` and `pull_results.py` read the config and send every run to `experiments/results/analysis_runs_results/<scenario>_<normal|burst>/<variant>/<log_folder>/`. The `scp` line the runner prints at the end already has that path. `python experiments/pull_results.py <config>` pulls there. The `log_folder` name does not affect the destination. `campaign_48/` is never a target.
 
 Scenario folder names: `S1_normal_operation`, `S2_sustained_overload`, `S3_targeted_bottleneck`, `S4A_topology_position`, `S4B_topology_position`.
 

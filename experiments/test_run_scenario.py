@@ -1292,7 +1292,7 @@ class TestFinalConfigs(unittest.TestCase):
 
 
 class TestFinalResultsDestination(unittest.TestCase):
-    """Every hold pulls into 'final results'. campaign_48 is never a target."""
+    """Every hold pulls into analysis_runs_results. campaign_48 is never a target."""
 
     EXPECTED = {
         "1/s1_rg_only_burst.yaml": "S1_normal_operation_burst/rg_only",
@@ -1316,7 +1316,7 @@ class TestFinalResultsDestination(unittest.TestCase):
             cfg = yaml.safe_load((root / rel).read_text(encoding="utf-8"))
             self.assertEqual(
                 run_scenario.local_results_dir(cfg),
-                f"experiments/results/final results/{tail}/",
+                f"experiments/results/analysis_runs_results/{tail}/",
                 msg=rel,
             )
 
@@ -1327,7 +1327,7 @@ class TestFinalResultsDestination(unittest.TestCase):
             cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
             dest = run_scenario.local_results_dir(cfg)
             self.assertTrue(
-                dest.startswith("experiments/results/final results/"),
+                dest.startswith("experiments/results/analysis_runs_results/"),
                 msg=path.name,
             )
 
@@ -1338,9 +1338,9 @@ class TestFinalResultsDestination(unittest.TestCase):
             (root / "scenario_2_baseline.yaml").read_text(encoding="utf-8"))
         self.assertEqual(
             run_scenario.local_results_dir(cfg),
-            "experiments/results/final results/S2_sustained_overload_burst/tf_only/"
+            "experiments/results/analysis_runs_results/S2_sustained_overload_burst/tf_only/"
             if "burst_rpr" in cfg["retryguard"] and cfg["retryguard"]["enabled"]
-            else "experiments/results/final results/S2_sustained_overload_normal/tf_only/",
+            else "experiments/results/analysis_runs_results/S2_sustained_overload_normal/tf_only/",
         )
         # A bumped log_folder without the final_ prefix changes nothing.
         cfg = yaml.safe_load(
@@ -1349,7 +1349,7 @@ class TestFinalResultsDestination(unittest.TestCase):
         cfg["log_folder"] = "my_custom_run7"
         self.assertEqual(
             run_scenario.local_results_dir(cfg),
-            "experiments/results/final results/S2_sustained_overload_burst/both/",
+            "experiments/results/analysis_runs_results/S2_sustained_overload_burst/both/",
         )
         for name, tail in (
             ("scenario_5_interval_30s.yaml", "S5_interval_tuning"),
@@ -1358,7 +1358,7 @@ class TestFinalResultsDestination(unittest.TestCase):
             cfg = yaml.safe_load((root / name).read_text(encoding="utf-8"))
             dest = run_scenario.local_results_dir(cfg)
             self.assertTrue(
-                dest.startswith(f"experiments/results/final results/{tail}_"),
+                dest.startswith(f"experiments/results/analysis_runs_results/{tail}_"),
                 msg=dest,
             )
             self.assertNotIn("campaign_48", dest)
@@ -1372,7 +1372,7 @@ class TestFinalResultsDestination(unittest.TestCase):
         _master, _remote, local = pull_results.resolve_pull_paths(cfg)
         self.assertEqual(
             local,
-            "experiments/results/final results/S2_sustained_overload_burst/both/",
+            "experiments/results/analysis_runs_results/S2_sustained_overload_burst/both/",
         )
 
 

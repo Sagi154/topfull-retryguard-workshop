@@ -1716,6 +1716,10 @@ def scenario_dir_name(cfg: dict) -> str:
     return ""  # unknown scenario_id — fall back to no subfolder
 
 
+# Project rule from 2026-10-16: every new hold is pulled here.
+# `final results/` and `campaign_48/` are closed and never a target.
+RESULTS_ROOT = "experiments/results/analysis_runs_results"
+
 FINAL_RESULTS_SCENARIO_DIRS = {
     1: "S1_normal_operation",
     2: "S2_sustained_overload",
@@ -1726,7 +1730,7 @@ FINAL_RESULTS_SCENARIO_DIRS = {
 
 
 def final_results_local_dir(cfg: dict) -> str:
-    """experiments/results/final results/<scenario>_<normal|burst>/<variant>/
+    """<RESULTS_ROOT>/<scenario>_<normal|burst>/<variant>/
 
     Mode is 'burst' when RetryGuard is on and burst_rpr is set. Everything
     else is 'normal', including TopFull-only (RetryGuard off). Variant is
@@ -1748,12 +1752,12 @@ def final_results_local_dir(cfg: dict) -> str:
         (False, True): "tf_only",
         (False, False): "both_off",
     }[(rg_on, tf_on)]
-    return f"experiments/results/final results/{scen}_{mode}/{variant}/"
+    return f"{RESULTS_ROOT}/{scen}_{mode}/{variant}/"
 
 
 def local_results_dir(cfg: dict) -> str:
     """Local destination directory for a pulled run (trailing slash).
-    Every config goes to 'final results'. campaign_48 is a closed dataset."""
+    Every config goes to RESULTS_ROOT. final results and campaign_48 are closed."""
     return final_results_local_dir(cfg)
 
 

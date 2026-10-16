@@ -8,7 +8,8 @@ experiments/analysis_score.py.
 This is the automated version of the manual step `run_scenario.py` prints at
 the end of every run ("To pull results to your PC: scp -r ..."). It reuses
 `run_scenario.local_results_dir()` for the local destination, so the
-config -> `final results/...` mapping lives in exactly one place.
+config -> results-folder mapping lives in exactly one place
+(`run_scenario.RESULTS_ROOT`).
 
 Read-only w.r.t. the remote VMs: this only runs `scp -r` FROM topfull-master.
 It never SSHes in to touch the live collector/runner processes, and it never
