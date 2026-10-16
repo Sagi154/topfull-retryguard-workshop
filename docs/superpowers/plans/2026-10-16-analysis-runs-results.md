@@ -547,8 +547,8 @@ After the last S3 hold confirm the checkout Deployment is back at its table valu
 
 #### 5.3 S4A constrained (group `s4a_constrained`, catalog 100m, 10 holds)
 
-- [ ] Round 1: `s4a_constrained/4a_constrained_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
-- [ ] Round 2: `s4a_constrained/4a_constrained_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
+- [x] Round 1: `s4a_constrained/4a_constrained_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
+- [x] Round 2: `s4a_constrained/4a_constrained_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
 #### 5.4 S4A unconstrained (group `s4a_unconstrained`, 10 holds)
 
