@@ -49,7 +49,9 @@ Variants (suffix of the source file name) and where each lands:
 
 `log_folder` is `analysis_<prefix>_<variant>_run<N>`, `run_number` is `N` (1 or 2). S4A constrained and unconstrained share a scenario folder and are told apart by `log_folder` (their YAMLs already carry different `scenario_name`s only through the `_A` suffix, so the `4a_constrained` / `4a_unconstrained` token in the name is what separates them).
 
-Expected wall time: S1 holds ~10 min each incl. setup, others ~15-20 min each, plus 120 s cool-offs: roughly 15-20 h in total. Split it over several sessions; the order in Task 4 makes each scenario self-contained so a stop between scenarios loses nothing.
+**Run order (user, 2026-10-16):** S2, S3, S4A constrained, S4A unconstrained, S4B, then S1 last. The table above is the inventory, not the queue.
+
+Expected wall time: S1 holds ~10 min each incl. setup, others ~15-20 min each, plus 120 s cool-offs: roughly 15-20 h in total. Split it over several sessions; the order in Task 5 makes each scenario self-contained so a stop between scenarios loses nothing.
 
 ## File Structure
 
@@ -425,7 +427,7 @@ Expected: `none`. If any exist, stop and ask: the runner would overwrite them.
 
 ### Task 5: Run the 60 holds (one block per scenario group)
 
-Every hold uses the same **hold procedure** below. Each scenario block lists its 10 holds in order. Round 1 is `run1` of every variant, round 2 is `run2` with the variant order reversed, so slow drift in the cluster is not aligned with one variant.
+Every hold uses the same **hold procedure** below. Run the scenario blocks in the order they appear: S2, S3, S4A constrained, S4A unconstrained, S4B, S1. Each block lists its 10 holds in order. Round 1 is `run1` of every variant, round 2 is `run2` with the variant order reversed, so slow drift in the cluster is not aligned with one variant.
 
 **Variant order**
 
@@ -470,39 +472,39 @@ git commit -m "data: <log_folder> (<clean|flagged: reason>)"
 
 If the folder is large enough that git objects become a problem, stop and ask before continuing; do not add it to `.gitignore` on your own.
 
-#### 5.1 S1 (group `s1`, 5 min each, 10 holds)
-
-- [ ] Round 1: `s1/s1_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
-- [ ] Round 2: `s1/s1_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
-
-#### 5.2 S2 (group `s2`, 10 min each, 10 holds)
+#### 5.1 S2 (group `s2`, 10 min each, 10 holds)
 
 - [ ] Round 1: `s2/s2_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
 - [ ] Round 2: `s2/s2_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
-#### 5.3 S3 (group `s3`, checkout 200m, 10 holds)
+#### 5.2 S3 (group `s3`, checkout 200m, 10 holds)
 
 - [ ] Round 1: `s3/s3_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
 - [ ] Round 2: `s3/s3_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
 After the last S3 hold confirm the checkout Deployment is back at its table value (the runner restores it; expected `800m`): `ssh topfull-master "kubectl get deploy checkoutservice -o jsonpath='{.spec.template.spec.containers[0].resources.limits.cpu}'"`.
 
-#### 5.4 S4A constrained (group `s4a_constrained`, catalog 100m, 10 holds)
+#### 5.3 S4A constrained (group `s4a_constrained`, catalog 100m, 10 holds)
 
 - [ ] Round 1: `s4a_constrained/4a_constrained_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
 - [ ] Round 2: `s4a_constrained/4a_constrained_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
-#### 5.5 S4A unconstrained (group `s4a_unconstrained`, 10 holds)
+#### 5.4 S4A unconstrained (group `s4a_unconstrained`, 10 holds)
 
 - [ ] Round 1: `s4a_unconstrained/4a_unconstrained_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
 - [ ] Round 2: `s4a_unconstrained/4a_unconstrained_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
 Before the first unconstrained hold confirm catalog is not left at 100m: the runner heals it, and its pre-run live-limit check aborts if not. A abort here is the guard working, not a failed plan.
 
-#### 5.6 S4B (group `s4b`, email 50m, 10 holds)
+#### 5.5 S4B (group `s4b`, email 50m, 10 holds)
 
 - [ ] Round 1: `s4b/4b_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
 - [ ] Round 2: `s4b/4b_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
+
+#### 5.6 S1 (group `s1`, 5 min each, 10 holds)
+
+- [ ] Round 1: `s1/s1_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
+- [ ] Round 2: `s1/s1_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
 **No stop rule for flags.** Flagged holds do not pause the matrix, however many there are. Do not change controller code or YAMLs mid-matrix.
 
