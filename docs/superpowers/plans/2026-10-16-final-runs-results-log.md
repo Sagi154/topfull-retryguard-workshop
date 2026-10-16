@@ -7,3 +7,4 @@ Re-run of the 60-hold matrix into `experiments/results/final_runs_results/`. Rep
 - analysis_s2_rg_only_normal_run1 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend→checkout ON→OFF 6, 1→2 3, 2→3 2; checkout 0→1 5; frontend→recommendations ON→OFF 4, 1→2 3, 2→3 3; recommendations 0→1 4
 - analysis_s2_both_normal_run1 | exit ok | throttle ok | health RL STALL (2 RL_RPS_TIMEOUT ProxyError at 11:00:41Z and 11:00:42Z, 6 s after load end 11:00:35Z) | replicas frontend=4 catalog=1 | frontend→recommendations ON→OFF 3, 1→2 3, 2→3 2; recommendations OFF→ON 3
 - analysis_s2_tf_only_run1 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
+- analysis_s2_rg_only_burst_run1 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend→checkout ON→OFF 10, 1→2 5, 2→3 4; checkout OFF→ON 9; frontend→recommendations ON→OFF 5; recommendations OFF→ON 5
