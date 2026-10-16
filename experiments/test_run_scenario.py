@@ -7,6 +7,8 @@ Run:
     python experiments/test_run_scenario.py
 """
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -745,6 +747,54 @@ class TestTopfullThrottleCollectorWiring(unittest.TestCase):
         params = mock_write_json.call_args[0][2]
         self.assertEqual(params["poll_interval_seconds"], 1)
         self.assertEqual(params["layer_a_poll_interval_seconds"], 1)
+
+
+class TestProxyFdCollectorWiring(unittest.TestCase):
+    def _cfg(self, **block):
+        cfg = {
+            "infra": {
+                "master_ssh_host": "topfull-master",
+                "topfull_src_path": "/home/idozacharia/TopFull/src",
+                "venv_activate": "/home/idozacharia/TopFull/venv/bin/activate",
+            },
+        }
+        if block:
+            cfg["proxy_fd_collector"] = block
+        return cfg
+
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_on_by_default_deploys_and_launches(self, mock_deploy, mock_ssh, mock_json, mock_script):
+        run_scenario.start_proxy_fd_collector(self._cfg())
+        mock_deploy.assert_called_once_with(
+            "topfull-master", "proxy_fd_collector.py",
+            "/home/idozacharia/experiments/proxy_fd_collector.py",
+        )
+        path, params = mock_json.call_args[0][1:3]
+        self.assertEqual(path, "/tmp/proxy_fd_params.json")
+        self.assertEqual(params, {
+            "output_dir": "/home/idozacharia/TopFull/src/logs",
+            "poll_interval_seconds": 1.0,
+        })
+        script_path, body = mock_script.call_args[0][1:3]
+        self.assertEqual(script_path, "/tmp/rg_proxy_fd.sh")
+        self.assertIn("proxy_fd_collector.py --params /tmp/proxy_fd_params.json", body)
+        tmux = [c for c in mock_ssh.call_args_list if "tmux new-session -d -s proxyfd" in c.args[1]]
+        self.assertEqual(len(tmux), 1)
+
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.write_remote_json")
+    @mock.patch("run_scenario.ssh")
+    @mock.patch("run_scenario.deploy_repo_script")
+    def test_disabled_does_nothing(self, mock_deploy, mock_ssh, mock_json, mock_script):
+        run_scenario.start_proxy_fd_collector(self._cfg(enabled=False))
+        mock_deploy.assert_not_called()
+        mock_ssh.assert_not_called()
+
+    def test_process_lists_name_the_collector(self):
+        self.assertIn("[p]roxy_fd_collector.py", run_scenario.MASTER_PROCESS_GATE)
 
 
 class TestDeployRepoScript(unittest.TestCase):
@@ -1496,6 +1546,12 @@ class TestStartMasterStackTopfullRl(unittest.TestCase):
         patcher = mock.patch("run_scenario.ensure_proxy_uncapped")
         patcher.start()
         self.addCleanup(patcher.stop)
+        nofile = mock.patch("run_scenario.verify_proxy_nofile")
+        nofile.start()
+        self.addCleanup(nofile.stop)
+        rlpatch = mock.patch("run_scenario.verify_rl_patch")
+        rlpatch.start()
+        self.addCleanup(rlpatch.stop)
 
     def _cfg(self, rl_enabled=None):
         cfg = {
@@ -1595,6 +1651,12 @@ class TestTopfullStdoutLogs(unittest.TestCase):
         patcher = mock.patch("run_scenario.ensure_proxy_uncapped")
         patcher.start()
         self.addCleanup(patcher.stop)
+        nofile = mock.patch("run_scenario.verify_proxy_nofile")
+        nofile.start()
+        self.addCleanup(nofile.stop)
+        rlpatch = mock.patch("run_scenario.verify_rl_patch")
+        rlpatch.start()
+        self.addCleanup(rlpatch.stop)
 
     def _cfg(self, rl_enabled):
         return {
@@ -1625,6 +1687,62 @@ class TestTopfullStdoutLogs(unittest.TestCase):
             f"go run proxy_online_boutique.go 2>&1 | stamp >> {self.SRC}/logs/topfull_proxy.log\n",
             script,
         )
+
+    @mock.patch("run_scenario.wait_with_progress")
+    @mock.patch("run_scenario.write_remote_script")
+    @mock.patch("run_scenario.ssh")
+    def test_proxy_script_raises_the_soft_limit_before_go_run(
+        self, mock_ssh, mock_write_script, mock_wait
+    ):
+        mock_ssh.return_value = mock.Mock(stdout="", returncode=0)
+        run_scenario.start_master_stack(self._cfg(rl_enabled=False))
+        script = self._script(mock_write_script, "/tmp/rg_proxy.sh")
+        stamp_at = script.index("stamp() {")
+        limit_at = script.index('ulimit -Sn "$TARGET"')
+        run_at = script.index("go run proxy_online_boutique.go")
+        self.assertLess(stamp_at, limit_at)
+        self.assertLess(limit_at, run_at)
+        self.assertIn("HARD=$(ulimit -Hn)", script)
+        self.assertIn('[ "$HARD" = "unlimited" ]', script)
+        self.assertIn('echo "nofile soft=$(ulimit -Sn) hard=$HARD"', script)
+        self.assertIn(f"{self.SRC}/logs/topfull_proxy.log", script)
+
+    def test_nofile_block_warns_when_the_hard_limit_is_low(self):
+        block = run_scenario.proxy_nofile_bash("/x/topfull_proxy.log")
+        self.assertIn(f'[ "$TARGET" -lt {run_scenario.PROXY_NOFILE_MIN} ]', block)
+        self.assertIn("WARN hard nofile limit", block)
+        self.assertIn("WARN could not raise soft nofile", block)
+
+    def test_nofile_block_is_valid_bash_and_raises_the_limit(self):
+        bash = shutil.which("bash")
+        if bash is None or subprocess.run([bash, "-c", "true"], capture_output=True).returncode != 0:
+            self.skipTest("no working bash on this machine")
+
+        def bash_path(path: Path) -> str:
+            # WSL bash.exe expands $VARS in a -c string and cannot write C:/ logs.
+            system32 = Path(r"C:\Windows\System32\bash.exe").as_posix().lower()
+            if Path(bash).as_posix().lower() == system32:
+                resolved = path.resolve()
+                drive = resolved.drive.rstrip(":").lower()
+                tail = resolved.as_posix().split(":", 1)[1]
+                return f"/mnt/{drive}{tail}"
+            return path.as_posix()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp, "proxy.log")
+            script_path = Path(tmp, "nofile.sh")
+            script = (
+                "export TZ=UTC\n" + run_scenario.STAMP_LINES_BASH
+                + run_scenario.proxy_nofile_bash(bash_path(log_path))
+                + "ulimit -Sn\n"
+            )
+            script_path.write_text(script, encoding="utf-8", newline="\n")
+            result = subprocess.run(
+                [bash, bash_path(script_path)], capture_output=True, text=True
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("nofile soft=", log_path.read_text(encoding="utf-8"))
+            self.assertGreater(int(result.stdout.strip().splitlines()[-1] or 0), 1024)
 
     @mock.patch("run_scenario.wait_with_progress")
     @mock.patch("run_scenario.write_remote_script")
@@ -1787,6 +1905,12 @@ class TestOverlappedStartup(unittest.TestCase):
         patcher = mock.patch("run_scenario.ensure_proxy_uncapped")
         patcher.start()
         self.addCleanup(patcher.stop)
+        nofile = mock.patch("run_scenario.verify_proxy_nofile")
+        nofile.start()
+        self.addCleanup(nofile.stop)
+        rlpatch = mock.patch("run_scenario.verify_rl_patch")
+        rlpatch.start()
+        self.addCleanup(rlpatch.stop)
 
     def _cfg(self, restart=False):
         cfg = {
@@ -1861,6 +1985,7 @@ class TestOverlappedStartup(unittest.TestCase):
                         "envoy_retry_collector.py",
                         "resource_usage_collector.py",
                         "topfull_throttle_collector.py",
+                        "proxy_fd_collector.py",
                         "deploy_rl.py",
                         "retryguard.py",
                     ])
@@ -1926,6 +2051,15 @@ class TestOverlappedStartup(unittest.TestCase):
         events, exited = self._run_startup(self._cfg(), fail_gate=True)
         self.assertTrue(exited)
         self.assertFalse(any("tmux new-session -d -s loadgen" in e for e in events))
+
+    def test_proxy_fd_collector_starts_after_the_proxy_and_before_locust(self):
+        events, exited = self._run_startup(self._cfg())
+        self.assertFalse(exited)
+        proxy_wait = next(i for i, e in enumerate(events) if e == "wait:proxy init")
+        fd = next(i for i, e in enumerate(events) if "tmux new-session -d -s proxyfd" in e)
+        locust = next(i for i, e in enumerate(events) if "tmux new-session -d -s loadgen" in e)
+        self.assertLess(proxy_wait, fd)
+        self.assertLess(fd, locust)
 
 
 if __name__ == "__main__":

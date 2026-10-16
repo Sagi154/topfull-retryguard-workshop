@@ -45,6 +45,28 @@ STAMP_LINES_BASH = (
     "printf '%(%Y-%m-%dT%H:%M:%SZ)T  %s\\n' -1 \"$line\"; done; }\n"
 )
 
+# The proxy is started with `go run`, which execs the compiled binary; the binary keeps
+# the limits of the shell in /tmp/rg_proxy.sh. A soft limit of 1024 was reached 50-190 s
+# into load on 2026-10-15 (accept4: too many open files). Raise it to the hard limit.
+PROXY_NOFILE_MIN = 4096
+NOFILE_UNLIMITED = 2 ** 31
+
+
+def proxy_nofile_bash(log_path: str) -> str:
+    """Bash lines for /tmp/rg_proxy.sh: raise the soft open-files limit, log what it became.
+
+    Needs `stamp` defined above it. `unlimited` hard limit is capped at 1048576.
+    """
+    return (
+        "HARD=$(ulimit -Hn)\n"
+        'if [ "$HARD" = "unlimited" ]; then TARGET=1048576; else TARGET=$HARD; fi\n'
+        f'if [ "$TARGET" -lt {PROXY_NOFILE_MIN} ]; then '
+        f'echo "WARN hard nofile limit $TARGET is below {PROXY_NOFILE_MIN}" | stamp >> {log_path}; fi\n'
+        'ulimit -Sn "$TARGET" 2>/dev/null || '
+        f'echo "WARN could not raise soft nofile to $TARGET" | stamp >> {log_path}\n'
+        f'echo "nofile soft=$(ulimit -Sn) hard=$HARD" | stamp >> {log_path}\n'
+    )
+
 # --------------------------------------------------------------------------- #
 #  SSH / SCP helpers
 # --------------------------------------------------------------------------- #
@@ -675,6 +697,7 @@ def kill_stale_master_processes(cfg: dict) -> None:
         "pkill -9 -f '[e]nvoy_retry_collector.py' 2>/dev/null; "
         "pkill -9 -f '[r]esource_usage_collector.py' 2>/dev/null; "
         "pkill -9 -f '[t]opfull_throttle_collector.py' 2>/dev/null; "
+        "pkill -9 -f '[p]roxy_fd_collector.py' 2>/dev/null; "
         "pkill -9 -f '[r]etryguard.py' 2>/dev/null; "
         "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
         "tmux kill-server 2>/dev/null; "
@@ -783,6 +806,73 @@ def ensure_proxy_uncapped(master: str, src: str, restart_proxy) -> None:
         restart_proxy()
 
 
+# The Go binary, not the `go run` parent: `go run` has no `/exe/` in its command line.
+PROXY_LIMITS_SCRIPT = (
+    "for p in $(pgrep -f '[/]exe/proxy_online_boutique'); do "
+    "awk '/^Max open files/ {print $4}' /proc/$p/limits; done"
+)
+
+
+def read_proxy_soft_limit(master: str) -> int | None:
+    """Lowest soft open-files limit among the proxy binary's processes, or None if none found."""
+    out = ssh(master, PROXY_LIMITS_SCRIPT, check=False).stdout or ""
+    values = []
+    for token in out.split():
+        if token == "unlimited":
+            values.append(NOFILE_UNLIMITED)
+        elif token.isdigit():
+            values.append(int(token))
+    return min(values) if values else None
+
+
+def verify_proxy_nofile(master: str, minimum: int = PROXY_NOFILE_MIN,
+                        attempts: int = 3, pause: float = 2.0) -> int:
+    """Abort before Locust unless the proxy binary runs with a raised open-files limit."""
+    soft = None
+    for attempt in range(attempts):
+        soft = read_proxy_soft_limit(master)
+        if soft is not None:
+            break
+        if attempt < attempts - 1:
+            time.sleep(pause)
+    if soft is None:
+        raise RuntimeError(
+            "could not read the proxy's open-files limit: no process matching "
+            "'/exe/proxy_online_boutique' (is the proxy up?)"
+        )
+    if soft < minimum:
+        raise RuntimeError(
+            f"proxy soft open-files limit is {soft} (needs at least {minimum}); "
+            "the proxy would refuse new connections under load. Check `ulimit -Hn` on master "
+            "and the nofile lines at the top of topfull_proxy.log"
+        )
+    step(f"Proxy open-files soft limit {soft} [OK]")
+    return soft
+
+
+RL_PATCH_MARKER = "RL_TIMEOUT_PATCH v1"  # keep equal to patch_rl_timeout.MARKER
+
+
+def verify_rl_patch(master: str, src: str) -> None:
+    """Abort a TopFull-on hold if master's RL files lack the timeout patch.
+
+    The patch lives in master's live TopFull copy, not in this repo; the runner does
+    not copy TopFull files. Without it `current_rps()` can block with no timeout.
+    """
+    out = ssh(
+        master,
+        f"grep -l '{RL_PATCH_MARKER}' {src}/overload_detection.py {src}/deploy_rl.py | wc -l",
+        check=False,
+    ).stdout or ""
+    if out.strip() != "2":
+        raise RuntimeError(
+            f"master's overload_detection.py / deploy_rl.py lack '{RL_PATCH_MARKER}'. "
+            "Run experiments/patch_rl_timeout.py on master "
+            "(plan 2026-10-16, Task 6) before a TopFull-on hold."
+        )
+    step("RL timeout patch present on master [OK]")
+
+
 def start_master_stack(cfg: dict, proxy_ready: threading.Event | None = None):
     """Start the proxy, TopFull RL when enabled, and metric_collector.
 
@@ -813,6 +903,7 @@ def _start_master_stack_after_kill(master, src, venv, rl_enabled, proxy_ready):
         "#!/bin/bash\n"
         "export TZ=UTC\n"
         + STAMP_LINES_BASH
+        + proxy_nofile_bash(f"{logs}/{TOPFULL_PROXY_LOG}")
         + f"cd {src}/proxy\n"
         f"go run proxy_online_boutique.go 2>&1 | stamp >> {logs}/{TOPFULL_PROXY_LOG}\n"
     )
@@ -840,12 +931,14 @@ def _start_master_stack_after_kill(master, src, venv, rl_enabled, proxy_ready):
     ssh(master, "tmux new-session -d -s proxy /tmp/rg_proxy.sh")
     step("Started: Go proxy (tmux session: proxy)")
     wait_with_progress(5, "proxy init")
+    verify_proxy_nofile(master)
     # Before RL starts: a fresh proxy must be uncapped, whatever the last hold left.
     ensure_proxy_uncapped(master, src, restart_proxy)
     if proxy_ready is not None:
         proxy_ready.set()
 
     if rl_enabled:
+        verify_rl_patch(master, src)
         rl_script = (
             "#!/bin/bash\n"
             "export TZ=UTC\n"
@@ -1192,11 +1285,46 @@ def start_topfull_throttle_collector(cfg: dict):
     wait_with_progress(3, "TopFull throttle collector init")
 
 
+def start_proxy_fd_collector(cfg: dict):
+    """
+    Start the proxy descriptor sampler on master (writes src/logs/proxy_fds.csv).
+
+    On by default for every variant: the proxy carries all Locust traffic, so
+    descriptor exhaustion hits rg_only and both_off holds too.
+    """
+    pfc_cfg = cfg.get("proxy_fd_collector", {})
+    if not pfc_cfg.get("enabled", True):
+        return
+
+    banner("Starting proxy descriptor collector")
+    master = cfg["infra"]["master_ssh_host"]
+    src = cfg["infra"]["topfull_src_path"]
+    venv = cfg["infra"]["venv_activate"]
+    script = cfg["infra"].get(
+        "proxy_fd_collector_script",
+        "/home/idozacharia/experiments/proxy_fd_collector.py",
+    )
+    deploy_repo_script(master, "proxy_fd_collector.py", script)
+    params = {
+        "output_dir": f"{src}/logs",
+        "poll_interval_seconds": float(pfc_cfg.get("poll_interval_seconds", 1)),
+    }
+    write_remote_json(master, "/tmp/proxy_fd_params.json", params)
+    start_script = (
+        "#!/bin/bash\n"
+        f"source {venv}\n"
+        f"python3 {script} --params /tmp/proxy_fd_params.json\n"
+    )
+    write_remote_script(master, "/tmp/rg_proxy_fd.sh", start_script)
+    ssh(master, "tmux new-session -d -s proxyfd /tmp/rg_proxy_fd.sh")
+    step(f"Started: proxy descriptor collector (tmux session: proxyfd, script: {script})")
+
+
 # One pgrep. Bracketed names avoid matching this ssh command itself.
 MASTER_PROCESS_GATE = (
     "pgrep -af '[p]roxy_online_boutique|[m]etric_collector.py|"
     "[e]nvoy_retry_collector.py|[r]esource_usage_collector.py|"
-    "[t]opfull_throttle_collector.py|[d]eploy_rl.py|[r]etryguard.py' || true"
+    "[t]opfull_throttle_collector.py|[p]roxy_fd_collector.py|[d]eploy_rl.py|[r]etryguard.py' || true"
 )
 
 
@@ -1210,6 +1338,8 @@ def require_master_processes(cfg: dict) -> None:
         needed.append("resource_usage_collector.py")
     if cfg.get("topfull_throttle_collector", {}).get("enabled", False):
         needed.append("topfull_throttle_collector.py")
+    if cfg.get("proxy_fd_collector", {}).get("enabled", True):
+        needed.append("proxy_fd_collector.py")
     if cfg.get("topfull_rl", {}).get("enabled", True):
         needed.append("deploy_rl.py")
     if cfg.get("retryguard", {}).get("enabled", False):
@@ -1243,6 +1373,7 @@ def start_overlapped_services(cfg: dict) -> None:
     def cpu_then_throttle():
         start_resource_usage_collector(cfg)
         proxy_ready.wait()
+        start_proxy_fd_collector(cfg)
         start_topfull_throttle_collector(cfg)
 
     with ThreadPoolExecutor(max_workers=3) as pool:
@@ -1382,7 +1513,7 @@ def stop_master_stack(cfg: dict):
     master = cfg["infra"]["master_ssh_host"]
     step("Stopping master processes (metric_collector, deploy_rl, proxy, "
          "RetryGuard, Envoy retry collector, resource usage collector, "
-         "TopFull throttle collector, Ray)...")
+         "TopFull throttle collector, proxy descriptor collector, Ray)...")
     # Bracket trick avoids pkill matching this ssh/bash -c line itself.
     ssh(master,
         "pkill -f '[m]etric_collector.py' 2>/dev/null; "
@@ -1392,6 +1523,7 @@ def stop_master_stack(cfg: dict):
         "pkill -f '[e]nvoy_retry_collector.py' 2>/dev/null; "
         "pkill -f '[r]esource_usage_collector.py' 2>/dev/null; "
         "pkill -f '[t]opfull_throttle_collector.py' 2>/dev/null; "
+        "pkill -f '[p]roxy_fd_collector.py' 2>/dev/null; "
         "sleep 2; "
         "pkill -9 -f '[r]ay::|[r]aylet|[g]cs_server' 2>/dev/null; "
         "tmux kill-server 2>/dev/null; "
@@ -1626,6 +1758,7 @@ def collect_results(
         "envoy_retry_collector": envoy_collector_manifest(cfg),
         "resource_usage_collector": cfg.get("resource_usage_collector", {}),
         "topfull_throttle_collector": cfg.get("topfull_throttle_collector", {}),
+        "proxy_fd_collector": cfg.get("proxy_fd_collector", {"enabled": True}),
         "scale_constraints": cfg.get("scale_constraints", []),
         "cpu_request_fraction": cpu_request_fraction_from_cfg(cfg),
         "paper_cpu_quotas": paper,
