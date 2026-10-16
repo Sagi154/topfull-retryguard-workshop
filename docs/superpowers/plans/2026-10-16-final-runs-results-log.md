@@ -26,3 +26,4 @@ Re-run of the 60-hold matrix into `experiments/results/final_runs_results/`. Rep
 - analysis_s3_both_normal_run2 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no toggles
 - analysis_s3_rg_only_normal_run2 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend→checkout ON→OFF 1
 - analysis_4a_constrained_rg_only_normal_run1 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend→catalog ON→OFF 5, 1→2 3, 2→3 2; catalog OFF→ON 5; recommendations→catalog ON→OFF 5, 1→2 3, 2→3 2; frontend→recommendations ON→OFF 1
+- analysis_4a_constrained_both_normal_run1 | exit ok | throttle ok | health RL STALL (2 RL_RPS_TIMEOUT at 17:49:06Z) | replicas frontend=4 catalog=1 | frontend→catalog ON→OFF 3, 1→2 3, 2→3 3; catalog OFF→ON 3
