@@ -4,10 +4,10 @@ Every hold uses one CPU table, called Paper-C1. It is locked from both-off run 8
 
 | Service | Container | CPU limit (millicores) | Replicas |
 |---|---|---|---|
-| `frontend` | app | 1150 | 4 (HPA pin) |
+| `frontend` | app | 1150 | HPA min=max=4 |
 | `checkoutservice` | server | 800 | 1 |
 | `recommendationservice` | server | 1150 | 1 |
-| `productcatalogservice` | server | 800 | HPA max 1 |
+| `productcatalogservice` | server | 800 | HPA min=max=1 |
 | `cartservice` | server | 800 | 1 |
 | `currencyservice` | server | 770 | 1 |
 | `shippingservice` | server | 770 | 1 |
@@ -16,7 +16,7 @@ Every hold uses one CPU table, called Paper-C1. It is locked from both-off run 8
 | `emailservice` | server | 120 | 1 |
 | `redis-cart` | redis | 540 | 1 |
 
-The frontend sidecar request is 100m and `proxyCPULimit` stays unset (see AGENTS.md §7). The frontend 1150m is the HPA pin, not a `scale_constraints` entry.
+The frontend sidecar request is 90m and `proxyCPULimit` stays unset (AGENTS.md §5). Frontend HPA min=max=4 and catalog HPA min=max=1 stay in place after every hold. The frontend 1150m is the app-container limit, not a `scale_constraints` entry.
 
 **Rule for scenario configs.** Every scenario YAML carries the full table in `scale_constraints` (frontend excluded). A scenario that constrains a service (S3 checkout, S4A productcatalog, S4B email) writes its constrained value in that service's row and leaves the other ten rows at the table value. The config is then the complete CPU state of the hold. There is no separate "constraint" block and no fraction-based limit, which matches [ADR 0006](0006-absolute-bottleneck-cap-not-fraction.md). S1, S2, S5, and S6 carry the table unchanged.
 

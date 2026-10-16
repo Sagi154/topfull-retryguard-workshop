@@ -405,7 +405,7 @@ Expected: user `idozacharia` on both; nodes `Ready`; all Online Boutique pods `2
 
 - [ ] **Step 2: Confirm cluster baseline matches STATUS.md**
 
-Frontend HPA min 1 max 4, catalog HPA min 1 max 2, frontend `proxyCPU=100m`, `proxyCPULimit` unset (AGENTS.md section 7). The runner resets all eleven Deployments to Paper-C1 itself, so only the HPA and sidecar annotations need a manual look:
+Replica pin from AGENTS.md §5: frontend HPA min=max=4, catalog HPA min=max=1, frontend `proxyCPU=90m`, `proxyCPULimit` unset. If any of the three differs, patch it back to that lock before continuing. The runner resets all eleven Deployments to Paper-C1 itself and does not patch HPAs:
 
 ```powershell
 ssh topfull-master "kubectl get hpa; kubectl get deploy frontend -o jsonpath='{.spec.template.metadata.annotations}'"
