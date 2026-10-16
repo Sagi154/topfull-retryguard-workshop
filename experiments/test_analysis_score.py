@@ -403,3 +403,106 @@ class TestThrottleQuality(unittest.TestCase):
             text = score.render([score.score_run(folder)], ["9"])
         self.assertIn("| 9 | N/A: TopFull off |", text)
         self.assertNotIn("| 9 | **FLAGGED** |", text)
+
+
+class TestProxyRlHealth(unittest.TestCase):
+    def _hold(self, tmp: str, *, topfull_on: bool, proxy_lines: list[str]):
+        folder = Path(tmp) / "final_s2_rg_only_normal_run9"
+        folder.mkdir()
+        (folder / "run_manifest.json").write_text(
+            '{"topfull_rl": {"enabled": %s}}' % ("true" if topfull_on else "false"), encoding="utf-8")
+        _write(
+            folder / "topfull_throttle.csv",
+            ["timestamp", "api", "threshold", "admitted_rps", "threshold_fresh", "admitted_fresh"],
+            [["2026-10-13T00:00:00Z", "getproduct", 10000, 0, 1, 1],
+             ["2026-10-13T00:00:05Z", "getproduct", 10000, 0, 1, 1]],
+        )
+        if proxy_lines:
+            (folder / "topfull_proxy.log").write_text("\n".join(proxy_lines) + "\n", encoding="utf-8")
+        return folder
+
+    def test_proxy_fd_is_a_separate_table_and_flags_a_topfull_off_hold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = self._hold(tmp, topfull_on=False, proxy_lines=[
+                "2026-10-13T00:00:02Z  http: Accept error: accept tcp [::]:8090: accept4: too many open files",
+            ])
+            item = score.score_run(folder)
+            text = score.render([item], ["9"])
+        self.assertEqual(item["proxy_rl_health"].status, "PROXY FD")
+        self.assertIn("## Proxy and RL health", text)
+        self.assertIn("| 9 | **PROXY FD** |", text)
+        self.assertIn("| 9 | N/A: TopFull off |", text)  # the throttle table is unchanged
+
+    def test_old_hold_reads_not_assessable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = self._hold(tmp, topfull_on=True, proxy_lines=[])
+            text = score.render([score.score_run(folder)], ["9"])
+        self.assertIn("| 9 | not assessable |", text)
+        self.assertNotIn("| 9 | ok |", text.split("## Proxy and RL health")[1].split("##")[0])
+
+
+class TestProxyStallSuspected(unittest.TestCase):
+    def _hold(self, tmp: str, *, topfull_on: bool, warnings: int, proxy_lines: list[str]):
+        folder = Path(tmp) / "final_s2_rg_only_normal_run9"
+        folder.mkdir()
+        (folder / "run_manifest.json").write_text(
+            '{"topfull_rl": {"enabled": %s}}' % ("true" if topfull_on else "false"), encoding="utf-8")
+        _write(
+            folder / "topfull_throttle.csv",
+            ["timestamp", "api", "threshold", "admitted_rps", "threshold_fresh", "admitted_fresh"],
+            [["2026-10-13T00:00:00Z", "getproduct", 10000, 0, 1, 1],
+             ["2026-10-13T00:00:05Z", "getproduct", 10000, 0, 1, 1]],
+        )
+        lines = ["2026-10-13T00:00:00Z  START  x"]
+        lines += [f"2026-10-13T00:00:0{i % 10}Z  WARNING  stats fetch failed: timed out"
+                  for i in range(warnings)]
+        (folder / "topfull_throttle_collector.log").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        if proxy_lines:
+            (folder / "topfull_proxy.log").write_text("\n".join(proxy_lines) + "\n", encoding="utf-8")
+        return folder
+
+    def test_throttle_quality_reports_would_flag_for_a_topfull_off_hold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = self._hold(tmp, topfull_on=False, warnings=3, proxy_lines=[])
+            q = score.score_run(folder)["throttle_quality"]
+        self.assertFalse(q["flagged"])        # the throttle flag is unchanged: TopFull off
+        self.assertTrue(q["would_flag"])      # the collector evidence is still there
+
+    def test_topfull_off_hold_with_collector_warnings_is_suspected_not_clean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = self._hold(tmp, topfull_on=False, warnings=3, proxy_lines=[])
+            text = score.render([score.score_run(folder)], ["9"])
+        self.assertIn("| 9 | N/A: TopFull off |", text)             # throttle table unchanged
+        health = text.split("## Proxy and RL health")[1]
+        self.assertIn("| 9 | **PROXY STALL SUSPECTED** |", health)
+        self.assertIn("3 fetch warning", health)
+        self.assertIn("no proxy or descriptor log", health)
+
+    def test_clean_old_hold_stays_not_assessable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = self._hold(tmp, topfull_on=False, warnings=0, proxy_lines=[])
+            text = score.render([score.score_run(folder)], ["9"])
+        health = text.split("## Proxy and RL health")[1]
+        self.assertIn("| 9 | not assessable |", health)
+        row = next(line for line in health.splitlines() if line.startswith("| 9 |"))
+        self.assertNotIn("SUSPECTED", row)
+
+    def test_logged_hold_with_timeouts_but_no_fd_cause_is_named_not_suspected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = self._hold(tmp, topfull_on=False, warnings=3, proxy_lines=[
+                "2026-10-13T00:00:01Z  monitor tick"])
+            text = score.render([score.score_run(folder)], ["9"])
+        health = text.split("## Proxy and RL health")[1]
+        self.assertIn("| 9 | admin timeouts, no fd cause |", health)
+        row = next(line for line in health.splitlines() if line.startswith("| 9 |"))
+        self.assertNotIn("SUSPECTED", row)
+
+    def test_proxy_fd_still_wins_over_suspected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = self._hold(tmp, topfull_on=False, warnings=3, proxy_lines=[
+                "2026-10-13T00:00:02Z  http: Accept error: accept tcp [::]:8090: accept4: too many open files"])
+            text = score.render([score.score_run(folder)], ["9"])
+        health = text.split("## Proxy and RL health")[1]
+        self.assertIn("| 9 | **PROXY FD** |", health)
+        row = next(line for line in health.splitlines() if line.startswith("| 9 |"))
+        self.assertNotIn("SUSPECTED", row)

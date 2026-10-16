@@ -41,6 +41,7 @@ TOPFULL_ON_VARIANTS = ("both", "tf_only")
 # returns for them; status, guides, and rerun only iterate holds with flagged=True.
 TF_ON_LABEL = "FLAGGED"
 TF_OFF_LABEL = "N/A: TopFull off"
+PROXY_SUSPECT_LABEL = "PROXY STALL SUSPECTED"
 CELL_SUFFIX = re.compile(r"_run\d+(?:_r\d+)?$")
 SCENARIO_ORDER = ("S1", "S2", "S3", "S4A", "S4B")
 
@@ -60,6 +61,7 @@ class HoldFlag:
     admitted_gap_s: float
     threshold_stale_pct: float
     admitted_stale_pct: float
+    would_flag: bool = False
 
 
 def label(h: HoldFlag) -> str:
@@ -111,6 +113,7 @@ def scan_hold(root: Path, run_dir: Path) -> HoldFlag:
         admitted_gap_s=float(quality["admitted_gap_s"] or 0.0),
         threshold_stale_pct=_stale_pct(rows, "threshold_fresh"),
         admitted_stale_pct=_stale_pct(rows, "admitted_fresh"),
+        would_flag=bool(quality["would_flag"] and quality["has_csv"]),
     )
 
 
@@ -132,6 +135,22 @@ def audit_text(flags: list[HoldFlag]) -> str:
             f"{h.path}  {'on' if h.topfull_on else 'off'}  warnings={h.warnings}  "
             f"gap_s={h.threshold_gap_s:.0f}/{h.admitted_gap_s:.0f}  "
             f"stale_pct={h.threshold_stale_pct:.1f}/{h.admitted_stale_pct:.1f}"
+        )
+    return "\n".join(lines)
+
+
+def suspected_text(flags: list[HoldFlag]) -> str:
+    """Holds whose collector log suggests a proxy stall, any variant (Decided (f))."""
+    sus = [h for h in flags if h.would_flag]
+    off = [h for h in sus if not h.topfull_on]
+    lines = [
+        f"runs={len(flags)} suspected={len(sus)} "
+        f"suspected_topfull_off={len(off)} suspected_topfull_on={len(sus) - len(off)}",
+    ]
+    for h in sus:
+        lines.append(
+            f"{h.path}  {'on' if h.topfull_on else 'off'}  warnings={h.warnings}  "
+            f"gap_s={h.threshold_gap_s:.0f}/{h.admitted_gap_s:.0f}"
         )
     return "\n".join(lines)
 
@@ -286,7 +305,10 @@ def guide_note(h: HoldFlag) -> str:
         )
     return (
         f"`{h.name}` is {label(h)} ({facts}). {handling} "
-        f"Goodput, P95, rejection, and retry numbers do not use `topfull_throttle.csv` and stay valid."
+        "Goodput, P95, rejection, and retry numbers do not come from `topfull_throttle.csv`, but a "
+        "proxy that ran out of file descriptors refuses new connections on every variant, so whether "
+        "they are clean for this hold is decided by "
+        "`2026-10-15-proxy-fd-evidence-flagged-holds.md`, not by this flag."
     )
 
 
@@ -329,7 +351,9 @@ def rerun_markdown(flags: list[HoldFlag]) -> str:
         "scenario YAML per [STATUS.md](../STATUS.md) \"Next free slots\"; it never reuses a folder name.",
         "",
         f"{len(flagged_on)} TopFull-on holds are flagged. Goodput, P95, rejection, and retry numbers "
-        "do not use `topfull_throttle.csv` and stay valid for every hold below. Only the cap and "
+        "do not come from `topfull_throttle.csv`, but a proxy that ran out of file descriptors "
+        "refuses new connections on every variant, so whether they are clean for every hold below "
+        "is decided by `2026-10-15-proxy-fd-evidence-flagged-holds.md`, not by this flag. Only the cap and "
         "admitted-rate numbers named in the \"Numbers affected\" column are carried, not measured.",
         "",
         "How to read the columns: **In locked set** is `yes` for a `final_` folder (the current "
@@ -364,7 +388,7 @@ def rerun_markdown(flags: list[HoldFlag]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("audit", "status", "guides", "rerun"):
+    for name in ("audit", "status", "guides", "rerun", "suspected"):
         p = sub.add_parser(name)
         p.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     sub.choices["status"].add_argument("--write", action="store_true")
@@ -374,6 +398,9 @@ def main(argv: list[str] | None = None) -> int:
     flags = scan(args.root)
     if args.cmd == "audit":
         print(audit_text(flags))
+        return 0
+    if args.cmd == "suspected":
+        print(suspected_text(flags))
         return 0
     if args.cmd == "status":
         if args.write:

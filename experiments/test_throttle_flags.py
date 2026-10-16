@@ -1,4 +1,5 @@
 """Unit tests for experiments/throttle_flags.py."""
+import dataclasses
 import sys
 import tempfile
 import unittest
@@ -91,6 +92,19 @@ class TestScan(unittest.TestCase):
         flags = self.scan(build)
         self.assertEqual([h.path for h in flags], [
             "S1_normal_operation_normal/both/a", "S2_sustained_overload_burst/both/b"])
+
+    def test_topfull_off_hold_is_not_flagged_but_is_suspected(self):
+        flags = self.scan(lambda r: make_hold(
+            r, "S2_sustained_overload_burst", "rg_only", "run_off", warnings=4))
+        h = flags[0]
+        self.assertFalse(h.flagged)       # the throttle flag stays TopFull-on only
+        self.assertTrue(h.would_flag)     # collector evidence of a proxy stall
+        self.assertFalse(h.topfull_on)
+
+    def test_clean_topfull_off_hold_is_not_suspected(self):
+        flags = self.scan(lambda r: make_hold(
+            r, "S2_sustained_overload_burst", "rg_only", "run_off_clean"))
+        self.assertFalse(flags[0].would_flag)
 
 
 class TestLabels(unittest.TestCase):
@@ -206,6 +220,7 @@ class TestGuideScan(unittest.TestCase):
         self.assertIn("`threshold_fresh==1`", on)
         self.assertIn("`admitted_fresh==1`", on)
         self.assertIn("Goodput, P95, rejection, and retry numbers", on)
+        self.assertIn("not by this flag", on)
         admitted = throttle_flags.guide_note(hold("hold_c", on=True, warnings=40, tgap=5, agap=500))
         self.assertNotIn("cap is carried", admitted)
         self.assertIn("cap is measured", admitted)
@@ -282,6 +297,22 @@ class TestRerunList(unittest.TestCase):
         text = throttle_flags.rerun_markdown(self.flags())
         self.assertIn("### S2", text)
         self.assertNotIn("## Pending", text)
+
+
+class TestSuspected(unittest.TestCase):
+    def test_suspected_text_counts_both_variants_and_lists_holds(self):
+        flags = [
+            hold("a", on=True),
+            hold("b", on=False, flagged=False),
+            hold("c", on=False, flagged=False),
+        ]
+        flags = [dataclasses.replace(h, would_flag=True) for h in flags[:2]] + flags[2:]
+        text = throttle_flags.suspected_text(flags)
+        self.assertEqual(
+            text.splitlines()[0],
+            "runs=3 suspected=2 suspected_topfull_off=1 suspected_topfull_on=1")
+        self.assertIn("S2_sustained_overload_burst/rg_only/b  off", text)
+        self.assertNotIn("/c ", text)
 
 
 if __name__ == "__main__":

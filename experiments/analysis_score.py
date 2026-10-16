@@ -35,6 +35,8 @@ import csv
 import json
 import re
 import sys
+
+import topfull_health
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -578,7 +580,36 @@ def throttle_quality(rows: list[dict], log_path: Path, topfull_on: bool = True) 
         "admitted_gap_s": gaps["admitted_fresh"],
         "topfull_on": bool(topfull_on),
         "flagged": bool(would_flag and topfull_on),
+        "would_flag": bool(would_flag),
     }
+
+
+SUSPECTED = "PROXY STALL SUSPECTED"
+
+
+def proxy_stall_status(quality: dict, health) -> tuple[str, str]:
+    """(status, detail) for one row of the Proxy and RL health table.
+
+    Direct evidence (`PROXY FD`, `RL STALL`) wins. Without a proxy, descriptor, or RL
+    log (every hold before 2026-10-15) the throttle collector's own warnings and stale
+    stretches are the only record of a proxy stall, and they exist on every variant,
+    TopFull off included. A hold with logs and collector warnings but no descriptor
+    exhaustion is named, not accused: the timeouts then have another cause.
+    """
+    if health.rl_stall or health.proxy_fd:
+        return f"**{health.status}**", "; ".join(health.reasons) or "—"
+    evidence = bool(quality.get("would_flag") and quality.get("has_csv"))
+    worst = max([g for g in (quality.get("threshold_gap_s"), quality.get("admitted_gap_s"))
+                 if g is not None], default=0.0)
+    seen = (f"throttle collector: {quality.get('warnings', 0)} fetch warning(s), "
+            f"longest no-fresh read {worst:.0f} s")
+    if not health.assessable:
+        if evidence:
+            return f"**{SUSPECTED}**", f"{seen}; no proxy or descriptor log to confirm"
+        return "not assessable", "no proxy, descriptor, or RL log"
+    if evidence:
+        return "admin timeouts, no fd cause", f"{seen}; the proxy log and descriptor file show no exhaustion"
+    return "ok", "—"
 
 
 def mesh_gate(inbound_rows: list[dict]) -> dict:
@@ -768,6 +799,7 @@ def score_run(run_dir: Path) -> dict:
             throttle_rows, run_dir / "topfull_throttle_collector.log",
             topfull_on=topfull_enabled(run_dir),
         ),
+        "proxy_rl_health": topfull_health.assess(run_dir, topfull_on=topfull_enabled(run_dir)),
         "gate": mesh_gate(inbound_rows),
     }
 
@@ -1229,6 +1261,29 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
             f"| {label} | {status} | {q['warnings']} | {first} | "
             f"{_fmt(q['threshold_gap_s'], '.0f')} | {_fmt(q['admitted_gap_s'], '.0f')} |"
         )
+    lines.append("")
+    lines.append("## Proxy and RL health")
+    lines.append("")
+    lines.append(
+        "Separate from the throttle flag. **PROXY FD**: the Go proxy ran out of file descriptors "
+        "(`too many open files` in `topfull_proxy.log`, or `proxy_fds.csv` reached its soft limit). "
+        "It refuses new connections on every variant, `rg_only` and `both_off` included, so "
+        "goodput, P95, rejection, and retry numbers of that hold are not assumed clean. "
+        "**RL STALL** (TopFull on only): the RL loop was silent over 30 s, a `current_rps` call "
+        "timed out or took over 3 s; caps stopped moving. `not assessable` means the hold has no "
+        "proxy, descriptor, or RL log (every hold before 2026-10-15). "
+        "**PROXY STALL SUSPECTED**: no proxy or descriptor log exists, but the throttle collector "
+        "saw fetch warnings or a stale stretch, which on any variant (TopFull off included) is the "
+        "only trace of a proxy stall; do not assume the hold's goodput, P95, rejection, and retry "
+        "numbers are clean."
+    )
+    lines.append("")
+    lines.append("| Hold | Status | Detail |")
+    lines.append("| --- | --- | --- |")
+    for label, item in zip(labels, scored):
+        health = item["proxy_rl_health"]
+        status, detail = proxy_stall_status(item["throttle_quality"], health)
+        lines.append(f"| {label} | {status} | {detail} |")
     lines.append("")
     lines.append("## TopFull live caps")
     lines.append("")
