@@ -123,9 +123,9 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **Analysis-runs matrix paused (2026-10-16).** 20 holds (all of S2 and S3) were pulled and pushed on `analysis-runs-results`. Frontend HPA was min 1 max 4 and catalog HPA was max 2, so both replica counts moved on every hold. Paper-C1's pin (frontend held at 4, catalog HPA max 1, [ADR 0009](docs/adr/0009-paper-c1-default-cpu-table.md)) was not applied. `run_scenario.py` resets CPU limits and does not patch HPA. Log: [2026-10-16-analysis-runs-results-log.md](docs/superpowers/plans/2026-10-16-analysis-runs-results-log.md).
-- **S4A constrained `analysis_4a_constrained_rg_only_normal_run1` was stopped (2026-10-16)** as Locust was starting. Not pulled, not committed. The slot is free. Live HPAs at the stop: frontend min 1 max 4 (1 replica), catalog min 1 max 2 (2 replicas). VMs left RUNNING. Checkout limit after S3 is `800m`.
-- **One flag in the 20 holds:** `analysis_s2_tf_only_run2` is `RL STALL` (one `RL_RPS_TIMEOUT` at 05:37:18Z). The other 19 scored `health: ok`. Throttle was `ok` on TopFull-on holds and `N/A: TopFull off` on RetryGuard-only holds.
+- **Re-run plan updated (2026-10-16), not started.** The 20 unpinned holds stay in `experiments/results/analysis_runs_results/` and are not this matrix. The re-run pulls every new hold to `experiments/results/final_runs_results/` (same layout as `final results/`). Task 1 of the plan changes `RESULTS_ROOT` before any hold. The runner still points at `analysis_runs_results/` until that step runs. Plan: [2026-10-16-analysis-runs-results.md](docs/superpowers/plans/2026-10-16-analysis-runs-results.md).
+- **Replica pin is a gate on that re-run.** Before every hold the live cluster must be frontend HPA min=max=4 with 4 ready pods, catalog HPA min=max=1 with 1 ready pod, `proxyCPU=90m`, `proxyCPULimit` unset (§5). After the pull, `resource_usage.csv` must show only those replica counts. Any other count is not a column.
+- **S4A constrained `analysis_4a_constrained_rg_only_normal_run1` was stopped (2026-10-16)** during the unpinned pass, as Locust was starting. Not pulled. That pass is closed. One flag in the 20: `analysis_s2_tf_only_run2` `RL STALL`. Checkout limit `800m`. VMs left RUNNING.
 - **Next free slot.** `s3_tf_only.yaml` is run 6 (`final_s3_tf_only_run6`). The other four S3 YAMLs stay at 5. `final_s3_tf_only_run5` stays verification only until the user says otherwise. The locked S3 columns remain `final_s3_*_run3` and `final_s3_*_run4`.
 - **Replica pin (2026-10-16).** Frontend HPA min=max=4, catalog HPA min=max=1, frontend `proxyCPU=90m`, `proxyCPULimit` unset. Applied on the cluster. This lock stays after every hold (§5). Checkout limit `800m`. The three VMs were left RUNNING.
 
@@ -139,7 +139,7 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
 - The S4 relock mode matrix is the locked S4A/S4B set under `final results/`, and the catalog-50m mode matrix and `campaign_48/` S4A/S4B are not comparable.
-- Branch `analysis-runs-results` is unmerged. The 60-hold matrix is paused after 20 unpinned holds. The replica pin is now on the cluster (§5). The user decides whether those 20 are kept before any further hold.
+- Branch `analysis-runs-results` is unmerged. The 60-hold re-run into `final_runs_results/` is planned and not started. The 20 unpinned holds in `analysis_runs_results/` are not that matrix. Do not start a hold until the user says to run the plan.
 
 Read [STATUS.md](STATUS.md) before a new hold, a `run_number` bump, scoring an old folder, or deciding what is left. After a hold, append one bullet under Done there, update Next free slots, and replace Latest here.
 
