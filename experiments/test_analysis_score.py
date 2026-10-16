@@ -280,6 +280,17 @@ class TestScoreAndRender(unittest.TestCase):
             self.assertIn("frontend → checkoutservice", text)
             self.assertIn("no cap", text)
 
+    def test_live_caps_treat_9900_and_above_as_no_cap(self):
+        rows = [
+            {"timestamp": "2026-10-16T00:00:00Z", "api": "getproduct", "threshold": "175", "threshold_fresh": "1"},
+            {"timestamp": "2026-10-16T00:00:05Z", "api": "getproduct", "threshold": "9999.9", "threshold_fresh": "1"},
+            {"timestamp": "2026-10-16T00:00:10Z", "api": "getproduct", "threshold": "9997.53", "threshold_fresh": "1"},
+            {"timestamp": "2026-10-16T00:00:15Z", "api": "getproduct", "threshold": "9900", "threshold_fresh": "1"},
+            {"timestamp": "2026-10-16T00:00:20Z", "api": "getproduct", "threshold": "9899.9", "threshold_fresh": "1"},
+        ]
+        spans = score.live_caps(rows)["getproduct"]
+        self.assertEqual([span["value"] for span in spans], [175.0, None, 9899.9])
+
     def test_http_only_table_lists_only_read_callees(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp) / "run1"

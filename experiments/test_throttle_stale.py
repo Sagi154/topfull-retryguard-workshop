@@ -66,6 +66,13 @@ class TestCapSeries(unittest.TestCase):
         self.assertEqual(throttle_stale.stale_cap_series(frame(20, cap=10000.0)), {})
         self.assertEqual(throttle_stale.stale_cap_series(frame(20, cap=0.0)), {})
 
+    def test_caps_at_or_above_9900_are_no_cap(self):
+        # The RL steps down from the 10000 sentinel (9999.55, 9997.5): still no cap.
+        self.assertEqual(throttle_stale.stale_cap_series(frame(20, cap=9999.55)), {})
+        self.assertEqual(throttle_stale.stale_cap_series(frame(20, cap=9900.0)), {})
+        series = throttle_stale.stale_cap_series(frame(20, cap=9899.9))
+        self.assertTrue(np.all(series["getproduct"][1] == 9899.9))
+
     def test_missing_or_old_csv_does_not_crash(self):
         self.assertEqual(throttle_stale.stale_cap_series(pd.DataFrame()), {})
         old = pd.DataFrame({"api": ["a"], "hold_s": [1.0], "threshold": [5.0]})

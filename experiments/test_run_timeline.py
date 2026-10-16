@@ -137,6 +137,21 @@ class TestPerSecondView(unittest.TestCase):
         self.assertEqual(view.loc[6, "throttle.getcart.cap"], 300)
         self.assertTrue(empty(view.loc[7, "throttle.getcart.cap"]))
 
+    def test_caps_at_or_above_9900_are_no_cap(self):
+        header = ["timestamp", "api", "threshold", "admitted_rps", "threshold_fresh", "admitted_fresh"]
+        rows = [
+            [iso(0), "getproduct", 300, 0, 1, 0],
+            [iso(1), "getproduct", 9999.55, 0, 1, 0],
+            [iso(2), "getcart", 9900, 0, 1, 0],
+            [iso(3), "getcart", 9899.9, 0, 1, 0],
+        ]
+        write_csv(self.run / "topfull_throttle.csv", header, rows)
+        view = self.view()
+        self.assertEqual(view.loc[0, "throttle.getproduct.cap"], 300)
+        self.assertTrue(empty(view.loc[1, "throttle.getproduct.cap"]))
+        self.assertTrue(empty(view.loc[2, "throttle.getcart.cap"]))
+        self.assertEqual(view.loc[3, "throttle.getcart.cap"], 9899.9)
+
     def test_retryguard_observe_and_switches(self):
         (self.run / "retryguard.log").write_text("\n".join([
             f"{iso(1)}  OBSERVE  frontend->checkoutservice  rpr=0.5000  attempts=3  state=ON",

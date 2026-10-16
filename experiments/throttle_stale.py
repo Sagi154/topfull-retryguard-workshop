@@ -14,7 +14,10 @@ STALE_GAP_S = 10.0
 # Keep in step with run_timeline.THROTTLE_CARRY_S: the solid cap line already carries a
 # fresh cap forward this long, so the dashed stale line starts after it.
 CARRY_S = 6
-NO_CAP = 10000.0
+# A threshold at or above this is no cap. 10000 is the proxy passthrough, and the RL can step a
+# little below it (9999.55, 9997.5) before a reset. Keep in step with run_timeline.NO_CAP and
+# analysis_score.NO_CAP_FROM.
+NO_CAP = 9900.0
 REQUIRED = {"api", "hold_s", "threshold", "threshold_fresh"}
 
 

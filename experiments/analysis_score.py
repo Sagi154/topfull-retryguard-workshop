@@ -48,7 +48,9 @@ REENABLE_REJECTION = 0.10
 STREAK_BOLD_S = 30
 REJECTION_BOLD = 30
 OVERLOAD_BOLD = 0.5
-PASSTHROUGH = 10000
+# A live threshold at or above this is no cap: 10000 is the passthrough, and the RL can step a
+# little below it (9999.55, 9997.5). Keep in step with run_timeline.NO_CAP and throttle_stale.NO_CAP.
+NO_CAP_FROM = 9900
 GAP_S = 1.5
 THROTTLE_STALE_S = 10
 
@@ -482,7 +484,7 @@ def mode(values: list[float]) -> float | None:
 def live_caps(rows: list[dict]) -> dict[str, list[dict]]:
     """Distinct live TopFull caps per API.
 
-    A live read has threshold_fresh=1 and threshold > 0. 10000 is no cap.
+    A live read has threshold_fresh=1 and threshold > 0. 9900 and above is no cap.
     A live 0 is an empty read and is left out.
     """
     grouped: dict[str, list[dict]] = defaultdict(list)
@@ -493,7 +495,7 @@ def live_caps(rows: list[dict]) -> dict[str, list[dict]]:
         if threshold <= 0:
             continue
         api = row.get("api", "")
-        value = None if int(threshold) == PASSTHROUGH else threshold
+        value = None if threshold >= NO_CAP_FROM else threshold
         grouped[api].append({"timestamp": row.get("timestamp", ""), "value": value})
     out = {}
     for api, series in grouped.items():
@@ -1287,7 +1289,7 @@ def render(scored: list[dict], labels: list[str], sep: int | None = None) -> str
     lines.append("")
     lines.append("## TopFull live caps")
     lines.append("")
-    lines.append("A live read has threshold_fresh=1 and threshold above 0. 10000 is no cap. A live 0 is left out.")
+    lines.append("A live read has threshold_fresh=1 and threshold above 0. 9900 and above is no cap. A live 0 is left out.")
     lines.append("")
     for label, item in zip(labels, scored):
         lines.append(f"### {label}")

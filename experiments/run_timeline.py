@@ -25,7 +25,9 @@ import hold_clock  # noqa: E402
 PNG_NAME = "timeline.png"
 CSV_NAME = "timeline_1s.csv"
 FLAG = "__carried"
-NO_CAP = 10000.0
+# A threshold at or above this is no cap: 10000 is the passthrough, and the RL can step a little
+# below it (9999.55, 9997.5). Keep in step with throttle_stale.NO_CAP and analysis_score.NO_CAP_FROM.
+NO_CAP = 9900.0
 THROTTLE_CARRY_S = 6
 RESOURCE_CARRY_S = 5
 LOCUST_COLUMNS = ("RPS", "Fail", "Goodput", "Latency95", "Latency99")
