@@ -1,18 +1,22 @@
-# Analysis Runs (60 holds into `analysis_runs_results`) Implementation Plan
+# Analysis Runs (60 holds into `final_runs_results`) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Run 60 holds (6 scenario configs x 5 controller variants x 2 repeats) and pull every one into a new folder, `experiments/results/analysis_runs_results/`, which has the same structure as `experiments/results/final results/`.
+**Re-run (user, 2026-10-16).** The first pass pulled 20 holds (all of S2 and S3) into `experiments/results/analysis_runs_results/` while frontend HPA was min 1 max 4 and catalog HPA was max 2. Those holds are not this matrix. Leave that folder on disk and in git. Do not pull the re-run there. Start this plan again at Task 1.
 
-**Architecture:** **Project rule (user, 2026-10-16): every new run from here on is pulled to `experiments/results/analysis_runs_results/`, not just these 60.** The root is the constant `RESULTS_ROOT` in `experiments/run_scenario.py` (`final_results_local_dir()` uses it), so every config, including the old ones, pulls there. This change is already made in the `main` working tree together with the AGENTS.md / `final_configs/README.md` wording and the updated tests; Task 1 commits it on `main` before branching. A generator script copies the locked `final_configs/` YAMLs into `experiments/configs/analysis_runs/` and gives each copy a unique `log_folder` (so nothing collides on master). The holds are then run one at a time with the existing runbook (AGENTS.md section 6).
+**Goal:** Run 60 holds (6 scenario configs x 5 controller variants x 2 repeats) and pull every one into `experiments/results/final_runs_results/`, which has the same structure as `experiments/results/final results/`.
+
+**Architecture:** **Project rule (user, 2026-10-16, revised the same day): every new run from here on is pulled to `experiments/results/final_runs_results/`.** The root is the constant `RESULTS_ROOT` in `experiments/run_scenario.py` (`final_results_local_dir()` uses it), so every config, including the old ones, pulls there. Task 1 is that change. The 60 YAMLs already exist under `experiments/configs/analysis_runs/`. The holds then run one at a time with the existing runbook (AGENTS.md section 6), and each one starts only after the replica pin in AGENTS.md §5 is true on the cluster.
 
 **Tech Stack:** Python 3 (`unittest`, `pyyaml`), `run_scenario.py` / `pull_results.py` / `analysis_score.py` / `topfull_health.py`, OpenSSH aliases `topfull-master|worker-1|load`, git worktree.
 
 ## Global Constraints
 
-- All work happens on a new branch `analysis-runs-results`, cut from `main`, in a separate worktree at `.worktrees/analysis-runs-results` (`.worktrees/` is already git-ignored). Do not touch `main`'s working tree.
+- All work happens on the existing branch `analysis-runs-results`, in the existing worktree `.worktrees/analysis-runs-results`. Do not create a second worktree. Do not touch `main`'s working tree. Do not push `main`.
+- **Commit and push after every finished task and every finished run (user, 2026-10-16).** This is required. From the worktree, on `analysis-runs-results`: when a task's last step is done, commit that task's files and push with `git push -u origin HEAD`. When a hold finishes (P6), commit the pulled folder and the log line, then push that commit before the next hold starts. A push that does not exit 0 is not done: retry it. Do not start the next task or the next hold until the push succeeds. Push only this branch. Do not push `main`. A task that changes no files (Task 4) has no new commit; still push any commits that are not on the remote before the next task. A hold that aborted before finishing is not committed and not pushed (P3). Tasks 2 and 3 were committed locally before this rule; push them with the commit that adds this rule, before Task 4.
 - Use the locked configs in `experiments/configs/final_configs/` as the source. Do not edit them. Do not change load mixes, Paper-C1 CPU table, constrained rows, or the locked RetryGuard parameters (AGENTS.md section 5).
-- Results go to `experiments/results/analysis_runs_results/<scenario>_<normal|burst>/<variant>/<log_folder>/`. This holds for every new run in the project from 2026-10-16, not only this matrix. `final results/` and `campaign_48/` are closed and never a target.
+- Results go to `experiments/results/final_runs_results/<scenario>_<normal|burst>/<variant>/<log_folder>/`. This holds for every new run in the project from this re-run on, not only this matrix. `final results/`, `campaign_48/`, and `analysis_runs_results/` are closed and never a target. `analysis_runs_results/` keeps the unpinned 20 holds.
+- **Replica pin (AGENTS.md §5) is a gate, not a glance.** Before Task 5 and before every hold, the live cluster must read: `frontend-hpa` minReplicas 4 and maxReplicas 4, frontend ready replicas 4, `productcatalogservice-hpa` minReplicas 1 and maxReplicas 1, catalog ready replicas 1, frontend `sidecar.istio.io/proxyCPU` `90m`, `proxyCPULimit` absent. Use the check in Task 4 Step 2. If any value differs, patch it back to that lock, wait until the check matches, then continue. Do not start Locust on a failed check. After each pull, `resource_usage.csv` must show frontend `replica_count` only 4 and catalog `replica_count` only 1. Any other value means the hold is not a column of this matrix: do not commit it, re-apply the pin, and re-run that same slot (at most twice). A third miss stops the matrix.
 - SSH only through the aliases `topfull-master`, `topfull-worker-1`, `topfull-load`. Never hardcode IPs. SSH user stays `idozacharia`.
 - Cool-off between holds is **120 s**, counted from when `run_scenario.py` exits. Do the leftover-writer check (AGENTS.md section 6, steps 1-5) before every hold.
 - After every hold run `python experiments/analysis_score.py <run_dir>` and `python experiments/topfull_health.py "<run_dir>"` (throttle table + `health:` line). Any flag (throttle FLAGGED, PROXY FD, RL STALL) means the hold is not clean. Record the flag in the log and keep going. Never pause for a flag and never re-run a finished hold: the user decides after all 60 are done. Exception (user, 2026-10-16): a hold that aborted or failed before finishing may be re-run in the same slot (Task 5, P3).
@@ -25,6 +29,8 @@
 1. **S2 and S3 are the locked scenarios as they are.** There is no "S2 constrained" or "S3 constrained" variant. S2 is plain Paper-C1; S3 carries its locked checkout 200m row. Only S4A has two forms (constrained and unconstrained).
 2. **TopFull-only runs once per repeat.** One `tf_only` YAML per scenario (mode folder `normal`). Five variants per scenario: `rg_only_normal`, `both_normal`, `tf_only`, `rg_only_burst`, `both_burst`.
 3. **Flag, never pause, never re-run a finished hold.** A flagged hold (throttle FLAGGED, PROXY FD, RL STALL) is recorded in the log and the matrix continues. The agent does not re-run any finished hold. A hold that aborted or failed before finishing may be re-run in the same slot (user, 2026-10-16). The user decides how to treat flags, and any re-run, after all 60 are done. The last S3 tf_only hold ended `not_clean` (`RL STALL`), so some flags are expected.
+4. **Commit and push after every finished task and every finished run.** Each task ends with a commit of that task's files and a `git push` of `analysis-runs-results`. Each finished hold ends the same way (P6), before the next hold. A failed push blocks the next task and the next hold.
+5. **Re-run into `final_runs_results` because the first 20 holds were not pinned (user, 2026-10-16).** Those 20 stay in `analysis_runs_results/` and are not columns of this matrix. Every new run in the project, this matrix included, is pulled to `experiments/results/final_runs_results/`.
 
 ## Run matrix (60 holds)
 
@@ -55,73 +61,68 @@ Expected wall time: S1 holds ~10 min each incl. setup, others ~15-20 min each, p
 
 ## File Structure
 
-- Already done on `main`'s working tree (committed in Task 1): `experiments/run_scenario.py` (`RESULTS_ROOT`), `experiments/test_run_scenario.py` (expected paths), `AGENTS.md`, `STATUS.md`, `experiments/configs/final_configs/README.md`.
-- Create: `experiments/make_analysis_runs_configs.py` - generator for the 60 YAMLs.
-- Create: `experiments/test_make_analysis_runs_configs.py` - generator tests.
-- Create (generated): `experiments/configs/analysis_runs/<group>/<prefix>_<variant>_run<N>.yaml` x 60.
-- Create (generated): `experiments/results/analysis_runs_results/<scenario>_<mode>/<variant>/.gitkeep` mirroring `final results/`, plus `experiments/results/analysis_runs_results/README.md`.
+- Modify in Task 1: `experiments/run_scenario.py` (`RESULTS_ROOT`), `experiments/test_run_scenario.py`, `experiments/test_make_analysis_runs_configs.py` (the `ROOT` string), `AGENTS.md` §2 and §6, `STATUS.md`, `experiments/configs/final_configs/README.md`.
+- Already on this branch, leave them: `experiments/make_analysis_runs_configs.py`, `experiments/test_make_analysis_runs_configs.py`, `experiments/configs/analysis_runs/**` (60 YAMLs). `log_folder` stays `analysis_<prefix>_<variant>_run<N>`.
+- Already on this branch, leave it closed: `experiments/results/analysis_runs_results/**` (the unpinned 20 holds).
+- Create: `experiments/results/final_runs_results/<scenario>_<mode>/<variant>/.gitkeep` mirroring `final results/`, plus `experiments/results/final_runs_results/README.md`.
 - Modify at the end: `STATUS.md`, `AGENTS.md` (per the repo's update rule).
 
 ---
 
-### Task 1: Commit the destination rule on `main`, then worktree and branch
+### Task 1: Point every new run at `final_runs_results`
 
 **Files:**
-- Create: `.worktrees/analysis-runs-results/` (git worktree)
+- Modify: `experiments/run_scenario.py`, `experiments/test_run_scenario.py`, `experiments/test_make_analysis_runs_configs.py`, `AGENTS.md`, `STATUS.md`, `experiments/configs/final_configs/README.md`
 
-- [x] **Step 0: Commit the destination-rule change on `main` (needs the user's OK to commit on `main`)**
+The worktree and the branch already exist. Do not create them again. Work from `C:\Users\sagi1\Projects\Workshop\.worktrees\analysis-runs-results`. This task is the destination change. Do not start a hold before it is committed and pushed.
 
-The worktree branches from `main`, so the rule must be committed there first. Check the diff is only the five files listed in File Structure plus this plan and the status files, run the tests, then commit:
+- [ ] **Step 1: Set `RESULTS_ROOT` to `experiments/results/final_runs_results`**
 
-```powershell
-git status --short
-python -m unittest experiments.test_run_scenario -q
-git add experiments/run_scenario.py experiments/test_run_scenario.py AGENTS.md STATUS.md experiments/configs/final_configs/README.md docs/superpowers/plans/2026-10-16-analysis-runs-results.md
-git commit -m "feat: pull every new hold into analysis_runs_results"
+In `experiments/run_scenario.py`, replace the project-rule comment and the constant:
+
+```python
+# Project rule from 2026-10-16: every new hold is pulled here.
+# `final results/`, `campaign_48/`, and `analysis_runs_results/` are closed.
+RESULTS_ROOT = "experiments/results/final_runs_results"
 ```
 
-Expected: `Ran 103 tests ... OK`. If the user declines a commit on `main`, create the branch first, move the same edits onto it, and commit there; the rule then reaches `main` only when the branch merges.
+Replace every `analysis_runs_results` string in `experiments/test_run_scenario.py` and in `experiments/test_make_analysis_runs_configs.py` (`ROOT = ...`) with `final_runs_results`. In `AGENTS.md` §2 and §6, and in `experiments/configs/final_configs/README.md`, the pull destination for every new hold is `experiments/results/final_runs_results/`, same layout as `final results/`: `<scenario>_<normal|burst>/<variant>/<log_folder>/`. `analysis_runs_results/` stays in the layout as the closed unpinned pass. Append one STATUS.md Done bullet that this is the destination from 2026-10-16 on and that the 20 unpinned holds are not this matrix.
 
-- [ ] **Step 1: Create the worktree on a new branch from `main`**
-
-Run from `C:\Users\sagi1\Projects\Workshop`:
+- [ ] **Step 2: Tests**
 
 ```powershell
-git fetch origin
-git worktree add .worktrees/analysis-runs-results -b analysis-runs-results main
-git worktree list
+python -m unittest experiments.test_run_scenario experiments.test_make_analysis_runs_configs -q
+python -c "import sys; sys.path.insert(0,'experiments'); import run_scenario as r, yaml; c=yaml.safe_load(open('experiments/configs/final_configs/3/s3_both_burst.yaml')); print(r.local_results_dir(c))"
 ```
 
-Expected: a line `.../.worktrees/analysis-runs-results  <sha> [analysis-runs-results]`. If `main` is behind `origin/main`, stop and ask; do not fast-forward silently.
+Expected: both suites `OK`, then `experiments/results/final_runs_results/S3_targeted_bottleneck_burst/both/`.
 
-- [ ] **Step 2: Check the toolchain works inside the worktree**
+- [ ] **Step 3: Commit and push**
 
 ```powershell
-cd .worktrees/analysis-runs-results
-python -c "import yaml, plotly; print('ok')"
-python -m unittest experiments.test_run_scenario -q
+git add experiments/run_scenario.py experiments/test_run_scenario.py experiments/test_make_analysis_runs_configs.py AGENTS.md STATUS.md experiments/configs/final_configs/README.md docs/superpowers/plans/2026-10-16-analysis-runs-results.md
+git commit -m "feat: pull every new hold into final_runs_results"
+git push -u origin HEAD
 ```
 
-Expected: `ok`, then the existing suite passes (`OK`). If a dependency is missing run `pip install -r experiments/requirements.txt` (project convention; no global installs of other packages).
-
-All later steps run with the working directory `C:\Users\sagi1\Projects\Workshop\.worktrees\analysis-runs-results`.
+Expected: the push exits 0. Do not start Task 2 until it does.
 
 ---
 
-### Task 2: Create the `analysis_runs_results` folder (first working step on the branch)
+### Task 2: Create the `final_runs_results` folder
 
 **Files:**
-- Create: `experiments/results/analysis_runs_results/**` (tree + README)
+- Create: `experiments/results/final_runs_results/**` (tree + README)
 
-The destination code and tests are already done (Task 1, Step 0). This task makes the folder itself, with the same structure as `final results/`.
+Task 1 set the runner. This task makes the folder, with the same structure as `final results/`. Do not modify `analysis_runs_results/`.
 
 - [ ] **Step 1: Confirm the runner points at the new folder**
 
 ```powershell
-python -c "import sys; sys.path.insert(0,'experiments'); import run_scenario as r, yaml; c=yaml.safe_load(open('experiments/configs/final_configs/3/s3_both_burst.yaml')); print(r.local_results_dir(c))"
+python -c "import sys; sys.path.insert(0,'experiments'); import run_scenario as r, yaml; c=yaml.safe_load(open('experiments/configs/analysis_runs/s2/s2_rg_only_normal_run1.yaml')); print(r.local_results_dir(c))"
 ```
 
-Expected: `experiments/results/analysis_runs_results/S3_targeted_bottleneck_burst/both/`.
+Expected: `experiments/results/final_runs_results/S2_sustained_overload_normal/rg_only/`.
 
 - [ ] **Step 2: Create the folder tree, mirroring `final results/`**
 
@@ -129,7 +130,7 @@ Mirror only the directory structure (scenario_mode and variant folders, no run f
 
 ```powershell
 $src = "experiments/results/final results"
-$dst = "experiments/results/analysis_runs_results"
+$dst = "experiments/results/final_runs_results"
 Get-ChildItem $src -Directory | ForEach-Object {
   $s = $_.Name
   Get-ChildItem $_.FullName -Directory | ForEach-Object {
@@ -145,34 +146,39 @@ Expected today: 35 (10 scenario_mode parents plus 25 variant leaves). If `final 
 
 - [ ] **Step 3: Add a README**
 
-Create `experiments/results/analysis_runs_results/README.md`:
+Create `experiments/results/final_runs_results/README.md`:
 
 ```markdown
-# analysis_runs_results
+# final_runs_results
 
-Where every new hold is pulled, from 2026-10-16 on (project rule; see AGENTS.md section 6). Same layout as `../final results/`, which is closed:
+Where every new hold is pulled (project rule; see AGENTS.md section 6). Same layout as `../final results/`, which is closed:
 
 `<scenario>_<normal|burst>/<variant>/<log_folder>/`
 
-First occupant: the 60-hold analysis matrix (S1, S2, S3, S4A constrained, S4A unconstrained, S4B; five variants; two repeats). Configs: `experiments/configs/analysis_runs/`, generated by `experiments/make_analysis_runs_configs.py`. `log_folder` is `analysis_<prefix>_<variant>_run<N>`.
+`analysis_runs_results/` is the closed unpinned pass and is not a target. First occupant of this folder: the 60-hold re-run (S2, S3, S4A constrained, S4A unconstrained, S4B, S1; five variants; two repeats). Configs: `experiments/configs/analysis_runs/`. `log_folder` is `analysis_<prefix>_<variant>_run<N>`.
 
 Plan: `docs/superpowers/plans/2026-10-16-analysis-runs-results.md`.
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Commit and push**
 
 ```powershell
-git add experiments/results/analysis_runs_results
-git commit --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>" -m "feat: add the analysis_runs_results folder tree"
+git add experiments/results/final_runs_results
+git commit -m "feat: add the final_runs_results folder tree"
+git push -u origin HEAD
 ```
 
+Expected: the push exits 0 and `origin/analysis-runs-results` contains this commit. Do not start Task 3 until it does.
+
 ---
-### Task 3: Generate the 60 configs
+### Task 3: Confirm the 60 configs pull under `final_runs_results`
+
+The generator, its test, and the 60 YAMLs are already on this branch. Do not regenerate the YAMLs. `log_folder` stays `analysis_<prefix>_<variant>_run<N>`. Task 1 already points `ROOT` at `final_runs_results`. If the test file still says `analysis_runs_results`, change that string before running it. The test source below is what the file must match.
 
 **Files:**
-- Create: `experiments/make_analysis_runs_configs.py`
-- Test: `experiments/test_make_analysis_runs_configs.py`
-- Create (generated): `experiments/configs/analysis_runs/**` (60 YAMLs)
+- Already present: `experiments/make_analysis_runs_configs.py`
+- Already present: `experiments/test_make_analysis_runs_configs.py` (`ROOT` must be `experiments/results/final_runs_results`)
+- Already present: `experiments/configs/analysis_runs/**` (60 YAMLs). Do not regenerate them.
 
 **Interfaces:**
 - Produces: `GROUPS: list[tuple[str, str, str]]` as `(group, source_subdir, prefix)`; `VARIANTS: list[str]`; `REPEATS = (1, 2)`; `build_text(source_text: str, log_folder: str, run_number: int) -> str`; `generate() -> list[Path]` writing to `experiments/configs/analysis_runs/<group>/<prefix>_<variant>_run<N>.yaml`.
@@ -195,7 +201,7 @@ import run_scenario  # noqa: E402
 
 CONFIGS = Path(__file__).resolve().parent / "configs"
 OUT = CONFIGS / "analysis_runs"
-ROOT = "experiments/results/analysis_runs_results"
+ROOT = "experiments/results/final_runs_results"
 
 
 class TestBuildText(unittest.TestCase):
@@ -372,14 +378,17 @@ python experiments/pull_results.py experiments/configs/analysis_runs/s3/s3_both_
 python experiments/pull_results.py experiments/configs/analysis_runs/s4a_constrained/4a_constrained_tf_only_run2.yaml --dry-run
 ```
 
-Expected: the `scp` destinations are `experiments/results/analysis_runs_results/S3_targeted_bottleneck_burst/both` and `.../S4A_topology_position_normal/tf_only`.
+Expected: the `scp` destinations are `experiments/results/final_runs_results/S3_targeted_bottleneck_burst/both` and `.../S4A_topology_position_normal/tf_only`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Commit and push**
 
 ```powershell
 git add experiments/make_analysis_runs_configs.py experiments/test_make_analysis_runs_configs.py experiments/configs/analysis_runs
 git commit -m "feat: generate 60 analysis-run configs"
+git push -u origin HEAD
 ```
+
+Expected: the push exits 0. Do not start Task 4 until it does.
 
 ---
 
@@ -403,25 +412,65 @@ ssh topfull-master "kubectl get nodes; kubectl get pods -n default; kubectl get 
 
 Expected: user `idozacharia` on both; nodes `Ready`; all Online Boutique pods `2/2 Running`.
 
-- [ ] **Step 2: Confirm cluster baseline matches STATUS.md**
+- [ ] **Step 2: Verify the replica pin, then stop if it does not match**
 
-Replica pin from AGENTS.md §5: frontend HPA min=max=4, catalog HPA min=max=1, frontend `proxyCPU=90m`, `proxyCPULimit` unset. If any of the three differs, patch it back to that lock before continuing. The runner resets all eleven Deployments to Paper-C1 itself and does not patch HPAs:
+AGENTS.md §5 is the lock. Run this from the worktree. The four lines must be exactly the expected block. `kubectl get hpa` alone is not this check. The runner resets all eleven Deployments to Paper-C1 itself and does not patch HPAs.
 
 ```powershell
-ssh topfull-master "kubectl get hpa; kubectl get deploy frontend -o jsonpath='{.spec.template.metadata.annotations}'"
+@'
+import json, subprocess
+def get(args):
+    return json.loads(subprocess.check_output(["kubectl", *args]))
+fe = get(["get", "hpa", "frontend-hpa", "-n", "default", "-o", "json"])
+ca = get(["get", "hpa", "productcatalogservice-hpa", "-n", "default", "-o", "json"])
+fd = get(["get", "deploy", "frontend", "-n", "default", "-o", "json"])
+cd = get(["get", "deploy", "productcatalogservice", "-n", "default", "-o", "json"])
+ann = fd["spec"]["template"]["metadata"].get("annotations", {})
+print("frontend_hpa", fe["spec"]["minReplicas"], fe["spec"]["maxReplicas"], fd["status"].get("readyReplicas"))
+print("catalog_hpa", ca["spec"]["minReplicas"], ca["spec"]["maxReplicas"], cd["status"].get("readyReplicas"))
+print("proxyCPU", ann.get("sidecar.istio.io/proxyCPU"))
+print("proxyCPULimit", ann.get("sidecar.istio.io/proxyCPULimit"))
+'@ | ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master python3 -
 ```
+
+Expected:
+
+```text
+frontend_hpa 4 4 4
+catalog_hpa 1 1 1
+proxyCPU 90m
+proxyCPULimit None
+```
+
+`proxyCPULimit None` means the annotation is absent. Any other output: apply the lock, wait until frontend is 4/4 and catalog is 1/1, and run the check again. Do not start Task 5 while it still differs.
+
+```powershell
+@'
+kubectl patch deployment frontend -n default --type merge -p '{"spec":{"template":{"metadata":{"annotations":{"sidecar.istio.io/proxyCPU":"90m"}}}}}'
+kubectl patch hpa frontend-hpa -n default --type merge -p '{"spec":{"minReplicas":4,"maxReplicas":4}}'
+kubectl patch hpa productcatalogservice-hpa -n default --type merge -p '{"spec":{"minReplicas":1,"maxReplicas":1}}'
+'@ | ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master bash -s
+```
+
+The runner resets CPU limits and does not patch these HPAs or this annotation. A rollout of the frontend pods can take a couple of minutes. If the check still does not match after that, stop the plan and report. Do not launch a hold.
 
 - [ ] **Step 3: Run the leftover-writer check (AGENTS.md section 6, steps 1-5)**
 
 Clear stale `/tmp` scripts, stop Locust and master processes, confirm both `locust-clear` and `master-clear`, clear the live log dir, wait 2 s and confirm it is empty. Use the exact commands in AGENTS.md section 6.
 
-- [ ] **Step 4: Check master has no folder named `analysis_*` already**
+- [ ] **Step 4: Remote `analysis_*` folders may already exist**
+
+The unpinned pass left `analysis_*` folders on master. This re-run uses the same `log_folder` names, so those remote folders get overwritten. The local unpinned copies stay in `experiments/results/analysis_runs_results/` and are already committed. Do not delete them. Do not stop because the remote names exist.
+
+- [ ] **Step 5: Push any commits that are not on the remote**
+
+Task 4 changes no files, so there is no new commit. The branch must still be pushed before Task 5:
 
 ```powershell
-ssh topfull-master "ls /home/idozacharia/experiments/results | rg '^analysis_' || echo none"
+git push -u origin HEAD
 ```
 
-Expected: `none`. If any exist, stop and ask: the runner would overwrite them.
+Expected: the push exits 0. Do not start the first hold until it does.
 
 ---
 
@@ -436,8 +485,9 @@ Every hold uses the same **hold procedure** below. Run the scenario blocks in th
 
 **Hold procedure** (for config `C`, e.g. `experiments/configs/analysis_runs/s3/s3_rg_only_normal_run1.yaml`):
 
+- [ ] **P0: Replica pin.** Run Task 4 Step 2's check. The four lines must match before Locust starts. If they do not, apply that step's patch, wait, and check again. Do not run P3 until they match. A check that still fails stops the matrix.
 - [ ] **P1: Cool-off.** At least 120 s since the previous `run_scenario.py` exit (none needed before the very first hold).
-- [ ] **P2: Leftover-writer check.** AGENTS.md section 6, steps 1-5 (Locust stop, master process stop, both `-clear` lines, clear logs, empty directory after 2 s). Do not continue if anything is alive.
+- [ ] **P2: Leftover-writer check.** AGENTS.md section 6, steps 1-5 (Locust stop, master process stop, both `-clear` lines, clear logs, empty directory after 2 s). Do not continue if anything is alive. Run P0 again after P2 if the patch or a rollout happened during the cool-off.
 - [ ] **P3: Run.**
 
 ```powershell
@@ -452,25 +502,36 @@ For long runs start it in the background and poll the terminal file. Expected en
 python experiments/pull_results.py C
 ```
 
-Expected: `Pulled to experiments/results/analysis_runs_results/<scenario>_<mode>/<variant>/<log_folder>` and a timeline PNG. Verify the folder holds `locust_*` CSVs, `run_manifest.json`, `resource_usage.csv`, `service_inbound.csv`, `topfull_throttle.csv` (TopFull-on) and, for RetryGuard-on holds, `retryguard.log`.
+Expected: `Pulled to experiments/results/final_runs_results/<scenario>_<mode>/<variant>/<log_folder>` and a timeline PNG. Verify the folder holds `locust_*` CSVs, `run_manifest.json`, `resource_usage.csv`, `service_inbound.csv`, `topfull_throttle.csv` (TopFull-on) and, for RetryGuard-on holds, `retryguard.log`. Then confirm the pin held for the whole hold. `replica_count` for `frontend` must be only 4, and for `productcatalogservice` only 1:
+
+```powershell
+python -c "import csv,sys; from collections import defaultdict; d=defaultdict(set)
+for row in csv.DictReader(open(sys.argv[1], newline='')):
+    if row['service'] in ('frontend','productcatalogservice'):
+        d[row['service']].add(int(float(row['replica_count'])))
+print(dict(d))" "experiments/results/final_runs_results/<scenario>_<mode>/<variant>/<log_folder>/resource_usage.csv"
+```
+
+Expected: `{'frontend': {4}, 'productcatalogservice': {1}}`. Any other set means the hold is not a column. Do not commit it. Re-apply the Task 4 Step 2 pin, redo P0-P2 and the 120 s cool-off, and re-run the same config. Twice at most. A third miss stops the matrix. The re-run overwrites that pull path.
 
 - [ ] **P5: Score and health-check.**
 
 ```powershell
-python experiments/analysis_score.py "experiments/results/analysis_runs_results/<scenario>_<mode>/<variant>/<log_folder>"
-python experiments/topfull_health.py "experiments/results/analysis_runs_results/<scenario>_<mode>/<variant>/<log_folder>"
+python experiments/analysis_score.py "experiments/results/final_runs_results/<scenario>_<mode>/<variant>/<log_folder>"
+python experiments/topfull_health.py "experiments/results/final_runs_results/<scenario>_<mode>/<variant>/<log_folder>"
 ```
 
-Write one line into the working log `docs/superpowers/plans/2026-10-16-analysis-runs-results-log.md` (create it on the first hold, keep appending): `log_folder | exit ok/failed | throttle ok/FLAGGED (stale seconds) / N/A TopFull off | health ok/PROXY FD/RL STALL/not assessable | RG toggle counts`. Only `health: ok` and an unflagged throttle table is clean.
+Write one line into `docs/superpowers/plans/2026-10-16-final-runs-results-log.md` (create it on the first hold of this re-run; do not append to `2026-10-16-analysis-runs-results-log.md`, which is the unpinned pass): `log_folder | exit ok/failed | throttle ok/FLAGGED (stale seconds) / N/A TopFull off | health ok/PROXY FD/RL STALL/not assessable | replicas frontend=4 catalog=1 | RG toggle counts`. Only `health: ok`, an unflagged throttle table, and the replica sets from P4 is clean.
 
-- [ ] **P6: Commit the pulled folder** (one commit per hold keeps the branch bisectable):
+- [ ] **P6: Commit and push the pulled folder** (one commit per hold keeps the branch bisectable). Do not start the next hold until the push exits 0:
 
 ```powershell
-git add "experiments/results/analysis_runs_results" docs/superpowers/plans/2026-10-16-analysis-runs-results-log.md
+git add "experiments/results/final_runs_results" docs/superpowers/plans/2026-10-16-final-runs-results-log.md
 git commit -m "data: <log_folder> (<clean|flagged: reason>)"
+git push -u origin HEAD
 ```
 
-If the folder is large enough that git objects become a problem, stop and ask before continuing; do not add it to `.gitignore` on your own.
+If the folder is large enough that git objects become a problem, stop and ask before continuing; do not add it to `.gitignore` on your own. A push failure is the same kind of stop: fix it or report it, and do not launch the next hold.
 
 #### 5.1 S2 (group `s2`, 10 min each, 10 holds)
 
@@ -486,25 +547,25 @@ After the last S3 hold confirm the checkout Deployment is back at its table valu
 
 #### 5.3 S4A constrained (group `s4a_constrained`, catalog 100m, 10 holds)
 
-- [ ] Round 1: `s4a_constrained/4a_constrained_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
-- [ ] Round 2: `s4a_constrained/4a_constrained_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
+- [x] Round 1: `s4a_constrained/4a_constrained_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
+- [x] Round 2: `s4a_constrained/4a_constrained_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
 #### 5.4 S4A unconstrained (group `s4a_unconstrained`, 10 holds)
 
-- [ ] Round 1: `s4a_unconstrained/4a_unconstrained_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
-- [ ] Round 2: `s4a_unconstrained/4a_unconstrained_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
+- [x] Round 1: `s4a_unconstrained/4a_unconstrained_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
+- [x] Round 2: `s4a_unconstrained/4a_unconstrained_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
 Before the first unconstrained hold confirm catalog is not left at 100m: the runner heals it, and its pre-run live-limit check aborts if not. A abort here is the guard working, not a failed plan.
 
 #### 5.5 S4B (group `s4b`, email 50m, 10 holds)
 
-- [ ] Round 1: `s4b/4b_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
-- [ ] Round 2: `s4b/4b_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
+- [x] Round 1: `s4b/4b_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
+- [x] Round 2: `s4b/4b_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
 #### 5.6 S1 (group `s1`, 5 min each, 10 holds)
 
-- [ ] Round 1: `s1/s1_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
-- [ ] Round 2: `s1/s1_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
+- [x] Round 1: `s1/s1_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
+- [x] Round 2: `s1/s1_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
 **No stop rule for flags.** Flagged holds do not pause the matrix, however many there are. Do not change controller code or YAMLs mid-matrix.
 
@@ -513,34 +574,37 @@ Before the first unconstrained hold confirm catalog is not left at 100m: the run
 ### Task 6: Matrix check
 
 **Files:**
-- Create: `docs/superpowers/plans/2026-10-16-analysis-runs-results-log.md` (already appended to in Task 5; this task adds the summary table)
+- Create: `docs/superpowers/plans/2026-10-16-final-runs-results-log.md` (already appended to in Task 5; this task adds the summary table)
 
-- [ ] **Step 1: Count the pulled folders**
+- [x] **Step 1: Count the pulled folders**
 
 ```powershell
-(Get-ChildItem "experiments/results/analysis_runs_results" -Recurse -Directory -Filter "analysis_*").Count
+(Get-ChildItem "experiments/results/final_runs_results" -Recurse -Directory -Filter "analysis_*").Count
 ```
 
 Expected: `60`. For each scenario_mode/variant folder expect exactly: `rg_only` 2 per mode per group, `tf_only` 2 per group (normal only), `both` 2 per mode per group.
 
-- [ ] **Step 2: Run the throttle audit over the new tree**
+- [x] **Step 2: Run the throttle audit over the new tree**
 
 ```powershell
 python experiments/throttle_flags.py audit --help
 ```
 
-If `audit` accepts a root argument, run it on `experiments/results/analysis_runs_results`; if it does not, rely on the per-hold P5 lines (the tool defaults to `final results/` and is not changed by this plan).
+If `audit` accepts a root argument, run it on `experiments/results/final_runs_results`; if it does not, rely on the per-hold P5 lines (the tool defaults to `final results/` and is not changed by this plan).
 
-- [ ] **Step 3: Summarise the log**
+- [x] **Step 3: Summarise the log**
 
 Append to the log file a table of 60 rows with columns scenario, variant, run, clean/flagged, reason. Count clean vs flagged and list the flagged ones for the user's re-run decision.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit and push**
 
 ```powershell
-git add docs/superpowers/plans/2026-10-16-analysis-runs-results-log.md
-git commit -m "docs: summarise the 60 analysis-run holds"
+git add docs/superpowers/plans/2026-10-16-final-runs-results-log.md
+git commit -m "docs: summarise the 60 final-run holds"
+git push -u origin HEAD
 ```
+
+Expected: the push exits 0. Do not start Task 7 until it does.
 
 ---
 
@@ -549,22 +613,25 @@ git commit -m "docs: summarise the 60 analysis-run holds"
 **Files:**
 - Modify: `STATUS.md`, `AGENTS.md` (in the worktree, on the branch)
 
-- [ ] **Step 1: STATUS.md**
+- [x] **Step 1: STATUS.md**
 
-Append one Done bullet: date range, "60 analysis-run holds (S1, S2, S3, S4A constrained, S4A unconstrained, S4B x 5 variants x 2) pulled to `experiments/results/analysis_runs_results/`", clean vs flagged counts, the flagged `log_folder`s with reason (throttle stale seconds / PROXY FD / RL STALL), link to the log file and this plan. Add to "Next free slots": `experiments/configs/analysis_runs/` is at run 2 for every file (a repeat needs `run3` in `log_folder` and `run_number`). State that no hold was re-run and that flags are left for the user's decision.
+Append one Done bullet: date range, "60 holds (S2, S3, S4A constrained, S4A unconstrained, S4B, S1 x 5 variants x 2) pulled to `experiments/results/final_runs_results/`", clean vs flagged counts, the flagged `log_folder`s with reason (throttle stale seconds / PROXY FD / RL STALL), and that every committed hold had frontend replicas 4 and catalog replicas 1 for the whole run. Link to `2026-10-16-final-runs-results-log.md` and this plan. Add to "Next free slots": `experiments/configs/analysis_runs/` is at run 2 for every file (a repeat needs `run3` in `log_folder` and `run_number`). State that the unpinned 20 in `analysis_runs_results/` are not this matrix, and that flags are left for the user's decision.
 
-- [ ] **Step 2: AGENTS.md**
+- [x] **Step 2: AGENTS.md**
 
-Replace the three "Latest" lines in section 4 (do not append). Add to section 2 repo layout: `analysis_runs_results/` (under `experiments/results/`), `configs/analysis_runs/`, `make_analysis_runs_configs.py`. Add the 60-hold matrix to the section 6 example. Update "Still open" with the branch `analysis-runs-results` (unmerged) and the flagged-hold re-run decision. State anything unverified as unverified.
+Replace the three "Latest" lines in section 4 (do not append). Section 2 and section 6 already name `final_runs_results/` as the pull destination from Task 1; confirm they still do, and that `analysis_runs_results/` is described as the closed unpinned pass. Add the 60-hold matrix to the section 6 example. Update "Still open" with the branch `analysis-runs-results` (unmerged) and the flagged-hold re-run decision. State anything unverified as unverified.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit and push**
 
 ```powershell
 git add STATUS.md AGENTS.md
 git commit -m "docs: record the analysis-runs matrix in status and agents"
+git push -u origin HEAD
 ```
 
-- [ ] **Step 4: Hand back**
+Expected: the push exits 0 before the hand-back.
+
+- [x] **Step 4: Hand back**
 
 Do not merge `analysis-runs-results` into `main` and do not remove the worktree. Report the branch name, counts, and flagged holds, and ask whether to merge, open a PR, or keep the branch as is.
 
@@ -572,6 +639,6 @@ Do not merge `analysis-runs-results` into `main` and do not remove the worktree.
 
 ## Self-Review
 
-- **Spec coverage:** six groups x five variants x two repeats = 60 (Task 3 matrix, Task 5 blocks); results location `analysis_runs_results` with the structure of `final results/` is the first implementation task (Task 2, after the worktree is made in Task 1, which the user's "separate worktree" requirement needs first); new branch from `main` in a separate worktree is Task 1. The S2/S3 naming, one tf_only per repeat, and flag-only/no-re-run policy are recorded as user decisions.
+- **Spec coverage:** six groups x five variants x two repeats = 60 (Task 5 blocks). The pull root `final_runs_results`, same structure as `final results/`, is Task 1, and the folder tree is Task 2. The replica pin in AGENTS.md §5 is Task 4 Step 2 and hold step P0, plus the `resource_usage.csv` check in P4. The unpinned 20 in `analysis_runs_results/` are not this matrix (decision 5). Commit and push after every finished task and every finished hold stays a global constraint.
 - **Placeholders:** none; the `C` and `<...>` tokens in the hold procedure are per-hold substitutions with a worked example given.
 - **Name consistency:** `GROUPS`, `VARIANTS`, `REPEATS`, `build_text`, `generate`, `final_results_local_dir`, `local_results_dir` are used the same way in every task.

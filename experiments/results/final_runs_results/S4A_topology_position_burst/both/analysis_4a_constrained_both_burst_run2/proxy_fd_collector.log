@@ -1,0 +1,4 @@
+2026-10-16T18:55:38Z  START  poll_interval=1.0s
+2026-10-16T19:07:44Z  WARNING  no process matching /exe/proxy_online_boutique
+2026-10-16T19:07:44Z  SHUTDOWN  signal=15
+2026-10-16T19:07:45Z  EXIT

@@ -44,7 +44,8 @@ experiments/         ← the actual tooling: runner, scenario configs, RetryGuar
   virtual-services.yaml ← Istio VirtualService manifests (retries.attempts: 3 default)
   patch_metric_collector.py ← one-shot patcher already applied on master (see §6d in PHASE5 guide)
   results/           ← local results only (master still uses a flat `/home/idozacharia/experiments/results/`)
-    analysis_runs_results/ ← **where every new hold is pulled (rule from 2026-10-16).** Same layout as `final results/`: scenario, RetryGuard mode, then controller variant — see §6
+    final_runs_results/ ← **where every new hold is pulled (rule from 2026-10-16).** Same layout as `final results/`: scenario, RetryGuard mode, then controller variant — see §6
+    analysis_runs_results/ ← closed unpinned pass (20 S2/S3 holds, 2026-10-16). Not a target
     final results/   ← closed: holds up to 2026-10-16. Stays on disk and in git. Never a target for a new hold
     campaign_48/     ← closed Phase 7 dataset (2026-09-05 → 2026-09-06), in git, organized into 7 scenario subfolders (`S1_normal_op/` … `S6_forced_recovery/`) — see [experiments/results/campaign_48/README.md](experiments/results/campaign_48/README.md)
     august_38/       ← historical August 38-run matrix (git-tracked; do not delete; still a flat list of run folders, not reorganized)
@@ -117,20 +118,19 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-10-16)
+## 4. Current status (as of 2026-10-17)
 
 ### Latest
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **Rule (2026-10-16): every new run is pulled to `experiments/results/analysis_runs_results/`**, not `final results/` (closed). Committed on main. The folder itself is not created yet. Not verified against a live hold.
-- **Analysis-runs plan (2026-10-16), not started.** 60 holds (S2, S3, S4A constrained, S4A unconstrained, S4B, then S1; 5 variants; 2 repeats) planned on branch `analysis-runs-results` in a separate worktree, pulled to `experiments/results/analysis_runs_results/`. Plan: [2026-10-16-analysis-runs-results.md](docs/superpowers/plans/2026-10-16-analysis-runs-results.md). It is the newest entry; the S3 cap-floor lines below it still describe the last hold.
-- **S3 TopFull-only cap-floor hold `final_s3_tf_only_run5` (2026-10-16).** Floor `verdict=pass`, `saw_zero=no`: a `postcheckout` cap was written strictly below 10 (proxy min 1.190635 req/s). The regression check did not clear: `health: RL STALL`, so the hold is `not_clean` and the verification did not pass. Branch `cap-floor-0` stays unmerged. The hold exposed RL caps of 9997–9999.9 right after a reset to 10000; the scorer and graphs now treat a threshold of 9900 or more as no cap (record: [STATUS.md](STATUS.md) Done). Plan: [2026-10-16-s3-tf-only-cap-floor-verify.md](docs/superpowers/plans/2026-10-16-s3-tf-only-cap-floor-verify.md).
-- **Next free slot.** `s3_tf_only.yaml` is run 6 (`final_s3_tf_only_run6`). The other four S3 YAMLs stay at 5. `final_s3_tf_only_run5` stays verification only until the user says otherwise. The locked S3 columns remain `final_s3_*_run3` and `final_s3_*_run4`.
-- **Replica pin (2026-10-16).** Frontend HPA min=max=4, catalog HPA min=max=1, frontend `proxyCPU=90m`, `proxyCPULimit` unset. Applied on the cluster. This lock stays after every hold (§5). Checkout limit `800m`. The three VMs were left RUNNING.
+- **Flagged-hold run3 re-runs complete (2026-10-17).** Three clean extras beside the 60: `analysis_s2_both_normal_run3`, `analysis_4a_constrained_both_normal_run3`, `analysis_s1_both_burst_run3`. Flagged run1/run2 folders stay unchanged. Configs in `experiments/configs/analysis_runs_rerun/`. Pin held on every pull. Log: [2026-10-16-final-runs-results-log.md](docs/superpowers/plans/2026-10-16-final-runs-results-log.md) Re-runs section.
+- **60-hold re-run complete (2026-10-16 → 2026-10-17).** All 60 holds (S2, S3, S4A constrained, S4A unconstrained, S4B, S1 × 5 variants × 2) are in `experiments/results/final_runs_results/`. **57 clean, 3 flagged** (flagged folders kept; each has a clean run3 above). Every committed hold had frontend replicas 4 and catalog replicas 1. Plan: [2026-10-16-analysis-runs-results.md](docs/superpowers/plans/2026-10-16-analysis-runs-results.md). Destination for every new hold is `final_runs_results/` (not `analysis_runs_results/`, which holds the closed unpinned 20).
+- **Next free slot.** The three re-run YAMLs are at run 3. Other `analysis_runs/` files stay at run 2. `s3_tf_only.yaml` under `final_configs/` is run 6; the other four S3 YAMLs stay at 5. `final_s3_tf_only_run5` stays verification only. Replica pin stays on the cluster: frontend HPA 4/4, catalog HPA 1/1, `proxyCPU=90m`, `proxyCPULimit` unset. Checkout `800m`, catalog `800m`, email `120m`.
 
 ### Still open
 
+- The unpinned 20 in `analysis_runs_results/` are not this matrix. The three flagged folders stay on disk; prefer the clean run3 folders for those slots.
 - The S3 TopFull-only cap-floor verification did not pass (`verdict=pass`, `not_clean`: `health: RL STALL`). Plan: [2026-10-16-s3-tf-only-cap-floor-verify.md](docs/superpowers/plans/2026-10-16-s3-tf-only-cap-floor-verify.md).
 - Mentor sign-off on the TopFull RL timeout patch is open. The change is disclosed in [TOPFULL-UPSTREAM-DEVIATIONS.md](Guides%20and%20Info/TOPFULL-UPSTREAM-DEVIATIONS.md).
 - The re-run decision on the 11 holds in [2026-10-16-proxy-fd-rerun-decisions.md](Guides%20and%20Info/2026-10-16-proxy-fd-rerun-decisions.md) is open. `final_s2_tf_only_run4` stays verification only until the user says otherwise.
@@ -225,7 +225,7 @@ ssh topfull-master "sudo rm -f /tmp/rg_proxy.sh /tmp/rg_rl.sh /tmp/rg_mc.sh /tmp
    ssh topfull-master "sleep 2; ls /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/logs"
    ```
 
-New holds that are pulled into `analysis_runs_results/` use a file under `experiments/configs/final_configs/`. Example, S2 with both controllers on and RetryGuard in burst mode:
+New holds that are pulled into `final_runs_results/` use a file under `experiments/configs/final_configs/`. Example, S2 with both controllers on and RetryGuard in burst mode:
 
 ```powershell
 python experiments/run_scenario.py experiments/configs/final_configs/2/s2_both_burst.yaml
@@ -237,10 +237,10 @@ The runner handles everything end-to-end, including copying `retryguard.py`, `en
 
 **After every hold: check throttle data quality.** The TopFull proxy admin endpoints (`/thresholds`, `/stats`) sometimes time out and the collector then carries stale values. In the 2026-10-10 → 10-12 S2 holds, 6 of 17 were affected (4 of them in the `study6` window), one for ~70% of its run. Right after pulling, run `python experiments/analysis_score.py <run_dir>` and read its `Throttle data quality` table, or just `rg "fetch failed" "<run_dir>/topfull_throttle_collector.log"`. The flag applies only when TopFull is on (`topfull_rl.enabled` in `run_manifest.json`, which is the `both` and `tf_only` variant folders). A TopFull-off hold (`rg_only`, `both_off`) is `N/A: TopFull off`, not flagged, even when the collector log has `fetch failed` or a long gap. A TopFull-on hold is **FLAGGED** if that log has any `fetch failed` WARNING or any API goes over 10 s with no fresh threshold or admitted read (normal is 5 s; a gap of exactly 10 s is not a flag). Then: (1) put one line in the [STATUS.md](STATUS.md) Done bullet for that hold saying it is flagged and how long it was stale; (2) only the series whose gap is over 10 s is carried, not measured, and a hold whose threshold reads stayed fresh has a measured cap even when admitted reads went stale: the rows stay in the CSV, filter a carried number on `*_fresh==1`, and `graphs_tool` / `multi_graphs_tool` draw a stale stretch as a grey band with dashed `(stale)` lines; (3) name it in the write-up per [ANALYSIS-TEMPLATE.md](Guides%20and%20Info/ANALYSIS-TEMPLATE.md) item 17; (4) tell the user so they can decide on a re-run, since the repeat slot is a bump of `run_number`. Goodput, P95, rejection, and retry numbers do not come from that file, but they are not automatically clean: a proxy that ran out of file descriptors refuses new connections on every variant, `rg_only` included (evidence: [2026-10-15-proxy-fd-evidence-flagged-holds.md](Guides%20and%20Info/2026-10-15-proxy-fd-evidence-flagged-holds.md)). Not a flag: a missing `EXIT` line in `resource_usage_collector.log` (the kill lands before it is written; `SHUTDOWN` is the reliable end marker), and an Envoy or resource log that is only `START` / `SHUTDOWN` (successful polls log nothing). On every hold also run `python experiments/topfull_health.py "<run_dir>"` (or read the scorer's `Proxy and RL health` table). Its `health:` line is a second flag, independent of the throttle flag. **PROXY FD** (any variant): `topfull_proxy.log` has `too many open files`, or `proxy_fds.csv` reached its soft limit; treat the hold's goodput, P95, rejection, and retry numbers as not clean, tell the user, and the repeat slot is a bump of `run_number`. **RL STALL** (TopFull-on only): the RL loop was silent over 30 s, or a `current_rps` call timed out or took over 3 s; the cap and admitted-rate numbers describe a controller that stopped adjusting. Holds before 2026-10-15 print `not assessable`, which is not the same as clean; when their throttle collector log shows fetch warnings or a stale stretch (TopFull-off holds included) the scorer's `Proxy and RL health` row reads **PROXY STALL SUSPECTED**, the only trace of a proxy stall those holds have (`python experiments/throttle_flags.py suspected` lists them). Its `proxy:` and `rl:` lines still give the proxy monitor's longest tick gap and the RL loop's longest silence. **When proxy-related numbers are clean:** only a hold from 2026-10-16 on whose `health:` line is `ok` (and whose throttle table is not FLAGGED) has goodput, P95, rejection, retry, cap, and admitted-rate numbers you may quote as clean. Any flag means not clean: tell the user, and let them decide on the re-run. The descriptor fix is only proven by a hold whose `peak_fds` in `proxy_fds.csv` went above the old 1024 limit and stayed `ok`; `final_s2_tf_only_run4` peaked at 968, so it is a smoke test, not that proof. Say so when you cite a passing hold.
 
-**Pull every new hold into `analysis_runs_results/` (rule from 2026-10-16: any new run from here on).** The runner's printed `scp` and `python experiments/pull_results.py <config>` point at the path below for every config, whatever its `log_folder` (`RESULTS_ROOT` in `run_scenario.py`). `final results/` and `campaign_48/` are closed and never a target; analysis tools still read them by passing the run directory. TopFull-only holds go in the `normal` mode folder:
+**Pull every new hold into `final_runs_results/` (rule from 2026-10-16: any new run from here on).** The runner's printed `scp` and `python experiments/pull_results.py <config>` point at the path below for every config, whatever its `log_folder` (`RESULTS_ROOT` in `run_scenario.py`). `final results/`, `campaign_48/`, and `analysis_runs_results/` are closed and never a target; analysis tools still read them by passing the run directory. TopFull-only holds go in the `normal` mode folder:
 
 ```
-experiments/results/analysis_runs_results/<scenario>_<normal|burst>/<variant>/<log_folder>/
+experiments/results/final_runs_results/<scenario>_<normal|burst>/<variant>/<log_folder>/
 ```
 
 | Scenario | `<scenario>` |
@@ -262,7 +262,7 @@ The last segment of `<scenario>_<normal|burst>` is the RetryGuard mode. Use `nor
 | on | on | `both` |
 | off | off | `both_off` |
 
-Create the scenario and variant directories when they are missing. The run directory name stays equal to `log_folder`. Example: `experiments/results/analysis_runs_results/S2_sustained_overload_burst/both/analysis_s2_both_burst_run1/`.
+Create the scenario and variant directories when they are missing. The run directory name stays equal to `log_folder`. Example: `experiments/results/final_runs_results/S2_sustained_overload_burst/both/analysis_s2_both_burst_run1/`.
 
 **Before repeating a scenario:** open [STATUS.md](STATUS.md) "Next free slots", bump `run_number` and change `log_folder` in the YAML, or the new run will overwrite the folder **on master**. Never reuse August `run1–3` (S1–S4) or S5 `run1–2`.
 
