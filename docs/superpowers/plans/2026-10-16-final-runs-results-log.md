@@ -55,3 +55,4 @@ Re-run of the 60-hold matrix into `experiments/results/final_runs_results/`. Rep
 - analysis_4b_tf_only_run2 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
 - analysis_4b_both_normal_run2 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no toggles
 - analysis_4b_rg_only_normal_run2 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no toggles
+- analysis_s1_rg_only_normal_run1 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no toggles
