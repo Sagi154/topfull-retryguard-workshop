@@ -1,0 +1,826 @@
+2026-10-17T04:49:01Z  Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+2026-10-17T04:49:01Z  Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+2026-10-17T04:49:01Z  See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+2026-10-17T04:49:04Z  /home/idozacharia/TopFull/venv/lib/python3.8/site-packages/google/auth/__init__.py:52: FutureWarning: You are using a Python version 3.8 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+2026-10-17T04:49:04Z    warnings.warn(eol_message.format("3.8"), FutureWarning)
+2026-10-17T04:49:04Z  /home/idozacharia/TopFull/venv/lib/python3.8/site-packages/google/oauth2/__init__.py:38: FutureWarning: You are using a Python version 3.8 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+2026-10-17T04:49:04Z    warnings.warn(eol_message.format("3.8"), FutureWarning)
+2026-10-17T04:49:04Z  /home/idozacharia/TopFull/venv/lib/python3.8/site-packages/google/auth/crypt/es.py:21: CryptographyDeprecationWarning: Python 3.8 is no longer supported by the Python core team and support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.8.
+2026-10-17T04:49:04Z    import cryptography.exceptions
+2026-10-17T04:49:06Z  2026-10-17 04:49:06,445	INFO worker.py:1509 -- Started a local Ray instance. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+2026-10-17T04:49:07Z  2026-10-17 04:49:07,386	INFO tensorboardx.py:42 -- pip install "ray[tune]" to see TensorBoard files.
+2026-10-17T04:49:07Z  2026-10-17 04:49:07,386	WARNING unified.py:54 -- Could not instantiate TBXLogger: cannot import name 'builder' from 'google.protobuf.internal' (/home/idozacharia/TopFull/venv/lib/python3.8/site-packages/google/protobuf/internal/__init__.py).
+2026-10-17T04:49:07Z  2026-10-17 04:49:07,388	INFO algorithm.py:1871 -- Your framework setting is 'tf', meaning you are using static-graph mode. Set framework='tf2' to enable eager execution with tf2.x. You may also then want to set eager_tracing=True in order to reach similar execution speed as with static-graph mode.
+2026-10-17T04:49:07Z  2026-10-17 04:49:07,388	INFO ppo.py:378 -- In multi-agent mode, policies will be optimized sequentially by the multi-GPU optimizer. Consider setting simple_optimizer=True if this doesn't work for you.
+2026-10-17T04:49:07Z  2026-10-17 04:49:07,389	INFO algorithm.py:351 -- Current log_level is WARN. For more information, set 'log_level': 'INFO' / 'DEBUG' or use the -v and -vv flags.
+2026-10-17T04:49:07Z  /home/idozacharia/TopFull/venv/lib/python3.8/site-packages/ray/_private/ray_option_utils.py:266: DeprecationWarning: Setting 'object_store_memory' for actors is deprecated since it doesn't actually reserve the required object store memory. Use object spilling that's enabled by default (https://docs.ray.io/en/releases-2.0.0/ray-core/objects/object-spilling.html) instead to bypass the object store memory size limitation.
+2026-10-17T04:49:07Z    warnings.warn(
+2026-10-17T04:49:07Z  [2m[36m(pid=422122)[0m Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+2026-10-17T04:49:07Z  [2m[36m(pid=422122)[0m Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+2026-10-17T04:49:07Z  [2m[36m(pid=422122)[0m See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+2026-10-17T04:49:10Z  [2m[36m(RolloutWorker pid=422122)[0m /home/idozacharia/TopFull/venv/lib/python3.8/site-packages/gym/spaces/box.py:84: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+2026-10-17T04:49:10Z  [2m[36m(RolloutWorker pid=422122)[0m   logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+2026-10-17T04:49:10Z  [2m[36m(RolloutWorker pid=422122)[0m 2026-10-17 04:49:10,607	WARNING env.py:142 -- Your env doesn't have a .spec.max_episode_steps attribute. This is fine if you have set 'horizon' in your config dictionary, or `soft_horizon`. However, if you haven't, 'horizon' will default to infinity, and your environment will not be reset.
+2026-10-17T04:49:12Z  2026-10-17 04:49:12,574	WARNING util.py:65 -- Install gputil for GPU system monitoring.
+2026-10-17T04:49:12Z  2026-10-17 04:49:12,645	INFO trainable.py:668 -- Restored on 10.128.0.3 from checkpoint: /home/idozacharia/TopFull/TopFull_master/online_boutique_scripts/src/checkpoint_000701
+2026-10-17T04:49:12Z  2026-10-17 04:49:12,645	INFO trainable.py:677 -- Current state after restoring: {'_iteration': 701, '_timesteps_total': None, '_time_total': 4156.153457164764, '_episodes_total': 54980}
+2026-10-17T04:49:12Z  RL_RPS_START caller=init
+2026-10-17T04:49:12Z  RL_RPS_END caller=init elapsed_s=0.00 ok=1
+2026-10-17T04:49:14Z  RL_LOOP_START iter=1
+2026-10-17T04:49:14Z  {'frontend': 5.0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 9.0, 'paymentservice': 0, 'shippingservice': 7.0}
+2026-10-17T04:49:14Z  []
+2026-10-17T04:49:14Z  No overloaded services
+2026-10-17T04:49:16Z  RL_LOOP_START iter=2
+2026-10-17T04:49:16Z  {'frontend': 0, 'productcatalogservice': 18.0, 'checkoutservice': 0, 'recommendationservice': 19.0, 'emailservice': 24.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 9.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:16Z  []
+2026-10-17T04:49:16Z  No overloaded services
+2026-10-17T04:49:18Z  RL_LOOP_START iter=3
+2026-10-17T04:49:18Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 28.0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 8.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 8.0}
+2026-10-17T04:49:18Z  []
+2026-10-17T04:49:18Z  No overloaded services
+2026-10-17T04:49:20Z  RL_LOOP_START iter=4
+2026-10-17T04:49:20Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 7.0}
+2026-10-17T04:49:20Z  []
+2026-10-17T04:49:20Z  No overloaded services
+2026-10-17T04:49:22Z  RL_LOOP_START iter=5
+2026-10-17T04:49:22Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:22Z  []
+2026-10-17T04:49:22Z  No overloaded services
+2026-10-17T04:49:24Z  RL_LOOP_START iter=6
+2026-10-17T04:49:24Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 11.0, 'currencyservice': 8.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:24Z  []
+2026-10-17T04:49:24Z  No overloaded services
+2026-10-17T04:49:26Z  RL_LOOP_START iter=7
+2026-10-17T04:49:26Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 18.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:26Z  []
+2026-10-17T04:49:26Z  No overloaded services
+2026-10-17T04:49:28Z  RL_LOOP_START iter=8
+2026-10-17T04:49:28Z  {'frontend': 0, 'productcatalogservice': 20.0, 'checkoutservice': 20.0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 9.0, 'currencyservice': 7.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:28Z  []
+2026-10-17T04:49:28Z  No overloaded services
+2026-10-17T04:49:30Z  RL_LOOP_START iter=9
+2026-10-17T04:49:30Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-17T04:49:30Z  []
+2026-10-17T04:49:30Z  No overloaded services
+2026-10-17T04:49:32Z  RL_LOOP_START iter=10
+2026-10-17T04:49:32Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 28.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:32Z  []
+2026-10-17T04:49:32Z  No overloaded services
+2026-10-17T04:49:34Z  RL_LOOP_START iter=11
+2026-10-17T04:49:34Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 6.0}
+2026-10-17T04:49:34Z  []
+2026-10-17T04:49:34Z  No overloaded services
+2026-10-17T04:49:36Z  RL_LOOP_START iter=12
+2026-10-17T04:49:36Z  {'frontend': 0, 'productcatalogservice': 21.0, 'checkoutservice': 0, 'recommendationservice': 15.0, 'emailservice': 24.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:36Z  []
+2026-10-17T04:49:36Z  No overloaded services
+2026-10-17T04:49:38Z  RL_LOOP_START iter=13
+2026-10-17T04:49:38Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 13.0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 8.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:38Z  []
+2026-10-17T04:49:38Z  No overloaded services
+2026-10-17T04:49:40Z  RL_LOOP_START iter=14
+2026-10-17T04:49:40Z  {'frontend': 4.0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 7.0}
+2026-10-17T04:49:40Z  []
+2026-10-17T04:49:40Z  No overloaded services
+2026-10-17T04:49:42Z  RL_LOOP_START iter=15
+2026-10-17T04:49:42Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 18.0, 'emailservice': 15.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 8.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:42Z  []
+2026-10-17T04:49:42Z  No overloaded services
+2026-10-17T04:49:44Z  RL_LOOP_START iter=16
+2026-10-17T04:49:44Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:44Z  []
+2026-10-17T04:49:44Z  No overloaded services
+2026-10-17T04:49:46Z  RL_LOOP_START iter=17
+2026-10-17T04:49:46Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 19.0, 'emailservice': 16.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:46Z  []
+2026-10-17T04:49:46Z  No overloaded services
+2026-10-17T04:49:48Z  RL_LOOP_START iter=18
+2026-10-17T04:49:48Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 14.0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 7.0, 'paymentservice': 0, 'shippingservice': 13.0}
+2026-10-17T04:49:48Z  []
+2026-10-17T04:49:48Z  No overloaded services
+2026-10-17T04:49:50Z  RL_LOOP_START iter=19
+2026-10-17T04:49:50Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 24.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:50Z  []
+2026-10-17T04:49:50Z  No overloaded services
+2026-10-17T04:49:52Z  RL_LOOP_START iter=20
+2026-10-17T04:49:52Z  {'frontend': 8.0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 17.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 7.0}
+2026-10-17T04:49:52Z  []
+2026-10-17T04:49:52Z  No overloaded services
+2026-10-17T04:49:54Z  RL_LOOP_START iter=21
+2026-10-17T04:49:54Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 8.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:54Z  []
+2026-10-17T04:49:54Z  No overloaded services
+2026-10-17T04:49:56Z  RL_LOOP_START iter=22
+2026-10-17T04:49:56Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 24.0, 'emailservice': 19.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:49:56Z  []
+2026-10-17T04:49:56Z  No overloaded services
+2026-10-17T04:49:58Z  RL_LOOP_START iter=23
+2026-10-17T04:49:58Z  {'frontend': 0, 'productcatalogservice': 16.0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 10.0, 'paymentservice': 0, 'shippingservice': 13.0}
+2026-10-17T04:49:58Z  []
+2026-10-17T04:49:58Z  No overloaded services
+2026-10-17T04:50:00Z  RL_LOOP_START iter=24
+2026-10-17T04:50:00Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 33.0, 'adservice': 0, 'cartservice': 10.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-17T04:50:00Z  []
+2026-10-17T04:50:00Z  No overloaded services
+2026-10-17T04:50:02Z  RL_LOOP_START iter=25
+2026-10-17T04:50:02Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 23.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 8.0, 'paymentservice': 0, 'shippingservice': 12.0}
+2026-10-17T04:50:02Z  []
+2026-10-17T04:50:02Z  No overloaded services
+2026-10-17T04:50:04Z  RL_LOOP_START iter=26
+2026-10-17T04:50:04Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 9.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:04Z  []
+2026-10-17T04:50:04Z  No overloaded services
+2026-10-17T04:50:06Z  RL_LOOP_START iter=27
+2026-10-17T04:50:06Z  {'frontend': 0, 'productcatalogservice': 19.0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:06Z  []
+2026-10-17T04:50:06Z  No overloaded services
+2026-10-17T04:50:08Z  RL_LOOP_START iter=28
+2026-10-17T04:50:08Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 11.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 8.0}
+2026-10-17T04:50:08Z  []
+2026-10-17T04:50:08Z  No overloaded services
+2026-10-17T04:50:10Z  RL_LOOP_START iter=29
+2026-10-17T04:50:10Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 10.0}
+2026-10-17T04:50:10Z  []
+2026-10-17T04:50:10Z  No overloaded services
+2026-10-17T04:50:12Z  RL_LOOP_START iter=30
+2026-10-17T04:50:12Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 18.0, 'emailservice': 17.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:12Z  []
+2026-10-17T04:50:12Z  No overloaded services
+2026-10-17T04:50:14Z  RL_LOOP_START iter=31
+2026-10-17T04:50:14Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 14.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:14Z  []
+2026-10-17T04:50:14Z  No overloaded services
+2026-10-17T04:50:16Z  RL_LOOP_START iter=32
+2026-10-17T04:50:16Z  {'frontend': 0, 'productcatalogservice': 23.0, 'checkoutservice': 0, 'recommendationservice': 28.0, 'emailservice': 17.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:16Z  []
+2026-10-17T04:50:16Z  No overloaded services
+2026-10-17T04:50:18Z  RL_LOOP_START iter=33
+2026-10-17T04:50:18Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 15.0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 15.0}
+2026-10-17T04:50:18Z  []
+2026-10-17T04:50:18Z  No overloaded services
+2026-10-17T04:50:20Z  RL_LOOP_START iter=34
+2026-10-17T04:50:20Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:20Z  []
+2026-10-17T04:50:20Z  No overloaded services
+2026-10-17T04:50:22Z  RL_LOOP_START iter=35
+2026-10-17T04:50:22Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 28.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 9.0}
+2026-10-17T04:50:22Z  []
+2026-10-17T04:50:22Z  No overloaded services
+2026-10-17T04:50:24Z  RL_LOOP_START iter=36
+2026-10-17T04:50:24Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 12.0, 'currencyservice': 12.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:24Z  []
+2026-10-17T04:50:24Z  No overloaded services
+2026-10-17T04:50:26Z  RL_LOOP_START iter=37
+2026-10-17T04:50:26Z  {'frontend': 0, 'productcatalogservice': 23.0, 'checkoutservice': 0, 'recommendationservice': 22.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 11.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:26Z  []
+2026-10-17T04:50:26Z  No overloaded services
+2026-10-17T04:50:28Z  RL_LOOP_START iter=38
+2026-10-17T04:50:28Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 16.0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 11.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:28Z  []
+2026-10-17T04:50:28Z  No overloaded services
+2026-10-17T04:50:30Z  RL_LOOP_START iter=39
+2026-10-17T04:50:30Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 24.0, 'emailservice': 17.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:30Z  []
+2026-10-17T04:50:30Z  No overloaded services
+2026-10-17T04:50:32Z  RL_LOOP_START iter=40
+2026-10-17T04:50:32Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 24.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 7.0}
+2026-10-17T04:50:32Z  []
+2026-10-17T04:50:32Z  No overloaded services
+2026-10-17T04:50:34Z  RL_LOOP_START iter=41
+2026-10-17T04:50:34Z  {'frontend': 0, 'productcatalogservice': 0, 'checkoutservice': 0, 'recommendationservice': 0, 'emailservice': 0, 'adservice': 0, 'cartservice': 0, 'currencyservice': 7.0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:34Z  []
+2026-10-17T04:50:34Z  No overloaded services
+2026-10-17T04:50:36Z  RL_LOOP_START iter=42
+2026-10-17T04:50:36Z  {'frontend': 8.0, 'productcatalogservice': 22.0, 'checkoutservice': 0, 'recommendationservice': 18.0, 'emailservice': 24.0, 'adservice': 0, 'cartservice': 8.0, 'currencyservice': 0, 'paymentservice': 0, 'shippingservice': 0}
+2026-10-17T04:50:36Z  []
+2026-10-17T04:50:36Z  No overloaded services
+2026-10-17T04:50:38Z  RL_LOOP_START iter=43
+2026-10-17T04:50:38Z  {'frontend': 11.0, 'productcatalogservice': 30.0, 'checkoutservice': 35.0, 'recommendationservice': 4.0, 'emailservice': 0, 'adservice': 0, 'cartservice': 36.0, 'currencyservice': 14.0, 'paymentservice': 0, 'shippingservice': 11.0}
+2026-10-17T04:50:38Z  []
+2026-10-17T04:50:38Z  No overloaded services
+2026-10-17T04:50:40Z  RL_LOOP_START iter=44
+2026-10-17T04:50:40Z  {'frontend': 27.333333333333332, 'productcatalogservice': 69.0, 'checkoutservice': 23.0, 'recommendationservice': 21.0, 'emailservice': 22.0, 'adservice': 0, 'cartservice': 38.0, 'currencyservice': 18.0, 'paymentservice': 0, 'shippingservice': 18.0}
+2026-10-17T04:50:40Z  []
+2026-10-17T04:50:40Z  No overloaded services
+2026-10-17T04:50:42Z  RL_LOOP_START iter=45
+2026-10-17T04:50:42Z  {'frontend': 60.333333333333336, 'productcatalogservice': 90.0, 'checkoutservice': 77.0, 'recommendationservice': 58.0, 'emailservice': 5.0, 'adservice': 0, 'cartservice': 73.0, 'currencyservice': 47.0, 'paymentservice': 0, 'shippingservice': 23.0}
+2026-10-17T04:50:42Z  []
+2026-10-17T04:50:42Z  No overloaded services
+2026-10-17T04:50:44Z  RL_LOOP_START iter=46
+2026-10-17T04:50:44Z  {'frontend': 66.25, 'productcatalogservice': 138.0, 'checkoutservice': 93.0, 'recommendationservice': 83.0, 'emailservice': 7.0, 'adservice': 0, 'cartservice': 107.0, 'currencyservice': 73.0, 'paymentservice': 0, 'shippingservice': 13.0}
+2026-10-17T04:50:44Z  []
+2026-10-17T04:50:44Z  No overloaded services
+2026-10-17T04:50:46Z  RL_LOOP_START iter=47
+2026-10-17T04:50:46Z  {'frontend': 95.0, 'productcatalogservice': 161.0, 'checkoutservice': 107.0, 'recommendationservice': 99.0, 'emailservice': 10.0, 'adservice': 0, 'cartservice': 124.0, 'currencyservice': 88.0, 'paymentservice': 0, 'shippingservice': 22.0}
+2026-10-17T04:50:46Z  []
+2026-10-17T04:50:46Z  No overloaded services
+2026-10-17T04:50:48Z  RL_LOOP_START iter=48
+2026-10-17T04:50:48Z  {'frontend': 120.75, 'productcatalogservice': 188.0, 'checkoutservice': 143.0, 'recommendationservice': 131.0, 'emailservice': 12.0, 'adservice': 0, 'cartservice': 164.0, 'currencyservice': 83.0, 'paymentservice': 0, 'shippingservice': 28.0}
+2026-10-17T04:50:48Z  []
+2026-10-17T04:50:48Z  No overloaded services
+2026-10-17T04:50:50Z  RL_LOOP_START iter=49
+2026-10-17T04:50:50Z  {'frontend': 115.5, 'productcatalogservice': 209.0, 'checkoutservice': 138.0, 'recommendationservice': 190.0, 'emailservice': 13.0, 'adservice': 0, 'cartservice': 170.0, 'currencyservice': 91.0, 'paymentservice': 0, 'shippingservice': 24.0}
+2026-10-17T04:50:50Z  []
+2026-10-17T04:50:50Z  No overloaded services
+2026-10-17T04:50:52Z  RL_LOOP_START iter=50
+2026-10-17T04:50:52Z  {'frontend': 142.0, 'productcatalogservice': 253.0, 'checkoutservice': 176.0, 'recommendationservice': 190.0, 'emailservice': 32.0, 'adservice': 0, 'cartservice': 194.0, 'currencyservice': 120.0, 'paymentservice': 0, 'shippingservice': 24.0}
+2026-10-17T04:50:52Z  []
+2026-10-17T04:50:52Z  No overloaded services
+2026-10-17T04:50:54Z  RL_LOOP_START iter=51
+2026-10-17T04:50:54Z  {'frontend': 168.5, 'productcatalogservice': 240.0, 'checkoutservice': 174.0, 'recommendationservice': 198.0, 'emailservice': 19.0, 'adservice': 0, 'cartservice': 220.0, 'currencyservice': 140.0, 'paymentservice': 0, 'shippingservice': 29.0}
+2026-10-17T04:50:54Z  []
+2026-10-17T04:50:54Z  No overloaded services
+2026-10-17T04:50:56Z  RL_LOOP_START iter=52
+2026-10-17T04:50:56Z  {'frontend': 176.25, 'productcatalogservice': 299.0, 'checkoutservice': 201.0, 'recommendationservice': 247.0, 'emailservice': 27.0, 'adservice': 0, 'cartservice': 256.0, 'currencyservice': 149.0, 'paymentservice': 0, 'shippingservice': 36.0}
+2026-10-17T04:50:56Z  []
+2026-10-17T04:50:56Z  No overloaded services
+2026-10-17T04:50:58Z  RL_LOOP_START iter=53
+2026-10-17T04:50:58Z  {'frontend': 185.0, 'productcatalogservice': 289.0, 'checkoutservice': 254.0, 'recommendationservice': 243.0, 'emailservice': 21.0, 'adservice': 0, 'cartservice': 255.0, 'currencyservice': 153.0, 'paymentservice': 0, 'shippingservice': 47.0}
+2026-10-17T04:50:58Z  []
+2026-10-17T04:50:58Z  No overloaded services
+2026-10-17T04:51:00Z  RL_LOOP_START iter=54
+2026-10-17T04:51:00Z  {'frontend': 210.75, 'productcatalogservice': 320.0, 'checkoutservice': 254.0, 'recommendationservice': 292.0, 'emailservice': 47.0, 'adservice': 0, 'cartservice': 265.0, 'currencyservice': 182.0, 'paymentservice': 0, 'shippingservice': 38.0}
+2026-10-17T04:51:00Z  []
+2026-10-17T04:51:00Z  No overloaded services
+2026-10-17T04:51:02Z  RL_LOOP_START iter=55
+2026-10-17T04:51:02Z  {'frontend': 223.5, 'productcatalogservice': 333.0, 'checkoutservice': 281.0, 'recommendationservice': 306.0, 'emailservice': 30.0, 'adservice': 0, 'cartservice': 301.0, 'currencyservice': 202.0, 'paymentservice': 0, 'shippingservice': 57.0}
+2026-10-17T04:51:02Z  []
+2026-10-17T04:51:02Z  No overloaded services
+2026-10-17T04:51:04Z  RL_LOOP_START iter=56
+2026-10-17T04:51:04Z  {'frontend': 233.0, 'productcatalogservice': 376.0, 'checkoutservice': 224.0, 'recommendationservice': 324.0, 'emailservice': 26.0, 'adservice': 0, 'cartservice': 312.0, 'currencyservice': 187.0, 'paymentservice': 0, 'shippingservice': 41.0}
+2026-10-17T04:51:04Z  []
+2026-10-17T04:51:04Z  No overloaded services
+2026-10-17T04:51:06Z  RL_LOOP_START iter=57
+2026-10-17T04:51:06Z  {'frontend': 222.75, 'productcatalogservice': 397.0, 'checkoutservice': 273.0, 'recommendationservice': 324.0, 'emailservice': 39.0, 'adservice': 0, 'cartservice': 326.0, 'currencyservice': 197.0, 'paymentservice': 0, 'shippingservice': 47.0}
+2026-10-17T04:51:06Z  []
+2026-10-17T04:51:06Z  No overloaded services
+2026-10-17T04:51:08Z  RL_LOOP_START iter=58
+2026-10-17T04:51:08Z  {'frontend': 241.0, 'productcatalogservice': 352.0, 'checkoutservice': 292.0, 'recommendationservice': 333.0, 'emailservice': 29.0, 'adservice': 0, 'cartservice': 328.0, 'currencyservice': 206.0, 'paymentservice': 0, 'shippingservice': 57.0}
+2026-10-17T04:51:08Z  []
+2026-10-17T04:51:08Z  No overloaded services
+2026-10-17T04:51:10Z  RL_LOOP_START iter=59
+2026-10-17T04:51:10Z  {'frontend': 261.0, 'productcatalogservice': 382.0, 'checkoutservice': 262.0, 'recommendationservice': 386.0, 'emailservice': 32.0, 'adservice': 0, 'cartservice': 335.0, 'currencyservice': 218.0, 'paymentservice': 0, 'shippingservice': 64.0}
+2026-10-17T04:51:10Z  []
+2026-10-17T04:51:10Z  No overloaded services
+2026-10-17T04:51:12Z  RL_LOOP_START iter=60
+2026-10-17T04:51:12Z  {'frontend': 250.5, 'productcatalogservice': 394.0, 'checkoutservice': 306.0, 'recommendationservice': 399.0, 'emailservice': 39.0, 'adservice': 0, 'cartservice': 375.0, 'currencyservice': 227.0, 'paymentservice': 0, 'shippingservice': 69.0}
+2026-10-17T04:51:12Z  []
+2026-10-17T04:51:12Z  No overloaded services
+2026-10-17T04:51:14Z  RL_LOOP_START iter=61
+2026-10-17T04:51:14Z  {'frontend': 278.75, 'productcatalogservice': 424.0, 'checkoutservice': 343.0, 'recommendationservice': 415.0, 'emailservice': 35.0, 'adservice': 0, 'cartservice': 388.0, 'currencyservice': 268.0, 'paymentservice': 0, 'shippingservice': 62.0}
+2026-10-17T04:51:14Z  []
+2026-10-17T04:51:14Z  No overloaded services
+2026-10-17T04:51:16Z  RL_LOOP_START iter=62
+2026-10-17T04:51:16Z  {'frontend': 292.5, 'productcatalogservice': 423.0, 'checkoutservice': 294.0, 'recommendationservice': 429.0, 'emailservice': 56.0, 'adservice': 0, 'cartservice': 398.0, 'currencyservice': 254.0, 'paymentservice': 0, 'shippingservice': 60.0}
+2026-10-17T04:51:16Z  []
+2026-10-17T04:51:16Z  No overloaded services
+2026-10-17T04:51:18Z  RL_LOOP_START iter=63
+2026-10-17T04:51:18Z  {'frontend': 307.25, 'productcatalogservice': 428.0, 'checkoutservice': 396.0, 'recommendationservice': 466.0, 'emailservice': 41.0, 'adservice': 0, 'cartservice': 432.0, 'currencyservice': 262.0, 'paymentservice': 0, 'shippingservice': 76.0}
+2026-10-17T04:51:18Z  []
+2026-10-17T04:51:18Z  No overloaded services
+2026-10-17T04:51:20Z  RL_LOOP_START iter=64
+2026-10-17T04:51:20Z  {'frontend': 313.25, 'productcatalogservice': 449.0, 'checkoutservice': 382.0, 'recommendationservice': 461.0, 'emailservice': 62.0, 'adservice': 0, 'cartservice': 396.0, 'currencyservice': 277.0, 'paymentservice': 0, 'shippingservice': 87.0}
+2026-10-17T04:51:20Z  []
+2026-10-17T04:51:20Z  No overloaded services
+2026-10-17T04:51:22Z  RL_LOOP_START iter=65
+2026-10-17T04:51:22Z  {'frontend': 329.75, 'productcatalogservice': 445.0, 'checkoutservice': 382.0, 'recommendationservice': 503.0, 'emailservice': 46.0, 'adservice': 0, 'cartservice': 298.0, 'currencyservice': 281.0, 'paymentservice': 0, 'shippingservice': 84.0}
+2026-10-17T04:51:22Z  []
+2026-10-17T04:51:22Z  No overloaded services
+2026-10-17T04:51:24Z  RL_LOOP_START iter=66
+2026-10-17T04:51:24Z  {'frontend': 328.75, 'productcatalogservice': 463.0, 'checkoutservice': 412.0, 'recommendationservice': 512.0, 'emailservice': 45.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 301.0, 'paymentservice': 0, 'shippingservice': 74.0}
+2026-10-17T04:51:24Z  []
+2026-10-17T04:51:24Z  No overloaded services
+2026-10-17T04:51:26Z  RL_LOOP_START iter=67
+2026-10-17T04:51:26Z  {'frontend': 336.25, 'productcatalogservice': 487.0, 'checkoutservice': 401.0, 'recommendationservice': 574.0, 'emailservice': 54.0, 'adservice': 0, 'cartservice': 303.0, 'currencyservice': 321.0, 'paymentservice': 0, 'shippingservice': 77.0}
+2026-10-17T04:51:26Z  []
+2026-10-17T04:51:26Z  No overloaded services
+2026-10-17T04:51:28Z  RL_LOOP_START iter=68
+2026-10-17T04:51:28Z  {'frontend': 346.75, 'productcatalogservice': 463.0, 'checkoutservice': 447.0, 'recommendationservice': 575.0, 'emailservice': 45.0, 'adservice': 0, 'cartservice': 359.0, 'currencyservice': 322.0, 'paymentservice': 0, 'shippingservice': 95.0}
+2026-10-17T04:51:28Z  []
+2026-10-17T04:51:28Z  No overloaded services
+2026-10-17T04:51:30Z  RL_LOOP_START iter=69
+2026-10-17T04:51:30Z  {'frontend': 339.0, 'productcatalogservice': 492.0, 'checkoutservice': 435.0, 'recommendationservice': 556.0, 'emailservice': 58.0, 'adservice': 0, 'cartservice': 317.0, 'currencyservice': 315.0, 'paymentservice': 0, 'shippingservice': 84.0}
+2026-10-17T04:51:30Z  []
+2026-10-17T04:51:30Z  No overloaded services
+2026-10-17T04:51:32Z  RL_LOOP_START iter=70
+2026-10-17T04:51:32Z  {'frontend': 371.0, 'productcatalogservice': 495.0, 'checkoutservice': 447.0, 'recommendationservice': 574.0, 'emailservice': 51.0, 'adservice': 0, 'cartservice': 337.0, 'currencyservice': 362.0, 'paymentservice': 0, 'shippingservice': 91.0}
+2026-10-17T04:51:32Z  []
+2026-10-17T04:51:32Z  No overloaded services
+2026-10-17T04:51:34Z  RL_LOOP_START iter=71
+2026-10-17T04:51:34Z  {'frontend': 359.5, 'productcatalogservice': 479.0, 'checkoutservice': 486.0, 'recommendationservice': 602.0, 'emailservice': 52.0, 'adservice': 0, 'cartservice': 338.0, 'currencyservice': 332.0, 'paymentservice': 0, 'shippingservice': 78.0}
+2026-10-17T04:51:34Z  []
+2026-10-17T04:51:34Z  No overloaded services
+2026-10-17T04:51:36Z  RL_LOOP_START iter=72
+2026-10-17T04:51:36Z  {'frontend': 352.0, 'productcatalogservice': 495.0, 'checkoutservice': 463.0, 'recommendationservice': 577.0, 'emailservice': 62.0, 'adservice': 0, 'cartservice': 314.0, 'currencyservice': 336.0, 'paymentservice': 0, 'shippingservice': 83.0}
+2026-10-17T04:51:36Z  []
+2026-10-17T04:51:36Z  No overloaded services
+2026-10-17T04:51:38Z  RL_LOOP_START iter=73
+2026-10-17T04:51:38Z  {'frontend': 348.75, 'productcatalogservice': 481.0, 'checkoutservice': 442.0, 'recommendationservice': 565.0, 'emailservice': 59.0, 'adservice': 0, 'cartservice': 334.0, 'currencyservice': 317.0, 'paymentservice': 0, 'shippingservice': 85.0}
+2026-10-17T04:51:38Z  []
+2026-10-17T04:51:39Z  No overloaded services
+2026-10-17T04:51:41Z  RL_LOOP_START iter=74
+2026-10-17T04:51:41Z  {'frontend': 347.0, 'productcatalogservice': 478.0, 'checkoutservice': 456.0, 'recommendationservice': 579.0, 'emailservice': 82.0, 'adservice': 0, 'cartservice': 345.0, 'currencyservice': 305.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-17T04:51:41Z  []
+2026-10-17T04:51:41Z  No overloaded services
+2026-10-17T04:51:43Z  RL_LOOP_START iter=75
+2026-10-17T04:51:43Z  {'frontend': 328.75, 'productcatalogservice': 481.0, 'checkoutservice': 392.0, 'recommendationservice': 540.0, 'emailservice': 47.0, 'adservice': 0, 'cartservice': 362.0, 'currencyservice': 349.0, 'paymentservice': 0, 'shippingservice': 91.0}
+2026-10-17T04:51:43Z  []
+2026-10-17T04:51:43Z  No overloaded services
+2026-10-17T04:51:45Z  RL_LOOP_START iter=76
+2026-10-17T04:51:45Z  {'frontend': 345.25, 'productcatalogservice': 495.0, 'checkoutservice': 478.0, 'recommendationservice': 586.0, 'emailservice': 52.0, 'adservice': 0, 'cartservice': 391.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 73.0}
+2026-10-17T04:51:45Z  []
+2026-10-17T04:51:45Z  No overloaded services
+2026-10-17T04:51:47Z  RL_LOOP_START iter=77
+2026-10-17T04:51:47Z  {'frontend': 357.75, 'productcatalogservice': 502.0, 'checkoutservice': 417.0, 'recommendationservice': 576.0, 'emailservice': 69.0, 'adservice': 0, 'cartservice': 359.0, 'currencyservice': 321.0, 'paymentservice': 0, 'shippingservice': 75.0}
+2026-10-17T04:51:47Z  []
+2026-10-17T04:51:47Z  No overloaded services
+2026-10-17T04:51:49Z  RL_LOOP_START iter=78
+2026-10-17T04:51:49Z  {'frontend': 345.75, 'productcatalogservice': 486.0, 'checkoutservice': 386.0, 'recommendationservice': 566.0, 'emailservice': 54.0, 'adservice': 0, 'cartservice': 345.0, 'currencyservice': 319.0, 'paymentservice': 0, 'shippingservice': 72.0}
+2026-10-17T04:51:49Z  []
+2026-10-17T04:51:49Z  No overloaded services
+2026-10-17T04:51:51Z  RL_LOOP_START iter=79
+2026-10-17T04:51:51Z  {'frontend': 338.0, 'productcatalogservice': 472.0, 'checkoutservice': 450.0, 'recommendationservice': 573.0, 'emailservice': 72.0, 'adservice': 0, 'cartservice': 354.0, 'currencyservice': 309.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-17T04:51:51Z  []
+2026-10-17T04:51:51Z  No overloaded services
+2026-10-17T04:51:53Z  RL_LOOP_START iter=80
+2026-10-17T04:51:53Z  {'frontend': 355.25, 'productcatalogservice': 470.0, 'checkoutservice': 409.0, 'recommendationservice': 565.0, 'emailservice': 56.0, 'adservice': 0, 'cartservice': 341.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 90.0}
+2026-10-17T04:51:53Z  []
+2026-10-17T04:51:53Z  No overloaded services
+2026-10-17T04:51:55Z  RL_LOOP_START iter=81
+2026-10-17T04:51:55Z  {'frontend': 356.5, 'productcatalogservice': 516.0, 'checkoutservice': 410.0, 'recommendationservice': 592.0, 'emailservice': 44.0, 'adservice': 0, 'cartservice': 324.0, 'currencyservice': 341.0, 'paymentservice': 0, 'shippingservice': 77.0}
+2026-10-17T04:51:55Z  []
+2026-10-17T04:51:55Z  No overloaded services
+2026-10-17T04:51:57Z  RL_LOOP_START iter=82
+2026-10-17T04:51:57Z  {'frontend': 351.25, 'productcatalogservice': 492.0, 'checkoutservice': 431.0, 'recommendationservice': 546.0, 'emailservice': 80.0, 'adservice': 0, 'cartservice': 338.0, 'currencyservice': 336.0, 'paymentservice': 0, 'shippingservice': 76.0}
+2026-10-17T04:51:57Z  []
+2026-10-17T04:51:57Z  No overloaded services
+2026-10-17T04:51:59Z  RL_LOOP_START iter=83
+2026-10-17T04:51:59Z  {'frontend': 344.25, 'productcatalogservice': 469.0, 'checkoutservice': 442.0, 'recommendationservice': 525.0, 'emailservice': 45.0, 'adservice': 0, 'cartservice': 340.0, 'currencyservice': 309.0, 'paymentservice': 0, 'shippingservice': 75.0}
+2026-10-17T04:51:59Z  []
+2026-10-17T04:51:59Z  No overloaded services
+2026-10-17T04:52:01Z  RL_LOOP_START iter=84
+2026-10-17T04:52:01Z  {'frontend': 346.5, 'productcatalogservice': 475.0, 'checkoutservice': 432.0, 'recommendationservice': 561.0, 'emailservice': 63.0, 'adservice': 0, 'cartservice': 355.0, 'currencyservice': 319.0, 'paymentservice': 0, 'shippingservice': 92.0}
+2026-10-17T04:52:01Z  []
+2026-10-17T04:52:01Z  No overloaded services
+2026-10-17T04:52:03Z  RL_LOOP_START iter=85
+2026-10-17T04:52:03Z  {'frontend': 348.5, 'productcatalogservice': 477.0, 'checkoutservice': 441.0, 'recommendationservice': 552.0, 'emailservice': 53.0, 'adservice': 0, 'cartservice': 325.0, 'currencyservice': 328.0, 'paymentservice': 0, 'shippingservice': 85.0}
+2026-10-17T04:52:03Z  []
+2026-10-17T04:52:03Z  No overloaded services
+2026-10-17T04:52:05Z  RL_LOOP_START iter=86
+2026-10-17T04:52:05Z  {'frontend': 358.0, 'productcatalogservice': 479.0, 'checkoutservice': 452.0, 'recommendationservice': 584.0, 'emailservice': 52.0, 'adservice': 0, 'cartservice': 332.0, 'currencyservice': 311.0, 'paymentservice': 0, 'shippingservice': 80.0}
+2026-10-17T04:52:05Z  []
+2026-10-17T04:52:05Z  No overloaded services
+2026-10-17T04:52:07Z  RL_LOOP_START iter=87
+2026-10-17T04:52:07Z  {'frontend': 346.25, 'productcatalogservice': 515.0, 'checkoutservice': 444.0, 'recommendationservice': 564.0, 'emailservice': 72.0, 'adservice': 0, 'cartservice': 358.0, 'currencyservice': 334.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-17T04:52:07Z  []
+2026-10-17T04:52:07Z  No overloaded services
+2026-10-17T04:52:09Z  RL_LOOP_START iter=88
+2026-10-17T04:52:09Z  {'frontend': 343.5, 'productcatalogservice': 467.0, 'checkoutservice': 449.0, 'recommendationservice': 605.0, 'emailservice': 56.0, 'adservice': 0, 'cartservice': 362.0, 'currencyservice': 352.0, 'paymentservice': 0, 'shippingservice': 103.0}
+2026-10-17T04:52:09Z  []
+2026-10-17T04:52:09Z  No overloaded services
+2026-10-17T04:52:11Z  RL_LOOP_START iter=89
+2026-10-17T04:52:11Z  {'frontend': 342.0, 'productcatalogservice': 497.0, 'checkoutservice': 480.0, 'recommendationservice': 548.0, 'emailservice': 65.0, 'adservice': 0, 'cartservice': 377.0, 'currencyservice': 305.0, 'paymentservice': 0, 'shippingservice': 83.0}
+2026-10-17T04:52:11Z  []
+2026-10-17T04:52:11Z  No overloaded services
+2026-10-17T04:52:13Z  RL_LOOP_START iter=90
+2026-10-17T04:52:13Z  {'frontend': 344.0, 'productcatalogservice': 476.0, 'checkoutservice': 375.0, 'recommendationservice': 557.0, 'emailservice': 54.0, 'adservice': 0, 'cartservice': 378.0, 'currencyservice': 307.0, 'paymentservice': 0, 'shippingservice': 92.0}
+2026-10-17T04:52:13Z  []
+2026-10-17T04:52:13Z  No overloaded services
+2026-10-17T04:52:15Z  RL_LOOP_START iter=91
+2026-10-17T04:52:15Z  {'frontend': 351.25, 'productcatalogservice': 505.0, 'checkoutservice': 457.0, 'recommendationservice': 548.0, 'emailservice': 54.0, 'adservice': 0, 'cartservice': 366.0, 'currencyservice': 339.0, 'paymentservice': 0, 'shippingservice': 83.0}
+2026-10-17T04:52:15Z  []
+2026-10-17T04:52:15Z  No overloaded services
+2026-10-17T04:52:17Z  RL_LOOP_START iter=92
+2026-10-17T04:52:17Z  {'frontend': 363.75, 'productcatalogservice': 494.0, 'checkoutservice': 412.0, 'recommendationservice': 580.0, 'emailservice': 46.0, 'adservice': 0, 'cartservice': 329.0, 'currencyservice': 346.0, 'paymentservice': 0, 'shippingservice': 77.0}
+2026-10-17T04:52:17Z  []
+2026-10-17T04:52:17Z  No overloaded services
+2026-10-17T04:52:19Z  RL_LOOP_START iter=93
+2026-10-17T04:52:19Z  {'frontend': 360.0, 'productcatalogservice': 490.0, 'checkoutservice': 495.0, 'recommendationservice': 579.0, 'emailservice': 56.0, 'adservice': 0, 'cartservice': 379.0, 'currencyservice': 313.0, 'paymentservice': 0, 'shippingservice': 85.0}
+2026-10-17T04:52:19Z  []
+2026-10-17T04:52:19Z  No overloaded services
+2026-10-17T04:52:21Z  RL_LOOP_START iter=94
+2026-10-17T04:52:21Z  {'frontend': 346.5, 'productcatalogservice': 467.0, 'checkoutservice': 433.0, 'recommendationservice': 555.0, 'emailservice': 67.0, 'adservice': 0, 'cartservice': 334.0, 'currencyservice': 315.0, 'paymentservice': 0, 'shippingservice': 94.0}
+2026-10-17T04:52:21Z  []
+2026-10-17T04:52:21Z  No overloaded services
+2026-10-17T04:52:23Z  RL_LOOP_START iter=95
+2026-10-17T04:52:23Z  {'frontend': 362.75, 'productcatalogservice': 495.0, 'checkoutservice': 394.0, 'recommendationservice': 581.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 348.0, 'currencyservice': 329.0, 'paymentservice': 0, 'shippingservice': 93.0}
+2026-10-17T04:52:23Z  []
+2026-10-17T04:52:23Z  No overloaded services
+2026-10-17T04:52:25Z  RL_LOOP_START iter=96
+2026-10-17T04:52:25Z  {'frontend': 362.5, 'productcatalogservice': 490.0, 'checkoutservice': 451.0, 'recommendationservice': 563.0, 'emailservice': 49.0, 'adservice': 0, 'cartservice': 348.0, 'currencyservice': 332.0, 'paymentservice': 0, 'shippingservice': 76.0}
+2026-10-17T04:52:25Z  []
+2026-10-17T04:52:25Z  No overloaded services
+2026-10-17T04:52:27Z  RL_LOOP_START iter=97
+2026-10-17T04:52:27Z  {'frontend': 359.75, 'productcatalogservice': 475.0, 'checkoutservice': 430.0, 'recommendationservice': 592.0, 'emailservice': 71.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 322.0, 'paymentservice': 0, 'shippingservice': 77.0}
+2026-10-17T04:52:27Z  []
+2026-10-17T04:52:27Z  No overloaded services
+2026-10-17T04:52:29Z  RL_LOOP_START iter=98
+2026-10-17T04:52:29Z  {'frontend': 341.75, 'productcatalogservice': 470.0, 'checkoutservice': 462.0, 'recommendationservice': 576.0, 'emailservice': 46.0, 'adservice': 0, 'cartservice': 378.0, 'currencyservice': 321.0, 'paymentservice': 0, 'shippingservice': 95.0}
+2026-10-17T04:52:29Z  []
+2026-10-17T04:52:29Z  No overloaded services
+2026-10-17T04:52:31Z  RL_LOOP_START iter=99
+2026-10-17T04:52:31Z  {'frontend': 344.25, 'productcatalogservice': 473.0, 'checkoutservice': 433.0, 'recommendationservice': 573.0, 'emailservice': 76.0, 'adservice': 0, 'cartservice': 349.0, 'currencyservice': 313.0, 'paymentservice': 0, 'shippingservice': 81.0}
+2026-10-17T04:52:31Z  []
+2026-10-17T04:52:31Z  No overloaded services
+2026-10-17T04:52:33Z  RL_LOOP_START iter=100
+2026-10-17T04:52:33Z  {'frontend': 352.0, 'productcatalogservice': 469.0, 'checkoutservice': 450.0, 'recommendationservice': 575.0, 'emailservice': 51.0, 'adservice': 0, 'cartservice': 386.0, 'currencyservice': 316.0, 'paymentservice': 0, 'shippingservice': 74.0}
+2026-10-17T04:52:33Z  []
+2026-10-17T04:52:33Z  No overloaded services
+2026-10-17T04:52:35Z  RL_LOOP_START iter=101
+2026-10-17T04:52:35Z  {'frontend': 345.25, 'productcatalogservice': 486.0, 'checkoutservice': 406.0, 'recommendationservice': 579.0, 'emailservice': 67.0, 'adservice': 0, 'cartservice': 392.0, 'currencyservice': 310.0, 'paymentservice': 0, 'shippingservice': 98.0}
+2026-10-17T04:52:35Z  []
+2026-10-17T04:52:35Z  No overloaded services
+2026-10-17T04:52:37Z  RL_LOOP_START iter=102
+2026-10-17T04:52:37Z  {'frontend': 347.75, 'productcatalogservice': 465.0, 'checkoutservice': 430.0, 'recommendationservice': 568.0, 'emailservice': 60.0, 'adservice': 0, 'cartservice': 349.0, 'currencyservice': 315.0, 'paymentservice': 0, 'shippingservice': 76.0}
+2026-10-17T04:52:37Z  []
+2026-10-17T04:52:37Z  No overloaded services
+2026-10-17T04:52:39Z  RL_LOOP_START iter=103
+2026-10-17T04:52:39Z  {'frontend': 335.25, 'productcatalogservice': 498.0, 'checkoutservice': 404.0, 'recommendationservice': 523.0, 'emailservice': 50.0, 'adservice': 0, 'cartservice': 380.0, 'currencyservice': 317.0, 'paymentservice': 0, 'shippingservice': 81.0}
+2026-10-17T04:52:39Z  []
+2026-10-17T04:52:39Z  No overloaded services
+2026-10-17T04:52:41Z  RL_LOOP_START iter=104
+2026-10-17T04:52:41Z  {'frontend': 344.25, 'productcatalogservice': 475.0, 'checkoutservice': 444.0, 'recommendationservice': 567.0, 'emailservice': 77.0, 'adservice': 0, 'cartservice': 381.0, 'currencyservice': 321.0, 'paymentservice': 0, 'shippingservice': 78.0}
+2026-10-17T04:52:41Z  []
+2026-10-17T04:52:41Z  No overloaded services
+2026-10-17T04:52:43Z  RL_LOOP_START iter=105
+2026-10-17T04:52:43Z  {'frontend': 349.25, 'productcatalogservice': 476.0, 'checkoutservice': 429.0, 'recommendationservice': 561.0, 'emailservice': 45.0, 'adservice': 0, 'cartservice': 375.0, 'currencyservice': 328.0, 'paymentservice': 0, 'shippingservice': 88.0}
+2026-10-17T04:52:43Z  []
+2026-10-17T04:52:43Z  No overloaded services
+2026-10-17T04:52:45Z  RL_LOOP_START iter=106
+2026-10-17T04:52:45Z  {'frontend': 345.25, 'productcatalogservice': 474.0, 'checkoutservice': 447.0, 'recommendationservice': 571.0, 'emailservice': 49.0, 'adservice': 0, 'cartservice': 335.0, 'currencyservice': 316.0, 'paymentservice': 0, 'shippingservice': 83.0}
+2026-10-17T04:52:45Z  []
+2026-10-17T04:52:45Z  No overloaded services
+2026-10-17T04:52:47Z  RL_LOOP_START iter=107
+2026-10-17T04:52:47Z  {'frontend': 341.75, 'productcatalogservice': 488.0, 'checkoutservice': 407.0, 'recommendationservice': 566.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 350.0, 'currencyservice': 317.0, 'paymentservice': 0, 'shippingservice': 74.0}
+2026-10-17T04:52:47Z  []
+2026-10-17T04:52:47Z  No overloaded services
+2026-10-17T04:52:49Z  RL_LOOP_START iter=108
+2026-10-17T04:52:49Z  {'frontend': 346.0, 'productcatalogservice': 454.0, 'checkoutservice': 427.0, 'recommendationservice': 532.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 334.0, 'currencyservice': 322.0, 'paymentservice': 0, 'shippingservice': 88.0}
+2026-10-17T04:52:49Z  []
+2026-10-17T04:52:49Z  No overloaded services
+2026-10-17T04:52:51Z  RL_LOOP_START iter=109
+2026-10-17T04:52:51Z  {'frontend': 347.25, 'productcatalogservice': 475.0, 'checkoutservice': 429.0, 'recommendationservice': 552.0, 'emailservice': 76.0, 'adservice': 0, 'cartservice': 350.0, 'currencyservice': 322.0, 'paymentservice': 0, 'shippingservice': 77.0}
+2026-10-17T04:52:51Z  []
+2026-10-17T04:52:51Z  No overloaded services
+2026-10-17T04:52:53Z  RL_LOOP_START iter=110
+2026-10-17T04:52:53Z  {'frontend': 343.0, 'productcatalogservice': 486.0, 'checkoutservice': 448.0, 'recommendationservice': 575.0, 'emailservice': 54.0, 'adservice': 0, 'cartservice': 336.0, 'currencyservice': 327.0, 'paymentservice': 0, 'shippingservice': 87.0}
+2026-10-17T04:52:53Z  []
+2026-10-17T04:52:53Z  No overloaded services
+2026-10-17T04:52:55Z  RL_LOOP_START iter=111
+2026-10-17T04:52:55Z  {'frontend': 340.0, 'productcatalogservice': 490.0, 'checkoutservice': 449.0, 'recommendationservice': 573.0, 'emailservice': 53.0, 'adservice': 0, 'cartservice': 378.0, 'currencyservice': 329.0, 'paymentservice': 0, 'shippingservice': 74.0}
+2026-10-17T04:52:55Z  []
+2026-10-17T04:52:55Z  No overloaded services
+2026-10-17T04:52:57Z  RL_LOOP_START iter=112
+2026-10-17T04:52:57Z  {'frontend': 345.0, 'productcatalogservice': 518.0, 'checkoutservice': 412.0, 'recommendationservice': 598.0, 'emailservice': 71.0, 'adservice': 0, 'cartservice': 358.0, 'currencyservice': 331.0, 'paymentservice': 0, 'shippingservice': 78.0}
+2026-10-17T04:52:57Z  []
+2026-10-17T04:52:57Z  No overloaded services
+2026-10-17T04:52:59Z  RL_LOOP_START iter=113
+2026-10-17T04:52:59Z  {'frontend': 336.0, 'productcatalogservice': 469.0, 'checkoutservice': 413.0, 'recommendationservice': 567.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 357.0, 'currencyservice': 317.0, 'paymentservice': 0, 'shippingservice': 75.0}
+2026-10-17T04:52:59Z  []
+2026-10-17T04:52:59Z  No overloaded services
+2026-10-17T04:53:01Z  RL_LOOP_START iter=114
+2026-10-17T04:53:01Z  {'frontend': 349.5, 'productcatalogservice': 485.0, 'checkoutservice': 480.0, 'recommendationservice': 539.0, 'emailservice': 60.0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 346.0, 'paymentservice': 0, 'shippingservice': 86.0}
+2026-10-17T04:53:01Z  []
+2026-10-17T04:53:01Z  No overloaded services
+2026-10-17T04:53:03Z  RL_LOOP_START iter=115
+2026-10-17T04:53:03Z  {'frontend': 347.25, 'productcatalogservice': 471.0, 'checkoutservice': 414.0, 'recommendationservice': 553.0, 'emailservice': 58.0, 'adservice': 0, 'cartservice': 366.0, 'currencyservice': 319.0, 'paymentservice': 0, 'shippingservice': 90.0}
+2026-10-17T04:53:03Z  []
+2026-10-17T04:53:03Z  No overloaded services
+2026-10-17T04:53:05Z  RL_LOOP_START iter=116
+2026-10-17T04:53:05Z  {'frontend': 326.0, 'productcatalogservice': 467.0, 'checkoutservice': 419.0, 'recommendationservice': 552.0, 'emailservice': 47.0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 303.0, 'paymentservice': 0, 'shippingservice': 71.0}
+2026-10-17T04:53:05Z  []
+2026-10-17T04:53:05Z  No overloaded services
+2026-10-17T04:53:07Z  RL_LOOP_START iter=117
+2026-10-17T04:53:07Z  {'frontend': 335.25, 'productcatalogservice': 487.0, 'checkoutservice': 429.0, 'recommendationservice': 559.0, 'emailservice': 68.0, 'adservice': 0, 'cartservice': 342.0, 'currencyservice': 325.0, 'paymentservice': 0, 'shippingservice': 73.0}
+2026-10-17T04:53:07Z  []
+2026-10-17T04:53:07Z  No overloaded services
+2026-10-17T04:53:09Z  RL_LOOP_START iter=118
+2026-10-17T04:53:09Z  {'frontend': 315.25, 'productcatalogservice': 455.0, 'checkoutservice': 468.0, 'recommendationservice': 542.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 364.0, 'currencyservice': 314.0, 'paymentservice': 0, 'shippingservice': 93.0}
+2026-10-17T04:53:09Z  []
+2026-10-17T04:53:09Z  No overloaded services
+2026-10-17T04:53:11Z  RL_LOOP_START iter=119
+2026-10-17T04:53:11Z  {'frontend': 343.5, 'productcatalogservice': 469.0, 'checkoutservice': 402.0, 'recommendationservice': 554.0, 'emailservice': 57.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 320.0, 'paymentservice': 0, 'shippingservice': 80.0}
+2026-10-17T04:53:11Z  []
+2026-10-17T04:53:11Z  No overloaded services
+2026-10-17T04:53:13Z  RL_LOOP_START iter=120
+2026-10-17T04:53:13Z  {'frontend': 349.0, 'productcatalogservice': 490.0, 'checkoutservice': 416.0, 'recommendationservice': 579.0, 'emailservice': 52.0, 'adservice': 0, 'cartservice': 353.0, 'currencyservice': 313.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-17T04:53:13Z  []
+2026-10-17T04:53:13Z  No overloaded services
+2026-10-17T04:53:15Z  RL_LOOP_START iter=121
+2026-10-17T04:53:15Z  {'frontend': 337.5, 'productcatalogservice': 493.0, 'checkoutservice': 438.0, 'recommendationservice': 548.0, 'emailservice': 45.0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 299.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-17T04:53:15Z  []
+2026-10-17T04:53:15Z  No overloaded services
+2026-10-17T04:53:17Z  RL_LOOP_START iter=122
+2026-10-17T04:53:17Z  {'frontend': 347.0, 'productcatalogservice': 465.0, 'checkoutservice': 386.0, 'recommendationservice': 586.0, 'emailservice': 62.0, 'adservice': 0, 'cartservice': 362.0, 'currencyservice': 310.0, 'paymentservice': 0, 'shippingservice': 72.0}
+2026-10-17T04:53:17Z  []
+2026-10-17T04:53:17Z  No overloaded services
+2026-10-17T04:53:19Z  RL_LOOP_START iter=123
+2026-10-17T04:53:19Z  {'frontend': 331.75, 'productcatalogservice': 490.0, 'checkoutservice': 444.0, 'recommendationservice': 539.0, 'emailservice': 52.0, 'adservice': 0, 'cartservice': 343.0, 'currencyservice': 347.0, 'paymentservice': 0, 'shippingservice': 81.0}
+2026-10-17T04:53:19Z  []
+2026-10-17T04:53:19Z  No overloaded services
+2026-10-17T04:53:21Z  RL_LOOP_START iter=124
+2026-10-17T04:53:21Z  {'frontend': 348.0, 'productcatalogservice': 468.0, 'checkoutservice': 420.0, 'recommendationservice': 531.0, 'emailservice': 67.0, 'adservice': 0, 'cartservice': 392.0, 'currencyservice': 303.0, 'paymentservice': 0, 'shippingservice': 75.0}
+2026-10-17T04:53:21Z  []
+2026-10-17T04:53:21Z  No overloaded services
+2026-10-17T04:53:23Z  RL_LOOP_START iter=125
+2026-10-17T04:53:23Z  {'frontend': 316.0, 'productcatalogservice': 466.0, 'checkoutservice': 451.0, 'recommendationservice': 557.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 383.0, 'currencyservice': 303.0, 'paymentservice': 0, 'shippingservice': 85.0}
+2026-10-17T04:53:23Z  []
+2026-10-17T04:53:23Z  No overloaded services
+2026-10-17T04:53:25Z  RL_LOOP_START iter=126
+2026-10-17T04:53:25Z  {'frontend': 339.5, 'productcatalogservice': 470.0, 'checkoutservice': 461.0, 'recommendationservice': 537.0, 'emailservice': 51.0, 'adservice': 0, 'cartservice': 371.0, 'currencyservice': 327.0, 'paymentservice': 0, 'shippingservice': 74.0}
+2026-10-17T04:53:25Z  []
+2026-10-17T04:53:25Z  No overloaded services
+2026-10-17T04:53:27Z  RL_LOOP_START iter=127
+2026-10-17T04:53:27Z  {'frontend': 340.75, 'productcatalogservice': 493.0, 'checkoutservice': 444.0, 'recommendationservice': 529.0, 'emailservice': 69.0, 'adservice': 0, 'cartservice': 354.0, 'currencyservice': 356.0, 'paymentservice': 0, 'shippingservice': 72.0}
+2026-10-17T04:53:27Z  []
+2026-10-17T04:53:27Z  No overloaded services
+2026-10-17T04:53:29Z  RL_LOOP_START iter=128
+2026-10-17T04:53:29Z  {'frontend': 349.25, 'productcatalogservice': 473.0, 'checkoutservice': 437.0, 'recommendationservice': 554.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 331.0, 'currencyservice': 320.0, 'paymentservice': 0, 'shippingservice': 88.0}
+2026-10-17T04:53:29Z  []
+2026-10-17T04:53:29Z  No overloaded services
+2026-10-17T04:53:31Z  RL_LOOP_START iter=129
+2026-10-17T04:53:31Z  {'frontend': 341.75, 'productcatalogservice': 472.0, 'checkoutservice': 395.0, 'recommendationservice': 549.0, 'emailservice': 76.0, 'adservice': 0, 'cartservice': 338.0, 'currencyservice': 306.0, 'paymentservice': 0, 'shippingservice': 75.0}
+2026-10-17T04:53:31Z  []
+2026-10-17T04:53:31Z  No overloaded services
+2026-10-17T04:53:33Z  RL_LOOP_START iter=130
+2026-10-17T04:53:33Z  {'frontend': 351.25, 'productcatalogservice': 474.0, 'checkoutservice': 461.0, 'recommendationservice': 528.0, 'emailservice': 49.0, 'adservice': 0, 'cartservice': 338.0, 'currencyservice': 316.0, 'paymentservice': 0, 'shippingservice': 87.0}
+2026-10-17T04:53:33Z  []
+2026-10-17T04:53:33Z  No overloaded services
+2026-10-17T04:53:35Z  RL_LOOP_START iter=131
+2026-10-17T04:53:35Z  {'frontend': 333.75, 'productcatalogservice': 477.0, 'checkoutservice': 430.0, 'recommendationservice': 528.0, 'emailservice': 77.0, 'adservice': 0, 'cartservice': 327.0, 'currencyservice': 318.0, 'paymentservice': 0, 'shippingservice': 76.0}
+2026-10-17T04:53:35Z  []
+2026-10-17T04:53:35Z  No overloaded services
+2026-10-17T04:53:37Z  RL_LOOP_START iter=132
+2026-10-17T04:53:37Z  {'frontend': 329.0, 'productcatalogservice': 479.0, 'checkoutservice': 396.0, 'recommendationservice': 539.0, 'emailservice': 49.0, 'adservice': 0, 'cartservice': 363.0, 'currencyservice': 331.0, 'paymentservice': 0, 'shippingservice': 74.0}
+2026-10-17T04:53:37Z  []
+2026-10-17T04:53:37Z  No overloaded services
+2026-10-17T04:53:39Z  RL_LOOP_START iter=133
+2026-10-17T04:53:39Z  {'frontend': 348.5, 'productcatalogservice': 459.0, 'checkoutservice': 403.0, 'recommendationservice': 516.0, 'emailservice': 52.0, 'adservice': 0, 'cartservice': 352.0, 'currencyservice': 313.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-17T04:53:39Z  []
+2026-10-17T04:53:39Z  No overloaded services
+2026-10-17T04:53:41Z  RL_LOOP_START iter=134
+2026-10-17T04:53:41Z  {'frontend': 321.5, 'productcatalogservice': 454.0, 'checkoutservice': 445.0, 'recommendationservice': 581.0, 'emailservice': 63.0, 'adservice': 0, 'cartservice': 357.0, 'currencyservice': 314.0, 'paymentservice': 0, 'shippingservice': 75.0}
+2026-10-17T04:53:41Z  []
+2026-10-17T04:53:41Z  No overloaded services
+2026-10-17T04:53:43Z  RL_LOOP_START iter=135
+2026-10-17T04:53:43Z  {'frontend': 339.5, 'productcatalogservice': 472.0, 'checkoutservice': 448.0, 'recommendationservice': 561.0, 'emailservice': 56.0, 'adservice': 0, 'cartservice': 340.0, 'currencyservice': 321.0, 'paymentservice': 0, 'shippingservice': 88.0}
+2026-10-17T04:53:43Z  []
+2026-10-17T04:53:43Z  No overloaded services
+2026-10-17T04:53:45Z  RL_LOOP_START iter=136
+2026-10-17T04:53:45Z  {'frontend': 322.25, 'productcatalogservice': 470.0, 'checkoutservice': 490.0, 'recommendationservice': 538.0, 'emailservice': 49.0, 'adservice': 0, 'cartservice': 374.0, 'currencyservice': 330.0, 'paymentservice': 0, 'shippingservice': 71.0}
+2026-10-17T04:53:45Z  []
+2026-10-17T04:53:45Z  No overloaded services
+2026-10-17T04:53:47Z  RL_LOOP_START iter=137
+2026-10-17T04:53:47Z  {'frontend': 353.5, 'productcatalogservice': 490.0, 'checkoutservice': 417.0, 'recommendationservice': 553.0, 'emailservice': 50.0, 'adservice': 0, 'cartservice': 363.0, 'currencyservice': 331.0, 'paymentservice': 0, 'shippingservice': 78.0}
+2026-10-17T04:53:47Z  []
+2026-10-17T04:53:47Z  No overloaded services
+2026-10-17T04:53:49Z  RL_LOOP_START iter=138
+2026-10-17T04:53:49Z  {'frontend': 320.75, 'productcatalogservice': 460.0, 'checkoutservice': 470.0, 'recommendationservice': 549.0, 'emailservice': 51.0, 'adservice': 0, 'cartservice': 329.0, 'currencyservice': 302.0, 'paymentservice': 0, 'shippingservice': 84.0}
+2026-10-17T04:53:49Z  []
+2026-10-17T04:53:49Z  No overloaded services
+2026-10-17T04:53:51Z  RL_LOOP_START iter=139
+2026-10-17T04:53:51Z  {'frontend': 334.75, 'productcatalogservice': 483.0, 'checkoutservice': 464.0, 'recommendationservice': 534.0, 'emailservice': 53.0, 'adservice': 0, 'cartservice': 357.0, 'currencyservice': 304.0, 'paymentservice': 0, 'shippingservice': 85.0}
+2026-10-17T04:53:51Z  []
+2026-10-17T04:53:51Z  No overloaded services
+2026-10-17T04:53:53Z  RL_LOOP_START iter=140
+2026-10-17T04:53:53Z  {'frontend': 341.0, 'productcatalogservice': 464.0, 'checkoutservice': 402.0, 'recommendationservice': 566.0, 'emailservice': 60.0, 'adservice': 0, 'cartservice': 356.0, 'currencyservice': 339.0, 'paymentservice': 0, 'shippingservice': 90.0}
+2026-10-17T04:53:53Z  []
+2026-10-17T04:53:53Z  No overloaded services
+2026-10-17T04:53:55Z  RL_LOOP_START iter=141
+2026-10-17T04:53:55Z  {'frontend': 352.0, 'productcatalogservice': 476.0, 'checkoutservice': 445.0, 'recommendationservice': 537.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 366.0, 'currencyservice': 310.0, 'paymentservice': 0, 'shippingservice': 77.0}
+2026-10-17T04:53:55Z  []
+2026-10-17T04:53:55Z  No overloaded services
+2026-10-17T04:53:57Z  RL_LOOP_START iter=142
+2026-10-17T04:53:57Z  {'frontend': 344.25, 'productcatalogservice': 494.0, 'checkoutservice': 412.0, 'recommendationservice': 566.0, 'emailservice': 64.0, 'adservice': 0, 'cartservice': 368.0, 'currencyservice': 299.0, 'paymentservice': 0, 'shippingservice': 74.0}
+2026-10-17T04:53:57Z  []
+2026-10-17T04:53:57Z  No overloaded services
+2026-10-17T04:53:59Z  RL_LOOP_START iter=143
+2026-10-17T04:53:59Z  {'frontend': 335.5, 'productcatalogservice': 472.0, 'checkoutservice': 404.0, 'recommendationservice': 543.0, 'emailservice': 46.0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 308.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-17T04:53:59Z  []
+2026-10-17T04:53:59Z  No overloaded services
+2026-10-17T04:54:01Z  RL_LOOP_START iter=144
+2026-10-17T04:54:01Z  {'frontend': 337.75, 'productcatalogservice': 488.0, 'checkoutservice': 487.0, 'recommendationservice': 541.0, 'emailservice': 68.0, 'adservice': 0, 'cartservice': 332.0, 'currencyservice': 319.0, 'paymentservice': 0, 'shippingservice': 79.0}
+2026-10-17T04:54:01Z  []
+2026-10-17T04:54:01Z  No overloaded services
+2026-10-17T04:54:03Z  RL_LOOP_START iter=145
+2026-10-17T04:54:03Z  {'frontend': 338.5, 'productcatalogservice': 488.0, 'checkoutservice': 430.0, 'recommendationservice': 553.0, 'emailservice': 46.0, 'adservice': 0, 'cartservice': 376.0, 'currencyservice': 337.0, 'paymentservice': 0, 'shippingservice': 88.0}
+2026-10-17T04:54:03Z  []
+2026-10-17T04:54:03Z  No overloaded services
+2026-10-17T04:54:05Z  RL_LOOP_START iter=146
+2026-10-17T04:54:05Z  {'frontend': 328.75, 'productcatalogservice': 479.0, 'checkoutservice': 397.0, 'recommendationservice': 548.0, 'emailservice': 49.0, 'adservice': 0, 'cartservice': 321.0, 'currencyservice': 314.0, 'paymentservice': 0, 'shippingservice': 73.0}
+2026-10-17T04:54:05Z  []
+2026-10-17T04:54:05Z  No overloaded services
+2026-10-17T04:54:07Z  RL_LOOP_START iter=147
+2026-10-17T04:54:07Z  {'frontend': 329.5, 'productcatalogservice': 498.0, 'checkoutservice': 452.0, 'recommendationservice': 570.0, 'emailservice': 41.0, 'adservice': 0, 'cartservice': 326.0, 'currencyservice': 343.0, 'paymentservice': 0, 'shippingservice': 79.0}
+2026-10-17T04:54:07Z  []
+2026-10-17T04:54:07Z  No overloaded services
+2026-10-17T04:54:09Z  RL_LOOP_START iter=148
+2026-10-17T04:54:09Z  {'frontend': 315.0, 'productcatalogservice': 458.0, 'checkoutservice': 430.0, 'recommendationservice': 530.0, 'emailservice': 50.0, 'adservice': 0, 'cartservice': 307.0, 'currencyservice': 317.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-17T04:54:09Z  []
+2026-10-17T04:54:09Z  No overloaded services
+2026-10-17T04:54:11Z  RL_LOOP_START iter=149
+2026-10-17T04:54:11Z  {'frontend': 344.25, 'productcatalogservice': 472.0, 'checkoutservice': 408.0, 'recommendationservice': 538.0, 'emailservice': 66.0, 'adservice': 0, 'cartservice': 356.0, 'currencyservice': 332.0, 'paymentservice': 0, 'shippingservice': 72.0}
+2026-10-17T04:54:11Z  []
+2026-10-17T04:54:11Z  No overloaded services
+2026-10-17T04:54:13Z  RL_LOOP_START iter=150
+2026-10-17T04:54:13Z  {'frontend': 342.75, 'productcatalogservice': 471.0, 'checkoutservice': 397.0, 'recommendationservice': 552.0, 'emailservice': 52.0, 'adservice': 0, 'cartservice': 371.0, 'currencyservice': 331.0, 'paymentservice': 0, 'shippingservice': 87.0}
+2026-10-17T04:54:13Z  []
+2026-10-17T04:54:13Z  No overloaded services
+2026-10-17T04:54:15Z  RL_LOOP_START iter=151
+2026-10-17T04:54:15Z  {'frontend': 324.5, 'productcatalogservice': 463.0, 'checkoutservice': 442.0, 'recommendationservice': 526.0, 'emailservice': 70.0, 'adservice': 0, 'cartservice': 362.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 85.0}
+2026-10-17T04:54:15Z  []
+2026-10-17T04:54:15Z  No overloaded services
+2026-10-17T04:54:17Z  RL_LOOP_START iter=152
+2026-10-17T04:54:17Z  {'frontend': 335.0, 'productcatalogservice': 508.0, 'checkoutservice': 421.0, 'recommendationservice': 545.0, 'emailservice': 44.0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 314.0, 'paymentservice': 0, 'shippingservice': 80.0}
+2026-10-17T04:54:17Z  []
+2026-10-17T04:54:17Z  No overloaded services
+2026-10-17T04:54:19Z  RL_LOOP_START iter=153
+2026-10-17T04:54:19Z  {'frontend': 337.75, 'productcatalogservice': 471.0, 'checkoutservice': 405.0, 'recommendationservice': 551.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 373.0, 'currencyservice': 336.0, 'paymentservice': 0, 'shippingservice': 71.0}
+2026-10-17T04:54:19Z  []
+2026-10-17T04:54:19Z  No overloaded services
+2026-10-17T04:54:21Z  RL_LOOP_START iter=154
+2026-10-17T04:54:21Z  {'frontend': 337.5, 'productcatalogservice': 489.0, 'checkoutservice': 402.0, 'recommendationservice': 563.0, 'emailservice': 62.0, 'adservice': 0, 'cartservice': 366.0, 'currencyservice': 314.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-17T04:54:21Z  []
+2026-10-17T04:54:21Z  No overloaded services
+2026-10-17T04:54:23Z  RL_LOOP_START iter=155
+2026-10-17T04:54:23Z  {'frontend': 324.5, 'productcatalogservice': 460.0, 'checkoutservice': 416.0, 'recommendationservice': 533.0, 'emailservice': 47.0, 'adservice': 0, 'cartservice': 339.0, 'currencyservice': 291.0, 'paymentservice': 0, 'shippingservice': 84.0}
+2026-10-17T04:54:23Z  []
+2026-10-17T04:54:23Z  No overloaded services
+2026-10-17T04:54:25Z  RL_LOOP_START iter=156
+2026-10-17T04:54:25Z  {'frontend': 336.75, 'productcatalogservice': 468.0, 'checkoutservice': 390.0, 'recommendationservice': 534.0, 'emailservice': 55.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 321.0, 'paymentservice': 0, 'shippingservice': 80.0}
+2026-10-17T04:54:25Z  []
+2026-10-17T04:54:25Z  No overloaded services
+2026-10-17T04:54:27Z  RL_LOOP_START iter=157
+2026-10-17T04:54:27Z  {'frontend': 334.5, 'productcatalogservice': 490.0, 'checkoutservice': 443.0, 'recommendationservice': 553.0, 'emailservice': 46.0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 330.0, 'paymentservice': 0, 'shippingservice': 72.0}
+2026-10-17T04:54:27Z  []
+2026-10-17T04:54:27Z  No overloaded services
+2026-10-17T04:54:29Z  RL_LOOP_START iter=158
+2026-10-17T04:54:29Z  {'frontend': 345.5, 'productcatalogservice': 485.0, 'checkoutservice': 468.0, 'recommendationservice': 570.0, 'emailservice': 51.0, 'adservice': 0, 'cartservice': 368.0, 'currencyservice': 354.0, 'paymentservice': 0, 'shippingservice': 99.0}
+2026-10-17T04:54:29Z  []
+2026-10-17T04:54:29Z  No overloaded services
+2026-10-17T04:54:31Z  RL_LOOP_START iter=159
+2026-10-17T04:54:31Z  {'frontend': 326.75, 'productcatalogservice': 484.0, 'checkoutservice': 441.0, 'recommendationservice': 545.0, 'emailservice': 63.0, 'adservice': 0, 'cartservice': 364.0, 'currencyservice': 316.0, 'paymentservice': 0, 'shippingservice': 75.0}
+2026-10-17T04:54:31Z  []
+2026-10-17T04:54:31Z  No overloaded services
+2026-10-17T04:54:33Z  RL_LOOP_START iter=160
+2026-10-17T04:54:33Z  {'frontend': 329.25, 'productcatalogservice': 472.0, 'checkoutservice': 400.0, 'recommendationservice': 536.0, 'emailservice': 52.0, 'adservice': 0, 'cartservice': 325.0, 'currencyservice': 336.0, 'paymentservice': 0, 'shippingservice': 88.0}
+2026-10-17T04:54:33Z  []
+2026-10-17T04:54:33Z  No overloaded services
+2026-10-17T04:54:35Z  RL_LOOP_START iter=161
+2026-10-17T04:54:35Z  {'frontend': 336.5, 'productcatalogservice': 464.0, 'checkoutservice': 399.0, 'recommendationservice': 534.0, 'emailservice': 45.0, 'adservice': 0, 'cartservice': 325.0, 'currencyservice': 304.0, 'paymentservice': 0, 'shippingservice': 79.0}
+2026-10-17T04:54:35Z  []
+2026-10-17T04:54:35Z  No overloaded services
+2026-10-17T04:54:37Z  RL_LOOP_START iter=162
+2026-10-17T04:54:37Z  {'frontend': 340.5, 'productcatalogservice': 489.0, 'checkoutservice': 452.0, 'recommendationservice': 575.0, 'emailservice': 49.0, 'adservice': 0, 'cartservice': 357.0, 'currencyservice': 360.0, 'paymentservice': 0, 'shippingservice': 91.0}
+2026-10-17T04:54:37Z  []
+2026-10-17T04:54:37Z  No overloaded services
+2026-10-17T04:54:39Z  RL_LOOP_START iter=163
+2026-10-17T04:54:39Z  {'frontend': 352.5, 'productcatalogservice': 467.0, 'checkoutservice': 423.0, 'recommendationservice': 548.0, 'emailservice': 49.0, 'adservice': 0, 'cartservice': 336.0, 'currencyservice': 313.0, 'paymentservice': 0, 'shippingservice': 82.0}
+2026-10-17T04:54:39Z  []
+2026-10-17T04:54:39Z  No overloaded services
+2026-10-17T04:54:41Z  RL_LOOP_START iter=164
+2026-10-17T04:54:41Z  {'frontend': 335.25, 'productcatalogservice': 477.0, 'checkoutservice': 407.0, 'recommendationservice': 553.0, 'emailservice': 65.0, 'adservice': 0, 'cartservice': 335.0, 'currencyservice': 329.0, 'paymentservice': 0, 'shippingservice': 77.0}
+2026-10-17T04:54:41Z  []
+2026-10-17T04:54:41Z  No overloaded services
+2026-10-17T04:54:43Z  RL_LOOP_START iter=165
+2026-10-17T04:54:43Z  {'frontend': 345.5, 'productcatalogservice': 470.0, 'checkoutservice': 437.0, 'recommendationservice': 570.0, 'emailservice': 45.0, 'adservice': 0, 'cartservice': 337.0, 'currencyservice': 320.0, 'paymentservice': 0, 'shippingservice': 92.0}
+2026-10-17T04:54:43Z  []
+2026-10-17T04:54:43Z  No overloaded services
+2026-10-17T04:54:45Z  RL_LOOP_START iter=166
+2026-10-17T04:54:45Z  {'frontend': 335.75, 'productcatalogservice': 486.0, 'checkoutservice': 405.0, 'recommendationservice': 570.0, 'emailservice': 66.0, 'adservice': 0, 'cartservice': 323.0, 'currencyservice': 320.0, 'paymentservice': 0, 'shippingservice': 71.0}
+2026-10-17T04:54:45Z  []
+2026-10-17T04:54:45Z  No overloaded services
+2026-10-17T04:54:47Z  RL_LOOP_START iter=167
+2026-10-17T04:54:47Z  {'frontend': 380.5, 'productcatalogservice': 521.0, 'checkoutservice': 415.0, 'recommendationservice': 591.0, 'emailservice': 72.0, 'adservice': 0, 'cartservice': 330.0, 'currencyservice': 329.0, 'paymentservice': 0, 'shippingservice': 86.0}
+2026-10-17T04:54:47Z  []
+2026-10-17T04:54:47Z  No overloaded services
+2026-10-17T04:54:49Z  RL_LOOP_START iter=168
+2026-10-17T04:54:49Z  {'frontend': 350.0, 'productcatalogservice': 494.0, 'checkoutservice': 449.0, 'recommendationservice': 589.0, 'emailservice': 54.0, 'adservice': 0, 'cartservice': 380.0, 'currencyservice': 313.0, 'paymentservice': 0, 'shippingservice': 100.0}
+2026-10-17T04:54:49Z  []
+2026-10-17T04:54:49Z  No overloaded services
+2026-10-17T04:54:51Z  RL_LOOP_START iter=169
+2026-10-17T04:54:51Z  {'frontend': 360.5, 'productcatalogservice': 493.0, 'checkoutservice': 401.0, 'recommendationservice': 560.0, 'emailservice': 51.0, 'adservice': 0, 'cartservice': 347.0, 'currencyservice': 316.0, 'paymentservice': 0, 'shippingservice': 84.0}
+2026-10-17T04:54:51Z  []
+2026-10-17T04:54:51Z  No overloaded services
+2026-10-17T04:54:53Z  RL_LOOP_START iter=170
+2026-10-17T04:54:53Z  {'frontend': 343.0, 'productcatalogservice': 481.0, 'checkoutservice': 417.0, 'recommendationservice': 564.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 344.0, 'currencyservice': 310.0, 'paymentservice': 0, 'shippingservice': 89.0}
+2026-10-17T04:54:53Z  []
+2026-10-17T04:54:53Z  No overloaded services
+2026-10-17T04:54:55Z  RL_LOOP_START iter=171
+2026-10-17T04:54:55Z  {'frontend': 347.25, 'productcatalogservice': 477.0, 'checkoutservice': 420.0, 'recommendationservice': 543.0, 'emailservice': 70.0, 'adservice': 0, 'cartservice': 328.0, 'currencyservice': 310.0, 'paymentservice': 0, 'shippingservice': 79.0}
+2026-10-17T04:54:55Z  []
+2026-10-17T04:54:55Z  No overloaded services
+2026-10-17T04:54:57Z  RL_LOOP_START iter=172
+2026-10-17T04:54:57Z  {'frontend': 347.75, 'productcatalogservice': 524.0, 'checkoutservice': 482.0, 'recommendationservice': 599.0, 'emailservice': 55.0, 'adservice': 0, 'cartservice': 324.0, 'currencyservice': 322.0, 'paymentservice': 0, 'shippingservice': 80.0}
+2026-10-17T04:54:57Z  []
+2026-10-17T04:54:57Z  No overloaded services
+2026-10-17T04:54:59Z  RL_LOOP_START iter=173
+2026-10-17T04:54:59Z  {'frontend': 360.0, 'productcatalogservice': 492.0, 'checkoutservice': 518.0, 'recommendationservice': 572.0, 'emailservice': 51.0, 'adservice': 0, 'cartservice': 379.0, 'currencyservice': 320.0, 'paymentservice': 0, 'shippingservice': 101.0}
+2026-10-17T04:54:59Z  []
+2026-10-17T04:54:59Z  No overloaded services
+2026-10-17T04:55:01Z  RL_LOOP_START iter=174
+2026-10-17T04:55:01Z  {'frontend': 337.5, 'productcatalogservice': 493.0, 'checkoutservice': 414.0, 'recommendationservice': 621.0, 'emailservice': 81.0, 'adservice': 0, 'cartservice': 360.0, 'currencyservice': 320.0, 'paymentservice': 0, 'shippingservice': 79.0}
+2026-10-17T04:55:01Z  []
+2026-10-17T04:55:01Z  No overloaded services
+2026-10-17T04:55:03Z  RL_LOOP_START iter=175
+2026-10-17T04:55:03Z  {'frontend': 368.25, 'productcatalogservice': 515.0, 'checkoutservice': 433.0, 'recommendationservice': 552.0, 'emailservice': 51.0, 'adservice': 0, 'cartservice': 370.0, 'currencyservice': 332.0, 'paymentservice': 0, 'shippingservice': 88.0}
+2026-10-17T04:55:03Z  []
+2026-10-17T04:55:03Z  No overloaded services
+2026-10-17T04:55:05Z  RL_LOOP_START iter=176
+2026-10-17T04:55:05Z  {'frontend': 358.25, 'productcatalogservice': 487.0, 'checkoutservice': 405.0, 'recommendationservice': 596.0, 'emailservice': 68.0, 'adservice': 0, 'cartservice': 388.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 87.0}
+2026-10-17T04:55:05Z  []
+2026-10-17T04:55:05Z  No overloaded services
+2026-10-17T04:55:07Z  RL_LOOP_START iter=177
+2026-10-17T04:55:07Z  {'frontend': 356.75, 'productcatalogservice': 531.0, 'checkoutservice': 481.0, 'recommendationservice': 603.0, 'emailservice': 49.0, 'adservice': 0, 'cartservice': 361.0, 'currencyservice': 331.0, 'paymentservice': 0, 'shippingservice': 83.0}
+2026-10-17T04:55:07Z  []
+2026-10-17T04:55:07Z  No overloaded services
+2026-10-17T04:55:09Z  RL_LOOP_START iter=178
+2026-10-17T04:55:09Z  {'frontend': 354.0, 'productcatalogservice': 483.0, 'checkoutservice': 404.0, 'recommendationservice': 559.0, 'emailservice': 58.0, 'adservice': 0, 'cartservice': 343.0, 'currencyservice': 315.0, 'paymentservice': 0, 'shippingservice': 84.0}
+2026-10-17T04:55:09Z  []
+2026-10-17T04:55:09Z  No overloaded services
+2026-10-17T04:55:11Z  RL_LOOP_START iter=179
+2026-10-17T04:55:11Z  {'frontend': 340.0, 'productcatalogservice': 492.0, 'checkoutservice': 460.0, 'recommendationservice': 583.0, 'emailservice': 63.0, 'adservice': 0, 'cartservice': 376.0, 'currencyservice': 324.0, 'paymentservice': 0, 'shippingservice': 75.0}
+2026-10-17T04:55:11Z  []
+2026-10-17T04:55:11Z  No overloaded services
+2026-10-17T04:55:13Z  RL_LOOP_START iter=180
+2026-10-17T04:55:13Z  {'frontend': 336.75, 'productcatalogservice': 473.0, 'checkoutservice': 425.0, 'recommendationservice': 564.0, 'emailservice': 49.0, 'adservice': 0, 'cartservice': 335.0, 'currencyservice': 343.0, 'paymentservice': 0, 'shippingservice': 93.0}
+2026-10-17T04:55:13Z  []
+2026-10-17T04:55:13Z  No overloaded services
+2026-10-17T04:55:15Z  RL_LOOP_START iter=181
+2026-10-17T04:55:15Z  {'frontend': 350.0, 'productcatalogservice': 493.0, 'checkoutservice': 435.0, 'recommendationservice': 566.0, 'emailservice': 46.0, 'adservice': 0, 'cartservice': 363.0, 'currencyservice': 312.0, 'paymentservice': 0, 'shippingservice': 76.0}
+2026-10-17T04:55:15Z  []
+2026-10-17T04:55:15Z  No overloaded services
+2026-10-17T04:55:17Z  RL_LOOP_START iter=182
+2026-10-17T04:55:17Z  {'frontend': 355.0, 'productcatalogservice': 501.0, 'checkoutservice': 455.0, 'recommendationservice': 559.0, 'emailservice': 43.0, 'adservice': 0, 'cartservice': 350.0, 'currencyservice': 338.0, 'paymentservice': 0, 'shippingservice': 77.0}
+2026-10-17T04:55:17Z  []
+2026-10-17T04:55:17Z  No overloaded services
+2026-10-17T04:55:19Z  RL_LOOP_START iter=183
+2026-10-17T04:55:19Z  {'frontend': 346.5, 'productcatalogservice': 495.0, 'checkoutservice': 416.0, 'recommendationservice': 567.0, 'emailservice': 56.0, 'adservice': 0, 'cartservice': 317.0, 'currencyservice': 306.0, 'paymentservice': 0, 'shippingservice': 89.0}
+2026-10-17T04:55:19Z  []
+2026-10-17T04:55:19Z  No overloaded services
+2026-10-17T04:55:21Z  RL_LOOP_START iter=184
+2026-10-17T04:55:21Z  {'frontend': 346.25, 'productcatalogservice': 481.0, 'checkoutservice': 403.0, 'recommendationservice': 585.0, 'emailservice': 67.0, 'adservice': 0, 'cartservice': 309.0, 'currencyservice': 334.0, 'paymentservice': 0, 'shippingservice': 79.0}
+2026-10-17T04:55:21Z  []
+2026-10-17T04:55:21Z  No overloaded services
+2026-10-17T04:55:23Z  RL_LOOP_START iter=185
+2026-10-17T04:55:23Z  {'frontend': 346.25, 'productcatalogservice': 493.0, 'checkoutservice': 399.0, 'recommendationservice': 549.0, 'emailservice': 54.0, 'adservice': 0, 'cartservice': 338.0, 'currencyservice': 314.0, 'paymentservice': 0, 'shippingservice': 90.0}
+2026-10-17T04:55:23Z  []
+2026-10-17T04:55:23Z  No overloaded services
+2026-10-17T04:55:25Z  RL_LOOP_START iter=186
+2026-10-17T04:55:25Z  {'frontend': 347.25, 'productcatalogservice': 463.0, 'checkoutservice': 413.0, 'recommendationservice': 574.0, 'emailservice': 51.0, 'adservice': 0, 'cartservice': 335.0, 'currencyservice': 301.0, 'paymentservice': 0, 'shippingservice': 77.0}
+2026-10-17T04:55:25Z  []
+2026-10-17T04:55:25Z  No overloaded services
+2026-10-17T04:55:27Z  RL_LOOP_START iter=187
+2026-10-17T04:55:27Z  {'frontend': 351.0, 'productcatalogservice': 480.0, 'checkoutservice': 472.0, 'recommendationservice': 539.0, 'emailservice': 63.0, 'adservice': 0, 'cartservice': 345.0, 'currencyservice': 321.0, 'paymentservice': 0, 'shippingservice': 87.0}
+2026-10-17T04:55:27Z  []
+2026-10-17T04:55:27Z  No overloaded services
+2026-10-17T04:55:29Z  RL_LOOP_START iter=188
+2026-10-17T04:55:29Z  {'frontend': 345.5, 'productcatalogservice': 478.0, 'checkoutservice': 402.0, 'recommendationservice': 551.0, 'emailservice': 50.0, 'adservice': 0, 'cartservice': 343.0, 'currencyservice': 306.0, 'paymentservice': 0, 'shippingservice': 71.0}
+2026-10-17T04:55:29Z  []
+2026-10-17T04:55:29Z  No overloaded services
+2026-10-17T04:55:31Z  RL_LOOP_START iter=189
+2026-10-17T04:55:31Z  {'frontend': 338.25, 'productcatalogservice': 458.0, 'checkoutservice': 439.0, 'recommendationservice': 564.0, 'emailservice': 66.0, 'adservice': 0, 'cartservice': 328.0, 'currencyservice': 316.0, 'paymentservice': 0, 'shippingservice': 71.0}
+2026-10-17T04:55:31Z  []
+2026-10-17T04:55:31Z  No overloaded services
+2026-10-17T04:55:33Z  RL_LOOP_START iter=190
+2026-10-17T04:55:33Z  {'frontend': 362.75, 'productcatalogservice': 480.0, 'checkoutservice': 398.0, 'recommendationservice': 560.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 358.0, 'currencyservice': 319.0, 'paymentservice': 0, 'shippingservice': 92.0}
+2026-10-17T04:55:33Z  []
+2026-10-17T04:55:33Z  No overloaded services
+2026-10-17T04:55:35Z  RL_LOOP_START iter=191
+2026-10-17T04:55:35Z  {'frontend': 341.5, 'productcatalogservice': 462.0, 'checkoutservice': 441.0, 'recommendationservice': 549.0, 'emailservice': 48.0, 'adservice': 0, 'cartservice': 375.0, 'currencyservice': 311.0, 'paymentservice': 0, 'shippingservice': 83.0}
+2026-10-17T04:55:35Z  []
+2026-10-17T04:55:35Z  No overloaded services
+2026-10-17T04:55:37Z  RL_LOOP_START iter=192
+2026-10-17T04:55:37Z  {'frontend': 318.25, 'productcatalogservice': 479.0, 'checkoutservice': 401.0, 'recommendationservice': 526.0, 'emailservice': 68.0, 'adservice': 0, 'cartservice': 351.0, 'currencyservice': 323.0, 'paymentservice': 0, 'shippingservice': 73.0}
+2026-10-17T04:55:37Z  []
+2026-10-17T04:55:37Z  No overloaded services
+2026-10-17T04:55:39Z  RL_LOOP_START iter=193
+2026-10-17T04:55:39Z  {'frontend': 336.75, 'productcatalogservice': 462.0, 'checkoutservice': 431.0, 'recommendationservice': 567.0, 'emailservice': 47.0, 'adservice': 0, 'cartservice': 358.0, 'currencyservice': 302.0, 'paymentservice': 0, 'shippingservice': 86.0}
+2026-10-17T04:55:39Z  []
+2026-10-17T04:55:39Z  No overloaded services
+2026-10-17T04:55:41Z  RL_LOOP_START iter=194
+2026-10-17T04:55:41Z  {'frontend': 340.25, 'productcatalogservice': 491.0, 'checkoutservice': 420.0, 'recommendationservice': 536.0, 'emailservice': 70.0, 'adservice': 0, 'cartservice': 325.0, 'currencyservice': 306.0, 'paymentservice': 0, 'shippingservice': 77.0}
+2026-10-17T04:55:41Z  []
+2026-10-17T04:55:41Z  No overloaded services
+2026-10-17T04:55:43Z  RL_LOOP_START iter=195
+2026-10-17T04:55:43Z  {'frontend': 330.0, 'productcatalogservice': 472.0, 'checkoutservice': 356.0, 'recommendationservice': 544.0, 'emailservice': 46.0, 'adservice': 0, 'cartservice': 321.0, 'currencyservice': 314.0, 'paymentservice': 0, 'shippingservice': 81.0}
+2026-10-17T04:55:43Z  []
+2026-10-17T04:55:43Z  No overloaded services
+2026-10-17T04:55:45Z  RL_LOOP_START iter=196
+2026-10-17T04:55:45Z  {'frontend': 338.0, 'productcatalogservice': 477.0, 'checkoutservice': 447.0, 'recommendationservice': 550.0, 'emailservice': 73.0, 'adservice': 0, 'cartservice': 356.0, 'currencyservice': 329.0, 'paymentservice': 0, 'shippingservice': 75.0}
+2026-10-17T04:55:45Z  []
+2026-10-17T04:55:45Z  No overloaded services
+2026-10-17T04:55:47Z  RL_LOOP_START iter=197
+2026-10-17T04:55:47Z  {'frontend': 337.25, 'productcatalogservice': 488.0, 'checkoutservice': 359.0, 'recommendationservice': 568.0, 'emailservice': 43.0, 'adservice': 0, 'cartservice': 345.0, 'currencyservice': 317.0, 'paymentservice': 0, 'shippingservice': 89.0}
+2026-10-17T04:55:47Z  []
+2026-10-17T04:55:47Z  No overloaded services
+2026-10-17T04:55:49Z  RL_LOOP_START iter=198
+2026-10-17T04:55:49Z  {'frontend': 132.75, 'productcatalogservice': 101.0, 'checkoutservice': 84.0, 'recommendationservice': 177.0, 'emailservice': 47.0, 'adservice': 0, 'cartservice': 124.0, 'currencyservice': 146.0, 'paymentservice': 0, 'shippingservice': 34.0}
+2026-10-17T04:55:49Z  []
+2026-10-17T04:55:49Z  No overloaded services
+2026-10-17T04:55:50Z  *** SIGTERM received at time=1792212950 on cpu 7 ***
+2026-10-17T04:55:50Z  PC: @     0x7fbc0bf2a1eb  (unknown)  select
+2026-10-17T04:55:50Z      @     0x7fbc0be58090  (unknown)  (unknown)
+2026-10-17T04:55:50Z  [2026-10-17 04:55:50,281 E 421284 421284] logging.cc:361: *** SIGTERM received at time=1792212950 on cpu 7 ***
+2026-10-17T04:55:50Z  [2026-10-17 04:55:50,281 E 421284 421284] logging.cc:361: PC: @     0x7fbc0bf2a1eb  (unknown)  select
+2026-10-17T04:55:50Z  [2026-10-17 04:55:50,281 E 421284 421284] logging.cc:361:     @     0x7fbc0be58090  (unknown)  (unknown)
