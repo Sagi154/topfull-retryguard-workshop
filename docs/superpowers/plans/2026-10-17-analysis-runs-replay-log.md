@@ -9,3 +9,4 @@ analysis_s2_both_normal_run4 | exit ok | throttle ok | health ok | replicas fron
 analysis_s2_tf_only_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
 analysis_s2_rg_only_burst_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | checkoutservice OFF->ON 14; frontend->checkoutservice ON->OFF 15; frontend->checkoutservice burst 15
 analysis_s2_both_burst_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | checkoutservice OFF->ON 11; frontend->checkoutservice ON->OFF 12; frontend->checkoutservice burst 12
+analysis_s3_rg_only_normal_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend->checkoutservice ON->OFF 1
