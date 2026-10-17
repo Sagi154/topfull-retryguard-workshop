@@ -65,3 +65,5 @@ Re-run of the 60-hold matrix into `experiments/results/final_runs_results/`. Rep
 - analysis_s1_tf_only_run2 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
 
 - **2026-10-17** nalysis_s1_both_normal_run2 — clean. throttle ok (0 fetch failed), health ok. pin frontend 4 / catalog 1. goodput getproduct 161.0 postcheckout 27.7. commit pending.
+
+- **2026-10-17** `analysis_s1_rg_only_normal_run2` — clean. throttle N/A TopFull off, health ok. pin frontend 4 / catalog 1.
