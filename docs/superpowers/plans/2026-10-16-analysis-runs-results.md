@@ -564,8 +564,8 @@ Before the first unconstrained hold confirm catalog is not left at 100m: the run
 
 #### 5.6 S1 (group `s1`, 5 min each, 10 holds)
 
-- [ ] Round 1: `s1/s1_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
-- [ ] Round 2: `s1/s1_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
+- [x] Round 1: `s1/s1_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
+- [x] Round 2: `s1/s1_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
 **No stop rule for flags.** Flagged holds do not pause the matrix, however many there are. Do not change controller code or YAMLs mid-matrix.
 
@@ -576,7 +576,7 @@ Before the first unconstrained hold confirm catalog is not left at 100m: the run
 **Files:**
 - Create: `docs/superpowers/plans/2026-10-16-final-runs-results-log.md` (already appended to in Task 5; this task adds the summary table)
 
-- [ ] **Step 1: Count the pulled folders**
+- [x] **Step 1: Count the pulled folders**
 
 ```powershell
 (Get-ChildItem "experiments/results/final_runs_results" -Recurse -Directory -Filter "analysis_*").Count
@@ -584,7 +584,7 @@ Before the first unconstrained hold confirm catalog is not left at 100m: the run
 
 Expected: `60`. For each scenario_mode/variant folder expect exactly: `rg_only` 2 per mode per group, `tf_only` 2 per group (normal only), `both` 2 per mode per group.
 
-- [ ] **Step 2: Run the throttle audit over the new tree**
+- [x] **Step 2: Run the throttle audit over the new tree**
 
 ```powershell
 python experiments/throttle_flags.py audit --help
@@ -592,11 +592,11 @@ python experiments/throttle_flags.py audit --help
 
 If `audit` accepts a root argument, run it on `experiments/results/final_runs_results`; if it does not, rely on the per-hold P5 lines (the tool defaults to `final results/` and is not changed by this plan).
 
-- [ ] **Step 3: Summarise the log**
+- [x] **Step 3: Summarise the log**
 
 Append to the log file a table of 60 rows with columns scenario, variant, run, clean/flagged, reason. Count clean vs flagged and list the flagged ones for the user's re-run decision.
 
-- [ ] **Step 4: Commit and push**
+- [x] **Step 4: Commit and push**
 
 ```powershell
 git add docs/superpowers/plans/2026-10-16-final-runs-results-log.md

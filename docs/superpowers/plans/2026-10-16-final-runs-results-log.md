@@ -63,7 +63,28 @@ Re-run of the 60-hold matrix into `experiments/results/final_runs_results/`. Rep
 - analysis_s1_both_burst_run2 | exit ok | throttle FLAGGED (2 fetch failed at 04:26:45Z end-of-run Connection refused) | health ok | replicas frontend=4 catalog=1 | no toggles
 - analysis_s1_rg_only_burst_run2 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no toggles
 - analysis_s1_tf_only_run2 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
+- analysis_s1_both_normal_run2 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no toggles
+- analysis_s1_rg_only_normal_run2 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no toggles
 
-- **2026-10-17** nalysis_s1_both_normal_run2 — clean. throttle ok (0 fetch failed), health ok. pin frontend 4 / catalog 1. goodput getproduct 161.0 postcheckout 27.7. commit pending.
+## Matrix summary (Task 6)
 
-- **2026-10-17** `analysis_s1_rg_only_normal_run2` — clean. throttle N/A TopFull off, health ok. pin frontend 4 / catalog 1.
+Folder count under experiments/results/final_runs_results/: **60** (layout check: each group has rg_only x2 per mode, both x2 per mode, tf_only x2 under normal only; S4A constrained+unconstrained share the S4A tree so those variant folders have 4 each).
+
+Throttle audit (python experiments/throttle_flags.py audit --root experiments/results/final_runs_results): runs=60 flagged=1 topfull_on_flagged=1 â€” only analysis_s1_both_burst_run2.
+
+| Count | Status |
+| --- | ---: |
+| Finished holds | 60 |
+| Clean | 57 |
+| Flagged (finished) | 3 |
+| Aborted then same-slot re-run (clean) | 1 (analysis_s2_both_burst_run2) |
+
+### Flagged holds (user re-run decision)
+
+| log_folder | Flag | Reason |
+| --- | --- | --- |
+| analysis_s2_both_normal_run1 | RL STALL | 2 RL_RPS_TIMEOUT ProxyError at 11:00:41Z and 11:00:42Z (6 s after load end 11:00:35Z) |
+| analysis_4a_constrained_both_normal_run1 | RL STALL | 2 RL_RPS_TIMEOUT at 17:49:06Z |
+| analysis_s1_both_burst_run2 | throttle FLAGGED | 2 fetch failed at 04:26:45Z end-of-run Connection refused |
+
+Every committed hold had frontend replicas **4** and catalog replicas **1** for the whole run (replica pin gate). The unpinned 20 in analysis_runs_results/ are not this matrix.
