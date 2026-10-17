@@ -61,3 +61,4 @@ Re-run of the 60-hold matrix into `experiments/results/final_runs_results/`. Rep
 - analysis_s1_rg_only_burst_run1 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no toggles
 - analysis_s1_both_burst_run1 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no toggles
 - analysis_s1_both_burst_run2 | exit ok | throttle FLAGGED (2 fetch failed at 04:26:45Z end-of-run Connection refused) | health ok | replicas frontend=4 catalog=1 | no toggles
+- analysis_s1_rg_only_burst_run2 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no toggles
