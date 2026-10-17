@@ -15,3 +15,4 @@ analysis_s3_tf_only_run3 | exit ok | throttle ok | health ok | replicas frontend
 analysis_s3_rg_only_burst_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend->checkoutservice ON->OFF 1
 analysis_s3_both_burst_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | checkoutservice OFF->ON 1; frontend->checkoutservice ON->OFF 1; frontend->checkoutservice burst 1
 analysis_4a_unconstrained_rg_only_normal_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no transition lines
+analysis_4a_unconstrained_both_normal_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no transition lines
