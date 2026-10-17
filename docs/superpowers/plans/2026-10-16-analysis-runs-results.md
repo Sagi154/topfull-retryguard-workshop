@@ -414,7 +414,7 @@ Expected: user `idozacharia` on both; nodes `Ready`; all Online Boutique pods `2
 
 - [ ] **Step 2: Verify the replica pin, then stop if it does not match**
 
-AGENTS.md §5 is the lock. Run this from the worktree. The four lines must be exactly the expected block. `kubectl get hpa` alone is not this check.
+AGENTS.md §5 is the lock. Run this from the worktree. The four lines must be exactly the expected block. `kubectl get hpa` alone is not this check. The runner resets all eleven Deployments to Paper-C1 itself and does not patch HPAs.
 
 ```powershell
 @'
