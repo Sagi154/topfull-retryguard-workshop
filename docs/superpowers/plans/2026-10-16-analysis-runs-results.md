@@ -559,8 +559,8 @@ Before the first unconstrained hold confirm catalog is not left at 100m: the run
 
 #### 5.5 S4B (group `s4b`, email 50m, 10 holds)
 
-- [ ] Round 1: `s4b/4b_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
-- [ ] Round 2: `s4b/4b_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
+- [x] Round 1: `s4b/4b_{rg_only_normal,both_normal,tf_only,rg_only_burst,both_burst}_run1.yaml`
+- [x] Round 2: `s4b/4b_{both_burst,rg_only_burst,tf_only,both_normal,rg_only_normal}_run2.yaml`
 
 #### 5.6 S1 (group `s1`, 5 min each, 10 holds)
 
