@@ -88,3 +88,9 @@ Throttle audit (python experiments/throttle_flags.py audit --root experiments/re
 | analysis_s1_both_burst_run2 | throttle FLAGGED | 2 fetch failed at 04:26:45Z end-of-run Connection refused |
 
 Every committed hold had frontend replicas **4** and catalog replicas **1** for the whole run (replica pin gate). The unpinned 20 in analysis_runs_results/ are not this matrix.
+
+## Re-runs (run3)
+
+`log_folder | exit | throttle | health | replicas | RetryGuard toggles | replaces`
+
+- analysis_s2_both_normal_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | frontend?recommendations ON?OFF 3, 1?2 2, 2?3 2; recommendations OFF?ON 2 | replaces analysis_s2_both_normal_run1
