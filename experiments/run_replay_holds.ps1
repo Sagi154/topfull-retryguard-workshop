@@ -42,11 +42,12 @@ print("catalog_hpa", ca["spec"]["minReplicas"], ca["spec"]["maxReplicas"], cd["s
 print("proxyCPU", ann.get("sidecar.istio.io/proxyCPU"))
 print("proxyCPULimit", ann.get("sidecar.istio.io/proxyCPULimit"))
 '@ | ssh -o BatchMode=yes -o ConnectTimeout=8 topfull-master python3 -
-  Write-Host $out
-  if ($out -notmatch "frontend_hpa 4 4 4") { throw "pin fail: $out" }
-  if ($out -notmatch "catalog_hpa 1 1 1") { throw "pin fail: $out" }
-  if ($out -notmatch "proxyCPU 90m") { throw "pin fail: $out" }
-  if ($out -notmatch "proxyCPULimit None") { throw "pin fail: $out" }
+  $text = if ($out -is [array]) { $out -join "`n" } else { [string]$out }
+  Write-Host $text
+  if ($text -notmatch "frontend_hpa 4 4 4") { throw "pin fail: $text" }
+  if ($text -notmatch "catalog_hpa 1 1 1") { throw "pin fail: $text" }
+  if ($text -notmatch "proxyCPU 90m") { throw "pin fail: $text" }
+  if ($text -notmatch "proxyCPULimit None") { throw "pin fail: $text" }
 }
 
 function Clear-Writers {
