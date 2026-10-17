@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import json
 import re
 import subprocess
 import sys
@@ -62,17 +63,28 @@ def toggle_summary(log_path: Path, rg_off: bool) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("run_dir")
-    ap.add_argument("--rg-off", action="store_true")
+    ap.add_argument("--rg-off", action="store_true",
+                    help="Force RG-off label; otherwise read run_manifest.json")
     args = ap.parse_args()
     run_dir = Path(args.run_dir)
     if not run_dir.is_absolute():
         run_dir = ROOT / run_dir
     log_folder = run_dir.name
+    rg_off = args.rg_off
+    manifest = run_dir / "run_manifest.json"
+    if manifest.is_file() and not args.rg_off:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        rg = data.get("retryguard") or data.get("config", {}).get("retryguard") or {}
+        if isinstance(rg, dict):
+            rg_off = not bool(rg.get("enabled", False))
+        # Some manifests nest under top-level keys from the runner.
+        if "retryguard" not in data and "config" not in data:
+            rg_off = not bool(data.get("retryguard_enabled", True))
     score = _run([sys.executable, "experiments/analysis_score.py", str(run_dir)])
     health_out = _run([sys.executable, "experiments/topfull_health.py", str(run_dir)])
-    throttle = throttle_status(score, args.rg_off)
+    throttle = throttle_status(score, rg_off)
     health = health_status(health_out)
-    toggles = toggle_summary(run_dir / "retryguard.log", args.rg_off)
+    toggles = toggle_summary(run_dir / "retryguard.log", rg_off)
     line = (
         f"{log_folder} | exit ok | throttle {throttle} | health {health} | "
         f"replicas frontend=4 catalog=1 | {toggles}"
