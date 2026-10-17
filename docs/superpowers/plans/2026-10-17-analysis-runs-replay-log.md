@@ -17,3 +17,4 @@ analysis_s3_both_burst_run3 | exit ok | throttle ok | health ok | replicas front
 analysis_4a_unconstrained_rg_only_normal_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no transition lines
 analysis_4a_unconstrained_both_normal_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no transition lines
 analysis_4a_unconstrained_tf_only_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
+analysis_4a_unconstrained_rg_only_burst_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no transition lines
