@@ -4,3 +4,4 @@ One line per finished hold. A flagged hold is recorded and the campaign continue
 
 `log_folder | exit | throttle | health | replicas | RetryGuard toggles`
 analysis_s2_rg_only_normal_run3 | exit ok | throttle N/A TopFull off | health analysis_s2_rg_only_normal_run3 | replicas frontend=4 catalog=1 | 
+analysis_s2_rg_only_normal_run3 | exit ok | throttle N/A TopFull off | health analysis_s2_rg_only_normal_run3 | replicas frontend=4 catalog=1 | 
