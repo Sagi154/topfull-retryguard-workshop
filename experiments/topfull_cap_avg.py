@@ -74,8 +74,11 @@ def api_summary(rps, kinds, caps) -> dict:
     }
 
 
-def run_summary(run_dir: Path) -> dict | None:
-    """{api: summary} for one run, or None when TopFull is off or has no throttle file."""
+def series_by_api(run_dir: Path) -> dict[str, tuple] | None:
+    """{api: (rps, kinds, caps)} or None when TopFull is off or has no throttle file.
+
+    Shared with topfull_cap_median.py so both tools score the same seconds.
+    """
     run_dir = Path(run_dir)
     if not analysis_score.topfull_enabled(run_dir):
         return None
@@ -93,8 +96,16 @@ def run_summary(run_dir: Path) -> dict | None:
         kinds, caps = classify(
             locust["hold_s"], reads["hold_s"].to_numpy(dtype=float),
             reads["threshold"].to_numpy(dtype=float))
-        out[api] = api_summary(locust["RPS"].to_numpy(dtype=float), kinds, caps)
+        out[api] = (locust["RPS"].to_numpy(dtype=float), kinds, caps)
     return out
+
+
+def run_summary(run_dir: Path) -> dict | None:
+    """{api: summary} for one run, or None when TopFull is off or has no throttle file."""
+    series = series_by_api(run_dir)
+    if series is None:
+        return None
+    return {api: api_summary(*parts) for api, parts in series.items()}
 
 
 def cell_mean(runs: list[dict]) -> dict:
