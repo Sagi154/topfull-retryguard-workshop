@@ -12,6 +12,8 @@ python experiments/variant_summary.py "<run_dir-or-variant_dir>" ["<run_dir-or-v
 
 A folder with `run_manifest.json` or `getproduct.csv` is a run. A folder whose children are runs is a variant directory. Runs are grouped by `<scenario>/<variant>`, the two parent folder names.
 
+`postcart` and `emptycart` are left out. The tables are `getproduct`, `getcart`, and `postcheckout`.
+
 ## Columns, per Locust API
 
 | Column | One run | Variant row |

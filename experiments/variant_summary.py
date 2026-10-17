@@ -19,6 +19,7 @@ The variant table gives each run equal weight:
 
 TopFull-off runs have goodput and a blank percentage. The definitions match
 locust_goodput.py, topfull_cap_avg.py, and topfull_cap_median.py.
+postcart and emptycart are left out. This summary is getproduct, getcart, and postcheckout.
 """
 from __future__ import annotations
 
@@ -33,7 +34,8 @@ import locust_goodput  # noqa: E402
 import topfull_cap_avg as avg  # noqa: E402
 import topfull_cap_median as med  # noqa: E402
 
-APIS = avg.APIS
+# postcart and emptycart are left out of this summary.
+APIS = ("getproduct", "getcart", "postcheckout")
 FIELDS = ("mean_goodput", "median_goodput", "mean_effective_pct", "median_effective_pct")
 
 

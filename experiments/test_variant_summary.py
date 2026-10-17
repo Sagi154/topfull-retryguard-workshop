@@ -24,6 +24,13 @@ def _good(mean, median):
 
 
 class TestVariant(unittest.TestCase):
+    def test_postcart_and_emptycart_are_left_out(self):
+        row = {k: 1.0 for k in vs.FIELDS}
+        text = vs.render("t", {"getproduct": row, "postcart": row, "emptycart": row, "postcheckout": row})
+        self.assertIn("getproduct", text)
+        self.assertIn("postcheckout", text)
+        self.assertNotIn("postcart", text)
+        self.assertNotIn("emptycart", text)
     def test_groups_a_run_and_a_variant_directory(self):
         with tempfile.TemporaryDirectory() as root:
             run = Path(root) / "S2_burst" / "both" / "run1"
