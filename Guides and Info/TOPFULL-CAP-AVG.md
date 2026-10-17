@@ -44,8 +44,9 @@ The tool walks every Locust row of an API. The first row is second 0. Each row i
 | `mean_offered` | Mean `RPS` over capped and no-cap rows |
 | `mean_effective` | Mean of the effective value over the same rows. **This is the answer** |
 | `mean_cap_when_capped` | Mean raw cap on capped rows only (`-` if none) |
+| `effective_pct` | `100 * mean_effective / mean_offered` for that row. `-` when offered is missing or 0 |
 
-`mean_offered` and `mean_effective` use the same rows, so the gap between them is the load TopFull held back. Cell-mean rows average each column across runs and skip runs where it is missing.
+`mean_offered` and `mean_effective` use the same rows, so the gap between them is the load TopFull held back. Cell-mean rows average each of those columns across runs and skip runs where it is missing. `effective_pct` is not averaged: on the cell-mean row it is recomputed from that row's averaged offered and effective.
 
 ## How to read it
 
@@ -58,13 +59,13 @@ The tool walks every Locust row of an API. The first row is second 0. Each row i
 
 `analysis_s2_both_burst_run2`, 550 Locust rows per API:
 
-| API | capped_s | nocap_s | empty_s | unknown_s | mean_offered | mean_effective |
-|---|---|---|---|---|---|---|
-| `getproduct` | 227 | 240 | 83 | 0 | 254.9 | 244.3 |
-| `getcart` | 220 | 241 | 89 | 0 | 92.6 | 85.7 |
-| `postcart` | 0 | 405 | 145 | 0 | 84.9 | 84.9 |
-| `emptycart` | 0 | 405 | 145 | 0 | 4.8 | 4.8 |
-| `postcheckout` | 458 | 32 | 60 | 0 | 81.1 | 46.1 |
+| API | capped_s | nocap_s | empty_s | unknown_s | mean_offered | mean_effective | effective_pct |
+|---|---|---|---|---|---|---|---|---|
+| `getproduct` | 227 | 240 | 83 | 0 | 254.9 | 244.3 | 95.8 |
+| `getcart` | 220 | 241 | 89 | 0 | 92.6 | 85.7 | 92.5 |
+| `postcart` | 0 | 405 | 145 | 0 | 84.9 | 84.9 | 100.0 |
+| `emptycart` | 0 | 405 | 145 | 0 | 4.8 | 4.8 | 100.0 |
+| `postcheckout` | 458 | 32 | 60 | 0 | 81.1 | 46.1 | 56.8 |
 
 This is one hold, shown to check the tool. It is not a cell result and not a finding. The tool has not been run across cells yet.
 

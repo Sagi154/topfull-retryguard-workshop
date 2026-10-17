@@ -41,6 +41,20 @@ class TestSummary(unittest.TestCase):
     def test_all_unknown_has_no_mean(self):
         s = t.api_summary([5.0], np.array(["unknown"]), np.array([np.nan]))
         self.assertIsNone(s["mean_effective"])
+        self.assertIsNone(t.effective_pct(s))
+
+    def test_effective_pct_is_effective_over_offered(self):
+        self.assertEqual(t.effective_pct({"mean_offered": 80.0, "mean_effective": 40.0}), 50.0)
+        self.assertIsNone(t.effective_pct({"mean_offered": 0.0, "mean_effective": 0.0}))
+
+    def test_cell_mean_percentage_uses_the_averaged_means(self):
+        def row(offered, effective):
+            return {k: 0 for k in t.FIELDS} | {"mean_offered": offered, "mean_effective": effective}
+        cell = t.cell_mean([
+            {"getproduct": row(100.0, 50.0)},
+            {"getproduct": row(200.0, 50.0)},
+        ])
+        self.assertAlmostEqual(t.effective_pct(cell["getproduct"]), 100.0 * 50.0 / 150.0)
 
 
 if __name__ == "__main__":

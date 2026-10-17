@@ -10,7 +10,9 @@ Walks every Locust row of each API, starting at the first row. For each row:
                 min(cap, RPS)  when there is a real cap
                 (row left out)  when the cap is unknown or an empty read
 RPS is the offered rate: Locust RPS already includes the failed requests (Goodput = RPS - Fail).
-Mean effective is in req/s. Runs with several folders also print the mean of the run means.
+Mean effective is in req/s. effective_pct is 100 * mean_effective / mean_offered on that same row,
+including the cell-mean row (ratio of the averaged means). Runs with several folders also
+print the mean of the run means.
 A TopFull-off run (run_manifest.json topfull_rl.enabled false) has no cap and is skipped.
 """
 from __future__ import annotations
@@ -109,16 +111,25 @@ def cell_mean(runs: list[dict]) -> dict:
     return out
 
 
+def effective_pct(row: dict) -> float | None:
+    """100 * mean_effective / mean_offered. None when offered is missing or 0."""
+    offered, effective = row.get("mean_offered"), row.get("mean_effective")
+    if offered is None or effective is None or offered == 0:
+        return None
+    return 100.0 * effective / offered
+
+
 def _f(v) -> str:
     return "-" if v is None else (f"{v:.1f}" if isinstance(v, float) else str(v))
 
 
 def render(title: str, summary: dict) -> str:
-    head = ["api", *FIELDS]
+    head = ["api", *FIELDS, "effective_pct"]
     lines = [title, " | ".join(head), " | ".join("---" for _ in head)]
     for api in APIS:
         if api in summary:
-            lines.append(" | ".join([api, *(_f(summary[api][k]) for k in FIELDS)]))
+            row = summary[api]
+            lines.append(" | ".join([api, *(_f(row[k]) for k in FIELDS), _f(effective_pct(row))]))
     return "\n".join(lines)
 
 
@@ -141,10 +152,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.csv:
         with open(args.csv, "w", newline="", encoding="utf-8") as fh:
             writer = csv.writer(fh)
-            writer.writerow(["run", "api", *FIELDS])
+            writer.writerow(["run", "api", *FIELDS, "effective_pct"])
             for name, summary in done.items():
                 for api, row in summary.items():
-                    writer.writerow([name, api, *(row[k] for k in FIELDS)])
+                    writer.writerow([name, api, *(row[k] for k in FIELDS), effective_pct(row)])
     return 0
 
 
