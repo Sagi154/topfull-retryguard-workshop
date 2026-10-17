@@ -118,20 +118,19 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-10-16)
+## 4. Current status (as of 2026-10-17)
 
 ### Latest
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **S2 + S3 re-run (2026-10-16), 20/60.** All twenty S2 and S3 holds are in `experiments/results/final_runs_results/`. Nineteen clean. One flag: `analysis_s2_both_normal_run1` `RL STALL`. `analysis_s2_both_burst_run2` was re-run clean after an SSH timeout. Every committed hold had frontend replicas 4 and catalog replicas 1. Checkout after S3 is `800m`. Next is S4A constrained. Log: [2026-10-16-final-runs-results-log.md](docs/superpowers/plans/2026-10-16-final-runs-results-log.md).
-- **Replica pin is a gate on that re-run.** Before every hold the live cluster must be frontend HPA min=max=4 with 4 ready pods, catalog HPA min=max=1 with 1 ready pod, `proxyCPU=90m`, `proxyCPULimit` unset (§5). After the pull, `resource_usage.csv` must show only those replica counts. Any other count is not a column.
-- **Replica pin (2026-10-16).** Frontend HPA min=max=4, catalog HPA min=max=1, frontend `proxyCPU=90m`, `proxyCPULimit` unset. Applied on the cluster. This lock stays after every hold (§5). Checkout limit `800m`. The three VMs were left RUNNING.
-- **Next free slot.** `s3_tf_only.yaml` is run 6 (`final_s3_tf_only_run6`). The other four S3 YAMLs stay at 5. `final_s3_tf_only_run5` stays verification only until the user says otherwise. The locked S3 columns remain `final_s3_*_run3` and `final_s3_*_run4`.
-- **Replica pin (2026-10-16).** Frontend HPA min=max=4, catalog HPA min=max=1, frontend `proxyCPU=90m`, `proxyCPULimit` unset. Applied on the cluster. This lock stays after every hold (§5). Checkout limit `800m`. The three VMs were left RUNNING.
+- **60-hold re-run complete (2026-10-16 → 2026-10-17).** All 60 holds (S2, S3, S4A constrained, S4A unconstrained, S4B, S1 × 5 variants × 2) are in `experiments/results/final_runs_results/`. **57 clean, 3 flagged.** Flags: `analysis_s2_both_normal_run1` RL STALL; `analysis_4a_constrained_both_normal_run1` RL STALL; `analysis_s1_both_burst_run2` throttle FLAGGED (2 end-of-run `fetch failed`). `analysis_s2_both_burst_run2` was aborted once (SSH banner timeout) then re-run clean in the same slot. Every committed hold had frontend replicas 4 and catalog replicas 1. Log: [2026-10-16-final-runs-results-log.md](docs/superpowers/plans/2026-10-16-final-runs-results-log.md). Plan: [2026-10-16-analysis-runs-results.md](docs/superpowers/plans/2026-10-16-analysis-runs-results.md).
+- **Replica pin is a gate on that matrix.** Before every hold the live cluster must be frontend HPA min=max=4 with 4 ready pods, catalog HPA min=max=1 with 1 ready pod, `proxyCPU=90m`, `proxyCPULimit` unset (§5). After the pull, `resource_usage.csv` must show only those replica counts. Any other count is not a column.
+- **Next free slot.** `experiments/configs/analysis_runs/` is at run 2 for every file (a repeat needs `run3` in `log_folder` and `run_number`). `s3_tf_only.yaml` under `final_configs/` is run 6 (`final_s3_tf_only_run6`); the other four S3 YAMLs stay at 5. `final_s3_tf_only_run5` stays verification only until the user says otherwise. The locked S3 columns remain `final_s3_*_run3` and `final_s3_*_run4`. Replica pin stays on the cluster: frontend HPA 4/4, catalog HPA 1/1, `proxyCPU=90m`, `proxyCPULimit` unset. Checkout `800m`, catalog `800m`, email `120m`. VMs left RUNNING.
 
 ### Still open
 
+- Flagged-hold re-run decision for the three finished flags in `final_runs_results/` (`analysis_s2_both_normal_run1` RL STALL; `analysis_4a_constrained_both_normal_run1` RL STALL; `analysis_s1_both_burst_run2` throttle FLAGGED). Branch `analysis-runs-results` is unmerged. The unpinned 20 in `analysis_runs_results/` are not this matrix.
 - The S3 TopFull-only cap-floor verification did not pass (`verdict=pass`, `not_clean`: `health: RL STALL`). Plan: [2026-10-16-s3-tf-only-cap-floor-verify.md](docs/superpowers/plans/2026-10-16-s3-tf-only-cap-floor-verify.md).
 - Mentor sign-off on the TopFull RL timeout patch is open. The change is disclosed in [TOPFULL-UPSTREAM-DEVIATIONS.md](Guides%20and%20Info/TOPFULL-UPSTREAM-DEVIATIONS.md).
 - The re-run decision on the 11 holds in [2026-10-16-proxy-fd-rerun-decisions.md](Guides%20and%20Info/2026-10-16-proxy-fd-rerun-decisions.md) is open. `final_s2_tf_only_run4` stays verification only until the user says otherwise.
@@ -140,7 +139,6 @@ Replace these three lines after a hold. Do not append. Older text goes under Don
 - Wire `service_inbound.csv` / `service_edges.csv` into the mentor charts. Mesh files are already per-service outcomes.
 - Frozen μ lives in [experiments/capacity/README.md](experiments/capacity/README.md).
 - The S4 relock mode matrix is the locked S4A/S4B set under `final results/`, and the catalog-50m mode matrix and `campaign_48/` S4A/S4B are not comparable.
-- Branch `analysis-runs-results` is unmerged. The 60-hold re-run into `final_runs_results/` is in progress from Task 1. The 20 unpinned holds in `analysis_runs_results/` are not that matrix.
 
 Read [STATUS.md](STATUS.md) before a new hold, a `run_number` bump, scoring an old folder, or deciding what is left. After a hold, append one bullet under Done there, update Next free slots, and replace Latest here.
 

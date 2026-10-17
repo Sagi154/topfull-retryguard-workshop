@@ -613,15 +613,15 @@ Expected: the push exits 0. Do not start Task 7 until it does.
 **Files:**
 - Modify: `STATUS.md`, `AGENTS.md` (in the worktree, on the branch)
 
-- [ ] **Step 1: STATUS.md**
+- [x] **Step 1: STATUS.md**
 
 Append one Done bullet: date range, "60 holds (S2, S3, S4A constrained, S4A unconstrained, S4B, S1 x 5 variants x 2) pulled to `experiments/results/final_runs_results/`", clean vs flagged counts, the flagged `log_folder`s with reason (throttle stale seconds / PROXY FD / RL STALL), and that every committed hold had frontend replicas 4 and catalog replicas 1 for the whole run. Link to `2026-10-16-final-runs-results-log.md` and this plan. Add to "Next free slots": `experiments/configs/analysis_runs/` is at run 2 for every file (a repeat needs `run3` in `log_folder` and `run_number`). State that the unpinned 20 in `analysis_runs_results/` are not this matrix, and that flags are left for the user's decision.
 
-- [ ] **Step 2: AGENTS.md**
+- [x] **Step 2: AGENTS.md**
 
 Replace the three "Latest" lines in section 4 (do not append). Section 2 and section 6 already name `final_runs_results/` as the pull destination from Task 1; confirm they still do, and that `analysis_runs_results/` is described as the closed unpinned pass. Add the 60-hold matrix to the section 6 example. Update "Still open" with the branch `analysis-runs-results` (unmerged) and the flagged-hold re-run decision. State anything unverified as unverified.
 
-- [ ] **Step 3: Commit and push**
+- [x] **Step 3: Commit and push**
 
 ```powershell
 git add STATUS.md AGENTS.md
@@ -631,7 +631,7 @@ git push -u origin HEAD
 
 Expected: the push exits 0 before the hand-back.
 
-- [ ] **Step 4: Hand back**
+- [x] **Step 4: Hand back**
 
 Do not merge `analysis-runs-results` into `main` and do not remove the worktree. Report the branch name, counts, and flagged holds, and ask whether to merge, open a PR, or keep the branch as is.
 
