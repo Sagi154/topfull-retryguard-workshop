@@ -6,3 +6,4 @@ One line per finished hold. A flagged hold is recorded and the campaign continue
 
 analysis_s2_rg_only_normal_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend->recommendationservice ON->OFF 1, 1->2 1, 2->3 1; recommendationservice OFF->ON 1; frontend->checkoutservice ON->OFF 6, 1->2 1, 2->3 1; checkoutservice OFF->ON 6
 analysis_s2_both_normal_run4 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no transition lines
+analysis_s2_tf_only_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
