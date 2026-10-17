@@ -94,3 +94,4 @@ Every committed hold had frontend replicas **4** and catalog replicas **1** for 
 `log_folder | exit | throttle | health | replicas | RetryGuard toggles | replaces`
 
 - analysis_s2_both_normal_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | frontend?recommendations ON?OFF 3, 1?2 2, 2?3 2; recommendations OFF?ON 2 | replaces analysis_s2_both_normal_run1- analysis_4a_constrained_both_normal_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | frontend?recommendations ON?OFF 3, 1?2 3, 2?3 3; recommendations OFF?ON 3 | replaces analysis_4a_constrained_both_normal_run1
+- analysis_s1_both_burst_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no toggles | replaces analysis_s1_both_burst_run2
