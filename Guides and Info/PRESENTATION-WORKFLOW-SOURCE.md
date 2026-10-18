@@ -109,7 +109,7 @@ Facts for the 4–5 "how we worked" slides in the final presentation. This is ra
 - **Analysis tooling:** hold clock, `graphs_tool`, `multi_graphs_tool`, `analysis_score.py`, a fixed template ([ANALYSIS-TEMPLATE.md](ANALYSIS-TEMPLATE.md)), and the scorer's rejection definition aligned with the controller's.
 - **Unpinned run mistake** (2026-10-16): the first 20 holds of the matrix ran with an unpinned frontend HPA. They were set aside, and the replica pin was made a standing lock (frontend 4/4, catalog 1/1, sidecar `proxyCPU=90m`).
 - **Final dataset:** 60-hold matrix (S1–S4B, 5 variants × 2 repeats) in `final_runs_results/`: 57 clean, 3 flagged and re-run clean (2026-10-17). Merged to main via PR #11.
-- **Open:** mentor sign-off on the RL patch, and the re-run decision on 11 holds ([2026-10-16-proxy-fd-rerun-decisions.md](2026-10-16-proxy-fd-rerun-decisions.md)).
+- **Open:** mentor sign-off on the RL patch, and the re-run decision on 11 holds ([2026-10-16-proxy-fd-rerun-decisions.md](history/2026-10-16-proxy-fd-rerun-decisions.md)).
 
 ---
 
