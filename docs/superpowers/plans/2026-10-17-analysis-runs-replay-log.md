@@ -1,0 +1,32 @@
+﻿# Analysis-runs replay log
+
+One line per finished hold. A flagged hold is recorded and the campaign continues. These holds do not replace run 1 or run 2. `analysis_s2_both_normal_run4` does not replace `analysis_s2_both_normal_run3`.
+
+`log_folder | exit | throttle | health | replicas | RetryGuard toggles`
+
+analysis_s2_rg_only_normal_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend->recommendationservice ON->OFF 1, 1->2 1, 2->3 1; recommendationservice OFF->ON 1; frontend->checkoutservice ON->OFF 6, 1->2 1, 2->3 1; checkoutservice OFF->ON 6
+analysis_s2_both_normal_run4 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no transition lines
+analysis_s2_tf_only_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
+analysis_s2_rg_only_burst_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | checkoutservice OFF->ON 14; frontend->checkoutservice ON->OFF 15; frontend->checkoutservice burst 15
+analysis_s2_both_burst_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | checkoutservice OFF->ON 11; frontend->checkoutservice ON->OFF 12; frontend->checkoutservice burst 12
+analysis_s3_rg_only_normal_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend->checkoutservice ON->OFF 1
+analysis_s3_both_normal_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no transition lines
+analysis_s3_tf_only_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
+analysis_s3_rg_only_burst_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | frontend->checkoutservice ON->OFF 1
+analysis_s3_both_burst_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | checkoutservice OFF->ON 1; frontend->checkoutservice ON->OFF 1; frontend->checkoutservice burst 1
+analysis_4a_unconstrained_rg_only_normal_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no transition lines
+analysis_4a_unconstrained_both_normal_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no transition lines
+analysis_4a_unconstrained_tf_only_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
+analysis_4a_unconstrained_rg_only_burst_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no transition lines
+analysis_4a_unconstrained_both_burst_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no transition lines
+
+## Summary (Task 4)
+
+| Count | Status |
+| --- | ---: |
+| Finished holds | 15 |
+| Clean | 15 |
+| Flagged | 0 |
+| Failed before finish | 0 |
+
+All 15 folders are under `experiments/results/final_runs_results/`. `analysis_s2_both_normal_run3` was not replaced (`analysis_s2_both_normal_run4` is the S2 both_normal replay). Every committed hold had frontend replicas 4 and catalog replicas 1. Checkout and catalog were restored to `800m` after the last S3 and S4A unconstrained holds. Plan: [2026-10-17-analysis-runs-replay.md](2026-10-17-analysis-runs-replay.md).
