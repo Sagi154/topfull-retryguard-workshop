@@ -1,0 +1,523 @@
+> Re-scored 2026-10-13 with the scorer that matches the controller's rejection (`grpc_4 + grpc_14` counted on adservice, currencyservice, productcatalogservice, recommendationservice). Only item 5 changed. Original: [2026-10-12-s2-burst15-abc.md](2026-10-12-s2-burst15-abc.md).
+
+# S2 burst bar 1.5 (2026-10-12): TopFull off, then TopFull on
+
+Two locked-S2 holds with RetryGuard burst mode at `burst_rpr` 1.5. Scored with `experiments/analysis_score.py` (no `--sep`). Follows [ANALYSIS-TEMPLATE.md](../ANALYSIS-TEMPLATE.md). Run log: [2026-10-12-s2-burst15-run-log.md](../../docs/superpowers/plans/2026-10-12-s2-burst15-run-log.md).
+
+## 1. Setup
+
+- **Duration** 600 s. **Mix** getproduct / postcheckout / getcart / postcart / emptycart = **275 / 90 / 100 / 90 / 5**, `spawn_rate` 50. Locked S2 mix, Paper-C1.
+- **CPU and replica pin** (`service_capacity.json` on both holds):
+
+| Service | Per-pod quota (m) | Replicas |
+| --- | ---: | ---: |
+| frontend | 1150 | 4 |
+| checkoutservice | 800 | 1 |
+| recommendationservice | 1150 | 1 |
+| productcatalogservice | 800 | 1 |
+| cartservice | 800 | 1 |
+| currencyservice | 770 | 1 |
+| shippingservice | 770 | 1 |
+| adservice | 1150 | 1 |
+| paymentservice | 155 | 1 |
+| emailservice | 120 | 1 |
+| redis-cart | 540 | 1 |
+
+  Frontend replica count is 4 on every `resource_usage.csv` sample, and every other service is 1. That is the Paper-C1 pin: sidecar `proxyCPU=90m` with `proxyCPULimit` unset while frontend is held at 4, and catalog HPA max 1.
+- **Controllers.** RetryGuard is on for both holds. TopFull is off on the first hold and on on the second.
+- **RetryGuard knobs.** `retry_metric=edge_rpr`, `interval_samples=20`, `retries_threshold=0.4`, climb `0.16/0.32` with `climb_interval_seconds=10`, `reenable_rejection=0.25`, `burst_rpr=1.5`, `burst_window_seconds=5`, `burst_min_first_attempts=20`.
+- **Cool-off** 120 s between the holds, from `run_scenario.py` exit.
+- **Folders:** `experiments/results/campaign_48/S2_sustained_overload/study5_s2_burst15_rgtf0` and `study5_s2_burst15_rgtf1`. Configs: `experiments/configs/study_2026_10_12/01_s2_burst15_rgtf0.yaml` and `02_s2_burst15_rgtf1.yaml`. Both manifests have `run_number` 1; the `log_folder` name is the slot.
+
+## 2. Index
+
+Column order in every table below. One group, so there is no bold bar.
+
+| Column | Folder | Arm |
+| --- | --- | --- |
+| burst 1.5 off | `study5_s2_burst15_rgtf0` | RetryGuard on, TopFull off |
+| burst 1.5 on | `study5_s2_burst15_rgtf1` | RetryGuard on, TopFull on |
+
+## 3. Gate
+
+**Pass on both.** The run log records PASS for each hold.
+
+Scorer gate numbers:
+
+| Column | Locust `total.csv` rows | Mesh span (s) | Inbound gaps ≥ 1.5 s | `retryguard.log` |
+| --- | ---: | ---: | ---: | --- |
+| burst 1.5 off | 566 | 665 | 0 of 7315 | present |
+| burst 1.5 on | 560 | 666 | 66 of 7260 | present |
+
+`service_capacity.json` matches the pin in §1 on both holds, for every service. `resource_usage.csv` shows frontend at 4 replicas on every sample (149/149 and 150/150). No service has a zero-replica sample. The scorer printed no replica-change line.
+
+## 4. Edge-mode bars
+
+The scorer's first line:
+
+> Shed bar rpr > 0.40. Climb bars rpr ≤ 0.16 at 1 attempt and rpr ≤ 0.32 at 2 attempts. Rejection high bar 0.20, re-enable bar 0.25.
+
+The burst shed is a separate test (`ΣΔretry / ΣΔfirst ≥ burst_rpr × attempts / 3` over 5 s, with at least 20 first attempts). A burst shed is logged `metric=rpr_burst`.
+
+START line on both holds: `metric=edge_rpr`, `rpr_threshold=0.40`, `rejection_threshold=0.20`, `reenable_rejection=0.25`, `climb_rpr_1_to_2=0.16`, `climb_rpr_2_to_3=0.32`, `climb_interval_seconds=10s`, `sample_interval=1s`, `interval_samples=20s`, `attempts_on=3`, `burst_rpr=1.50`, `burst_window_seconds=5`, `burst_min_first_attempts=20`.
+
+The scorer's burst-bar line, same on both holds:
+
+> Burst bars: burst_rpr 1.50 (bar at 3 / 2 / 1 attempts 1.50 / 1.00 / 0.50). Window and volume floor are on the START line.
+
+A burst shed goes to 0 attempts and recovers on the normal path. Shed and 0→1 take **20 s** of row timestamps (`interval_samples=20`). Climbs 1→2 and 2→3 take **10 s** on these holds (`climb_interval_seconds=10` on the START line).
+
+`rpr = Δretry / (Δtotal − Δretry)` on one caller→callee edge. A tick with no first attempts is skipped and does not break the streak.
+
+## 5. (a) Edge rpr
+
+Three edges have a tick above the shed bar or a retry delta. Every other controlled edge has no tick above 0.40 and a retry delta of 0, so it is omitted here. The file streak is in seconds. The parenthetical is the controller's max `high` from `retryguard.log`, a sample count. No file streak reaches 30 s, so nothing is bold.
+
+**File streak, seconds / ticks above the shed bar (controller `high` in parentheses)**
+
+| Edge | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend → checkoutservice | 6 / 12 (4) | 6 / 7 (4) |
+| frontend → recommendationservice | 6 / 13 (4) | 11 / 61 (11) |
+| frontend → cartservice | 0 / 1 (1) | 0 / 0 (0) |
+
+**Mean / median / max / volume rpr**
+
+Median is the median of the scored per-tick rpr values. Volume is the hold's `Δretry / first attempts`.
+
+| Edge | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend → checkoutservice | 0.035 / 0.000 / 2.56 / 0.028 | 0.023 / 0.000 / 2.91 / 0.021 |
+| frontend → recommendationservice | 0.025 / 0.000 / 2.43 / 0.019 | 0.098 / 0.000 / 3.79 / 0.083 |
+| frontend → cartservice | 0.001 / 0.000 / 0.80 / 0.000 | 0.000 / 0.000 / 0.00 / 0.000 |
+
+**Climb streaks, 1-attempt / 2-attempt**
+
+Samples while that attempt cap is in force. An em dash means that cap never applied.
+
+| Edge | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend → checkoutservice | 11 / 11 | 10 / 9 |
+| frontend → recommendationservice | 2 / — | 11 / 11 |
+| frontend → cartservice | — / — | — / — |
+
+### 5a. Burst
+
+Burst is a second shed test beside (a). It does not change the three tables above.
+
+The scorer's burst-bar line is in §4. Cells below are pasted from the scorer's `(a2) Burst window` table. Each cell is peak `burst_rpr5` / median `burst_rpr5` / samples at or above the bar in force / burst sheds, with the `burst_rpr5` sample count in parentheses. The bar on a sample is `burst_rpr × attempts / attempts_on`.
+
+| Edge | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend → checkoutservice | 2.07 / 0.00 / 1 / 1 (576) | 1.95 / 0.00 / 1 / 1 (568) |
+| checkoutservice → currencyservice | 0.00 / 0.00 / 0 / 0 (601) | 0.00 / 0.00 / 0 / 0 (591) |
+| frontend → recommendationservice | 1.52 / 0.00 / 2 / 2 (62) | 1.68 / 0.00 / 8 / 8 (235) |
+| frontend → currencyservice | 0.00 / 0.00 / 0 / 0 (605) | 0.00 / 0.00 / 0 / 0 (595) |
+| checkoutservice → shippingservice | 0.00 / 0.00 / 0 / 0 (603) | 0.00 / 0.00 / 0 / 0 (592) |
+| frontend → adservice | 0.00 / 0.00 / 0 / 0 (604) | 0.00 / 0.00 / 0 / 0 (593) |
+| frontend → shippingservice | 0.00 / 0.00 / 0 / 0 (603) | 0.00 / 0.00 / 0 / 0 (593) |
+| frontend → productcatalogservice | 0.00 / 0.00 / 0 / 0 (605) | 0.00 / 0.00 / 0 / 0 (595) |
+| checkoutservice → paymentservice | 0.00 / 0.00 / 0 / 0 (601) | 0.00 / 0.00 / 0 / 0 (591) |
+| recommendationservice → productcatalogservice | 0.00 / 0.00 / 0 / 0 (604) | 0.00 / 0.00 / 0 / 0 (594) |
+| checkoutservice → cartservice | 0.00 / 0.00 / 0 / 0 (603) | 0.00 / 0.00 / 0 / 0 (592) |
+| checkoutservice → emailservice | 0.00 / 0.00 / 0 / 0 (601) | 0.00 / 0.00 / 0 / 0 (590) |
+| frontend → cartservice | 0.18 / 0.00 / 0 / 0 (605) | 0.00 / 0.00 / 0 / 0 (594) |
+
+`frontend → cartservice` has a full set of `burst_rpr5` samples (605 and 594). Its peak is 0.18 on the TopFull-off hold and 0.00 on the TopFull-on hold, both under the bar, so the shed count is 0.
+
+**Burst vs normal sheds.** In the §9 count table, `ON→OFF burst` is the part of `ON→OFF` fired by the burst test. Normal sheds are the difference. On both holds the difference is 0: checkout 1 burst shed and 0 normal, recommendations 2 burst sheds and 0 normal (TopFull off) and 8 burst sheds and 0 normal (TopFull on). On a burst row of the timestamp table, `Value` is the 5 s aggregate `ΣΔretry / ΣΔfirst`, and the log's `elapsed_s` on every burst `ON→OFF` is 4, the window span.
+
+**Replay check.** On burst 1.5 on, the first `frontend → checkoutservice` burst shed is **101 s** after that edge's first row in `service_edges.csv` (23:01:21Z to the shed at 23:03:02Z). The replay's first fire is 104–113 s at bars 1.0 / 1.5 / 2.0 ([2026-10-12-s2-burst-replay.md](2026-10-12-s2-burst-replay.md)). Later replay fire counts assume instant recovery. This check uses only the first fire. The TopFull-off hold has no replay.
+
+## 6. Rejection, beside (a)
+
+Not the shed signal. Cells are longest streak / count. **Bold** in the 0.20 table would be a streak of at least 30 on a controlled service. No controlled service reaches 30, so nothing is bold. Frontend and redis-cart stay plain. The re-enable bar on these holds is 0.25.
+
+**Above 0.20**
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend (not controlled) | 12 / 243 | 9 / 127 |
+| checkoutservice | 9 / 13 | 6 / 7 |
+| recommendationservice | 14 / 324 | 14 / 173 |
+| paymentservice | 1 / 1 | 0 / 0 |
+| emailservice | 5 / 15 | 2 / 6 |
+| productcatalogservice | 0 / 0 | 0 / 0 |
+| cartservice | 1 / 1 | 0 / 0 |
+| currencyservice | 0 / 0 | 0 / 0 |
+| shippingservice | 0 / 0 | 0 / 0 |
+| adservice | 1 / 1 | 0 / 0 |
+| redis-cart (not controlled) | 0 / 0 | 0 / 0 |
+
+**Strictly under the re-enable bar (0.25)**
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend (not controlled) | 54 / 518 | 94 / 528 |
+| checkoutservice | 325 / 600 | 555 / 599 |
+| recommendationservice | 52 / 422 | 95 / 474 |
+| paymentservice | 564 / 610 | 606 / 606 |
+| emailservice | 229 / 601 | 555 / 599 |
+| productcatalogservice | 612 / 612 | 607 / 607 |
+| cartservice | 611 / 611 | 607 / 607 |
+| currencyservice | 612 / 612 | 607 / 607 |
+| shippingservice | 612 / 612 | 607 / 607 |
+| adservice | 610 / 610 | 606 / 606 |
+| redis-cart (not controlled) | 0 / 0 | 0 / 0 |
+
+### (a) context: HTTP-only rejection (5xx + resets) streak above 0.20 / count, four read callees
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| recommendationservice | 3 / 4 | 3 / 15 |
+| productcatalogservice | 0 / 0 | 0 / 0 |
+| currencyservice | 0 / 0 | 0 / 0 |
+| adservice | 0 / 0 | 0 / 0 |
+
+### (a) context: HTTP-only rejection (5xx + resets) streak under the re-enable bar / count, four read callees
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| recommendationservice | 611 / 611 | 309 / 606 |
+| productcatalogservice | 612 / 612 | 607 / 607 |
+| currencyservice | 612 / 612 | 607 / 607 |
+| adservice | 611 / 611 | 606 / 606 |
+
+
+**grpc_4 / grpc_14**
+
+gRPC counted in the rejection rate and in the retry policy.
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| recommendationservice | 40,785 / 0 | 35,915 / 0 |
+| productcatalogservice | 0 / 0 | 0 / 0 |
+| currencyservice | 0 / 0 | 0 / 0 |
+| adservice | 3 / 1 | 0 / 0 |
+
+## 7. (b) Detector overloaded fraction
+
+`overloaded=1` ticks over `topfull_detect.csv` rows. **Bold** is a share of at least 0.5.
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend | 0/715 (0.0%) | 0/718 (0.0%) |
+| checkoutservice | **575/715 (80.4%)** | **425/718 (59.2%)** |
+| recommendationservice | 15/715 (2.1%) | 66/718 (9.2%) |
+| paymentservice | 3/715 (0.4%) | 0/718 (0.0%) |
+| emailservice | **441/715 (61.7%)** | 70/718 (9.7%) |
+| productcatalogservice | 0/715 (0.0%) | 0/718 (0.0%) |
+| cartservice | 0/715 (0.0%) | 0/718 (0.0%) |
+| currencyservice | 0/715 (0.0%) | 0/718 (0.0%) |
+| shippingservice | 0/715 (0.0%) | 0/718 (0.0%) |
+| adservice | 0/715 (0.0%) | 0/718 (0.0%) |
+| redis-cart | 0/715 (0.0%) | 0/718 (0.0%) |
+
+## 8. (c) Retry volume
+
+**Outbound retry delta by target**
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| checkoutservice | 1,050 | 526 |
+| recommendationservice | 5,076 | 20,411 |
+| cartservice | 4 | 0 |
+
+**Inbound resets**
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend | 286 | 95 |
+| checkoutservice | 796 | 362 |
+| recommendationservice | 22,477 | 14,973 |
+| paymentservice | 88 | 12 |
+| emailservice | 483 | 109 |
+| productcatalogservice | 5 | 16 |
+| cartservice | 45 | 24 |
+| currencyservice | 2 | 2 |
+| shippingservice | 35 | 36 |
+| adservice | 1 | 4 |
+| redis-cart | 0 | 0 |
+
+The same `grpc_4 / grpc_14` pair in §6 is what the retry policy counts on the four read callees.
+
+## 9. RetryGuard toggles
+
+Two parts. Part 1 is the scorer's log for each hold. Part 2 summarizes it per callee.
+
+`ON→OFF` is the shed to 0 attempts. The `0→1` column is the log's `OFF→ON` onto the callee name. `ON→OFF burst` counts the sheds whose log line is `metric=rpr_burst`. `From` is the attempt count before the step. `Value` is the rpr on a shed or climb line and the rejection on a re-enable line. On a burst shed, `Value` is the 5 s aggregate.
+
+### Part 1: per hold
+
+#### burst 1.5 off
+
+| Name | ON→OFF | 0→1 | 1→2 | 2→3 | ON→OFF burst |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| frontend → checkoutservice | 1 | 0 | 1 | 1 | 1 |
+| frontend → recommendationservice | 2 | 0 | 0 | 0 | 2 |
+| checkoutservice | 0 | 1 | 0 | 0 | 0 |
+| recommendationservice | 0 | 1 | 0 | 0 | 0 |
+
+| Time (UTC) | Name | Step | From | Value |
+| --- | --- | --- | ---: | --- |
+| 2026-10-11T22:43:44Z | frontend → checkoutservice | ON→OFF (burst) | 3 | rpr 2.07 |
+| 2026-10-11T22:43:55Z | frontend → recommendationservice | ON→OFF (burst) | 3 | rpr 1.52 |
+| 2026-10-11T22:44:09Z | checkoutservice | OFF→ON | 0 | rejection 0.01 |
+| 2026-10-11T22:44:20Z | frontend → checkoutservice | 1→2 | 1 | rpr 0.00 |
+| 2026-10-11T22:44:31Z | frontend → checkoutservice | 2→3 | 2 | rpr 0.00 |
+| 2026-10-11T22:49:16Z | recommendationservice | OFF→ON | 0 | rejection 0.12 |
+| 2026-10-11T22:49:23Z | frontend → recommendationservice | ON→OFF (burst) | 1 | rpr 0.57 |
+
+#### burst 1.5 on
+
+| Name | ON→OFF | 0→1 | 1→2 | 2→3 | ON→OFF burst |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| frontend → checkoutservice | 1 | 0 | 1 | 1 | 1 |
+| checkoutservice | 0 | 1 | 0 | 0 | 0 |
+| frontend → recommendationservice | 8 | 0 | 1 | 1 | 8 |
+| recommendationservice | 0 | 8 | 0 | 0 | 0 |
+
+| Time (UTC) | Name | Step | From | Value |
+| --- | --- | --- | ---: | --- |
+| 2026-10-11T23:03:02Z | frontend → checkoutservice | ON→OFF (burst) | 3 | rpr 1.95 |
+| 2026-10-11T23:03:25Z | checkoutservice | OFF→ON | 0 | rejection 0.00 |
+| 2026-10-11T23:03:37Z | frontend → checkoutservice | 1→2 | 1 | rpr 0.00 |
+| 2026-10-11T23:03:49Z | frontend → checkoutservice | 2→3 | 2 | rpr 0.00 |
+| 2026-10-11T23:03:53Z | frontend → recommendationservice | ON→OFF (burst) | 3 | rpr 1.68 |
+| 2026-10-11T23:07:08Z | recommendationservice | OFF→ON | 0 | rejection 0.04 |
+| 2026-10-11T23:07:15Z | frontend → recommendationservice | ON→OFF (burst) | 1 | rpr 0.57 |
+| 2026-10-11T23:07:50Z | recommendationservice | OFF→ON | 0 | rejection 0.01 |
+| 2026-10-11T23:07:58Z | frontend → recommendationservice | ON→OFF (burst) | 1 | rpr 0.50 |
+| 2026-10-11T23:08:21Z | recommendationservice | OFF→ON | 0 | rejection 0.00 |
+| 2026-10-11T23:08:28Z | frontend → recommendationservice | ON→OFF (burst) | 1 | rpr 0.58 |
+| 2026-10-11T23:08:51Z | recommendationservice | OFF→ON | 0 | rejection 0.00 |
+| 2026-10-11T23:09:11Z | frontend → recommendationservice | ON→OFF (burst) | 1 | rpr 0.51 |
+| 2026-10-11T23:09:35Z | recommendationservice | OFF→ON | 0 | rejection 0.00 |
+| 2026-10-11T23:09:48Z | frontend → recommendationservice | ON→OFF (burst) | 1 | rpr 0.54 |
+| 2026-10-11T23:10:12Z | recommendationservice | OFF→ON | 0 | rejection 0.07 |
+| 2026-10-11T23:10:18Z | frontend → recommendationservice | ON→OFF (burst) | 1 | rpr 0.51 |
+| 2026-10-11T23:10:41Z | recommendationservice | OFF→ON | 0 | rejection 0.00 |
+| 2026-10-11T23:10:49Z | frontend → recommendationservice | ON→OFF (burst) | 1 | rpr 0.57 |
+| 2026-10-11T23:11:12Z | recommendationservice | OFF→ON | 0 | rejection 0.00 |
+| 2026-10-11T23:11:23Z | frontend → recommendationservice | 1→2 | 1 | rpr 0.00 |
+| 2026-10-11T23:11:34Z | frontend → recommendationservice | 2→3 | 2 | rpr 0.00 |
+
+### Part 2: per callee
+
+Checkout and recommendations are the only callees that shed or re-enable. Payment, email, catalog, cart, currency, shipping, and ad have no `ON→OFF` and no `OFF→ON` on either hold.
+
+Counts, shed rpr, and times come from the §9 timestamp log. A burst shed's value is tagged `b`. First shed is seconds after the first `OBSERVE` line in that hold (22:42:58Z and 23:02:14Z). That clock is the controller's; the §5a replay check uses the first mesh row of the edge, which is earlier. Attempts after re-enable are the attempt count that edge holds at `EXIT`. Time OFF runs from the shed timestamp to the matching `OFF→ON`, or to `EXIT` when the edge is still at 0. OFF rejection is minimum / median, three decimals, over `OBSERVE` `metric=rejection` samples for that callee with timestamps after the shed and at or before the end of the window. The under-bar streak is the longest run of those samples strictly below 0.25. Samples are 1 s apart. A streak of 20 is this hold's 0→1 step.
+
+#### checkoutservice
+
+| | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| ON→OFF (burst) / OFF→ON | 1 (1) / 1 | 1 (1) / 1 |
+| Shed rpr | 2.07b | 1.95b |
+| First shed (s) | 46 | 48 |
+| Attempts after re-enable | 3 | 3 |
+| Time OFF (s) | 25 | 23 |
+| OFF rejection min / median | 0.000 / 0.000 | 0.000 / 0.000 |
+| Streak under the bar | 21 | 21 |
+
+Both holds shed `frontend → checkoutservice` once, from 3 attempts, on the burst test, and both climbed 1→2→3, so the edge held 3 attempts at `EXIT`. Time OFF is 25 s and 23 s. The strict under-bar streak is 21 on both windows. Each `OFF→ON` line records `elapsed_s=20`.
+
+#### recommendationservice
+
+| | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| ON→OFF (burst) / OFF→ON | 2 (2) / 1 | 8 (8) / 8 |
+| Shed rpr | 1.52b; 0.57b | 1.68b; 0.57b; 0.50b; 0.58b; 0.51b; 0.54b; 0.51b; 0.57b |
+| First shed (s) | 57 | 99 |
+| Attempts after re-enable | 0 | 3 |
+| Time OFF (s) | 321; 228 (to EXIT) | 195; 35; 23; 23; 24; 24; 23; 23 |
+| OFF rejection min / median | 0.064 / 0.201; 0.047 / 0.226 | 0.000 / 0.198; 0.000 / 0.061; 0.000 / 0.013; 0.000 / 0.062; 0.000 / 0.000; 0.000 / 0.088; 0.000 / 0.046; 0.000 / 0.000 |
+| Streak under the bar | 21; 12 | 17; 21; 21; 21; 21; 17; 21; 21 |
+
+The TopFull-off hold re-enabled once, to 1 attempt, then burst-shed from 1 seven seconds later and was still at 0 at `EXIT` (228 s). The TopFull-on hold re-enabled eight times. The first seven of those returns were followed by another burst shed from 1. The eighth climbed 1→2→3, so the edge held 3 attempts at `EXIT`. The longest under-bar streak on the open TopFull-off window is 12. Two TopFull-on windows have a strict streak of 17; every `OFF→ON` line still records `elapsed_s=20`.
+
+## 10. Locust goodput
+
+Mean `Goodput` while `RPS > 0`.
+
+| API | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| getproduct | 204.6 | 219.5 |
+| postcheckout | 59.3 | 40.0 |
+| getcart | 78.0 | 79.1 |
+| postcart | 86.6 | 86.4 |
+| emptycart | 4.8 | 4.7 |
+
+## 11. Locust fail rate
+
+Mean `Fail / RPS` while `RPS > 0`.
+
+| API | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| getproduct | 0.213 | 0.155 |
+| postcheckout | 0.295 | 0.513 |
+| getcart | 0.179 | 0.163 |
+| postcart | 0.000 | 0.000 |
+| emptycart | 0.000 | 0.000 |
+
+## 12. Locust P95
+
+Mean `Latency95` (ms) while `RPS > 0`.
+
+| API | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| getproduct | 610 | 637 |
+| postcheckout | 882 | 711 |
+| getcart | 589 | 608 |
+| postcart | 75 | 74 |
+| emptycart | 20 | 18 |
+
+## 13. Inbound arrival rate
+
+Positive `Δtotal` over the elapsed time of `service_inbound.csv`, req/s.
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend | 491.5 | 451.4 |
+| checkoutservice | 58.0 | 38.7 |
+| recommendationservice | 415.2 | 398.2 |
+| paymentservice | 58.0 | 38.7 |
+| emailservice | 56.8 | 37.8 |
+| productcatalogservice | 2290.5 | 2286.2 |
+| cartservice | 528.3 | 485.3 |
+| currencyservice | 756.1 | 713.3 |
+| shippingservice | 187.4 | 151.4 |
+| adservice | 188.3 | 207.4 |
+| redis-cart | 0.0 | 0.0 |
+
+## 14. Inbound sojourn
+
+`Δrq_time_sum_ms / Δrq_time_count`, milliseconds.
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend | 474 | 419 |
+| checkoutservice | 202 | 105 |
+| recommendationservice | 445 | 369 |
+| paymentservice | 5 | 3 |
+| emailservice | 40 | 14 |
+| productcatalogservice | 3 | 3 |
+| cartservice | 3 | 3 |
+| currencyservice | 3 | 3 |
+| shippingservice | 1 | 1 |
+| adservice | 1 | 1 |
+| redis-cart | — | — |
+
+## 15. Share of inbound requests above 500 ms
+
+From the `rq_time_buckets` `le=500` cumulative count.
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend | 0.777 | 0.566 |
+| checkoutservice | 0.021 | 0.016 |
+| recommendationservice | 0.254 | 0.208 |
+| paymentservice | 0.000 | 0.000 |
+| emailservice | 0.000 | 0.000 |
+| productcatalogservice | 0.000 | 0.000 |
+| cartservice | 0.000 | 0.000 |
+| currencyservice | 0.000 | 0.000 |
+| shippingservice | 0.000 | 0.000 |
+| adservice | 0.000 | 0.000 |
+| redis-cart | — | — |
+
+## 16. CPU
+
+Per-pod quota / replica mode / mean millicores / max millicores. Mean and max are `cpu_millicores` summed across replicas, so frontend can sit above its per-pod quota.
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend | 1150 / 4 / 1224 / 1576 | 1150 / 4 / 1205 / 1598 |
+| checkoutservice | 800 / 1 / 611 / 797 | 800 / 1 / 518 / 790 |
+| recommendationservice | 1150 / 1 / 672 / 989 | 1150 / 1 / 658 / 1025 |
+| paymentservice | 155 / 1 / 48 / 114 | 155 / 1 / 35 / 62 |
+| emailservice | 120 / 1 / 84 / 113 | 120 / 1 / 65 / 110 |
+| productcatalogservice | 800 / 1 / 370 / 488 | 800 / 1 / 367 / 522 |
+| cartservice | 800 / 1 / 315 / 419 | 800 / 1 / 320 / 497 |
+| currencyservice | 770 / 1 / 347 / 455 | 770 / 1 / 336 / 453 |
+| shippingservice | 770 / 1 / 90 / 120 | 770 / 1 / 81 / 118 |
+| adservice | 1150 / 1 / 142 / 384 | 1150 / 1 / 130 / 182 |
+| redis-cart | 540 / 1 / 39 / 62 | 540 / 1 / 39 / 61 |
+
+## 17. CPU as a fraction of per-pod quota × replicas
+
+Mean / max of `cpu_millicores / (quota × replica_count)`. A sample with replica count 0 is left out. None occurred.
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend | 0.27 / 0.34 | 0.26 / 0.35 |
+| checkoutservice | 0.76 / 1.00 | 0.65 / 0.99 |
+| recommendationservice | 0.58 / 0.86 | 0.57 / 0.89 |
+| paymentservice | 0.31 / 0.74 | 0.23 / 0.40 |
+| emailservice | 0.70 / 0.94 | 0.54 / 0.92 |
+| productcatalogservice | 0.46 / 0.61 | 0.46 / 0.65 |
+| cartservice | 0.39 / 0.52 | 0.40 / 0.62 |
+| currencyservice | 0.45 / 0.59 | 0.44 / 0.59 |
+| shippingservice | 0.12 / 0.16 | 0.11 / 0.15 |
+| adservice | 0.12 / 0.33 | 0.11 / 0.16 |
+| redis-cart | 0.07 / 0.11 | 0.07 / 0.11 |
+
+## 18. Detector max utilization
+
+Max `utilization` in `topfull_detect.csv` (cAdvisor CPU / per-pod quota).
+
+| Service | burst 1.5 off | burst 1.5 on |
+| --- | ---: | ---: |
+| frontend | 0.357 | 0.367 |
+| checkoutservice | 1.042 | 1.016 |
+| recommendationservice | 0.937 | 0.985 |
+| paymentservice | 0.897 | 0.548 |
+| emailservice | 1.042 | 0.950 |
+| productcatalogservice | 0.649 | 0.684 |
+| cartservice | 0.576 | 0.667 |
+| currencyservice | 0.634 | 0.639 |
+| shippingservice | 0.190 | 0.184 |
+| adservice | 0.472 | 0.181 |
+| redis-cart | 0.311 | 0.300 |
+
+## 19. TopFull live caps
+
+A live read has `threshold_fresh=1` and threshold above 0. 10000 is no cap. A live 0 is an empty read and is left out. `postcart` and `emptycart` are no cap on every live read of both holds.
+
+On burst 1.5 off the RL loop is off, and every API is no cap for the whole series. On burst 1.5 on, getproduct and getcart take a short cap near 23:03:21–23:03:40 and then return to no cap. Postcheckout moves and then holds 48.9 from 23:03:50 through 23:12:25. The cells are the scorer's spans.
+
+### burst 1.5 off
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 22:41:20–22:53:10 |
+| postcheckout | no cap 22:41:20–22:53:10 |
+| getcart | no cap 22:41:20–22:53:10 |
+| postcart | no cap 22:41:20–22:53:10 |
+| emptycart | no cap 22:41:20–22:53:10 |
+
+### burst 1.5 on
+
+| API | Live caps |
+| --- | --- |
+| getproduct | no cap 23:00:30–23:03:20; 200 at 23:03:21; 194.5 at 23:03:25; 187.1 at 23:03:30; 185.8 at 23:03:35; 261.7 at 23:03:40; no cap 23:03:45–23:12:25 |
+| postcheckout | no cap 23:00:30–23:02:40; 52 23:02:44–23:02:45; 66 at 23:02:50; no cap at 23:02:51; 70 at 23:02:55; 34.6 at 23:03:00; 13 at 23:03:05; 29.8001 at 23:03:08; 39.5 at 23:03:10; 65.4 at 23:03:15; 56.5 at 23:03:20; 18 at 23:03:25; 10.7 at 23:03:30; 10 at 23:03:35; 19.6 at 23:03:40; 26.93 at 23:03:41; 47.4 at 23:03:45; 48.8758 at 23:03:49; 48.9 23:03:50–23:12:25 |
+| getcart | no cap 23:00:30–23:03:20; 85 at 23:03:21; 79.5 at 23:03:25; 72.1 at 23:03:30; 70.8 at 23:03:35; 110 at 23:03:40; no cap 23:03:45–23:12:25 |
+| postcart | no cap 23:00:30–23:12:25 |
+| emptycart | no cap 23:00:30–23:12:25 |
+
+## 20. Per arm
+
+**burst 1.5 off.** `frontend → checkoutservice` shed once, and that one shed is a burst shed (aggregate 2.07, from 3 attempts). The edge re-enabled and climbed back to 3 attempts before the hold ended. `frontend → recommendationservice` shed twice, both burst; it came back to 1 attempt and burst-shed again, and it was at 0 attempts at `EXIT`. Retry volume is 1,050 into checkout and 5,076 into recommendations. `grpc_4 / grpc_14` on recommendationservice is 40,785 / 0. Checkout and email are detector-hot (80.4% and 61.7%). This hold has no replay.
+
+**burst 1.5 on.** `frontend → checkoutservice` shed once, and that one shed is a burst shed (aggregate 1.95, from 3 attempts). The edge climbed back to 3 attempts before the hold ended. That first shed is 101 s after the edge's first mesh row; the replay's first fire is 104–113 s ([2026-10-12-s2-burst-replay.md](2026-10-12-s2-burst-replay.md)). The four tuned both-on holds `study4_s2_tune_rgtf1_rep1` through `rep4` logged zero toggles with burst mode off. `frontend → recommendationservice` shed eight times, all burst, and finished at 3 attempts. Retry volume is 526 into checkout and 20,411 into recommendations. `grpc_4 / grpc_14` on recommendationservice is 35,915 / 0. Checkout is detector-hot at 59.2%.
+
+## 21. Related links
+
+- [ANALYSIS-TEMPLATE.md](../ANALYSIS-TEMPLATE.md)
+- [2026-09-24-s2-both-off-abc-reading.md](2026-09-24-s2-both-off-abc-reading.md)
+- [RETRYGUARD-IMPLEMENTATION.md](../RETRYGUARD-IMPLEMENTATION.md), edge-mode and burst-mode sections
+- [ADR 0007](../../docs/adr/0007-burst-mode-sliding-aggregate.md)
+- Replay this guide is checked against: [2026-10-12-s2-burst-replay.md](2026-10-12-s2-burst-replay.md)
+- Previous same-mix guide, the four tuned both-on holds with burst mode off: [2026-10-11-s2-rgtf1-rep3-rep4-abc.md](2026-10-11-s2-rgtf1-rep3-rep4-abc.md)
+- Run log: [2026-10-12-s2-burst15-run-log.md](../../docs/superpowers/plans/2026-10-12-s2-burst15-run-log.md)

@@ -23,7 +23,7 @@ A partner connects the same way as this PC, on their own machine:
 3. Keys already in `/home/idozacharia/.ssh/authorized_keys` on the original disks are on this copy. A new PC still runs Step 4.
 4. Public IPs change every start, and worker and load have swapped addresses before. After every start, rewrite the three `HostName` lines and run `ssh-keygen -R` on the old and new public IPs before the first SSH.
 
-Private IPs (reserved): master `10.128.0.3`, worker `10.128.0.4`, load `10.128.0.2`. Snapshot of names and types: [infra/vm-ips.env](../infra/vm-ips.env). Narrative: [2026-10-01-copied-project-handoff.md](2026-10-01-copied-project-handoff.md).
+Private IPs (reserved): master `10.128.0.3`, worker `10.128.0.4`, load `10.128.0.2`. Snapshot of names and types: [infra/vm-ips.env](../infra/vm-ips.env). Narrative: [2026-10-01-copied-project-handoff.md](history/2026-10-01-copied-project-handoff.md).
 
 Related human docs: [SETUP-GUIDE.md](SETUP-GUIDE.md) | [PREREQUISITES.md](PREREQUISITES.md)
 

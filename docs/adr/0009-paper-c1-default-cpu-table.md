@@ -1,6 +1,6 @@
 # Paper-C1 is the default CPU table, and this file is its only source
 
-Every hold uses one CPU table, called Paper-C1. It is locked from both-off run 89 (see [2026-10-02-s2-paper-c1-run89-handoff.md](../../Guides%20and%20Info/2026-10-02-s2-paper-c1-run89-handoff.md)). The table below is the single source of truth. No other doc restates the values; they link here.
+Every hold uses one CPU table, called Paper-C1. It is locked from both-off run 89 (see [2026-10-02-s2-paper-c1-run89-handoff.md](../../Guides%20and%20Info/history/2026-10-02-s2-paper-c1-run89-handoff.md)). The table below is the single source of truth. No other doc restates the values; they link here.
 
 | Service | Container | CPU limit (millicores) | Replicas |
 |---|---|---|---|
