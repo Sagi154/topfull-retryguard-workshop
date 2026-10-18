@@ -19,3 +19,14 @@ analysis_4a_unconstrained_both_normal_run3 | exit ok | throttle ok | health ok |
 analysis_4a_unconstrained_tf_only_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | RG off
 analysis_4a_unconstrained_rg_only_burst_run3 | exit ok | throttle N/A TopFull off | health ok | replicas frontend=4 catalog=1 | no transition lines
 analysis_4a_unconstrained_both_burst_run3 | exit ok | throttle ok | health ok | replicas frontend=4 catalog=1 | no transition lines
+
+## Summary (Task 4)
+
+| Count | Status |
+| --- | ---: |
+| Finished holds | 15 |
+| Clean | 15 |
+| Flagged | 0 |
+| Failed before finish | 0 |
+
+All 15 folders are under `experiments/results/final_runs_results/`. `analysis_s2_both_normal_run3` was not replaced (`analysis_s2_both_normal_run4` is the S2 both_normal replay). Every committed hold had frontend replicas 4 and catalog replicas 1. Checkout and catalog were restored to `800m` after the last S3 and S4A unconstrained holds. Plan: [2026-10-17-analysis-runs-replay.md](2026-10-17-analysis-runs-replay.md).

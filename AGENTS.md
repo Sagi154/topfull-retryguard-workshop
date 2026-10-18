@@ -118,20 +118,19 @@ All in `Guides and Info/`. Read in roughly this order depending on task:
 
 ---
 
-## 4. Current status (as of 2026-10-17)
+## 4. Current status (as of 2026-10-18)
 
 ### Latest
 
 Replace these three lines after a hold. Do not append. Older text goes under Done in [STATUS.md](STATUS.md).
 
-- **Replay plan (2026-10-17), configs ready.** One extra hold for each variant of S2, S3, and S4A unconstrained (15 holds) into `final_runs_results/`. S2 `both_normal` is `analysis_s2_both_normal_run4` because `analysis_s2_both_normal_run3` already exists. The other 14 are run 3. YAMLs are under `experiments/configs/analysis_runs_replay/` on branch `analysis-runs-replay` in `.worktrees/analysis-runs-replay`. Holds have not started. Plan: [2026-10-17-analysis-runs-replay.md](docs/superpowers/plans/2026-10-17-analysis-runs-replay.md).
-- **Current matrix.** 60 pinned holds plus three clean run3 re-runs are in `experiments/results/final_runs_results/`. Flagged folders stay. Log: [2026-10-16-final-runs-results-log.md](docs/superpowers/plans/2026-10-16-final-runs-results-log.md).
-- **Infra.** `analysis_runs/` YAMLs stay at run 2. `analysis_runs_rerun/` stays at run 3. Replica pin (frontend HPA 4/4, catalog HPA 1/1, `proxyCPU=90m`) is the standing lock when the cluster is up. The three VMs are **TERMINATED** (stopped 2026-10-17).
+- **15-hold replay COMPLETE (2026-10-17 → 2026-10-18).** S2, S3, and S4A unconstrained × 5 variants into `final_runs_results/`. All 15 clean (0 flagged). S2 `both_normal` is `analysis_s2_both_normal_run4`; the other 14 are run 3. `analysis_s2_both_normal_run3` was not replaced. Log: [2026-10-17-analysis-runs-replay-log.md](docs/superpowers/plans/2026-10-17-analysis-runs-replay-log.md). Plan: [2026-10-17-analysis-runs-replay.md](docs/superpowers/plans/2026-10-17-analysis-runs-replay.md).
+- **Current matrix.** 60 pinned holds, three clean run3 re-runs, and these 15 replay holds are in `experiments/results/final_runs_results/`. Flagged folders from the 60 stay. Log: [2026-10-16-final-runs-results-log.md](docs/superpowers/plans/2026-10-16-final-runs-results-log.md).
+- **Infra.** `analysis_runs/` at run 2; `analysis_runs_rerun/` at run 3; `analysis_runs_replay/` at run 3 except S2 `both_normal` at run 4. Replica pin (frontend HPA 4/4, catalog HPA 1/1, `proxyCPU=90m`) is the standing lock when the cluster is up. The three VMs will be **TERMINATED** after this branch merges (user, 2026-10-18).
 
 ### Still open
 
 - The unpinned 20 in `analysis_runs_results/` are not this matrix. The three flagged folders stay on disk; prefer the clean run3 folders for those slots.
-- The 15-hold replay (S2, S3, S4A unconstrained, one hold per variant) is planned and not started. It does not replace `analysis_s2_both_normal_run3`. Plan: [2026-10-17-analysis-runs-replay.md](docs/superpowers/plans/2026-10-17-analysis-runs-replay.md).
 - The S3 TopFull-only cap-floor verification did not pass (`verdict=pass`, `not_clean`: `health: RL STALL`). Plan: [2026-10-16-s3-tf-only-cap-floor-verify.md](docs/superpowers/plans/2026-10-16-s3-tf-only-cap-floor-verify.md).
 - Mentor sign-off on the TopFull RL timeout patch is open. The change is disclosed in [TOPFULL-UPSTREAM-DEVIATIONS.md](Guides%20and%20Info/TOPFULL-UPSTREAM-DEVIATIONS.md).
 - The re-run decision on the 11 holds in [2026-10-16-proxy-fd-rerun-decisions.md](Guides%20and%20Info/2026-10-16-proxy-fd-rerun-decisions.md) is open. `final_s2_tf_only_run4` stays verification only until the user says otherwise.
