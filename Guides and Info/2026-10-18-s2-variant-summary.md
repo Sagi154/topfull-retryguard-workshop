@@ -1,6 +1,6 @@
 # S2 variant summary (2026-10-18)
 
-`python experiments/variant_summary.py` on the unflagged holds in `experiments/results/final_runs_results/S2_sustained_overload_burst` and `S2_sustained_overload_normal`. Column definitions: [VARIANT-SUMMARY.md](VARIANT-SUMMARY.md).
+`python experiments/variant_summary.py` on the unflagged holds in `experiments/results/final_runs_results/S2_sustained_overload_burst` and `S2_sustained_overload_normal`. Column definitions: [VARIANT-SUMMARY.md](VARIANT-SUMMARY.md). The same numbers, one table per API: [2026-10-18-s2-api-summary.md](2026-10-18-s2-api-summary.md).
 
 The tables are `getproduct`, `getcart`, and `postcheckout`. Goodput is req/s. The variant row gives each run equal weight. With two runs, median goodput is the midpoint of the two run medians. The percentages are recomputed from the aggregated caps. A blank percentage means TopFull is off.
 
