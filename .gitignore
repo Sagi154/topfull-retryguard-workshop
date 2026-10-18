@@ -9,6 +9,7 @@ scripts/.venv/
 __pycache__/
 *.pyc
 .cursor/
+.agents/
 .worktrees/
 .superpowers/
 timeline_1s.csv
